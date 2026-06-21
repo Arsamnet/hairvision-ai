@@ -2,8 +2,22 @@
 
 namespace App\Services\AI\Dtos;
 
+/**
+ * Immutable provider request payload for one image-generation period.
+ *
+ * @since 1.0.0
+ */
 final class ImageGenerationRequest
 {
+    /**
+     * @param  string  $tenantUuid  Public UUID for provider path scoping.
+     * @param  string  $leadUuid  Public UUID for provider path scoping.
+     * @param  string  $uploadPath  Private upload path on the configured disk.
+     * @param  string  $period  Progress period such as `3_months`.
+     * @param  string  $prompt  Provider prompt or local sample description.
+     * @param  string|null  $modelName  Optional provider model override.
+     * @param  array<string, mixed>  $settings  Provider-specific settings.
+     */
     public function __construct(
         public readonly string $tenantUuid,
         public readonly string $leadUuid,

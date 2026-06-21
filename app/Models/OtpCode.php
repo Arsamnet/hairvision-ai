@@ -2,13 +2,19 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\HasUuid;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Str;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
+/**
+ * Hashed OTP attempt for a tenant-scoped phone number.
+ *
+ * @since 1.0.0
+ */
 class OtpCode extends Model
 {
-    use HasFactory;
+    use HasFactory, HasUuid;
 
     protected $fillable = [
         'tenant_id',
@@ -28,16 +34,12 @@ class OtpCode extends Model
         'updated_at' => 'datetime',
     ];
 
-    protected static function booted(): void
-    {
-        static::creating(function (OtpCode $otp) {
-            if (empty($otp->uuid)) {
-                $otp->uuid = Str::uuid()->toString();
-            }
-        });
-    }
-
-    public function tenant()
+    /**
+     * Tenant that owns this OTP record.
+     *
+     * @return BelongsTo<Tenant, $this>
+     */
+    public function tenant(): BelongsTo
     {
         return $this->belongsTo(Tenant::class);
     }

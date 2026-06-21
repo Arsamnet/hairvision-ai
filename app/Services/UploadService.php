@@ -6,8 +6,19 @@ use App\Models\Lead;
 use App\Models\Upload;
 use Illuminate\Http\UploadedFile;
 
+/**
+ * Stores visitor uploads in private Laravel storage.
+ *
+ * @since 1.0.0
+ */
 class UploadService
 {
+    /**
+     * Store an uploaded image and create tenant-owned upload metadata.
+     *
+     * Side effects: writes a file to the configured private disk and inserts an
+     * upload row scoped by tenant and lead.
+     */
     public function storeUpload(Lead $lead, UploadedFile $file): Upload
     {
         $disk = 'local';

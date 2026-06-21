@@ -2,13 +2,19 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\HasUuid;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Str;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
+/**
+ * Host mapping used to resolve a tenant from the incoming request domain.
+ *
+ * @since 1.0.0
+ */
 class TenantDomain extends Model
 {
-    use HasFactory;
+    use HasFactory, HasUuid;
 
     protected $fillable = ['tenant_id', 'domain', 'type', 'status', 'ssl_status', 'verified_at'];
 
@@ -18,16 +24,12 @@ class TenantDomain extends Model
         'updated_at' => 'datetime',
     ];
 
-    protected static function booted(): void
-    {
-        static::creating(function (TenantDomain $domain) {
-            if (empty($domain->uuid)) {
-                $domain->uuid = Str::uuid()->toString();
-            }
-        });
-    }
-
-    public function tenant()
+    /**
+     * Tenant that owns this domain.
+     *
+     * @return BelongsTo<Tenant, $this>
+     */
+    public function tenant(): BelongsTo
     {
         return $this->belongsTo(Tenant::class);
     }

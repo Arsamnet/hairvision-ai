@@ -3,37 +3,32 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Models\Lead;
+use App\Http\Requests\Api\StoreUploadRequest;
+use App\Services\LeadSessionService;
 use App\Services\UploadService;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
 
+/**
+ * Stores private visitor uploads after OTP-backed lead verification.
+ *
+ * @since 1.0.0
+ */
 class UploadController extends Controller
 {
-    public function store(Request $request, UploadService $uploadService): JsonResponse
-    {
-        $request->validate([
-            'image' => ['required', 'image', 'max:5120'],
-            'consent' => ['accepted'],
-        ], [
-            'image.required' => 'لطفا یک تصویر انتخاب کنید.',
-            'image.image' => 'فایل انتخاب‌شده باید تصویر معتبر باشد.',
-            'image.max' => 'حجم تصویر نباید بیشتر از ۵ مگابایت باشد.',
-            'consent.accepted' => 'برای ادامه، تایید پردازش تصویر لازم است.',
-        ]);
-
-        $leadId = $request->session()->get('lead_id');
+    /**
+     * Persist an uploaded image outside the public webroot.
+     *
+     * @param  StoreUploadRequest  $request  Validated image upload request.
+     * @param  UploadService  $uploadService  Service responsible for private file storage.
+     * @param  LeadSessionService  $leadSessionService  Resolves the verified session lead.
+     */
+    public function store(
+        StoreUploadRequest $request,
+        UploadService $uploadService,
+        LeadSessionService $leadSessionService
+    ): JsonResponse {
         $tenant = app('currentTenant');
-
-        if (! $leadId) {
-            abort(403, 'برای ادامه، ابتدا شماره موبایل را تایید کنید.');
-        }
-
-        $lead = Lead::query()
-            ->where('tenant_id', '=', $tenant->id)
-            ->where('id', '=', $leadId)
-            ->whereNotNull('phone_verified_at')
-            ->firstOrFail();
+        $lead = $leadSessionService->verifiedLead($request, $tenant, 'برای ادامه، ابتدا شماره موبایل را تایید کنید.');
 
         $upload = $uploadService->storeUpload($lead, $request->file('image'));
 

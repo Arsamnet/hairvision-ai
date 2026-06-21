@@ -5,8 +5,16 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\JsonResponse;
 
+/**
+ * Returns tenant bootstrap data for the public API-first Blade shell.
+ *
+ * @since 1.0.0
+ */
 class BootstrapController extends Controller
 {
+    /**
+     * Build public tenant identity, theme, and feature metadata.
+     */
     public function __invoke(): JsonResponse
     {
         $tenant = app('currentTenant');

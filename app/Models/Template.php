@@ -2,13 +2,18 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\HasUuid;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Str;
 
+/**
+ * Public landing-page template option for tenant theme settings.
+ *
+ * @since 1.0.0
+ */
 class Template extends Model
 {
-    use HasFactory;
+    use HasFactory, HasUuid;
 
     protected $fillable = ['code', 'name', 'is_active'];
 
@@ -17,13 +22,4 @@ class Template extends Model
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
     ];
-
-    protected static function booted(): void
-    {
-        static::creating(function (Template $template) {
-            if (empty($template->uuid)) {
-                $template->uuid = Str::uuid()->toString();
-            }
-        });
-    }
 }

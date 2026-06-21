@@ -24,6 +24,6 @@ return [
         'max_attempts' => (int) env('HAIRVISION_OTP_MAX_ATTEMPTS', 5),
     ],
 
-    // When true, sample image jobs run synchronously for local/debug UX.
+    // Runs sample image jobs synchronously for local/debug UX.
     'debug_fast_samples' => env('HAIRVISION_DEBUG_FAST_SAMPLES', env('APP_DEBUG', false)),
 ];

@@ -2,13 +2,18 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\HasUuid;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Str;
 
+/**
+ * Tenant-scoped audit record reserved for future dashboard activity tracking.
+ *
+ * @since 1.0.0
+ */
 class AuditLog extends Model
 {
-    use HasFactory;
+    use HasFactory, HasUuid;
 
     protected $fillable = [
         'tenant_id',
@@ -26,13 +31,4 @@ class AuditLog extends Model
         'metadata_json' => 'array',
         'created_at' => 'datetime',
     ];
-
-    protected static function booted(): void
-    {
-        static::creating(function (AuditLog $log) {
-            if (empty($log->uuid)) {
-                $log->uuid = Str::uuid()->toString();
-            }
-        });
-    }
 }

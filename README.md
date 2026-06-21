@@ -33,25 +33,34 @@ theme images may be served from the primary HairVision domain only.
 
 ## Documentation
 
-Read these files before changing the project:
+The root README is the central entry point. Start with `AGENTS.md` when using an
+AI coding agent, then use `docs/README.md` as the full documentation map.
 
-```text
-docs/
-  ai-agent-context.md
-  product-scope-mvp.md
-  tech-stack-requirements.md
-  architecture-whm-cpanel.md
-  api-first-contract.md
-  multi-tenancy-domain-routing.md
-  data-model.md
-  ai-provider-adapters.md
-  sample-image-provider-mvp.md
-  security-threat-model.md
-  vscode-codex-start.md
-  testing-and-release-checklist.md
-```
+Product:
 
-AI agents must also read `AGENTS.md`.
+- `docs/product/scope-mvp.md`
+- `docs/product/data-model.md`
+
+Architecture:
+
+- `docs/architecture/api-first-contract.md`
+- `docs/architecture/multi-tenancy-domain-routing.md`
+- `docs/architecture/ai-provider-adapters.md`
+- `docs/architecture/sample-image-provider-mvp.md`
+- `docs/architecture/security-threat-model.md`
+- `docs/architecture/whm-cpanel.md`
+
+Development:
+
+- `docs/development/ai-agent-context.md`
+- `docs/development/tech-stack-requirements.md`
+- `docs/development/vscode-codex-start.md`
+- `docs/development/testing-and-release-checklist.md`
+
+Planning and audit:
+
+- `docs/roadmap/admin-client-dashboard-auth.md`
+- `docs/audit/cleanup-report.md`
 
 ## Local Setup
 

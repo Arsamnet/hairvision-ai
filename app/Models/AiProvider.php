@@ -2,13 +2,18 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\HasUuid;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Str;
 
+/**
+ * Catalog entry for an image-generation provider.
+ *
+ * @since 1.0.0
+ */
 class AiProvider extends Model
 {
-    use HasFactory;
+    use HasFactory, HasUuid;
 
     protected $fillable = [
         'code',
@@ -28,13 +33,4 @@ class AiProvider extends Model
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
     ];
-
-    protected static function booted(): void
-    {
-        static::creating(function (AiProvider $provider) {
-            if (empty($provider->uuid)) {
-                $provider->uuid = Str::uuid()->toString();
-            }
-        });
-    }
 }

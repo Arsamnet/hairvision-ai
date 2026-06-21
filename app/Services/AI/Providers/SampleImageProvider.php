@@ -7,6 +7,13 @@ use App\Services\AI\Dtos\ImageGenerationRequest;
 use App\Services\AI\Dtos\ImageGenerationResponse;
 use Illuminate\Support\Facades\Storage;
 
+/**
+ * Local MVP provider that returns configured sample result images.
+ *
+ * This provider must not call external services or generate/modify images.
+ *
+ * @since 1.0.0
+ */
 class SampleImageProvider implements ImageGenerationProvider
 {
     public function code(): string
@@ -19,6 +26,9 @@ class SampleImageProvider implements ImageGenerationProvider
         return false;
     }
 
+    /**
+     * Resolve a local sample image for the requested progress period.
+     */
     public function submit(ImageGenerationRequest $request): ImageGenerationResponse
     {
         $sampleKey = config('hairvision.sample_images.'.$request->period);
@@ -49,11 +59,19 @@ class SampleImageProvider implements ImageGenerationProvider
         );
     }
 
+    /**
+     * Return the known status for local sample provider jobs.
+     */
     public function poll(string $providerJobId): string
     {
         return 'completed';
     }
 
+    /**
+     * Return local file metadata for a completed sample response.
+     *
+     * @return array{disk: string, path: string|null, mime: string, size: int, metadata: array<string, mixed>}
+     */
     public function download(ImageGenerationResponse $response): array
     {
         return [

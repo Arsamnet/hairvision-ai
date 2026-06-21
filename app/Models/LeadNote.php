@@ -2,13 +2,19 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\HasUuid;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Str;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
+/**
+ * Tenant-owned admin note for future lead CRM workflows.
+ *
+ * @since 1.0.0
+ */
 class LeadNote extends Model
 {
-    use HasFactory;
+    use HasFactory, HasUuid;
 
     protected $fillable = [
         'tenant_id',
@@ -25,26 +31,32 @@ class LeadNote extends Model
         'updated_at' => 'datetime',
     ];
 
-    protected static function booted(): void
-    {
-        static::creating(function (LeadNote $note) {
-            if (empty($note->uuid)) {
-                $note->uuid = Str::uuid()->toString();
-            }
-        });
-    }
-
-    public function tenant()
+    /**
+     * Tenant that owns this note.
+     *
+     * @return BelongsTo<Tenant, $this>
+     */
+    public function tenant(): BelongsTo
     {
         return $this->belongsTo(Tenant::class);
     }
 
-    public function lead()
+    /**
+     * Lead this note belongs to.
+     *
+     * @return BelongsTo<Lead, $this>
+     */
+    public function lead(): BelongsTo
     {
         return $this->belongsTo(Lead::class);
     }
 
-    public function user()
+    /**
+     * Dashboard user who wrote the note when admin auth is implemented.
+     *
+     * @return BelongsTo<User, $this>
+     */
+    public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
     }

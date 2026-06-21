@@ -6,10 +6,25 @@ use App\Jobs\ProcessGenerationJob;
 use App\Models\AiProvider;
 use App\Models\GenerationGroup;
 use App\Models\GenerationJob;
+use App\Models\TenantAiSetting;
 use App\Models\Upload;
 
+/**
+ * Creates generation groups and dispatches period jobs.
+ *
+ * The service remains provider-aware only at the provider-code level needed for
+ * local debug execution. Actual provider execution stays inside queued jobs.
+ *
+ * @since 1.0.0
+ */
 class GenerationService
 {
+    /**
+     * Create one generation group and three period jobs for an upload.
+     *
+     * Side effects: writes generation rows and dispatches or synchronously runs
+     * processing jobs when debug sample mode is enabled.
+     */
     public function createForUpload(Upload $upload): GenerationGroup
     {
         $group = GenerationGroup::create([
@@ -34,9 +49,7 @@ class GenerationService
                 'prompt' => 'Sample hair growth preview for '.$period,
             ]);
 
-            // In debug mode allow fast synchronous processing when using sample images
             if (config('hairvision.debug_fast_samples') && $provider->code === 'sample_image') {
-                // run synchronously to reduce perceived wait during local development
                 (new ProcessGenerationJob($job))->handle();
             } else {
                 dispatch(new ProcessGenerationJob($job));
@@ -46,8 +59,24 @@ class GenerationService
         return $group;
     }
 
-    private function resolveProvider(int $tenantId)
+    /**
+     * Resolve the active provider record for a tenant.
+     *
+     * @param  int  $tenantId  Tenant id used for tenant default provider lookup.
+     * @return AiProvider Provider database record attached to created jobs.
+     */
+    private function resolveProvider(int $tenantId): AiProvider
     {
+        $setting = TenantAiSetting::query()
+            ->where('tenant_id', '=', $tenantId)
+            ->where('is_default', '=', true)
+            ->with('provider')
+            ->first();
+
+        if ($setting?->provider) {
+            return $setting->provider;
+        }
+
         $default = config('hairvision.default_ai_provider');
 
         return AiProvider::query()->where('code', '=', $default)->firstOrFail();

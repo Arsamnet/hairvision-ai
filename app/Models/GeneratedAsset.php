@@ -2,13 +2,19 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\HasUuid;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Str;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
+/**
+ * Metadata for a private generated result asset.
+ *
+ * @since 1.0.0
+ */
 class GeneratedAsset extends Model
 {
-    use HasFactory;
+    use HasFactory, HasUuid;
 
     protected $fillable = [
         'generation_group_id',
@@ -29,21 +35,22 @@ class GeneratedAsset extends Model
         'updated_at' => 'datetime',
     ];
 
-    protected static function booted(): void
-    {
-        static::creating(function (GeneratedAsset $asset) {
-            if (empty($asset->uuid)) {
-                $asset->uuid = Str::uuid()->toString();
-            }
-        });
-    }
-
-    public function tenant()
+    /**
+     * Tenant that owns this generated asset.
+     *
+     * @return BelongsTo<Tenant, $this>
+     */
+    public function tenant(): BelongsTo
     {
         return $this->belongsTo(Tenant::class);
     }
 
-    public function generationJob()
+    /**
+     * Generation job that produced this asset.
+     *
+     * @return BelongsTo<GenerationJob, $this>
+     */
+    public function generationJob(): BelongsTo
     {
         return $this->belongsTo(GenerationJob::class, 'generation_job_id');
     }

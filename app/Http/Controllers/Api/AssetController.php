@@ -4,32 +4,33 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\GeneratedAsset;
-use App\Models\Lead;
+use App\Services\LeadSessionService;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Storage;
 
+/**
+ * Streams generated image assets through tenant- and lead-scoped checks.
+ *
+ * @since 1.0.0
+ */
 class AssetController extends Controller
 {
-    public function show(Request $request, string $uuid)
+    /**
+     * Stream a private generated asset without exposing storage paths.
+     *
+     * @param  string  $uuid  Public generated asset UUID.
+     * @param  LeadSessionService  $leadSessionService  Resolves the verified session lead.
+     */
+    public function show(Request $request, string $uuid, LeadSessionService $leadSessionService): Response
     {
         $tenant = app('currentTenant');
-        $leadId = $request->session()->get('lead_id');
-
-        if (! $leadId) {
-            abort(403, 'برای مشاهده تصویر، ابتدا شماره موبایل را تایید کنید.');
-        }
-
-        Lead::query()
-            ->where('tenant_id', '=', $tenant->id)
-            ->where('id', '=', $leadId)
-            ->whereNotNull('phone_verified_at')
-            ->firstOrFail();
+        $lead = $leadSessionService->verifiedLead($request, $tenant, 'برای مشاهده تصویر، ابتدا شماره موبایل را تایید کنید.');
 
         $asset = GeneratedAsset::query()
             ->where('uuid', '=', $uuid)
             ->where('tenant_id', '=', $tenant->id)
-            ->where('lead_id', '=', $leadId)
+            ->where('lead_id', '=', $lead->id)
             ->firstOrFail();
 
         $stream = Storage::disk($asset->disk)->get($asset->path);

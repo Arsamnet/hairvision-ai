@@ -3,22 +3,30 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Api\RequestOtpRequest;
+use App\Http\Requests\Api\VerifyOtpRequest;
 use App\Services\OtpService;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\RateLimiter;
 
+/**
+ * Handles public visitor OTP request and verification endpoints.
+ *
+ * Side effects include creating hashed OTP records, rate-limit hits, verified
+ * lead records, and a verified lead id in the visitor session.
+ *
+ * @since 1.0.0
+ */
 class OtpController extends Controller
 {
-    public function request(Request $request, OtpService $otpService): JsonResponse
+    /**
+     * Request a one-time password for a tenant-scoped visitor phone number.
+     *
+     * @param  RequestOtpRequest  $request  Validated OTP request payload.
+     * @param  OtpService  $otpService  Service that normalizes digits and stores hashed OTPs.
+     */
+    public function request(RequestOtpRequest $request, OtpService $otpService): JsonResponse
     {
-        $request->validate([
-            'phone' => ['required', 'string'],
-        ], [
-            'phone.required' => 'شماره موبایل را وارد کنید.',
-            'phone.string' => 'شماره موبایل باید به صورت متن عددی ارسال شود.',
-        ]);
-
         $tenant = app('currentTenant');
         $phoneInput = (string) $request->post('phone');
         $phone = $otpService->normalizeDigits($phoneInput);
@@ -56,18 +64,14 @@ class OtpController extends Controller
         return response()->json($payload);
     }
 
-    public function verify(Request $request, OtpService $otpService): JsonResponse
+    /**
+     * Verify an OTP and attach the verified lead to the visitor session.
+     *
+     * @param  VerifyOtpRequest  $request  Validated OTP verification payload.
+     * @param  OtpService  $otpService  Service that verifies hashes and creates leads.
+     */
+    public function verify(VerifyOtpRequest $request, OtpService $otpService): JsonResponse
     {
-        $request->validate([
-            'phone' => ['required', 'string'],
-            'code' => ['required', 'string'],
-        ], [
-            'phone.required' => 'شماره موبایل را وارد کنید.',
-            'phone.string' => 'شماره موبایل باید به صورت متن عددی ارسال شود.',
-            'code.required' => 'کد تایید را وارد کنید.',
-            'code.string' => 'کد تایید باید به صورت متن عددی ارسال شود.',
-        ]);
-
         $tenant = app('currentTenant');
         $phoneInput = (string) $request->post('phone');
         $codeInput = (string) $request->post('code');
@@ -99,6 +103,9 @@ class OtpController extends Controller
         ]);
     }
 
+    /**
+     * Convert Latin digits to Persian digits for debug SMS output.
+     */
     private function toPersianDigits(string $value): string
     {
         return strtr($value, [

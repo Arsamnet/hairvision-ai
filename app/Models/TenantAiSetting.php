@@ -2,13 +2,19 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\HasUuid;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Str;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
+/**
+ * Tenant-specific AI provider configuration and encrypted secret holder.
+ *
+ * @since 1.0.0
+ */
 class TenantAiSetting extends Model
 {
-    use HasFactory;
+    use HasFactory, HasUuid;
 
     protected $fillable = [
         'tenant_id',
@@ -27,21 +33,22 @@ class TenantAiSetting extends Model
         'updated_at' => 'datetime',
     ];
 
-    protected static function booted(): void
-    {
-        static::creating(function (TenantAiSetting $setting) {
-            if (empty($setting->uuid)) {
-                $setting->uuid = Str::uuid()->toString();
-            }
-        });
-    }
-
-    public function tenant()
+    /**
+     * Tenant that owns this provider setting.
+     *
+     * @return BelongsTo<Tenant, $this>
+     */
+    public function tenant(): BelongsTo
     {
         return $this->belongsTo(Tenant::class);
     }
 
-    public function provider()
+    /**
+     * Provider catalog row selected by this setting.
+     *
+     * @return BelongsTo<AiProvider, $this>
+     */
+    public function provider(): BelongsTo
     {
         return $this->belongsTo(AiProvider::class, 'provider_id');
     }

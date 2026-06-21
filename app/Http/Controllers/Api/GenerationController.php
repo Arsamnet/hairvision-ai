@@ -3,26 +3,38 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Api\StoreGenerationRequest;
 use App\Models\GenerationGroup;
-use App\Models\Lead;
 use App\Models\Upload;
 use App\Services\GenerationService;
+use App\Services\LeadSessionService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
+/**
+ * Coordinates tenant- and lead-scoped generation groups, status, and results.
+ *
+ * Controllers remain provider-agnostic; provider selection and job processing
+ * are delegated to services and queued jobs.
+ *
+ * @since 1.0.0
+ */
 class GenerationController extends Controller
 {
-    public function store(Request $request, GenerationService $generationService): JsonResponse
-    {
-        $request->validate([
-            'upload_id' => ['required', 'uuid'],
-        ], [
-            'upload_id.required' => 'شناسه تصویر ارسال نشده است.',
-            'upload_id.uuid' => 'شناسه تصویر معتبر نیست.',
-        ]);
-
+    /**
+     * Create three sample-generation jobs for a verified visitor upload.
+     *
+     * @param  StoreGenerationRequest  $request  Validated generation request.
+     * @param  GenerationService  $generationService  Service that creates jobs and dispatches processing.
+     * @param  LeadSessionService  $leadSessionService  Resolves the verified session lead.
+     */
+    public function store(
+        StoreGenerationRequest $request,
+        GenerationService $generationService,
+        LeadSessionService $leadSessionService
+    ): JsonResponse {
         $tenant = app('currentTenant');
-        $lead = $this->verifiedLead($request);
+        $lead = $leadSessionService->verifiedLead($request, $tenant, 'برای مشاهده نتایج، ابتدا شماره موبایل را تایید کنید.');
 
         $upload = Upload::query()
             ->where('uuid', '=', $request->post('upload_id'))
@@ -40,10 +52,13 @@ class GenerationController extends Controller
         ]);
     }
 
-    public function status(Request $request, string $groupUuid): JsonResponse
+    /**
+     * Return tenant- and lead-scoped generation status.
+     */
+    public function status(Request $request, string $groupUuid, LeadSessionService $leadSessionService): JsonResponse
     {
         $tenant = app('currentTenant');
-        $lead = $this->verifiedLead($request);
+        $lead = $leadSessionService->verifiedLead($request, $tenant, 'برای مشاهده نتایج، ابتدا شماره موبایل را تایید کنید.');
 
         $group = GenerationGroup::query()
             ->where('uuid', '=', $groupUuid)
@@ -58,10 +73,13 @@ class GenerationController extends Controller
         ]);
     }
 
-    public function results(Request $request, string $groupUuid): JsonResponse
+    /**
+     * Return generated result asset URLs for a tenant- and lead-scoped group.
+     */
+    public function results(Request $request, string $groupUuid, LeadSessionService $leadSessionService): JsonResponse
     {
         $tenant = app('currentTenant');
-        $lead = $this->verifiedLead($request);
+        $lead = $leadSessionService->verifiedLead($request, $tenant, 'برای مشاهده نتایج، ابتدا شماره موبایل را تایید کنید.');
 
         $group = GenerationGroup::query()
             ->where('uuid', '=', $groupUuid)
@@ -78,21 +96,5 @@ class GenerationController extends Controller
             ]),
             'disclaimer' => 'این تصاویر شبیه‌سازی هستند و نتیجه واقعی درمان را تضمین نمی‌کنند.',
         ]);
-    }
-
-    private function verifiedLead(Request $request): Lead
-    {
-        $tenant = app('currentTenant');
-        $leadId = $request->session()->get('lead_id');
-
-        if (! $leadId) {
-            abort(403, 'برای مشاهده نتایج، ابتدا شماره موبایل را تایید کنید.');
-        }
-
-        return Lead::query()
-            ->where('tenant_id', '=', $tenant->id)
-            ->where('id', '=', $leadId)
-            ->whereNotNull('phone_verified_at')
-            ->firstOrFail();
     }
 }

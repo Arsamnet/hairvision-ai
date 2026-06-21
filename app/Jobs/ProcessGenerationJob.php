@@ -15,12 +15,29 @@ use Illuminate\Queue\SerializesAndRestoresModelIdentifiers;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Storage;
 
+/**
+ * Processes one tenant- and lead-scoped generation period.
+ *
+ * The job resolves provider adapters, copies local sample outputs into private
+ * result storage, and updates generation job/group status.
+ *
+ * @since 1.0.0
+ */
 class ProcessGenerationJob implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesAndRestoresModelIdentifiers, SerializesModels;
 
+    /**
+     * @param  GenerationJob  $generationJob  Period job to process.
+     */
     public function __construct(public GenerationJob $generationJob) {}
 
+    /**
+     * Execute provider submission and persist completed sample output.
+     *
+     * Side effects: updates generation status, writes generated assets, and
+     * stores provider metadata for internal review.
+     */
     public function handle(): void
     {
         $this->generationJob->update([
@@ -70,6 +87,9 @@ class ProcessGenerationJob implements ShouldQueue
         }
     }
 
+    /**
+     * Copy provider output into tenant/lead private storage and record metadata.
+     */
     private function storeGeneratedAsset(ImageGenerationResponse $response): void
     {
         $source = Storage::disk('local');

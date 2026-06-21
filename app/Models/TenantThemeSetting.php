@@ -2,13 +2,19 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\HasUuid;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Str;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
+/**
+ * Tenant-controlled public landing-page theme settings.
+ *
+ * @since 1.0.0
+ */
 class TenantThemeSetting extends Model
 {
-    use HasFactory;
+    use HasFactory, HasUuid;
 
     protected $fillable = [
         'tenant_id',
@@ -36,20 +42,21 @@ class TenantThemeSetting extends Model
         'updated_at' => 'datetime',
     ];
 
-    protected static function booted(): void
-    {
-        static::creating(function (TenantThemeSetting $setting) {
-            if (empty($setting->uuid)) {
-                $setting->uuid = Str::uuid()->toString();
-            }
-        });
-    }
-
-    public function tenant()
+    /**
+     * Tenant that owns these theme settings.
+     *
+     * @return BelongsTo<Tenant, $this>
+     */
+    public function tenant(): BelongsTo
     {
         return $this->belongsTo(Tenant::class);
     }
 
+    /**
+     * Resolve a safe favicon URL, falling back when tenant input is invalid.
+     *
+     * @param  string  $fallback  Trusted application favicon URL.
+     */
     public function faviconHref(string $fallback): string
     {
         $faviconPath = trim((string) $this->favicon_path);
@@ -82,7 +89,12 @@ class TenantThemeSetting extends Model
         return $fallback;
     }
 
-    public function template()
+    /**
+     * Template selected for this tenant theme.
+     *
+     * @return BelongsTo<Template, $this>
+     */
+    public function template(): BelongsTo
     {
         return $this->belongsTo(Template::class);
     }
