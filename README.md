@@ -1,6 +1,6 @@
 # HairVision
 
-Version target: `1.0.0`
+Version target: `1.0.1`
 
 HairVision is a Laravel 13 multi-tenant MVP for hair transplant clinics. A visitor
 lands on a tenant-specific subdomain or custom domain, verifies a phone number by
