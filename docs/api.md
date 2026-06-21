@@ -1,6 +1,4 @@
-# API First Contract
-
-## Principle
+# API Documentation
 
 All core behavior must go through the API, even when the current UI is Blade.
 Blade may render a view shell, tenant content, and client-side JavaScript, but it
@@ -32,9 +30,7 @@ Accept: application/json
 Content-Type: multipart/form-data
 ```
 
-## Public APIs
-
-### Tenant Bootstrap
+## Tenant Bootstrap
 
 ```http
 GET /api/v1/bootstrap
@@ -60,7 +56,7 @@ Response:
 }
 ```
 
-### OTP Request
+## OTP Request
 
 ```http
 POST /api/v1/auth/otp/request
@@ -89,11 +85,9 @@ Response:
 ```
 
 Development/debug responses may include `debug_sms`; production responses must
-not expose OTP codes.
+not expose OTP codes. Rate limit failures return `429`.
 
-Rate limit failures return `429`.
-
-### OTP Verify
+## OTP Verify
 
 ```http
 POST /api/v1/auth/otp/verify
@@ -108,8 +102,8 @@ Body:
 }
 ```
 
-`code` must contain exactly 6 digits. Persian, Arabic, and English digit
-scripts are accepted; all other characters are rejected before verification.
+`code` must contain exactly 6 digits. Persian, Arabic, and English digit scripts
+are accepted; all other characters are rejected before verification.
 
 Response:
 
@@ -125,13 +119,10 @@ Response:
 ```
 
 The API stores normalized phone digits and the verified lead id in the visitor
-session. Visitor-facing UI should render Persian digits for Persian pages.
+session. Verified leads also have CRM-ready fields such as `crm_stage` and
+`crm_last_note_at`.
 
-Verified leads also have CRM-ready fields such as `crm_stage` and
-`crm_last_note_at`. Admin APIs for editing these fields are future work; the data
-structure exists in version `1.0.0`.
-
-### Upload Image
+## Upload Image
 
 Requires a verified lead session.
 
@@ -158,7 +149,7 @@ Response:
 }
 ```
 
-### Create Generation
+## Create Generation
 
 Requires a verified lead session. The upload must belong to the current tenant
 and the current session lead.
@@ -195,7 +186,7 @@ Response:
 In debug/local sample mode the group may be completed immediately. The UI should
 still show a short progress cast before revealing results.
 
-### Generation Status
+## Generation Status
 
 Requires a verified lead session.
 
@@ -216,7 +207,7 @@ Response:
 }
 ```
 
-### Results
+## Results
 
 Requires a verified lead session.
 
@@ -238,10 +229,10 @@ Response:
 }
 ```
 
-### Asset
+## Asset
 
-Requires a verified lead session. The asset must belong to the current tenant and
-current session lead.
+Requires a verified lead session. The asset must belong to the current tenant
+and current session lead.
 
 ```http
 GET /api/v1/assets/{uuid}

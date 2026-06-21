@@ -23,7 +23,8 @@ endpoints and does not duplicate backend business logic.
 - Provider-agnostic AI adapter layer
 - MVP default provider: `sample_image`
 - Redis Queue and Laravel Horizon for queue processing outside tests
-- Feature tests for tenant resolution, OTP, upload validation, sample generation, and tenant isolation
+- Feature tests for tenant resolution, OTP, upload validation, sample
+  generation, and tenant isolation
 
 ## Core Rule
 
@@ -31,36 +32,21 @@ No public visitor workflow may depend on arbitrary external resources. CSS, JS,
 fonts, and sample result assets must be local to the project. Tenant logos and
 theme images may be served from the primary HairVision domain only.
 
-## Documentation
+## Documentation Index
 
-The root README is the central entry point. Start with `AGENTS.md` when using an
-AI coding agent, then use `docs/README.md` as the full documentation map.
+The root `README.md` is the central documentation entry point. Every project
+documentation file lives directly inside `/docs` and is linked here with a
+relative Markdown link.
 
-Product:
-
-- `docs/product/scope-mvp.md`
-- `docs/product/data-model.md`
-
-Architecture:
-
-- `docs/architecture/api-first-contract.md`
-- `docs/architecture/multi-tenancy-domain-routing.md`
-- `docs/architecture/ai-provider-adapters.md`
-- `docs/architecture/sample-image-provider-mvp.md`
-- `docs/architecture/security-threat-model.md`
-- `docs/architecture/whm-cpanel.md`
-
-Development:
-
-- `docs/development/ai-agent-context.md`
-- `docs/development/tech-stack-requirements.md`
-- `docs/development/vscode-codex-start.md`
-- `docs/development/testing-and-release-checklist.md`
-
-Planning and audit:
-
-- `docs/roadmap/admin-client-dashboard-auth.md`
-- `docs/audit/cleanup-report.md`
+- [Architecture](docs/architecture.md)
+- [Setup Guide](docs/setup.md)
+- [Development Guide](docs/development-guide.md)
+- [Database](docs/database.md)
+- [API Documentation](docs/api.md)
+- [Authentication Roadmap](docs/auth-roadmap.md)
+- [Coding Standards](docs/coding-standards.md)
+- [Release Notes](docs/release-notes.md)
+- [AI Agent Instructions](docs/agent-instructions.md)
 
 ## Local Setup
 
@@ -110,6 +96,6 @@ npm run build
 
 ## References
 
-- Laravel: https://laravel.com/docs
-- Laravel Horizon: https://laravel.com/docs/horizon
-- Laravel Sanctum: https://laravel.com/docs/sanctum
+- [Laravel](https://laravel.com/docs)
+- [Laravel Horizon](https://laravel.com/docs/horizon)
+- [Laravel Sanctum](https://laravel.com/docs/sanctum)

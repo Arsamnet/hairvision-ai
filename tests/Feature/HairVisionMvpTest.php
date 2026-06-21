@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\AiProvider;
 use App\Models\GeneratedAsset;
 use App\Models\GenerationGroup;
+use App\Models\GenerationJob;
 use App\Models\Lead;
 use App\Models\LeadNote;
 use App\Models\Template;
@@ -520,7 +521,7 @@ class HairVisionMvpTest extends TestCase
         }
     }
 
-    private function createCompletedGenerationJob(Tenant $tenant, Lead $lead, Upload $upload, GenerationGroup $group)
+    private function createCompletedGenerationJob(Tenant $tenant, Lead $lead, Upload $upload, GenerationGroup $group): GenerationJob
     {
         $provider = AiProvider::query()->where('code', 'sample_image')->firstOrFail();
 

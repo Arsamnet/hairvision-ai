@@ -18,18 +18,15 @@ and receive local sample progress images for 3, 6, and 12 months.
 
 Before editing code, read these files in order:
 
-- `docs/development/ai-agent-context.md`
-- `docs/product/scope-mvp.md`
-- `docs/development/tech-stack-requirements.md`
-- `docs/architecture/whm-cpanel.md`
-- `docs/architecture/api-first-contract.md`
-- `docs/architecture/multi-tenancy-domain-routing.md`
-- `docs/product/data-model.md`
-- `docs/architecture/ai-provider-adapters.md`
-- `docs/architecture/sample-image-provider-mvp.md`
-- `docs/architecture/security-threat-model.md`
-- `docs/development/vscode-codex-start.md`
-- `docs/development/testing-and-release-checklist.md`
+- `docs/agent-instructions.md`
+- `docs/architecture.md`
+- `docs/api.md`
+- `docs/database.md`
+- `docs/setup.md`
+- `docs/development-guide.md`
+- `docs/coding-standards.md`
+- `docs/auth-roadmap.md`
+- `docs/release-notes.md`
 
 ## Non-Negotiable Rules
 

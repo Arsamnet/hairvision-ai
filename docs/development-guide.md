@@ -1,6 +1,52 @@
-# Testing and Release Checklist
+# Development Guide
 
-## Rule
+HairVision `1.0.0` is a Phase 1 MVP. Keep development focused on the public
+visitor flow and the local sample-image provider until the MVP is stable.
+
+## Tech Stack
+
+- PHP 8.3+
+- Laravel 13
+- Composer
+- Node.js LTS
+- Vite
+- Tailwind CSS
+- Blade
+- Redis
+- Laravel Horizon
+- Laravel Sanctum
+- Predis
+
+## Frontend Rules
+
+- Blade is the only MVP frontend.
+- Public UI is Persian and right-to-left.
+- The embedded Vazirmatn font is loaded from `resources/fonts/vazirmatn`.
+- No CDN is allowed for CSS, JavaScript, fonts, or icons.
+- Tenant logos and theme images may be served from the primary HairVision domain.
+- Do not introduce React, Vue, Inertia, Livewire, or Next.js in the MVP.
+
+## Phase 1 Implementation Checklist
+
+1. Migrations and models exist for the Phase 1 data model.
+2. Tenant resolution middleware uses request host.
+3. Seeder creates one test tenant, one tenant domain, and `sample_image`.
+4. `/api/v1` routes exist for bootstrap, OTP, upload, generation, status,
+   results, and assets.
+5. OTP request stores hashes and is rate-limited.
+6. OTP verify creates a verified lead session.
+7. Upload requires a verified lead session.
+8. Generation requires the current tenant and current session lead.
+9. `SampleImageProvider` returns local sample paths only.
+10. Jobs copy samples into private tenant/lead result paths.
+11. Blade is Persian RTL and calls `/api/v1`.
+12. Tenant theme settings support header, footer, and back-to-site link.
+13. Landing page visits are tracked before lead creation.
+14. Lead CRM stage and admin note structure exists.
+15. Feature tests cover public flow, theme fields, CRM structure, visit
+    tracking, and tenant isolation.
+
+## Testing Rule
 
 After every code, configuration, or behavior change:
 
@@ -10,11 +56,7 @@ After every code, configuration, or behavior change:
 4. If frontend assets changed, run the production build.
 5. Document any intentional behavior change.
 
-No change is commit-ready until tests pass.
-
-## Required Commands
-
-Always run:
+Required command:
 
 ```bash
 php artisan test
@@ -33,17 +75,17 @@ php artisan migrate:fresh --seed
 php artisan test
 ```
 
-## Current Feature Test Coverage
+## Current Feature Coverage
 
 `tests/Feature/HairVisionMvpTest.php` covers:
 
 - Tenant resolution by host.
 - Landing page visit tracking before lead creation.
-- Unknown host 404.
+- Unknown host `404`.
 - OTP hash storage.
 - OTP rate limiting.
 - OTP accepts Persian, Arabic, and English digits after normalization.
-- OTP rejects every non-digit character in phone and code fields.
+- OTP rejects non-digit characters in phone and code fields.
 - OTP verify creates a verified lead.
 - Upload requires verified lead session.
 - Invalid uploads are rejected.
@@ -56,7 +98,7 @@ php artisan test
 - Tenant theme back-link fields can be stored.
 - CRM lead stage and lead notes are tenant-owned.
 
-## Version 1.0.0 Release Checklist
+## Release Checklist
 
 Before tagging or committing release-ready work:
 

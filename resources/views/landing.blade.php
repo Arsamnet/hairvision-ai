@@ -200,7 +200,7 @@
                         <div class="space-y-5">
                             <div class="space-y-3">
                                 <div class="h-2 overflow-hidden rounded-full bg-zinc-200/80">
-                                    <div id="stepProgress" class="h-full w-1/4 rounded-full bg-gradient-to-l from-emerald-500 via-indigo-500 to-fuchsia-500 transition-all duration-500"></div>
+                                    <div id="stepProgress" class="h-full w-1/4 rounded-full bg-linear-to-l from-emerald-500 via-indigo-500 to-fuchsia-500 transition-all duration-500"></div>
                                 </div>
                                 <div class="grid gap-2 sm:grid-cols-4" aria-label="مراحل">
                                 <button type="button" data-step-indicator="1" class="step-indicator hv-step hv-step-active rounded-2xl px-3 py-3 text-right text-sm transition">
@@ -267,7 +267,7 @@
                                         <input id="image" type="file" accept="image/*" class="sr-only" />
                                         <img id="imagePreview" alt="پیش نمایش تصویر" class="hidden h-full max-h-72 w-full rounded-2xl object-cover" />
                                         <span id="imagePlaceholder" class="space-y-2">
-                                            <span class="relative z-10 mx-auto grid h-12 w-12 place-items-center rounded-2xl bg-gradient-to-br from-zinc-950 via-indigo-800 to-emerald-700 text-xl text-white shadow-lg shadow-indigo-200 transition group-hover:scale-110">+</span>
+                                            <span class="relative z-10 mx-auto grid h-12 w-12 place-items-center rounded-2xl bg-linear-to-br from-zinc-950 via-indigo-800 to-emerald-700 text-xl text-white shadow-lg shadow-indigo-200 transition group-hover:scale-110">+</span>
                                             <span class="block text-sm font-bold text-zinc-800">انتخاب تصویر</span>
                                             <span class="block text-xs text-zinc-500">JPG یا PNG تا ۵ مگابایت</span>
                                         </span>
@@ -279,7 +279,7 @@
                                             <label for="consent" class="text-sm leading-7 text-zinc-600"><?php echo e($theme?->consent_text ?? 'با پردازش تصویر برای این سرویس موافقم.'); ?></label>
                                         </div>
                                         <p id="uploadError" class="hidden text-sm text-rose-600"></p>
-                                        <div id="statusBox" class="hidden rounded-3xl p-[1px] hv-ai-cast">
+                                        <div id="statusBox" class="hidden rounded-3xl p-px hv-ai-cast">
                                             <div class="rounded-3xl bg-white/86 p-4 backdrop-blur">
                                                 <div class="flex items-center gap-2 text-xs font-bold text-zinc-500">
                                                     <span class="hv-live-dot h-2 w-2 rounded-full bg-emerald-500"></span>
@@ -314,7 +314,7 @@
         </main>
 
         <footer class="w-full bg-white/85 shadow-[0_-1px_20px_rgba(24,24,27,0.04)] backdrop-blur">
-            <?php echo $theme?->footer_html ?? '<div class="mx-auto flex w-full max-w-6xl flex-wrap items-center justify-between gap-3 px-4 py-5 text-sm text-zinc-500 sm:px-6"><p>یک پیش‌نمایش الهام‌بخش برای شروع گفت‌وگوی دقیق‌تر با کلینیک.</p><p class="flex items-center gap-2"><span>قدرت گرفته از</span><span class="grid h-7 w-7 place-items-center rounded-xl bg-gradient-to-br from-emerald-500 via-indigo-500 to-fuchsia-500"><img src="/theme/hairvision-icon.svg" alt="" class="h-5 w-5"></span></p></div>'; ?>
+            <?php echo $theme?->footer_html ?? '<div class="mx-auto flex w-full max-w-6xl flex-wrap items-center justify-between gap-3 px-4 py-5 text-sm text-zinc-500 sm:px-6"><p>یک پیش‌نمایش الهام‌بخش برای شروع گفت‌وگوی دقیق‌تر با کلینیک.</p><p class="flex items-center gap-2"><span>قدرت گرفته از</span><span class="grid h-7 w-7 place-items-center rounded-xl bg-linear-to-br from-emerald-500 via-indigo-500 to-fuchsia-500"><img src="/theme/hairvision-icon.svg" alt="" class="h-5 w-5"></span></p></div>'; ?>
 
         </footer>
     </div>

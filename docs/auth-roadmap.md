@@ -1,4 +1,4 @@
-# Admin and Client Dashboard Authentication Roadmap
+# Authentication Roadmap
 
 Status: planned, not implemented in version `1.0.0`.
 
@@ -150,8 +150,8 @@ Tenant admin dashboard:
 
 Client dashboard or portal:
 
-- Authentication decision pending: passwordless OTP, email magic link, or
-  user account.
+- Authentication decision pending: passwordless OTP, email magic link, or user
+  account.
 - Lead/result history scoped to the authenticated client.
 - Download/share controls only after explicit product and privacy review.
 

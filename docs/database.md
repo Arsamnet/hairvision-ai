@@ -1,4 +1,7 @@
-# Data Model
+# Database
+
+This document defines the Phase 1 HairVision data model and tenant-scoping
+invariants.
 
 ## Phase 1 Tables
 
@@ -111,9 +114,7 @@ Required fields:
 
 ### `ai_providers`
 
-Stores provider definitions.
-
-`sample_image` is required for version `1.0.0`.
+Stores provider definitions. `sample_image` is required for version `1.0.0`.
 
 ### `tenant_ai_settings`
 
