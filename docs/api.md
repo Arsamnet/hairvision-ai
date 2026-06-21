@@ -12,6 +12,8 @@ loading.
 ```
 
 The tenant is resolved from the request host for every public API request.
+Admin dashboard routes under `/admin` are session-authenticated web routes, not
+public API endpoints.
 
 ## Standard Headers
 

@@ -1,0 +1,153 @@
+<?php
+
+namespace App\Services\Admin;
+
+use App\Models\Lead;
+use App\Models\LeadNote;
+use App\Models\Tenant;
+use App\Models\User;
+use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Http\Request;
+
+/**
+ * Builds tenant-scoped lead queries and dashboard mutations.
+ *
+ * @since 1.1.0
+ */
+class LeadDashboardService
+{
+    /**
+     * Paginate leads visible to the user in the active tenant context.
+     */
+    public function paginate(Request $request, User $user, ?Tenant $tenant): LengthAwarePaginator
+    {
+        return $this->baseQuery($user, $tenant)
+            ->with(['assignedUser'])
+            ->when($request->filled('q'), function (Builder $query) use ($request): void {
+                $search = '%'.$request->string('q')->trim()->toString().'%';
+                $query->where(function (Builder $query) use ($search): void {
+                    $query->where('full_name', 'like', $search)
+                        ->orWhere('phone_normalized', 'like', $search)
+                        ->orWhere('source', 'like', $search);
+                });
+            })
+            ->when($request->filled('status'), fn (Builder $query) => $query->where('status', $request->string('status')->toString()))
+            ->when($request->filled('crm_stage'), fn (Builder $query) => $query->where('crm_stage', $request->string('crm_stage')->toString()))
+            ->when(
+                $request->string('sort')->toString() === 'oldest',
+                fn (Builder $query) => $query->orderBy('created_at'),
+                fn (Builder $query) => $query->orderByDesc('created_at'),
+            )
+            ->paginate(15)
+            ->withQueryString();
+    }
+
+    /**
+     * Create a tenant-owned lead from dashboard input.
+     *
+     * @param  array<string, mixed>  $data
+     */
+    public function create(array $data, Tenant $tenant, User $user): Lead
+    {
+        $lead = Lead::create([
+            'tenant_id' => $tenant->id,
+            'full_name' => $data['full_name'] ?? null,
+            'phone' => $data['phone_normalized'],
+            'phone_normalized' => $data['phone_normalized'],
+            'source' => $data['source'] ?? 'dashboard',
+            'phone_verified_at' => now(),
+            'status' => $data['status'] ?? 'verified',
+            'crm_stage' => $data['crm_stage'] ?? 'new_lead',
+            'assigned_user_id' => $this->assignableUserId($data['assigned_user_id'] ?? null, $tenant),
+        ]);
+
+        if (! empty($data['note'])) {
+            $this->createNote($lead, $user, (string) $data['note']);
+        }
+
+        return $lead;
+    }
+
+    /**
+     * Update lead fields while respecting limited editor access.
+     *
+     * @param  array<string, mixed>  $data
+     */
+    public function update(Lead $lead, array $data, User $user, Tenant $tenant): Lead
+    {
+        $role = $user->roleForTenant($tenant->id);
+        $allowed = $role === 'editor'
+            ? ['crm_stage', 'source']
+            : ['full_name', 'phone_normalized', 'source', 'status', 'crm_stage', 'assigned_user_id'];
+
+        $updates = array_intersect_key($data, array_flip($allowed));
+
+        if (array_key_exists('phone_normalized', $updates)) {
+            $updates['phone'] = $updates['phone_normalized'];
+        }
+
+        if (array_key_exists('assigned_user_id', $updates)) {
+            $updates['assigned_user_id'] = $this->assignableUserId($updates['assigned_user_id'], $tenant);
+        }
+
+        $lead->fill($updates)->save();
+
+        if (! empty($data['note'])) {
+            $this->createNote($lead, $user, (string) $data['note']);
+        }
+
+        return $lead->refresh();
+    }
+
+    /**
+     * Query leads visible in the active tenant context.
+     */
+    public function baseQuery(User $user, ?Tenant $tenant): Builder
+    {
+        $query = Lead::query();
+
+        if ($tenant) {
+            $query->where('tenant_id', $tenant->id);
+        } elseif (! $user->isSuperAdmin()) {
+            $tenantIds = $user->tenants()
+                ->wherePivot('status', 'active')
+                ->pluck('tenants.id');
+
+            $query->whereIn('tenant_id', $tenantIds);
+        }
+
+        return $query;
+    }
+
+    /**
+     * Store a tenant-owned admin note for a lead.
+     */
+    private function createNote(Lead $lead, User $user, string $note): LeadNote
+    {
+        $lead->forceFill(['crm_last_note_at' => now()])->save();
+
+        return LeadNote::create([
+            'tenant_id' => $lead->tenant_id,
+            'lead_id' => $lead->id,
+            'user_id' => $user->id,
+            'type' => 'admin_note',
+            'note' => $note,
+        ]);
+    }
+
+    /**
+     * Confirm an assigned user belongs to the current tenant.
+     */
+    private function assignableUserId(mixed $userId, Tenant $tenant): ?int
+    {
+        if (! $userId) {
+            return null;
+        }
+
+        return $tenant->users()
+            ->where('users.id', (int) $userId)
+            ->wherePivot('status', 'active')
+            ->value('users.id');
+    }
+}

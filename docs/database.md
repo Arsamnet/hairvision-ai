@@ -51,12 +51,15 @@ Stores verified visitor leads per tenant.
 Required fields:
 
 - `tenant_id`
+- `full_name`
 - `phone`
 - `phone_normalized`
+- `source`
 - `phone_verified_at`
 - `status`
 - `crm_stage`
 - `crm_last_note_at`
+- `assigned_user_id`
 
 Unique rule:
 
@@ -97,6 +100,30 @@ Required fields:
 The dashboard is not required for Phase 1, but the data structure exists so a
 clinic admin can later change lead stage and add follow-up notes without changing
 the public lead flow.
+
+### `users`
+
+Stores dashboard users authenticated by mobile OTP.
+
+Dashboard fields:
+
+- `phone_normalized`
+- `role`
+- `status`
+
+### `tenant_user`
+
+Stores dashboard user access to clinics.
+
+Required fields:
+
+- `tenant_id`
+- `user_id`
+- `role`
+- `status`
+
+Super admins may access all tenants without a pivot row. Clinic roles use active
+`tenant_user` rows for tenant access.
 
 ### `uploads`
 

@@ -77,6 +77,8 @@ Before editing code, read:
 - Results are revealed after short AI-style progress cast messages.
 - The result gallery shows the original upload plus the three generated periods.
 - Lead CRM stage and admin-note tables exist for later admin dashboard work.
+- Admin dashboard entry exists under `/admin` with mobile OTP login, tenant
+  switcher, role-aware lead management, and demo seed users.
 - `php artisan test` passes.
 
 ## Required Agent Prompt

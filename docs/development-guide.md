@@ -98,6 +98,15 @@ php artisan test
 - Tenant theme back-link fields can be stored.
 - CRM lead stage and lead notes are tenant-owned.
 
+`tests/Feature/AdminDashboardTest.php` covers:
+
+- Primary root product landing page.
+- Admin OTP hash storage and login.
+- Demo seeder users and clinic lead states.
+- Tenant-scoped dashboard lead lists.
+- Viewer edit denial.
+- Editor limited lead updates.
+
 ## Release Checklist
 
 Before tagging or committing release-ready work:
@@ -117,3 +126,15 @@ Before tagging or committing release-ready work:
 12. `php artisan test` passes.
 13. `npm run build` passes.
 14. `git status --short` has only intentional changes.
+
+## Admin Dashboard Checklist
+
+1. `/` on `hairvision-ai.test` renders the product landing page.
+2. `/admin` starts mobile OTP login.
+3. Authenticated users reach `/admin/dashboard`.
+4. The active tenant switcher validates membership server-side.
+5. Lead lists are filtered, searchable, paginated, and tenant-scoped.
+6. Viewer users cannot edit leads.
+7. Editor users can update only limited operational fields.
+8. Clinic admins can create and update clinic leads.
+9. Super admins can view all tenants.

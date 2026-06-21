@@ -28,6 +28,7 @@ Map the test tenant host:
 
 ```text
 127.0.0.1 clinic1.hairvision-ai.test
+127.0.0.1 hairvision-ai.test
 ```
 
 Run the app:
@@ -44,6 +45,19 @@ Open:
 http://clinic1.hairvision-ai.test:8000
 ```
 
+Admin dashboard:
+
+```text
+http://hairvision-ai.test:8000/admin
+```
+
+Demo mobile numbers after `php artisan migrate:fresh --seed`:
+
+- Super admin: `09129999999`
+- Clinic admin: `09120000000`
+- Editor: `09120000001`
+- Viewer: `09120000002`
+
 ## Configuration Baseline
 
 `.env.example` must stay aligned with the MVP architecture:
@@ -56,6 +70,11 @@ QUEUE_CONNECTION=redis
 SESSION_DRIVER=redis
 REDIS_CLIENT=predis
 HAIRVISION_DEFAULT_AI_PROVIDER=sample_image
+HAIRVISION_ADMIN_OTP_MAX_REQUESTS=5
+HAIRVISION_ADMIN_OTP_DECAY_SECONDS=600
+HAIRVISION_ADMIN_OTP_MAX_VERIFY_ATTEMPTS=5
+HAIRVISION_ADMIN_OTP_VERIFY_DECAY_SECONDS=600
+HAIRVISION_ADMIN_OTP_MAX_ATTEMPTS=5
 ```
 
 Tests may override queues and sessions to `sync` and `array` through

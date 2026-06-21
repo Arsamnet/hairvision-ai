@@ -1,5 +1,48 @@
 # Release Notes
 
+## 1.1.0
+
+### Added
+
+- SEO-friendly primary-domain landing page for HairVision AI.
+- Admin dashboard entry point under `/admin`.
+- Mobile OTP authentication for dashboard users.
+- Local `OtpSenderInterface` abstraction for future SMS provider integration.
+- Tenant-aware dashboard user memberships through `tenant_user`.
+- Internal role model for super admin, clinic admin, editor, and viewer users.
+- Active clinic switcher for dashboard users.
+- Responsive RTL admin layout.
+- Lead list with search, filters, pagination, and detail pages.
+- Lead creation and editing for authorized roles.
+- Limited editor mode for operational lead updates.
+- Read-only viewer behavior.
+- User list, reports, and settings pages.
+- Demo seed users and clinic1 sample leads in multiple CRM states.
+- Dashboard, authentication, tenancy, roles, security, and performance docs.
+
+### Changed
+
+- Primary `/` on `hairvision-ai.test` now renders the HairVision AI product
+  landing page; tenant hosts still render the visitor flow.
+- Visitor OTP verification now rejects already-used OTP rows.
+- README documentation index now links the dashboard documentation set.
+
+### Security
+
+- Admin OTP values are hashed, expiring, single-use, attempt-limited, and
+  rate-limited.
+- Dashboard lead access is enforced with policies and tenant-scoped queries.
+- Active clinic selection validates authenticated user membership.
+- OTP security events are logged without plain OTP values.
+
+### Documentation
+
+- Added `docs/authentication.md`, `docs/tenancy.md`,
+  `docs/roles-permissions.md`, `docs/dashboard.md`, `docs/security.md`, and
+  `docs/performance.md`.
+- Updated architecture, database, setup, API, development, coding standards,
+  auth roadmap, and agent instructions.
+
 ## 1.0.0
 
 ### Features

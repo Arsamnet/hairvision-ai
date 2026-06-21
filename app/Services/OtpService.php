@@ -71,6 +71,7 @@ class OtpService
             ->where('tenant_id', '=', $tenantId)
             ->where('phone_normalized', '=', $phoneNormalized)
             ->where('purpose', '=', 'lead_login')
+            ->whereNull('verified_at')
             ->where('expires_at', '>=', Carbon::now())
             ->orderByDesc('created_at')
             ->first();
@@ -84,7 +85,12 @@ class OtpService
         }
 
         if (! Hash::check($codeNormalized, $otp->code_hash)) {
+            $newAttempts = $otp->attempts + 1;
             $otp->increment('attempts');
+
+            if ($newAttempts >= config('hairvision.otp.max_attempts')) {
+                $otp->update(['verified_at' => Carbon::now()]);
+            }
 
             abort(422, 'کد تایید معتبر نیست. لطفا کد را بررسی کنید یا دوباره کد بگیرید.');
         }

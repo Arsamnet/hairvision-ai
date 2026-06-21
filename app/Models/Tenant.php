@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
 /**
  * HairVision clinic tenant resolved from request hosts.
@@ -32,6 +33,28 @@ class Tenant extends Model
     public function domains(): HasMany
     {
         return $this->hasMany(TenantDomain::class);
+    }
+
+    /**
+     * Dashboard users that may access this tenant.
+     *
+     * @return BelongsToMany<User, $this>
+     */
+    public function users(): BelongsToMany
+    {
+        return $this->belongsToMany(User::class)
+            ->withPivot(['role', 'status'])
+            ->withTimestamps();
+    }
+
+    /**
+     * Verified leads owned by this tenant.
+     *
+     * @return HasMany<Lead, $this>
+     */
+    public function leads(): HasMany
+    {
+        return $this->hasMany(Lead::class);
     }
 
     /**

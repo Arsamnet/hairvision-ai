@@ -1,11 +1,9 @@
 # Authentication Roadmap
 
-Status: planned, not implemented in version `1.0.0`.
+Status: admin OTP and lead dashboard implemented for the dashboard phase.
 
-This roadmap documents the next authentication and dashboard phase without
-changing the current public visitor MVP. Do not add dashboard routes, guards,
-controllers, or UI until the public sample-provider flow remains stable and the
-team explicitly starts this phase.
+This document now tracks remaining authentication and dashboard work after the
+initial `/admin` dashboard implementation.
 
 ## Goals
 
@@ -67,12 +65,12 @@ Initial permissions:
 
 ## Protected Routes
 
-Use separate route files or route groups to keep public MVP routes clean:
+Use separate route groups to keep public MVP routes clean:
 
 - `routes/web.php` remains the public tenant landing shell.
 - `routes/api.php` keeps `/api/v1` public visitor endpoints.
-- Add future dashboard routes under `/dashboard`.
-- Add future dashboard APIs under `/api/v1/dashboard`.
+- Dashboard routes live under `/admin`.
+- Future dashboard APIs may live under `/api/v1/dashboard`.
 - Add future platform routes under `/platform`.
 
 Suggested middleware:
@@ -165,8 +163,9 @@ Platform dashboard:
 ## Versioning Plan
 
 - `1.0.x`: public visitor MVP hardening only.
-- `1.1.0`: tenant admin authentication and read-only lead dashboard.
-- `1.2.0`: lead stage updates, notes, exports, and audit logs.
+- `1.1.0`: tenant admin authentication, lead dashboard, role-aware edits, and
+  primary product landing page.
+- `1.2.0`: exports, richer audit logs, editable settings, and full user CRUD.
 - `1.3.0`: tenant user management, theme settings, and provider settings.
 - `2.0.0`: client portal or breaking dashboard/API changes if required.
 

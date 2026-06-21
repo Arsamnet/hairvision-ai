@@ -23,6 +23,20 @@ behavior. Controllers must validate requests, call services or jobs, and return
 JSON or a view shell. Provider logic must stay behind services, jobs, and
 provider adapters.
 
+The dashboard uses Laravel session authentication under `/admin`:
+
+```text
+Browser
+  -> RTL Blade admin dashboard
+  -> Laravel session auth
+  -> Admin Controller
+  -> Policy / Tenant Context
+  -> Service
+  -> Tenant-scoped Eloquent query
+```
+
+Dashboard OTP login is separate from the public verified-lead session flow.
+
 ## Multi-Tenancy
 
 Tenant identity is resolved only from the request host. Never accept `tenant_id`,
@@ -185,6 +199,15 @@ Controls:
 - Use local frontend assets only; no CDN dependencies.
 - Keep `SampleImageProvider` local and network-free.
 - Store provider errors internally without exposing raw details to visitors.
+
+Dashboard controls:
+
+- Authenticate dashboard users with mobile OTP and Laravel sessions.
+- Store admin OTP rows with `purpose = admin_login`.
+- Keep OTP codes hashed, expiring, single-use, and attempt-limited.
+- Store active dashboard tenant context in session only after membership checks.
+- Enforce lead access through `LeadPolicy` and tenant-scoped queries.
+- Allow super admin cross-tenant access only through explicit role checks.
 
 ## WHM/cPanel Production Shape
 

@@ -26,6 +26,8 @@ semantic versioning.
   logic.
 - Public visitor UI is Persian, right-to-left, and uses the embedded Vazirmatn
   font.
+- Admin dashboard UI is also RTL Blade and must enforce authorization on the
+  backend with policies or tenant-scoped services.
 - No visitor workflow may depend on arbitrary external frontend resources.
 - Do not introduce React, Vue, Inertia, Livewire, or Next.js into the MVP unless
   explicitly requested.

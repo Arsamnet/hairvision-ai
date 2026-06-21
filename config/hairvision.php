@@ -24,6 +24,14 @@ return [
         'max_attempts' => (int) env('HAIRVISION_OTP_MAX_ATTEMPTS', 5),
     ],
 
+    'admin_otp' => [
+        'max_requests' => (int) env('HAIRVISION_ADMIN_OTP_MAX_REQUESTS', 5),
+        'decay_seconds' => (int) env('HAIRVISION_ADMIN_OTP_DECAY_SECONDS', 600),
+        'max_verify_attempts' => (int) env('HAIRVISION_ADMIN_OTP_MAX_VERIFY_ATTEMPTS', 5),
+        'verify_decay_seconds' => (int) env('HAIRVISION_ADMIN_OTP_VERIFY_DECAY_SECONDS', 600),
+        'max_attempts' => (int) env('HAIRVISION_ADMIN_OTP_MAX_ATTEMPTS', 5),
+    ],
+
     // Runs sample image jobs synchronously for local/debug UX.
     'debug_fast_samples' => env('HAIRVISION_DEBUG_FAST_SAMPLES', env('APP_DEBUG', false)),
 ];
