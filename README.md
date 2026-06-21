@@ -1,92 +1,106 @@
 # HairVision
 
-HairVision یک سرویس چندمشتری برای کلینیک‌ها و وب‌سایت‌های فعال در حوزه کاشت مو است. هدف MVP این است که کاربر روی ساب‌دامین اختصاصی مشتری وارد شود، شماره موبایل خود را با OTP تایید کند، به‌عنوان لید همان مشتری ثبت شود، یک عکس آپلود کند و سپس خروجی تستی/واقعی شبیه‌سازی رشد مو را دریافت کند.
+Version target: `1.0.0`
 
-در MVP، UI با Blade و Tailwind ساخته می‌شود، اما همه عملیات اصلی از طریق APIهای نسخه‌بندی‌شده `/api/v1` انجام می‌شود تا در آینده بتوان Frontend را بدون بازنویسی Backend به Next.js منتقل کرد.
+HairVision is a Laravel 13 multi-tenant MVP for hair transplant clinics. A visitor
+lands on a tenant-specific subdomain or custom domain, verifies a phone number by
+OTP, becomes a lead for that tenant, uploads a face/scalp photo, and receives
+local sample progress images for 3, 6, and 12 months.
 
-## تصمیم‌های اصلی MVP
+The MVP frontend is a Persian, right-to-left Blade experience using the embedded
+Vazirmatn font. Business behavior is API-first: Blade calls versioned `/api/v1`
+endpoints and does not duplicate backend business logic.
 
-- Framework: Laravel 13
-- PHP: 8.3 یا بالاتر
-- UI اولیه: Blade + Tailwind + Alpine.js
-- API: REST JSON، نسخه‌بندی‌شده با `/api/v1`
-- Auth کاربر مراجعه‌کننده: OTP + Session/Sanctum-ready
-- Auth مدیر: Laravel auth/session، قابل توسعه به Sanctum
-- Queue: Redis Queue
-- Queue Monitoring: Laravel Horizon
-- Cache: Redis، با امکان استفاده محدود از Memcached برای cacheهای خاص
-- Server: WHM/cPanel با دسترسی root
-- Storage: local private storage در MVP، قابل مهاجرت به S3/MinIO بعداً
-- AI: provider-agnostic adapter layer
-- MVP Test AI Provider: `SampleImageProvider` که هیچ تصویر جدیدی تولید نمی‌کند و فقط تصویر نمونه آماده را به‌عنوان خروجی تست برمی‌گرداند.
+## Version 1.0.0 Scope
+
+- Laravel 13, PHP 8.3+
+- Blade + Tailwind CSS MVP UI
+- Persian RTL public UI with embedded `resources/fonts/vazirmatn/*.woff2`
+- REST JSON API under `/api/v1`
+- Host-based tenant resolution
+- OTP lead verification with hashed OTP storage and rate limiting
+- Private local upload storage
+- Provider-agnostic AI adapter layer
+- MVP default provider: `sample_image`
+- Redis Queue and Laravel Horizon for queue processing outside tests
+- Feature tests for tenant resolution, OTP, upload validation, sample generation, and tenant isolation
+
+## Core Rule
+
+No public visitor workflow may depend on arbitrary external resources. CSS, JS,
+fonts, and sample result assets must be local to the project. Tenant logos and
+theme images may be served from the primary HairVision domain only.
 
 ## Documentation
 
-Kept core MVP docs in `docs/` for developer onboarding and agent workflows:
+Read these files before changing the project:
 
 ```text
 docs/
-  00-ai-agent-context.md
-  01-product-scope-mvp.md
-  04-api-first-contract.md
-  10-ai-provider-adapters.md
-  11-sample-image-provider-mvp.md
-  17-vscode-codex-start.md
+  ai-agent-context.md
+  product-scope-mvp.md
+  tech-stack-requirements.md
+  architecture-whm-cpanel.md
+  api-first-contract.md
+  multi-tenancy-domain-routing.md
+  data-model.md
+  ai-provider-adapters.md
+  sample-image-provider-mvp.md
+  security-threat-model.md
+  vscode-codex-start.md
+  testing-and-release-checklist.md
 ```
 
-## ترتیب مطالعه برای توسعه‌دهنده انسانی
+AI agents must also read `AGENTS.md`.
 
-1. `docs/01-product-scope-mvp.md`
-2. `docs/02-tech-stack-requirements.md`
-3. `docs/03-architecture-whm-cpanel.md`
-4. `docs/04-api-first-contract.md`
-5. `docs/10-ai-provider-adapters.md`
-6. `docs/11-sample-image-provider-mvp.md`
-7. `docs/17-vscode-codex-start.md`
-
-## ترتیب مطالعه برای AI Agent / Codex
-
-Codex باید ابتدا این فایل‌ها را بخواند:
-
-1. `AGENTS.md`
-2. `docs/00-ai-agent-context.md`
-3. `docs/04-api-first-contract.md`
-4. `docs/10-ai-provider-adapters.md`
-5. `docs/11-sample-image-provider-mvp.md`
-6. `docs/17-vscode-codex-start.md`
-
-## شروع سریع توسعه
+## Local Setup
 
 ```bash
-composer create-project laravel/laravel HairVision
-cd HairVision
-git init
+composer install
+npm install
+cp .env.example .env
+php artisan key:generate
+php artisan migrate:fresh --seed
+npm run build
 ```
 
-سپس این فایل‌ها را به ریشه پروژه کپی کنید:
+For local development, map `clinic1.hairvision-ai.test` to `127.0.0.1`, then run:
 
-```text
-README.md
-AGENTS.md
-docs/
-.vscode/
+```bash
+php artisan serve --host=127.0.0.1 --port=8000
+npm run dev
+php artisan horizon
 ```
 
-بعد دستورات مرحله اول را از این فایل اجرا کنید:
+## Test Discipline
 
-```text
-docs/17-vscode-codex-start.md
+After every code or behavior change:
+
+1. Add or update tests for the changed behavior.
+2. Run the full suite with `php artisan test`.
+3. Run `npm run build` when CSS, JS, Blade, fonts, or Vite inputs change.
+4. Do not consider the change commit-ready until tests pass.
+
+Current required test command:
+
+```bash
+php artisan test
 ```
 
-## قانون مهم MVP
+## Useful Commands
 
-تا زمانی که provider واقعی AI وصل نشده است، خروجی AI نباید mock بی‌ساختار یا random باشد. در MVP باید از `SampleImageProvider` استفاده شود. این provider هیچ پردازش AI انجام نمی‌دهد و فقط برای هر بازه زمانی، تصویر نمونه آماده را در خروجی job ثبت می‌کند.
+```bash
+php artisan migrate:fresh --seed
+php artisan route:list --path=api/v1
+php artisan test
+php artisan horizon
+php artisan queue:failed
+php artisan optimize:clear
+npm run build
+```
 
 ## References
 
-- Laravel 13 Release Notes: https://laravel.com/docs/13.x/releases
-- Laravel Horizon: https://laravel.com/docs/13.x/horizon
-- Laravel Sanctum: https://laravel.com/docs/13.x/sanctum
-- Laravel Cache: https://laravel.com/docs/13.x/cache
-- OpenAI Codex Help: https://help.openai.com/en/articles/11369540-getting-started-with-codex
-- OpenAI Codex IDE Docs: https://developers.openai.com/codex/ide
+- Laravel: https://laravel.com/docs
+- Laravel Horizon: https://laravel.com/docs/horizon
+- Laravel Sanctum: https://laravel.com/docs/sanctum

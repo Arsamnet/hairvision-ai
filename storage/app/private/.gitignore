@@ -1,0 +1,4 @@
+*
+!sample-results/
+!sample-results/*.jpg
+!.gitignore

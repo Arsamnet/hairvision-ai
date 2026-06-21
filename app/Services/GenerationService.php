@@ -3,11 +3,10 @@
 namespace App\Services;
 
 use App\Jobs\ProcessGenerationJob;
+use App\Models\AiProvider;
 use App\Models\GenerationGroup;
 use App\Models\GenerationJob;
-use App\Models\Lead;
 use App\Models\Upload;
-use Illuminate\Support\Arr;
 
 class GenerationService
 {
@@ -38,9 +37,9 @@ class GenerationService
             // In debug mode allow fast synchronous processing when using sample images
             if (config('hairvision.debug_fast_samples') && $provider->code === 'sample_image') {
                 // run synchronously to reduce perceived wait during local development
-                (new \App\Jobs\ProcessGenerationJob($job))->handle();
+                (new ProcessGenerationJob($job))->handle();
             } else {
-                dispatch(new \App\Jobs\ProcessGenerationJob($job));
+                dispatch(new ProcessGenerationJob($job));
             }
         }
 
@@ -51,6 +50,6 @@ class GenerationService
     {
         $default = config('hairvision.default_ai_provider');
 
-        return \App\Models\AiProvider::query()->where('code', '=', $default)->firstOrFail();
+        return AiProvider::query()->where('code', '=', $default)->firstOrFail();
     }
 }

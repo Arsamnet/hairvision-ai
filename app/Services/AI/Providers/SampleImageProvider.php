@@ -2,13 +2,10 @@
 
 namespace App\Services\AI\Providers;
 
-use App\Models\AiProvider;
 use App\Services\AI\Contracts\ImageGenerationProvider;
 use App\Services\AI\Dtos\ImageGenerationRequest;
 use App\Services\AI\Dtos\ImageGenerationResponse;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Facades\File;
-use function storage_path;
 
 class SampleImageProvider implements ImageGenerationProvider
 {
@@ -62,7 +59,7 @@ class SampleImageProvider implements ImageGenerationProvider
         return [
             'disk' => 'local',
             'path' => $response->localPath,
-            'mime' => File::mimeType(storage_path('app/'.$response->localPath)) ?: 'image/jpeg',
+            'mime' => Storage::disk('local')->mimeType($response->localPath) ?: 'image/jpeg',
             'size' => Storage::disk('local')->size($response->localPath),
             'metadata' => $response->metadata,
         ];
