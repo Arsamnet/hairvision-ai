@@ -76,6 +76,26 @@ class HairVisionMvpTest extends TestCase
         $this->assertDatabaseCount('leads', 0);
     }
 
+    public function test_platform_domain_root_does_not_record_a_tenant_visit(): void
+    {
+        $tenant = $this->createTenant('Clinic One', 'clinic1', 'clinic1.hairvision-ai.test');
+
+        TenantDomain::create([
+            'tenant_id' => $tenant->id,
+            'domain' => 'hairvision-ai.test',
+            'type' => 'platform',
+            'status' => 'active',
+            'ssl_status' => 'unknown',
+        ]);
+
+        $this->forHost('hairvision-ai.test')
+            ->get('/')
+            ->assertOk()
+            ->assertSee('HairVision AI');
+
+        $this->assertSame(0, $tenant->landingPageVisits()->count());
+    }
+
     public function test_landing_page_uses_tenant_favicon_or_default_fallback(): void
     {
         $tenant = $this->createTenant('Clinic One', 'clinic1', 'clinic1.hairvision-ai.test');
@@ -85,6 +105,8 @@ class HairVisionMvpTest extends TestCase
             ->assertOk()
             ->assertSee('rel="icon"', false)
             ->assertSee('/build/assets/favicon-', false)
+            ->assertSee('/build/assets/logo-', false)
+            ->assertDontSee('/theme/hairvision-icon.svg', false)
             ->assertDontSee('/build/img/favicon.png', false);
 
         $template = Template::create([

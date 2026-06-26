@@ -14,6 +14,10 @@ Routes:
 - `/admin/users`
 - `/admin/reports`
 - `/admin/settings`
+- `/admin/sms/providers`
+- `/admin/sms/logs`
+- `/admin/sms/statistics`
+- `/admin/account/sms-settings`
 
 Dashboard features:
 
@@ -26,6 +30,9 @@ Dashboard features:
 - Read-only viewer access.
 - User list for super admins and clinic admins.
 - Basic reports by CRM stage and tenant.
+- SMS provider management for system and user-owned provider accounts.
+- Account-level SMS provider selection.
+- SMS delivery logs and aggregate statistics.
 - Demo seed data for `clinic1`.
 
 The dashboard does not call AI providers directly. Public `/api/v1` behavior

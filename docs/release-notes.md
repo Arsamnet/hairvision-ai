@@ -1,5 +1,58 @@
 # Release Notes
 
+## Unreleased - Maintenance Cleanup
+
+### Changed
+
+- Dashboard lead lists now use server-side pagination instead of loading every
+  matching lead into the page.
+- Lead detail pages eager load generation jobs used by the Blade view.
+- Default public visitor footer now points at the local Vite-managed brand logo
+  instead of a missing theme icon path.
+- SMS documentation was consolidated into `docs/sms.md`.
+- Removed the unused Alpine frontend dependency.
+
+### Testing
+
+- Added regression coverage for admin lead pagination.
+- Added regression coverage to ensure the public visitor footer does not
+  reference the removed theme icon path.
+
+## 1.2.0 - SMS Provider Management
+
+### Added
+
+- SMS provider management system.
+- System-level and user-level SMS providers.
+- Initial support for Melli Payamak, KaveNegar, IPPanel, and SMS.ir.
+- Separate system IPPanel accounts for normal sending and OTP pattern sending.
+- User SMS provider selection.
+- Secure encrypted provider credentials.
+- SMS delivery logs and user statistics.
+- Blade dashboard pages for SMS providers, settings, logs, and statistics.
+- Rate-limited account test SMS sending.
+- SMS provider documentation and tests.
+
+### Changed
+
+- Admin and public visitor OTP sending now use the centralized SMS manager.
+- NotifSMS / نوتیف پیامک provider support was replaced with IPPanel.
+- README documentation index updated with SMS documentation.
+
+### Security
+
+- Provider credentials are encrypted.
+- Credentials are masked in dashboard views.
+- SMS provider access is protected by policy checks and Form Requests.
+- Sensitive OTP content is not stored in plain text SMS logs.
+
+### Testing
+
+- Added provider account tests.
+- Added SMS manager resolution tests.
+- Added authorization tests.
+- Added SMS log and dashboard route tests.
+
 ## 1.1.0
 
 ### Added

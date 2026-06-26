@@ -6,75 +6,98 @@
     <title>@yield('title', 'پنل مدیریت HairVision AI')</title>
     <meta name="robots" content="noindex,nofollow">
     <?php $faviconHref = app('Illuminate\Foundation\Vite')->asset('resources/img/favicon.png'); ?>
+    <?php $logoHref = app('Illuminate\Foundation\Vite')->asset('resources/img/logo.svg'); ?>
     <link rel="icon" href="<?php echo e($faviconHref); ?>">
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
-<body class="min-h-screen bg-[#f6f8fb] font-sans text-zinc-950 antialiased">
-    <div class="min-h-screen lg:grid lg:grid-cols-[17rem_1fr]">
-        <aside class="hidden border-l border-zinc-200 bg-white lg:block">
-            <div class="flex h-full min-h-screen flex-col">
-                <div class="border-b border-zinc-100 px-5 py-5">
-                    <a href="{{ route('admin.dashboard') }}" class="block">
-                        <span class="block text-xs font-bold text-teal-600">HairVision AI</span>
-                        <span class="mt-1 block text-lg font-bold">پنل کلینیک</span>
+<body class="min-h-screen bg-slate-50 font-sans text-slate-900 antialiased">
+    <?php
+        $adminMenu = [
+            ['route' => 'admin.dashboard', 'active' => 'admin.dashboard', 'label' => 'داشبورد', 'icon' => 'M3 13h8V3H3v10Zm10 8h8V11h-8v10ZM3 21h8v-6H3v6Zm10-12h8V3h-8v6Z'],
+            ['route' => 'admin.leads.index', 'active' => 'admin.leads.*', 'label' => 'لیدها', 'icon' => 'M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm13 10v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75'],
+            ['route' => 'admin.users.index', 'active' => 'admin.users.*', 'label' => 'کاربران', 'icon' => 'M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2M12 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z'],
+            ['route' => 'admin.sms.providers.index', 'active' => 'admin.sms.*', 'label' => 'پیامک', 'icon' => 'M21 15a4 4 0 0 1-4 4H7l-4 4V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4v8Z'],
+            ['route' => 'admin.reports', 'active' => 'admin.reports', 'label' => 'گزارش‌ها', 'icon' => 'M3 3v18h18M8 17V9m5 8V5m5 12v-6'],
+            ['route' => 'admin.settings', 'active' => 'admin.settings', 'label' => 'تنظیمات', 'icon' => 'M12 15.5A3.5 3.5 0 1 0 12 8a3.5 3.5 0 0 0 0 7.5ZM19.4 15a1.7 1.7 0 0 0 .34 1.87l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06A1.7 1.7 0 0 0 15 19.4a1.7 1.7 0 0 0-1 1.55V21a2 2 0 1 1-4 0v-.08A1.7 1.7 0 0 0 9 19.4a1.7 1.7 0 0 0-1.87.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-1.55-1H3a2 2 0 1 1 0-4h.08A1.7 1.7 0 0 0 4.6 9a1.7 1.7 0 0 0-.34-1.87l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.7 1.7 0 0 0 9 4.6a1.7 1.7 0 0 0 1-1.55V3a2 2 0 1 1 4 0v.08A1.7 1.7 0 0 0 15 4.6a1.7 1.7 0 0 0 1.87-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.7 1.7 0 0 0 19.4 9c.2.6.78 1 1.55 1H21a2 2 0 1 1 0 4h-.08A1.7 1.7 0 0 0 19.4 15Z'],
+        ];
+        $currentAdminTenant = $tenant ?? null;
+    ?>
+
+    <nav class="fixed top-0 z-50 w-full border-b border-slate-200 bg-white/95 backdrop-blur">
+        <div class="px-4 py-3 lg:px-6">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                    <button type="button" data-drawer-target="admin-sidebar" data-drawer-toggle="admin-sidebar" data-drawer-placement="right" aria-controls="admin-sidebar" class="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-slate-200 text-sm text-slate-500 hover:bg-slate-100 focus:outline-none focus:ring-4 focus:ring-blue-100 lg:hidden">
+                        <span class="sr-only">باز کردن منو</span>
+                        <svg class="h-6 w-6" fill="currentColor" viewBox="0 0 20 20" aria-hidden="true">
+                            <path clip-rule="evenodd" fill-rule="evenodd" d="M2 4.75A.75.75 0 0 1 2.75 4h14.5a.75.75 0 0 1 0 1.5H2.75A.75.75 0 0 1 2 4.75Zm0 5A.75.75 0 0 1 2.75 9h14.5a.75.75 0 0 1 0 1.5H2.75A.75.75 0 0 1 2 9.75Zm0 5A.75.75 0 0 1 2.75 14h14.5a.75.75 0 0 1 0 1.5H2.75A.75.75 0 0 1 2 14.75Z" />
+                        </svg>
+                    </button>
+                    <a href="{{ route('admin.dashboard') }}" class="flex items-center gap-3 rounded-lg px-1 py-1 hover:bg-slate-50">
+                        <img src="<?php echo e($logoHref); ?>" alt="HairVision AI" class="h-9 w-auto">
                     </a>
-                    <p class="mt-2 text-xs leading-6 text-zinc-500">{{ $tenant?->name ?? 'همه کلینیک‌ها' }}</p>
                 </div>
-                <nav class="flex-1 space-y-1 p-3 text-sm font-bold">
-                    <a href="{{ route('admin.dashboard') }}" class="block rounded-lg px-3 py-2.5 {{ request()->routeIs('admin.dashboard') ? 'bg-zinc-950 text-white' : 'text-zinc-600 hover:bg-zinc-100' }}">داشبورد</a>
-                    <a href="{{ route('admin.leads.index') }}" class="block rounded-lg px-3 py-2.5 {{ request()->routeIs('admin.leads.*') ? 'bg-zinc-950 text-white' : 'text-zinc-600 hover:bg-zinc-100' }}">لیدها</a>
-                    <a href="{{ route('admin.users.index') }}" class="block rounded-lg px-3 py-2.5 {{ request()->routeIs('admin.users.*') ? 'bg-zinc-950 text-white' : 'text-zinc-600 hover:bg-zinc-100' }}">کاربران</a>
-                    <a href="{{ route('admin.reports') }}" class="block rounded-lg px-3 py-2.5 {{ request()->routeIs('admin.reports') ? 'bg-zinc-950 text-white' : 'text-zinc-600 hover:bg-zinc-100' }}">گزارش‌ها</a>
-                    <a href="{{ route('admin.settings') }}" class="block rounded-lg px-3 py-2.5 {{ request()->routeIs('admin.settings') ? 'bg-zinc-950 text-white' : 'text-zinc-600 hover:bg-zinc-100' }}">تنظیمات</a>
-                </nav>
-                <form method="POST" action="{{ route('admin.logout') }}" class="border-t border-zinc-100 p-3">
-                    @csrf
-                    <button class="w-full rounded-lg px-3 py-2.5 text-right text-sm font-bold text-rose-700 hover:bg-rose-50">خروج</button>
-                </form>
+                <div class="hidden min-w-0 flex-1 px-6 lg:block">
+                    <div class="relative max-w-md">
+                        <span class="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3 text-slate-400">
+                            <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                                <path d="m21 21-4.35-4.35M10.5 18a7.5 7.5 0 1 1 0-15 7.5 7.5 0 0 1 0 15Z" />
+                            </svg>
+                        </span>
+                        <input type="search" aria-label="جستجوی سریع" placeholder="جستجوی سریع در پنل" class="admin-input h-10 pr-9">
+                    </div>
+                </div>
+                <div class="flex min-w-0 items-center gap-3 text-left">
+                    <div class="hidden text-left sm:block">
+                        <p class="text-xs font-bold text-slate-500">{{ auth()->user()?->name ?? 'کاربر پنل' }}</p>
+                        <h1 class="mt-0.5 truncate text-sm font-bold text-slate-950">@yield('page_title', 'داشبورد')</h1>
+                    </div>
+                    <div class="flex h-10 w-10 items-center justify-center rounded-full bg-blue-50 text-sm font-black text-blue-700 ring-1 ring-blue-100">
+                        {{ mb_substr(auth()->user()?->name ?? 'H', 0, 1) }}
+                    </div>
+                </div>
             </div>
-        </aside>
-
-        <div class="min-w-0">
-            <header class="sticky top-0 z-20 border-b border-zinc-200 bg-white/90 backdrop-blur">
-                <div class="flex flex-wrap items-center justify-between gap-3 px-4 py-3 sm:px-6">
-                    <div>
-                        <p class="text-xs font-bold text-teal-600">پنل مدیریت</p>
-                        <h1 class="mt-1 text-lg font-bold">@yield('page_title', 'داشبورد')</h1>
-                    </div>
-                    <div class="flex flex-wrap items-center gap-2">
-                        @isset($availableTenants)
-                            <form method="POST" action="{{ route('admin.tenant.switch') }}">
-                                @csrf
-                                <select name="tenant_id" onchange="this.form.submit()" class="h-10 rounded-lg border border-zinc-200 bg-white px-3 text-sm font-bold text-zinc-700 outline-none focus:border-teal-500">
-                                    @if(auth()->user()?->isSuperAdmin())
-                                        <option value="all" @selected($tenant === null)>همه کلینیک‌ها</option>
-                                    @endif
-                                    @foreach($availableTenants as $optionTenant)
-                                        <option value="{{ $optionTenant->id }}" @selected($tenant?->id === $optionTenant->id)>{{ $optionTenant->name }}</option>
-                                    @endforeach
-                                </select>
-                            </form>
-                        @endisset
-                        <nav class="flex items-center gap-1 lg:hidden">
-                            <a href="{{ route('admin.dashboard') }}" class="rounded-lg px-3 py-2 text-sm font-bold text-zinc-700 hover:bg-zinc-100">داشبورد</a>
-                            <a href="{{ route('admin.leads.index') }}" class="rounded-lg px-3 py-2 text-sm font-bold text-zinc-700 hover:bg-zinc-100">لیدها</a>
-                        </nav>
-                    </div>
-                </div>
-            </header>
-
-            <main class="px-4 py-5 sm:px-6 lg:px-8">
-                @if(session('status'))
-                    <div class="mb-4 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-bold text-emerald-800">{{ session('status') }}</div>
-                @endif
-
-                @if($errors->any())
-                    <div class="mb-4 rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-bold text-rose-700">{{ $errors->first() }}</div>
-                @endif
-
-                @yield('content')
-            </main>
         </div>
-    </div>
+    </nav>
+
+    <aside id="admin-sidebar" class="fixed right-0 top-0 z-40 h-screen w-64 translate-x-full border-l border-slate-200 bg-white pt-16 transition-transform lg:translate-x-0" aria-label="Sidebar">
+        <div class="flex h-full flex-col overflow-y-auto bg-white px-3 pb-4">
+            <div class="mb-2 rounded-lg border border-slate-200 bg-slate-50 p-3">
+                <p class="text-xs font-bold text-slate-500">کلینیک فعال</p>
+                <p class="mt-1 truncate text-sm font-black text-slate-950">{{ $currentAdminTenant?->name ?? 'نمای کل پلتفرم' }}</p>
+            </div>
+            <nav class="flex-1 space-y-1 py-3">
+                @foreach($adminMenu as $item)
+                    <a href="{{ route($item['route']) }}" class="admin-sidebar-link {{ request()->routeIs($item['active']) ? 'admin-sidebar-link-active' : '' }}">
+                        <svg class="h-5 w-5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <path d="{{ $item['icon'] }}" />
+                        </svg>
+                        <span>{{ $item['label'] }}</span>
+                    </a>
+                @endforeach
+            </nav>
+            <form method="POST" action="{{ route('admin.logout') }}" class="border-t border-slate-100 pt-3">
+                @csrf
+                <button class="admin-sidebar-link text-rose-700 hover:bg-rose-50 hover:text-rose-700">
+                    <svg class="h-5 w-5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9" />
+                    </svg>
+                    <span>خروج</span>
+                </button>
+            </form>
+        </div>
+    </aside>
+
+    <main class="p-4 pt-20 lg:mr-64 lg:p-6 lg:pt-20">
+        @if(session('status'))
+            <div class="mb-4 rounded-lg border border-emerald-200 bg-emerald-50 p-4 text-sm font-bold text-emerald-800 shadow-sm">{{ session('status') }}</div>
+        @endif
+
+        @if($errors->any())
+            <div class="mb-4 rounded-lg border border-rose-200 bg-rose-50 p-4 text-sm font-bold text-rose-700 shadow-sm">{{ $errors->first() }}</div>
+        @endif
+
+        @yield('content')
+    </main>
 </body>
 </html>

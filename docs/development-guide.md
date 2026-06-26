@@ -96,6 +96,7 @@ php artisan test
 - Debug/local sample generation can display completed results immediately.
 - Tenant B cannot access Tenant A assets.
 - Tenant theme back-link fields can be stored.
+- Default visitor footer assets resolve to local Vite-managed files.
 - CRM lead stage and lead notes are tenant-owned.
 
 `tests/Feature/AdminDashboardTest.php` covers:
@@ -104,8 +105,18 @@ php artisan test
 - Admin OTP hash storage and login.
 - Demo seeder users and clinic lead states.
 - Tenant-scoped dashboard lead lists.
+- Server-side pagination for dashboard lead lists.
 - Viewer edit denial.
 - Editor limited lead updates.
+
+`tests/Feature/SmsProviderManagementTest.php` covers:
+
+- SMS provider type and system account seeding.
+- System and user provider authorization.
+- Encrypted and masked credentials.
+- User SMS provider selection restrictions.
+- Provider fallback resolution and safe delivery logs.
+- SMS dashboard page access and user-scoped logs.
 
 ## Release Checklist
 
@@ -138,3 +149,4 @@ Before tagging or committing release-ready work:
 7. Editor users can update only limited operational fields.
 8. Clinic admins can create and update clinic leads.
 9. Super admins can view all tenants.
+10. SMS provider pages enforce system/user provider authorization.

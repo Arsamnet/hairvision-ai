@@ -2,6 +2,9 @@
 
 Tenant identity for public visitor routes is resolved from the request host.
 Visitor-controlled request data must never be trusted as tenant authority.
+The shared tenant resolution path lives in `App\Services\TenantService`; both
+the public API middleware and root web route use it so host handling stays
+consistent.
 
 The admin dashboard uses authenticated users plus an active tenant stored in the
 session. A user can only select a tenant if one of these is true:

@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\Leads\StoreLeadRequest;
 use App\Http\Requests\Admin\Leads\UpdateLeadRequest;
 use App\Models\Lead;
+use App\Services\Admin\AdminTenantContext;
 use App\Services\Admin\LeadDashboardService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -19,14 +20,16 @@ use Illuminate\View\View;
  */
 class LeadController extends Controller
 {
-    public function index(Request $request, LeadDashboardService $leadService): View
+    public function index(Request $request, LeadDashboardService $leadService, AdminTenantContext $tenantContext): View
     {
         Gate::authorize('viewAny', Lead::class);
 
+        $tenant = $tenantContext->fromFilter($request, $request->user());
+
         return view('admin.leads.index', [
-            'tenant' => $request->attributes->get('adminTenant'),
+            'tenant' => $tenant,
             'availableTenants' => $request->attributes->get('adminTenants'),
-            'leads' => $leadService->paginate($request, $request->user(), $request->attributes->get('adminTenant')),
+            'leads' => $leadService->list($request, $request->user(), $tenant),
         ]);
     }
 
@@ -39,15 +42,18 @@ class LeadController extends Controller
         return view('admin.leads.show', [
             'tenant' => $request->attributes->get('adminTenant'),
             'availableTenants' => $request->attributes->get('adminTenants'),
-            'lead' => $lead->load(['tenant', 'assignedUser', 'uploads.generationGroup.jobs', 'generationGroups.assets', 'notes.user']),
+            'lead' => $lead->load(['tenant', 'assignedUser', 'uploads.generationGroup.jobs', 'generationGroups.jobs', 'generationGroups.assets', 'notes.user']),
         ]);
     }
 
-    public function create(Request $request): View
+    public function create(Request $request, AdminTenantContext $tenantContext): View
     {
         Gate::authorize('create', Lead::class);
 
-        $tenant = $request->attributes->get('adminTenant');
+        $tenant = $request->filled('tenant_id')
+            ? $tenantContext->select($request, $request->user(), $request->input('tenant_id'))
+            : $request->attributes->get('adminTenant');
+
         abort_unless($tenant, 403);
 
         return view('admin.leads.create', [
@@ -97,6 +103,10 @@ class LeadController extends Controller
      */
     private function isLeadVisible(Request $request, Lead $lead): bool
     {
+        if ($request->user()->isSuperAdmin()) {
+            return true;
+        }
+
         $tenant = $request->attributes->get('adminTenant');
 
         if ($tenant) {

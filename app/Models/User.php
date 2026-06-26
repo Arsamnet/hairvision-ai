@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Notifications\Notifiable;
 
 /**
@@ -56,6 +57,26 @@ class User extends Authenticatable
     public function assignedLeads(): HasMany
     {
         return $this->hasMany(Lead::class, 'assigned_user_id');
+    }
+
+    /**
+     * Private SMS provider accounts owned by this dashboard user.
+     *
+     * @return HasMany<SmsProviderAccount, $this>
+     */
+    public function smsProviderAccounts(): HasMany
+    {
+        return $this->hasMany(SmsProviderAccount::class, 'owner_user_id');
+    }
+
+    /**
+     * User-level SMS provider preference.
+     *
+     * @return HasOne<UserSmsSetting, $this>
+     */
+    public function smsSetting(): HasOne
+    {
+        return $this->hasOne(UserSmsSetting::class);
     }
 
     /**

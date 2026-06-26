@@ -18,12 +18,14 @@ use Illuminate\Http\Request;
 class LeadDashboardService
 {
     /**
-     * Paginate leads visible to the user in the active tenant context.
+     * List leads visible to the user in the active tenant context.
+     *
+     * @return LengthAwarePaginator<int, Lead>
      */
-    public function paginate(Request $request, User $user, ?Tenant $tenant): LengthAwarePaginator
+    public function list(Request $request, User $user, ?Tenant $tenant): LengthAwarePaginator
     {
         return $this->baseQuery($user, $tenant)
-            ->with(['assignedUser'])
+            ->with(['assignedUser', 'tenant'])
             ->when($request->filled('q'), function (Builder $query) use ($request): void {
                 $search = '%'.$request->string('q')->trim()->toString().'%';
                 $query->where(function (Builder $query) use ($search): void {

@@ -4,8 +4,10 @@ namespace App\Services;
 
 use App\Models\Lead;
 use App\Models\OtpCode;
+use App\Services\Sms\SmsManager;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
 use Random\RandomException;
 
 /**
@@ -18,6 +20,8 @@ use Random\RandomException;
  */
 class OtpService
 {
+    public function __construct(private readonly SmsManager $smsManager) {}
+
     /**
      * Create a hashed OTP record for a normalized visitor phone number.
      *
@@ -46,6 +50,21 @@ class OtpService
 
         if (app()->hasDebugModeEnabled()) {
             $otp->debug_code = $code;
+        }
+
+        try {
+            $this->smsManager->sendSystem(
+                $phoneNormalized,
+                'کد تایید HairVision: '.$code,
+                'lead_otp',
+                ['tenant_id' => $tenantId]
+            );
+        } catch (\Throwable $exception) {
+            Log::warning('Lead OTP SMS could not be sent.', [
+                'tenant_id' => $tenantId,
+                'phone_hash' => hash('sha256', $phoneNormalized),
+                'error' => $exception::class,
+            ]);
         }
 
         return $otp;

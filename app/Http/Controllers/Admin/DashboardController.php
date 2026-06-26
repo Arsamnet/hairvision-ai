@@ -2,9 +2,12 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Enums\SmsProviderScope;
 use App\Http\Controllers\Controller;
-use App\Models\Lead;
+use App\Models\SmsProviderAccount;
+use App\Models\SmsProviderType;
 use App\Models\Tenant;
+use App\Services\Admin\AdminTenantContext;
 use App\Services\Admin\LeadDashboardService;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -16,9 +19,9 @@ use Illuminate\View\View;
  */
 class DashboardController extends Controller
 {
-    public function index(Request $request, LeadDashboardService $leads): View
+    public function index(Request $request, LeadDashboardService $leads, AdminTenantContext $tenantContext): View
     {
-        $tenant = $request->attributes->get('adminTenant');
+        $tenant = $tenantContext->fromFilter($request, $request->user());
         $query = $leads->baseQuery($request->user(), $tenant);
 
         return view('admin.dashboard', [
@@ -32,9 +35,9 @@ class DashboardController extends Controller
         ]);
     }
 
-    public function reports(Request $request, LeadDashboardService $leads): View
+    public function reports(Request $request, LeadDashboardService $leads, AdminTenantContext $tenantContext): View
     {
-        $tenant = $request->attributes->get('adminTenant');
+        $tenant = $tenantContext->fromFilter($request, $request->user());
         $query = $leads->baseQuery($request->user(), $tenant);
 
         return view('admin.reports', [
@@ -52,9 +55,25 @@ class DashboardController extends Controller
 
     public function settings(Request $request): View
     {
+        $user = $request->user();
+
         return view('admin.settings', [
             'tenant' => $request->attributes->get('adminTenant'),
             'availableTenants' => $request->attributes->get('adminTenants'),
+            'smsSetting' => $user->smsSetting()->firstOrCreate(['user_id' => $user->id]),
+            'smsProviders' => SmsProviderAccount::query()
+                ->with('type')
+                ->where('is_active', true)
+                ->where(function ($query) use ($user): void {
+                    $query->where('scope', SmsProviderScope::System->value)
+                        ->orWhere('owner_user_id', $user->id);
+                })
+                ->orderBy('name')
+                ->get(),
+            'smsProviderTypes' => SmsProviderType::query()->where('is_active', true)->orderBy('name')->get(),
+            'smsScopes' => $user->isSuperAdmin()
+                ? [SmsProviderScope::User->value => 'اختصاصی کاربر', SmsProviderScope::System->value => 'سیستمی']
+                : [SmsProviderScope::User->value => 'اختصاصی کاربر'],
         ]);
     }
 }

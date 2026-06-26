@@ -13,19 +13,12 @@ use App\Models\User;
 class LeadPolicy
 {
     /**
-     * Super admins may bypass tenant-scoped checks.
-     */
-    public function before(User $user): ?bool
-    {
-        return $user->isSuperAdmin() ? true : null;
-    }
-
-    /**
      * Determine whether a user may browse lead lists.
      */
     public function viewAny(User $user): bool
     {
-        return $user->isActive() && $user->tenants()->wherePivot('status', 'active')->exists();
+        return $user->isActive()
+            && ($user->isSuperAdmin() || $user->tenants()->wherePivot('status', 'active')->exists());
     }
 
     /**
@@ -33,7 +26,7 @@ class LeadPolicy
      */
     public function view(User $user, Lead $lead): bool
     {
-        return $user->isActive() && $user->canAccessTenant($lead->tenant_id);
+        return $user->isActive() && ($user->isSuperAdmin() || $user->canAccessTenant($lead->tenant_id));
     }
 
     /**
@@ -41,6 +34,10 @@ class LeadPolicy
      */
     public function create(User $user): bool
     {
+        if ($user->isSuperAdmin()) {
+            return false;
+        }
+
         if (in_array($user->role, ['clinic_admin', 'editor'], true)) {
             return true;
         }
@@ -56,6 +53,10 @@ class LeadPolicy
      */
     public function update(User $user, Lead $lead): bool
     {
+        if ($user->isSuperAdmin()) {
+            return false;
+        }
+
         if (! $user->isActive() || ! $user->canAccessTenant($lead->tenant_id)) {
             return false;
         }

@@ -79,6 +79,8 @@ Before editing code, read:
 - Lead CRM stage and admin-note tables exist for later admin dashboard work.
 - Admin dashboard entry exists under `/admin` with mobile OTP login, tenant
   switcher, role-aware lead management, and demo seed users.
+- Dashboard SMS provider management supports system and user provider accounts,
+  encrypted credentials, user default selection, and safe delivery logs.
 - `php artisan test` passes.
 
 ## Required Agent Prompt

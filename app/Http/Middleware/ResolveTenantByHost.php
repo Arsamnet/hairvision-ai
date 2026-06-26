@@ -2,7 +2,7 @@
 
 namespace App\Http\Middleware;
 
-use App\Models\TenantDomain;
+use App\Services\TenantService;
 use Closure;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -17,6 +17,8 @@ use Illuminate\Http\Response;
  */
 class ResolveTenantByHost
 {
+    public function __construct(private readonly TenantService $tenants) {}
+
     /**
      * Resolve an active tenant domain or abort with 404.
      *
@@ -25,22 +27,13 @@ class ResolveTenantByHost
     public function handle(Request $request, Closure $next): mixed
     {
         $host = strtolower($request->getHost());
-
-        $domain = TenantDomain::query()->where('domain', '=', $host)->where('status', '=', 'active')->first();
-
-        // In local development, allow falling back to the first active tenant
-        // so `localhost` or `127.0.0.1` can render the landing page without
-        // requiring host DNS entries.
-        if (! $domain && app()->environment('local') && in_array($host, ['127.0.0.1', 'localhost', '::1'], true)) {
-            $domain = TenantDomain::query()->where('status', '=', 'active')->first();
-        }
+        $domain = $this->tenants->resolveDomainForHost($host);
 
         if (! $domain || ! $domain->tenant || $domain->tenant->status !== 'active') {
             abort(Response::HTTP_NOT_FOUND);
         }
 
-        app()->instance('currentTenant', $domain->tenant);
-        $request->attributes->set('currentTenant', $domain->tenant);
+        $this->tenants->bindCurrent($request, $domain->tenant);
 
         return $next($request);
     }

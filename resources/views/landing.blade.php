@@ -7,6 +7,7 @@
     <title><?php echo e($tenant->name ?? 'پیش‌نمایی هوشمند'); ?></title>
     <?php
         $defaultFaviconHref = app('Illuminate\Foundation\Vite')->asset('resources/img/favicon.png');
+        $brandLogoHref = app('Illuminate\Foundation\Vite')->asset('resources/img/logo.svg');
         $faviconHref = $theme?->faviconHref($defaultFaviconHref) ?? $defaultFaviconHref;
     ?>
     <link rel="icon" href="<?php echo e($faviconHref); ?>">
@@ -314,7 +315,7 @@
         </main>
 
         <footer class="w-full bg-white/85 shadow-[0_-1px_20px_rgba(24,24,27,0.04)] backdrop-blur">
-            <?php echo $theme?->footer_html ?? '<div class="mx-auto flex w-full max-w-6xl flex-wrap items-center justify-between gap-3 px-4 py-5 text-sm text-zinc-500 sm:px-6"><p>یک پیش‌نمایش الهام‌بخش برای شروع گفت‌وگوی دقیق‌تر با کلینیک.</p><p class="flex items-center gap-2"><span>قدرت گرفته از</span><span class="grid h-7 w-7 place-items-center rounded-xl bg-linear-to-br from-emerald-500 via-indigo-500 to-fuchsia-500"><img src="/theme/hairvision-icon.svg" alt="" class="h-5 w-5"></span></p></div>'; ?>
+            <?php echo $theme?->footer_html ?? '<div class="mx-auto flex w-full max-w-6xl flex-wrap items-center justify-between gap-3 px-4 py-5 text-sm text-zinc-500 sm:px-6"><p>یک پیش‌نمایش الهام‌بخش برای شروع گفت‌وگوی دقیق‌تر با کلینیک.</p><p class="flex items-center gap-2"><span>قدرت گرفته از</span><span class="grid h-7 w-7 place-items-center rounded-xl bg-linear-to-br from-emerald-500 via-indigo-500 to-fuchsia-500"><img src="'.e($brandLogoHref).'" alt="" class="h-5 w-5"></span></p></div>'; ?>
 
         </footer>
     </div>

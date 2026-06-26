@@ -32,10 +32,11 @@ Routes:
 The admin flow uses Laravel session authentication. The public verified-lead
 session and authenticated dashboard user session are intentionally separate.
 
-Admin OTP values use `otp_codes.purpose = admin_login`. A local
-`OtpSenderInterface` implementation is bound for development and tests; it does
-not log plain OTP values. A real SMS provider can be connected by binding a new
-implementation of `App\Services\Otp\OtpSenderInterface`.
+Admin OTP values use `otp_codes.purpose = admin_login`. Admin OTP delivery goes
+through `App\Services\Otp\OtpSenderInterface`, which is bound to the centralized
+SMS manager. Public visitor OTP delivery uses the SMS manager system-provider
+path. Local and testing environments may use fake SMS mode, which logs a safe
+delivery attempt without calling an external provider.
 
 Demo users after `php artisan migrate:fresh --seed`:
 

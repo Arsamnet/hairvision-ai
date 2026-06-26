@@ -19,6 +19,12 @@ class AdminTenantContext
      */
     public function current(Request $request, User $user): ?Tenant
     {
+        if ($user->isSuperAdmin() && ! $request->session()->has('admin_active_tenant_id')) {
+            $request->session()->put('admin_all_tenants', true);
+
+            return null;
+        }
+
         if ($user->isSuperAdmin() && $request->session()->get('admin_all_tenants')) {
             return null;
         }
@@ -84,12 +90,45 @@ class AdminTenantContext
     }
 
     /**
+     * Resolve a tenant from a page-level filter without changing session state.
+     *
+     * @throws ValidationException
+     */
+    public function fromFilter(Request $request, User $user): ?Tenant
+    {
+        if (! $user->isSuperAdmin()) {
+            return $this->current($request, $user);
+        }
+
+        if (! $request->filled('tenant_id')) {
+            return null;
+        }
+
+        $tenantId = $request->string('tenant_id')->toString();
+
+        if ($tenantId === 'all' && $user->isSuperAdmin()) {
+            return null;
+        }
+
+        if (! is_numeric($tenantId) || ! $user->canAccessTenant((int) $tenantId)) {
+            throw ValidationException::withMessages([
+                'tenant_id' => 'دسترسی به این کلینیک مجاز نیست.',
+            ]);
+        }
+
+        return Tenant::query()
+            ->whereKey((int) $tenantId)
+            ->where('status', 'active')
+            ->firstOrFail();
+    }
+
+    /**
      * Resolve the default active tenant for a user.
      */
     private function defaultTenant(User $user): ?Tenant
     {
         if ($user->isSuperAdmin()) {
-            return Tenant::query()->where('status', 'active')->orderBy('id')->first();
+            return null;
         }
 
         return $user->tenants()

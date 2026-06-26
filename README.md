@@ -7,6 +7,11 @@ lands on a tenant-specific subdomain or custom domain, verifies a phone number b
 OTP, becomes a lead for that tenant, uploads a face/scalp photo, and receives
 local sample progress images for 3, 6, and 12 months.
 
+Current implementation also includes the post-MVP admin dashboard and SMS
+provider management modules documented in the release notes. The public visitor
+flow remains constrained to the local `sample_image` provider until a real AI
+provider is intentionally added behind the adapter layer.
+
 The MVP frontend is a Persian, right-to-left Blade experience using the embedded
 Vazirmatn font. Business behavior is API-first: Blade calls versioned `/api/v1`
 endpoints and does not duplicate backend business logic.
@@ -50,7 +55,9 @@ relative Markdown link.
 - [Dashboard](docs/dashboard.md)
 - [Security](docs/security.md)
 - [Performance](docs/performance.md)
+- [SMS](docs/sms.md)
 - [Coding Standards](docs/coding-standards.md)
+- [Maintenance Audit](docs/maintenance-audit.md)
 - [Release Notes](docs/release-notes.md)
 - [AI Agent Instructions](docs/agent-instructions.md)
 

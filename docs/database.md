@@ -220,6 +220,47 @@ The public page is composed of three areas:
 
 Reserved for tenant activity tracking.
 
+### `sms_provider_types`
+
+Stores supported SMS vendors. Required provider keys:
+
+- `melli_payamak`
+- `kavenegar`
+- `ippanel`
+- `sms_ir`
+
+### `sms_provider_accounts`
+
+Stores configured system and user SMS provider accounts.
+
+Required fields:
+
+- `sms_provider_type_id`
+- `owner_user_id` nullable
+- `scope`
+- `name`
+- encrypted `credentials`
+- encrypted `settings`
+- `sender_number`
+- `priority`
+- `is_active`
+- `is_default`
+- `last_used_at`
+
+System accounts must have `owner_user_id = null`. User accounts must belong to
+the creating user.
+
+### `user_sms_settings`
+
+Stores each dashboard user's selected default SMS provider and
+`fallback_to_system` preference.
+
+### `sms_delivery_logs`
+
+Stores safe delivery metadata, status, provider ids, recipient, message preview,
+message hash, sanitized errors, provider message id, cost, and timestamps.
+Sensitive OTP bodies must not be stored in plain text.
+
 ## Required Invariants
 
 - Every tenant-owned table includes `tenant_id`.
@@ -230,3 +271,4 @@ Reserved for tenant activity tracking.
 - Stored file paths are internal metadata and are never exposed directly.
 - Feature migrations should be consolidated into the migration for the related
   model/domain while the schema is still pre-release.
+- SMS provider credentials are encrypted and never exposed in dashboard views.

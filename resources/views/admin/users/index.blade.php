@@ -4,7 +4,7 @@
 @section('page_title', 'کاربران')
 
 @section('content')
-    <section class="rounded-lg bg-white p-5 shadow-sm ring-1 ring-zinc-200">
+    <section class="admin-panel">
         <div class="flex flex-wrap items-center justify-between gap-3">
             <div>
                 <h2 class="text-lg font-bold">کاربران پنل</h2>
@@ -12,9 +12,17 @@
             </div>
         </div>
 
-        <div class="mt-5 overflow-x-auto">
-            <table class="w-full min-w-[42rem] text-right text-sm">
-                <thead class="border-b border-zinc-200 text-xs text-zinc-500">
+        @if(auth()->user()?->isSuperAdmin())
+            <form method="GET" class="admin-filter-panel mt-5 grid gap-3 sm:grid-cols-[minmax(14rem,22rem)_8rem]">
+                @include('admin.partials.tenant-filter-select')
+                <button class="admin-button admin-button-primary h-11 self-end">اعمال</button>
+            </form>
+        @endif
+
+        <div class="admin-table-shell mt-5">
+            <div class="admin-table-scroll">
+            <table data-admin-datatable class="admin-table min-w-[42rem] text-sm">
+                <thead>
                     <tr>
                         <th class="py-3 font-bold">نام</th>
                         <th class="py-3 font-bold">موبایل</th>
@@ -23,22 +31,17 @@
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-zinc-100">
-                    @forelse($users as $dashboardUser)
+                    @foreach($users as $dashboardUser)
                         <tr>
                             <td class="py-3 font-bold">{{ $dashboardUser->name }}</td>
-                            <td class="py-3 text-zinc-600">{{ $dashboardUser->phone_normalized ?? '-' }}</td>
+                            <td class="py-3 text-zinc-600">{{ \App\Support\AdminDashboardFormat::phone($dashboardUser->phone_normalized) }}</td>
                             <td class="py-3 text-zinc-600">{{ $dashboardUser->pivot?->role ?? $dashboardUser->role }}</td>
                             <td class="py-3 text-zinc-600">{{ $dashboardUser->pivot?->status ?? $dashboardUser->status }}</td>
                         </tr>
-                    @empty
-                        <tr>
-                            <td colspan="4" class="py-10 text-center text-zinc-500">کاربری برای نمایش وجود ندارد.</td>
-                        </tr>
-                    @endforelse
+                    @endforeach
                 </tbody>
             </table>
+            </div>
         </div>
-
-        <div class="mt-5">{{ $users->links() }}</div>
     </section>
 @endsection
