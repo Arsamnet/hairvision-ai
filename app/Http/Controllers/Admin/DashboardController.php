@@ -3,10 +3,12 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Enums\PlanAccessStatus;
 use App\Models\Lead;
 use App\Models\Tenant;
 use App\Services\Admin\LeadDashboardService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Illuminate\View\View;
 
 /**
@@ -19,16 +21,22 @@ class DashboardController extends Controller
     public function index(Request $request, LeadDashboardService $leads): View
     {
         $tenant = $request->attributes->get('adminTenant');
-        $query = $leads->baseQuery($request->user(), $tenant);
+        $planAccess = $request->attributes->get('planAccess');
+        $canSeeOperationalData = $request->user()->isSuperAdmin()
+            || ($planAccess['status'] ?? null) === PlanAccessStatus::Active
+            || ($planAccess['status'] ?? null) === PlanAccessStatus::Exempt;
+        $query = $canSeeOperationalData ? $leads->baseQuery($request->user(), $tenant) : null;
 
         return view('admin.dashboard', [
             'tenant' => $tenant,
             'availableTenants' => $request->attributes->get('adminTenants'),
-            'leadCount' => (clone $query)->count(),
-            'newLeadCount' => (clone $query)->where('crm_stage', 'new_lead')->count(),
-            'followUpCount' => (clone $query)->where('crm_stage', 'needs_follow_up')->count(),
-            'convertedCount' => (clone $query)->where('crm_stage', 'converted')->count(),
-            'recentLeads' => (clone $query)->with('tenant')->latest()->limit(6)->get(),
+            'planAccess' => $planAccess,
+            'activeSubscription' => $request->attributes->get('activeSubscription'),
+            'leadCount' => $query ? (clone $query)->count() : 0,
+            'newLeadCount' => $query ? (clone $query)->where('crm_stage', 'new_lead')->count() : 0,
+            'followUpCount' => $query ? (clone $query)->where('crm_stage', 'needs_follow_up')->count() : 0,
+            'convertedCount' => $query ? (clone $query)->where('crm_stage', 'converted')->count() : 0,
+            'recentLeads' => $query ? (clone $query)->with('tenant')->latest()->limit(6)->get() : new Collection(),
         ]);
     }
 

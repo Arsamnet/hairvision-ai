@@ -7,6 +7,17 @@ return [
 
     'primary_domain' => env('HAIRVISION_PRIMARY_DOMAIN', 'hairvision-ai.test'),
 
+    'super_admin' => [
+        'name' => env('HAIRVISION_SUPER_ADMIN_NAME', 'مدیر سیستم HairVision'),
+        'email' => env('HAIRVISION_SUPER_ADMIN_EMAIL', 'superadmin@example.com'),
+        'phone' => env('HAIRVISION_SUPER_ADMIN_PHONE', '09129999999'),
+    ],
+
+    'pagination' => [
+        'default_per_page' => (int) env('HAIRVISION_API_PER_PAGE', 15),
+        'max_per_page' => (int) env('HAIRVISION_API_MAX_PER_PAGE', 100),
+    ],
+
     'visitor_messages' => [
         'preparing_image' => env('HAIRVISION_PREPARING_IMAGE_MESSAGE', 'در حال آماده سازی تصویر و ساخت نتایج نمونه هستیم. لطفا چند لحظه صبر کنید.'),
     ],

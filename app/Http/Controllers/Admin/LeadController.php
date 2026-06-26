@@ -7,6 +7,9 @@ use App\Http\Requests\Admin\Leads\StoreLeadRequest;
 use App\Http\Requests\Admin\Leads\UpdateLeadRequest;
 use App\Models\Lead;
 use App\Services\Admin\LeadDashboardService;
+use App\Support\Pagination\PaginatedResponse;
+use App\Support\Pagination\PaginationParameters;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -19,9 +22,22 @@ use Illuminate\View\View;
  */
 class LeadController extends Controller
 {
-    public function index(Request $request, LeadDashboardService $leadService): View
+    public function index(Request $request, LeadDashboardService $leadService): View|JsonResponse
     {
         Gate::authorize('viewAny', Lead::class);
+
+        if ($request->expectsJson() || $request->filled('draw')) {
+            $pagination = PaginationParameters::fromRequest(
+                $request,
+                ['created_at', 'full_name', 'phone_normalized', 'crm_stage', 'status'],
+                'created_at'
+            );
+            $paginator = $leadService
+                ->filteredQuery($request, $request->user(), $request->attributes->get('adminTenant'), $pagination)
+                ->paginate($pagination->perPage, ['*'], 'page', $pagination->page);
+
+            return response()->json(PaginatedResponse::make($paginator, $pagination->draw));
+        }
 
         return view('admin.leads.index', [
             'tenant' => $request->attributes->get('adminTenant'),
@@ -39,7 +55,7 @@ class LeadController extends Controller
         return view('admin.leads.show', [
             'tenant' => $request->attributes->get('adminTenant'),
             'availableTenants' => $request->attributes->get('adminTenants'),
-            'lead' => $lead->load(['tenant', 'assignedUser', 'uploads.generationGroup.jobs', 'generationGroups.assets', 'notes.user']),
+            'lead' => $lead->load(['tenant', 'assignedUser', 'uploads.generationGroup.jobs', 'generationGroups.jobs', 'generationGroups.assets', 'notes.user']),
         ]);
     }
 
@@ -64,7 +80,7 @@ class LeadController extends Controller
 
         $lead = $leadService->create($request->validated(), $tenant, $request->user());
 
-        return redirect()->route('admin.leads.show', $lead)->with('status', 'لید جدید ثبت شد.');
+        return redirect()->route('admin.leads.show', $lead)->with('status', __('leads.created'));
     }
 
     public function edit(Request $request, Lead $lead): View
@@ -89,7 +105,7 @@ class LeadController extends Controller
         $tenant = $request->attributes->get('adminTenant') ?? $lead->tenant;
         $leadService->update($lead, $request->validated(), $request->user(), $tenant);
 
-        return redirect()->route('admin.leads.show', $lead)->with('status', 'لید به‌روزرسانی شد.');
+        return redirect()->route('admin.leads.show', $lead)->with('status', __('leads.updated'));
     }
 
     /**

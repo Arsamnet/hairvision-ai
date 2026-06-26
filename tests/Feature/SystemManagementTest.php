@@ -1,0 +1,624 @@
+<?php
+
+namespace Tests\Feature;
+
+use App\Models\Lead;
+use App\Models\LeadNote;
+use App\Models\PaymentGateway;
+use App\Models\Permission;
+use App\Models\Plan;
+use App\Models\Role;
+use App\Models\SmsGateway;
+use App\Models\Subscription;
+use App\Models\SystemSetting;
+use App\Models\Tenant;
+use App\Models\TenantDomain;
+use App\Models\Upload;
+use App\Models\User;
+use App\Services\Auth\PermissionService;
+use App\Services\Billing\BillingService;
+use App\Services\Payment\PaymentGatewayService;
+use App\Services\Sms\SmsGatewayService;
+use Database\Seeders\DatabaseSeeder;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Storage;
+use Tests\TestCase;
+
+class SystemManagementTest extends TestCase
+{
+    use RefreshDatabase;
+
+    public function test_seeder_is_idempotent_and_super_admin_has_all_permissions(): void
+    {
+        $this->seed(DatabaseSeeder::class);
+        $this->seed(DatabaseSeeder::class);
+
+        $superAdmin = User::query()->where('role', 'super_admin')->firstOrFail();
+
+        $this->assertSame(1, User::query()->where('role', 'super_admin')->count());
+        $this->assertTrue($superAdmin->hasPermission('payment_gateways.manage'));
+        $this->assertSame(Permission::query()->count(), Role::query()->where('code', 'super_admin')->firstOrFail()->permissions()->count());
+        $this->assertSame(1, SmsGateway::query()->system()->where('is_default', true)->count());
+        $this->assertSame(1, PaymentGateway::query()->where('is_default', true)->count());
+        $this->assertGreaterThan(0, SystemSetting::query()->count());
+        $this->assertGreaterThan(0, Plan::query()->count());
+    }
+
+    public function test_system_management_routes_and_menu_are_permission_protected(): void
+    {
+        $this->seed(DatabaseSeeder::class);
+
+        $viewer = User::query()->where('role', 'viewer')->firstOrFail();
+        $superAdmin = User::query()->where('role', 'super_admin')->firstOrFail();
+
+        $this->actingAs($viewer)
+            ->forHost('hairvision-ai.test')
+            ->get('/admin/system/settings')
+            ->assertForbidden();
+
+        $this->actingAs($viewer)
+            ->forHost('hairvision-ai.test')
+            ->get('/admin/dashboard')
+            ->assertOk()
+            ->assertDontSee('مدیریت سیستم');
+
+        $this->actingAs($superAdmin)
+            ->withSession(['admin_all_tenants' => true])
+            ->forHost('hairvision-ai.test')
+            ->get('/admin/system')
+            ->assertOk()
+            ->assertSee('مدیریت سیستم')
+            ->assertSee('درگاه‌های پرداخت');
+    }
+
+    public function test_role_permission_assignment_changes_backend_access(): void
+    {
+        $this->seed(DatabaseSeeder::class);
+
+        $role = Role::query()->where('code', 'viewer')->firstOrFail();
+        $permission = Permission::query()->where('code', 'settings.manage')->firstOrFail();
+        $viewer = User::query()->where('role', 'viewer')->firstOrFail();
+
+        $this->assertFalse($viewer->hasPermission('settings.manage'));
+
+        $role->permissions()->attach($permission);
+        app(PermissionService::class)->forgetRole($role->code);
+
+        $this->assertTrue($viewer->hasPermission('settings.manage'));
+        $this->actingAs($viewer)
+            ->forHost('hairvision-ai.test')
+            ->get('/admin/system/settings')
+            ->assertOk();
+    }
+
+    public function test_system_settings_are_validated_updated_and_cached(): void
+    {
+        $this->seed(DatabaseSeeder::class);
+
+        $superAdmin = User::query()->where('role', 'super_admin')->firstOrFail();
+
+        $this->actingAs($superAdmin)
+            ->forHost('hairvision-ai.test')
+            ->put('/admin/system/settings', [
+                'settings' => [
+                    'system.name' => 'HairVision Enterprise',
+                    'support.phone' => '09120001111',
+                    'notifications.global_enabled' => '1',
+                    'billing.invoice_due_days' => '14',
+                    'api.pagination.default_per_page' => '25',
+                    'api.pagination.max_per_page' => '75',
+                ],
+            ])
+            ->assertRedirect();
+
+        $this->assertSame('HairVision Enterprise', SystemSetting::query()->where('key', 'system.name')->firstOrFail()->value_json['value']);
+    }
+
+    public function test_lead_json_pagination_supports_standard_and_datatables_parameters(): void
+    {
+        $tenant = $this->createTenant('Clinic One', 'clinic1', 'clinic1.hairvision-ai.test');
+        $user = $this->createUserForTenant($tenant, 'clinic_admin', '09121111111');
+        $this->activateSubscription($user);
+        $this->createLead($tenant, '09120000001', 'Alpha Lead');
+        $this->createLead($tenant, '09120000002', 'Beta Lead');
+
+        $this->actingAs($user)
+            ->withSession(['admin_active_tenant_id' => $tenant->id])
+            ->forHost('hairvision-ai.test')
+            ->getJson('/admin/leads?per_page=1&search=Alpha&sort=full_name&direction=asc')
+            ->assertOk()
+            ->assertJsonPath('meta.per_page', 1)
+            ->assertJsonPath('meta.total', 1);
+
+        $this->actingAs($user)
+            ->withSession(['admin_active_tenant_id' => $tenant->id])
+            ->forHost('hairvision-ai.test')
+            ->getJson('/admin/leads?draw=3&start=0&length=1&search[value]=Lead')
+            ->assertOk()
+            ->assertJsonPath('draw', 3)
+            ->assertJsonPath('recordsTotal', 2)
+            ->assertJsonPath('meta.per_page', 1);
+    }
+
+    public function test_gateway_selection_separates_system_and_user_private_sms(): void
+    {
+        $this->seed(DatabaseSeeder::class);
+
+        $user = User::query()->where('role', 'clinic_admin')->firstOrFail();
+        $systemGateway = SmsGateway::query()->system()->firstOrFail();
+        $privateGateway = SmsGateway::create([
+            'user_id' => $user->id,
+            'name' => 'Private KaveNegar',
+            'provider_code' => 'kavenegar',
+            'owner_scope' => 'user',
+            'status' => 'enabled',
+            'is_default' => true,
+            'encrypted_credentials' => ['api_key' => 'secret'],
+        ]);
+
+        $service = app(SmsGatewayService::class);
+
+        $this->assertTrue($service->systemDefault()->is($systemGateway));
+        $this->assertTrue($service->userDefault($user)->is($privateGateway));
+        $this->assertTrue($service->sendSystemMessage('09120000000', 'system')->is($systemGateway));
+        $this->assertTrue($service->sendUserCustomerMessage($user, '09125550000', 'customer')->is($privateGateway));
+        $this->assertArrayNotHasKey('encrypted_credentials', $privateGateway->toArray());
+    }
+
+    public function test_payment_default_gateway_invoice_payment_and_plan_upgrade_are_idempotent(): void
+    {
+        $this->seed(DatabaseSeeder::class);
+
+        $user = User::query()->where('role', 'clinic_admin')->firstOrFail();
+        $starter = Plan::query()->firstOrFail();
+        $upgrade = Plan::create([
+            'name' => 'پلن ارتقا',
+            'description' => 'Upgrade',
+            'price' => 19900000,
+            'currency' => 'IRR',
+            'duration_days' => 60,
+            'usage_limit' => 500,
+            'status' => 'active',
+        ]);
+
+        $gatewayService = app(PaymentGatewayService::class);
+        $this->assertSame('local', $gatewayService->default()?->provider_code);
+
+        $billing = app(BillingService::class);
+        $invoice = $billing->invoiceForPlan($user, $starter);
+        $payment = $billing->initiatePayment($invoice);
+        $billing->verifyPayment($payment);
+        $billing->verifyPayment($payment->refresh());
+
+        $this->assertSame('paid', $invoice->refresh()->status);
+        $this->assertSame(1, Subscription::query()->where('user_id', $user->id)->where('status', 'active')->count());
+
+        $active = Subscription::query()->where('user_id', $user->id)->where('status', 'active')->firstOrFail();
+        $active->forceFill(['usage_used' => 80])->save();
+
+        $upgradeInvoice = $billing->invoiceForPlan($user, $upgrade);
+        $upgradePayment = $billing->initiatePayment($upgradeInvoice);
+        $billing->verifyPayment($upgradePayment);
+
+        $this->assertSame('replaced', $active->refresh()->status);
+        $newActive = Subscription::query()->where('user_id', $user->id)->where('status', 'active')->firstOrFail();
+        $this->assertSame($upgrade->id, $newActive->plan_id);
+        $this->assertSame(0, $newActive->usage_used);
+        $this->assertSame(500, $newActive->usage_limit);
+    }
+
+    public function test_invoices_are_user_scoped_unless_user_can_manage_billing(): void
+    {
+        $this->seed(DatabaseSeeder::class);
+
+        $plan = Plan::query()->firstOrFail();
+        $userA = User::query()->where('role', 'clinic_admin')->firstOrFail();
+        $userB = User::query()->where('role', 'editor')->firstOrFail();
+        $billing = app(BillingService::class);
+        $invoiceA = $billing->invoiceForPlan($userA, $plan);
+        $invoiceB = $billing->invoiceForPlan($userB, $plan);
+
+        $this->actingAs($userA)
+            ->forHost('hairvision-ai.test')
+            ->get('/admin/billing')
+            ->assertOk()
+            ->assertSee($invoiceA->number)
+            ->assertDontSee($invoiceB->number);
+
+        $superAdmin = User::query()->where('role', 'super_admin')->firstOrFail();
+
+        $this->actingAs($superAdmin)
+            ->withSession(['admin_all_tenants' => true])
+            ->forHost('hairvision-ai.test')
+            ->get('/admin/billing')
+            ->assertOk()
+            ->assertSee($invoiceA->number)
+            ->assertSee($invoiceB->number);
+    }
+
+    public function test_subscriptions_expire_by_usage_or_time(): void
+    {
+        $this->seed(DatabaseSeeder::class);
+
+        $user = User::query()->where('role', 'clinic_admin')->firstOrFail();
+        $plan = Plan::query()->firstOrFail();
+        $billing = app(BillingService::class);
+        $invoice = $billing->invoiceForPlan($user, $plan);
+        $subscription = $billing->activatePlan($user, $plan, $invoice);
+
+        $subscription->forceFill(['usage_limit' => 2, 'usage_used' => 1])->save();
+        $billing->consumeUsage($user);
+
+        $this->assertSame('expired', $subscription->refresh()->status);
+
+        $timeExpired = $billing->activatePlan($user, $plan, $invoice);
+        $timeExpired->forceFill(['ends_at' => now()->subMinute()])->save();
+
+        $this->assertSame(1, $billing->expireEndedSubscriptions());
+        $this->assertSame('expired', $timeExpired->refresh()->status);
+    }
+
+    public function test_sidebar_icons_and_locked_menu_state_when_user_has_no_active_plan(): void
+    {
+        $this->seed(DatabaseSeeder::class);
+
+        $user = User::query()->where('role', 'clinic_admin')->firstOrFail();
+
+        $this->actingAs($user)
+            ->forHost('hairvision-ai.test')
+            ->get('/admin/dashboard')
+            ->assertOk()
+            ->assertSee('data-menu-icon="layout-dashboard"', false)
+            ->assertSee('data-menu-icon="lock"', false)
+            ->assertSee('aria-disabled="true"', false)
+            ->assertSee('لیدها')
+            ->assertSee(__('dashboard.plan.view_plans'));
+    }
+
+    public function test_inactive_plan_users_can_access_allowed_pages_and_restricted_routes_are_blocked(): void
+    {
+        $this->seed(DatabaseSeeder::class);
+
+        $user = User::query()->where('role', 'clinic_admin')->firstOrFail();
+
+        $this->actingAs($user)->forHost('hairvision-ai.test')->get('/admin/plans')->assertOk();
+        $this->actingAs($user)->forHost('hairvision-ai.test')->get('/admin/billing')->assertOk();
+        $this->actingAs($user)->forHost('hairvision-ai.test')->get('/admin/settings')->assertOk();
+
+        $this->actingAs($user)
+            ->forHost('hairvision-ai.test')
+            ->get('/admin/leads')
+            ->assertRedirect(route('admin.plans.index'));
+
+        $this->actingAs($user)
+            ->forHost('hairvision-ai.test')
+            ->getJson('/admin/leads')
+            ->assertForbidden()
+            ->assertSee(__('permissions.plan_required'), false);
+    }
+
+    public function test_super_admin_can_manage_plan_definitions_and_normal_user_cannot(): void
+    {
+        $this->seed(DatabaseSeeder::class);
+
+        $superAdmin = User::query()->where('role', 'super_admin')->firstOrFail();
+        $normalUser = User::query()->where('role', 'clinic_admin')->firstOrFail();
+        $this->activateSubscription($normalUser);
+
+        $this->actingAs($superAdmin)
+            ->forHost('hairvision-ai.test')
+            ->post('/admin/system/plans', [
+                'name' => 'پلن مدیریتی',
+                'description' => 'برای تست مدیریت پلن',
+                'price' => 4500000,
+                'currency' => 'IRR',
+                'duration_days' => 30,
+                'usage_limit' => 50,
+                'status' => 'active',
+            ])
+            ->assertRedirect();
+
+        $this->assertDatabaseHas('plans', ['name' => 'پلن مدیریتی']);
+
+        $this->actingAs($normalUser)
+            ->forHost('hairvision-ai.test')
+            ->post('/admin/system/plans', [
+                'name' => 'پلن غیرمجاز',
+                'description' => 'نباید ساخته شود',
+                'price' => 1000,
+                'currency' => 'IRR',
+                'duration_days' => 10,
+                'usage_limit' => 5,
+                'status' => 'active',
+            ])
+            ->assertForbidden();
+    }
+
+    public function test_user_can_purchase_pay_and_upgrade_active_plan_without_carrying_credit(): void
+    {
+        $this->seed(DatabaseSeeder::class);
+
+        $user = User::query()->where('role', 'clinic_admin')->firstOrFail();
+        $starter = Plan::query()->where('status', 'active')->firstOrFail();
+        $upgrade = Plan::query()->create([
+            'name' => 'پلن مسیر رشد',
+            'description' => 'پلن ارتقا برای تست مسیر پرداخت',
+            'price' => 14900000,
+            'currency' => 'IRR',
+            'duration_days' => 60,
+            'usage_limit' => 300,
+            'status' => 'active',
+        ]);
+
+        $this->actingAs($user)
+            ->forHost('hairvision-ai.test')
+            ->post('/admin/plans/'.$starter->id.'/purchase')
+            ->assertRedirect(route('admin.billing.index'));
+
+        $invoice = $user->invoices()->where('plan_id', $starter->id)->firstOrFail();
+
+        $this->actingAs($user)
+            ->forHost('hairvision-ai.test')
+            ->post('/admin/billing/invoices/'.$invoice->id.'/pay')
+            ->assertRedirect();
+
+        $active = $user->subscriptions()->where('status', 'active')->firstOrFail();
+        $active->forceFill(['usage_used' => 80])->save();
+
+        $this->actingAs($user)
+            ->forHost('hairvision-ai.test')
+            ->post('/admin/plans/'.$upgrade->id.'/purchase')
+            ->assertRedirect(route('admin.billing.index'));
+
+        $upgradeInvoice = $user->invoices()->where('plan_id', $upgrade->id)->firstOrFail();
+
+        $this->actingAs($user)
+            ->forHost('hairvision-ai.test')
+            ->post('/admin/billing/invoices/'.$upgradeInvoice->id.'/pay')
+            ->assertRedirect();
+
+        $newActive = $user->subscriptions()->where('status', 'active')->firstOrFail();
+        $this->assertSame('replaced', $active->refresh()->status);
+        $this->assertSame($upgrade->id, $newActive->plan_id);
+        $this->assertSame(0, $newActive->usage_used);
+        $this->assertSame(300, $newActive->usage_limit);
+    }
+
+    public function test_crm_follow_up_creation_timeline_visibility_and_tenant_scope(): void
+    {
+        $tenantA = $this->createTenant('Clinic One', 'clinic1', 'clinic1.hairvision-ai.test');
+        $tenantB = $this->createTenant('Clinic Two', 'clinic2', 'clinic2.hairvision-ai.test');
+        $userA = $this->createUserForTenant($tenantA, 'clinic_admin', '09121111111');
+        $userB = $this->createUserForTenant($tenantB, 'clinic_admin', '09122222222');
+        $this->activateSubscription($userA);
+        $this->activateSubscription($userB);
+        $leadA = $this->createLead($tenantA, '09120000001', 'Tenant A Lead');
+        $leadB = $this->createLead($tenantB, '09120000002', 'Tenant B Lead');
+
+        $this->actingAs($userA)
+            ->withSession(['admin_active_tenant_id' => $tenantA->id])
+            ->forHost('hairvision-ai.test')
+            ->post('/admin/leads/'.$leadA->id.'/follow-ups', [
+                'status' => 'contacted',
+                'communication_channel' => 'phone',
+                'note' => 'تماس اولیه انجام شد و نیاز به پیگیری دارد.',
+                'next_follow_up_at' => now()->addDay()->format('Y-m-d H:i:s'),
+            ])
+            ->assertRedirect();
+
+        $this->assertDatabaseHas('lead_notes', [
+            'tenant_id' => $tenantA->id,
+            'lead_id' => $leadA->id,
+            'user_id' => $userA->id,
+            'status' => 'contacted',
+            'communication_channel' => 'phone',
+        ]);
+        $this->assertSame('contacted', $leadA->refresh()->crm_stage);
+
+        $this->actingAs($userA)
+            ->withSession(['admin_active_tenant_id' => $tenantA->id])
+            ->forHost('hairvision-ai.test')
+            ->get('/admin/leads/'.$leadA->id)
+            ->assertOk()
+            ->assertSee('تماس اولیه انجام شد')
+            ->assertSee(__('crm.timeline_title'));
+
+        $this->actingAs($userA)
+            ->withSession(['admin_active_tenant_id' => $tenantA->id])
+            ->forHost('hairvision-ai.test')
+            ->get('/admin/leads/'.$leadB->id)
+            ->assertForbidden();
+
+        $this->actingAs($userB)
+            ->withSession(['admin_active_tenant_id' => $tenantB->id])
+            ->forHost('hairvision-ai.test')
+            ->get('/admin/leads/'.$leadA->id)
+            ->assertForbidden();
+    }
+
+    public function test_lead_uploaded_image_displays_and_streams_only_for_authorized_user(): void
+    {
+        Storage::fake('local');
+
+        $tenantA = $this->createTenant('Clinic One', 'clinic1', 'clinic1.hairvision-ai.test');
+        $tenantB = $this->createTenant('Clinic Two', 'clinic2', 'clinic2.hairvision-ai.test');
+        $userA = $this->createUserForTenant($tenantA, 'clinic_admin', '09121111111');
+        $userB = $this->createUserForTenant($tenantB, 'clinic_admin', '09122222222');
+        $this->activateSubscription($userA);
+        $this->activateSubscription($userB);
+        $lead = $this->createLead($tenantA, '09120000001', 'Tenant A Lead');
+        $path = 'uploads/'.$lead->uuid.'/photo.jpg';
+        Storage::disk('local')->put($path, 'fake-image-bytes');
+
+        $upload = Upload::query()->create([
+            'tenant_id' => $tenantA->id,
+            'lead_id' => $lead->id,
+            'original_disk' => 'local',
+            'original_path' => $path,
+            'mime' => 'image/jpeg',
+            'size' => 16,
+            'status' => 'validated',
+        ]);
+
+        $this->actingAs($userA)
+            ->withSession(['admin_active_tenant_id' => $tenantA->id])
+            ->forHost('hairvision-ai.test')
+            ->get('/admin/leads/'.$lead->id)
+            ->assertOk()
+            ->assertSee(route('admin.leads.uploads.show', [$lead, $upload]))
+            ->assertSee(__('leads.uploads.title'));
+
+        $this->actingAs($userA)
+            ->withSession(['admin_active_tenant_id' => $tenantA->id])
+            ->forHost('hairvision-ai.test')
+            ->get('/admin/leads/'.$lead->id.'/uploads/'.$upload->id)
+            ->assertOk()
+            ->assertHeader('Content-Type', 'image/jpeg');
+
+        $this->actingAs($userB)
+            ->withSession(['admin_active_tenant_id' => $tenantB->id])
+            ->forHost('hairvision-ai.test')
+            ->get('/admin/leads/'.$lead->id.'/uploads/'.$upload->id)
+            ->assertForbidden();
+    }
+
+    public function test_super_admin_dashboard_starts_without_selected_clinic_and_can_select_one(): void
+    {
+        $this->seed(DatabaseSeeder::class);
+
+        $tenant = Tenant::query()->where('slug', 'clinic1')->firstOrFail();
+        $superAdmin = User::query()->where('role', 'super_admin')->firstOrFail();
+
+        $this->actingAs($superAdmin)
+            ->forHost('hairvision-ai.test')
+            ->get('/admin/dashboard')
+            ->assertOk()
+            ->assertSee(__('dashboard.platform_overview'))
+            ->assertSessionMissing('admin_active_tenant_id');
+
+        $this->actingAs($superAdmin)
+            ->forHost('hairvision-ai.test')
+            ->post('/admin/tenant', ['tenant_id' => $tenant->id])
+            ->assertRedirect();
+
+        $this->actingAs($superAdmin)
+            ->forHost('hairvision-ai.test')
+            ->get('/admin/dashboard')
+            ->assertOk()
+            ->assertSee($tenant->name);
+    }
+
+    public function test_normal_user_dashboard_is_scoped_to_own_tenant_data(): void
+    {
+        $tenantA = $this->createTenant('Clinic One', 'clinic1', 'clinic1.hairvision-ai.test');
+        $tenantB = $this->createTenant('Clinic Two', 'clinic2', 'clinic2.hairvision-ai.test');
+        $user = $this->createUserForTenant($tenantA, 'clinic_admin', '09121111111');
+        $this->activateSubscription($user);
+        $leadA = $this->createLead($tenantA, '09120000001', 'Tenant A Lead');
+        $leadB = $this->createLead($tenantB, '09120000002', 'Tenant B Lead');
+
+        $this->actingAs($user)
+            ->withSession(['admin_active_tenant_id' => $tenantA->id])
+            ->forHost('hairvision-ai.test')
+            ->get('/admin/dashboard')
+            ->assertOk()
+            ->assertSee($leadA->full_name)
+            ->assertDontSee($leadB->full_name);
+    }
+
+    public function test_persian_language_files_contain_required_keys(): void
+    {
+        foreach (['dashboard', 'menu', 'auth', 'plans', 'payments', 'leads', 'crm', 'sms', 'settings', 'system', 'permissions', 'reports', 'messages', 'validation'] as $file) {
+            $this->assertFileExists(base_path('lang/fa/'.$file.'.php'));
+        }
+
+        $this->assertSame('داشبورد', __('menu.groups.dashboard'));
+        $this->assertSame('پلن‌ها و پرداخت‌ها', __('menu.groups.plans_payments'));
+        $this->assertSame('نیاز به پیگیری', __('leads.crm_stages.needs_follow_up'));
+        $this->assertSame('تماس تلفنی', __('crm.channels.phone'));
+        $this->assertSame('مدیریت سیستم', __('system.dashboard_title'));
+        $this->assertSame('برای دسترسی به این بخش باید پلن فعال داشته باشید.', __('permissions.plan_required'));
+    }
+
+    private function createTenant(string $name, string $slug, string $domain): Tenant
+    {
+        $tenant = Tenant::create([
+            'name' => $name,
+            'slug' => $slug,
+            'status' => 'active',
+        ]);
+
+        TenantDomain::create([
+            'tenant_id' => $tenant->id,
+            'domain' => $domain,
+            'type' => 'tenant_subdomain',
+            'status' => 'active',
+            'ssl_status' => 'unknown',
+        ]);
+
+        return $tenant;
+    }
+
+    private function createUserForTenant(Tenant $tenant, string $role, string $phone): User
+    {
+        $user = User::factory()->create([
+            'phone_normalized' => $phone,
+            'role' => $role,
+            'status' => 'active',
+        ]);
+
+        $tenant->users()->attach($user->id, [
+            'role' => $role,
+            'status' => 'active',
+        ]);
+
+        return $user;
+    }
+
+    private function createLead(Tenant $tenant, string $phone, string $name): Lead
+    {
+        return Lead::create([
+            'tenant_id' => $tenant->id,
+            'full_name' => $name,
+            'phone' => $phone,
+            'phone_normalized' => $phone,
+            'source' => 'landing_page',
+            'phone_verified_at' => now(),
+            'status' => 'verified',
+            'crm_stage' => 'new_lead',
+        ]);
+    }
+
+    private function activateSubscription(User $user): Subscription
+    {
+        $plan = Plan::query()->create([
+            'name' => 'پلن تست',
+            'description' => 'پلن تست',
+            'price' => 1000,
+            'currency' => 'IRR',
+            'duration_days' => 30,
+            'usage_limit' => 100,
+            'status' => 'active',
+        ]);
+
+        return Subscription::query()->create([
+            'user_id' => $user->id,
+            'plan_id' => $plan->id,
+            'status' => 'active',
+            'starts_at' => now(),
+            'ends_at' => now()->addDays(30),
+            'usage_limit' => 100,
+            'usage_used' => 0,
+        ]);
+    }
+
+    private function forHost(string $host): self
+    {
+        $this->app['url']->forceRootUrl('http://'.$host);
+
+        return $this->withServerVariables([
+            'HTTP_HOST' => $host,
+            'SERVER_NAME' => $host,
+        ]);
+    }
+}

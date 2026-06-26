@@ -1,0 +1,72 @@
+<?php
+
+namespace App\Models;
+
+use App\Models\Concerns\HasUuid;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+
+/**
+ * SMS gateway configuration for platform messages or a user's own customers.
+ *
+ * @since 1.0.0
+ */
+class SmsGateway extends Model
+{
+    use HasFactory, HasUuid;
+
+    protected $fillable = [
+        'user_id',
+        'name',
+        'provider_code',
+        'owner_scope',
+        'status',
+        'is_default',
+        'encrypted_credentials',
+        'settings_json',
+    ];
+
+    protected $hidden = [
+        'encrypted_credentials',
+    ];
+
+    protected $casts = [
+        'is_default' => 'boolean',
+        'encrypted_credentials' => 'encrypted:array',
+        'settings_json' => 'array',
+        'created_at' => 'datetime',
+        'updated_at' => 'datetime',
+    ];
+
+    /**
+     * User that owns a private gateway, when owner scope is `user`.
+     *
+     * @return BelongsTo<User, $this>
+     */
+    public function user(): BelongsTo
+    {
+        return $this->belongsTo(User::class);
+    }
+
+    /**
+     * Scope query to system-level gateways.
+     *
+     * @param  Builder<SmsGateway>  $query
+     */
+    public function scopeSystem(Builder $query): Builder
+    {
+        return $query->where('owner_scope', 'system')->whereNull('user_id');
+    }
+
+    /**
+     * Scope query to enabled gateway rows.
+     *
+     * @param  Builder<SmsGateway>  $query
+     */
+    public function scopeEnabled(Builder $query): Builder
+    {
+        return $query->where('status', 'enabled');
+    }
+}

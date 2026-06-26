@@ -94,12 +94,18 @@ Required fields:
 - `lead_id`
 - `user_id`
 - `type`
+- `status`
+- `communication_channel`
 - `note`
+- `next_follow_up_at`
+- `completed_at`
 - `metadata_json`
 
-The dashboard is not required for Phase 1, but the data structure exists so a
-clinic admin can later change lead stage and add follow-up notes without changing
-the public lead flow.
+The dashboard stores follow-up records separately from the main lead edit form
+so clinic users can add timeline history without changing the lead record every
+time. `status` stores the CRM stage key, `communication_channel` stores values
+such as `phone`, `sms`, `whatsapp`, `in_person`, or `other`, and completion is
+tracked through `completed_at`.
 
 ### `users`
 
@@ -220,13 +226,100 @@ The public page is composed of three areas:
 
 Reserved for tenant activity tracking.
 
+## System Management Tables
+
+### `roles`
+
+Stores dashboard access levels by stable `code`.
+
+Default codes:
+
+- `super_admin`
+- `clinic_admin`
+- `editor`
+- `viewer`
+
+### `permissions`
+
+Stores backend permission codes such as:
+
+- `users.list`
+- `users.search`
+- `users.view`
+- `users.create`
+- `users.edit`
+- `users.delete`
+
+### `permission_role`
+
+Assigns permissions to access levels.
+
+### `system_settings`
+
+Stores database-backed platform settings editable by authorized system managers.
+Values are cached and the cache is cleared on update.
+
+### `sms_gateways`
+
+Stores system SMS gateway records and user-private SMS gateway records.
+Credentials are encrypted and hidden from serialized output.
+
+System records use:
+
+```text
+owner_scope = system
+user_id = null
+```
+
+User-private records use:
+
+```text
+owner_scope = user
+user_id = users.id
+```
+
+### `payment_gateways`
+
+Stores system payment gateway records. Credentials are encrypted and hidden from
+serialized output.
+
+### `plans`
+
+Stores plan definitions, including price, duration, usage limit, features, and
+status.
+
+### `invoices`
+
+Stores user-owned invoices connected to plans and payment transactions.
+
+### `payments`
+
+Stores payment attempts, authority/reference ids, safe gateway response payloads,
+and verification status.
+
+### `subscriptions`
+
+Stores active and historical user plan entitlements. Only one active
+subscription should exist per user after successful payment; upgrades replace the
+previous active subscription without carrying remaining time or credit.
+
 ## Required Invariants
 
 - Every tenant-owned table includes `tenant_id`.
 - Landing page visits include `tenant_id` and are recorded before lead creation.
 - Visitor-owned resources include both `tenant_id` and `lead_id`.
 - CRM notes include both `tenant_id` and `lead_id`.
+- CRM follow-up writes update `leads.crm_stage` and `leads.crm_last_note_at`
+  inside a database transaction.
 - Public APIs scope by current tenant and, when applicable, current session lead.
 - Stored file paths are internal metadata and are never exposed directly.
+- Dashboard upload previews stream private upload bytes through authorized admin
+  routes and never expose private storage paths.
+- Normal users may query only their own invoices, subscriptions, private SMS
+  gateways, and user reports.
+- Normal users need an active subscription to access operational dashboard
+  sections beyond dashboard overview, plans, billing, and settings.
+- Super Admin can cross tenant and user boundaries only through explicit
+  permission checks.
 - Feature migrations should be consolidated into the migration for the related
   model/domain while the schema is still pre-release.

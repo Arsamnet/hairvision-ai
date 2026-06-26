@@ -1,6 +1,7 @@
 # Authentication Roadmap
 
-Status: admin OTP and lead dashboard implemented for the dashboard phase.
+Status: admin OTP, lead dashboard, and native system-management RBAC are
+implemented for the dashboard phase.
 
 This document now tracks remaining authentication and dashboard work after the
 initial `/admin` dashboard implementation.
@@ -33,8 +34,9 @@ Recommended user ownership fields for dashboard users:
 
 ## Role-Based Access Control
 
-Start with explicit roles, then graduate to permission tables only when the
-dashboard needs tenant-customizable permissions.
+HairVision now uses explicit roles backed by native permission tables. The
+system keeps the existing single-role user architecture while storing
+permission assignments in `permission_role`.
 
 Recommended roles:
 
@@ -46,7 +48,7 @@ Recommended roles:
 - `tenant_viewer`: read-only access to tenant leads and generated assets.
 - `client`: optional future role for visitor-owned result history.
 
-Initial permissions:
+Representative permissions:
 
 - `tenants.viewAny`
 - `tenants.view`
@@ -62,6 +64,21 @@ Initial permissions:
 - `themeSettings.update`
 - `providerSettings.update`
 - `auditLogs.view`
+- `users.list`
+- `users.search`
+- `users.view`
+- `users.create`
+- `users.edit`
+- `users.delete`
+- `roles.manage`
+- `permissions.manage`
+- `settings.manage`
+- `sms_gateways.manage`
+- `payment_gateways.manage`
+- `plans.manage`
+- `billing.manage`
+- `reports.management.view`
+- `reports.user.view`
 
 ## Protected Routes
 
@@ -159,6 +176,15 @@ Platform dashboard:
 - Domain verification and status.
 - Provider catalog and system defaults.
 - Support audit trail.
+- Super Admin system dashboard.
+- Access levels and permission assignment.
+- System settings.
+- System SMS and payment gateways.
+- Plan, invoice, payment, and subscription management.
+- Management reports.
+- Active-plan enforcement for normal users. Users without active access can
+  still sign in, view the dashboard notice, browse plans, pay invoices, and use
+  account settings, while operational sections are middleware-blocked.
 
 ## Versioning Plan
 

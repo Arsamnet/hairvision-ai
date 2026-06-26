@@ -1,78 +1,179 @@
 @extends('admin.layout')
 
-@section('title', 'جزئیات لید')
-@section('page_title', 'جزئیات لید')
+@section('title', __('leads.details_title'))
+@section('page_title', __('leads.details_title'))
 
 @section('content')
-    <div class="grid gap-5 xl:grid-cols-[1fr_22rem]">
-        <section class="rounded-lg bg-white p-5 shadow-sm ring-1 ring-zinc-200">
-            <div class="flex flex-wrap items-start justify-between gap-3">
-                <div>
-                    <p class="text-sm font-bold text-teal-600">{{ $lead->tenant?->name }}</p>
-                    <h2 class="mt-2 text-2xl font-bold">{{ $lead->full_name ?: 'لید بدون نام' }}</h2>
-                    <p class="mt-2 text-sm text-zinc-500">{{ $lead->phone_normalized }}</p>
-                </div>
-                @can('update', $lead)
-                    <a href="{{ route('admin.leads.edit', $lead) }}" class="rounded-lg bg-zinc-950 px-4 py-2 text-sm font-bold text-white hover:bg-teal-700">ویرایش</a>
-                @endcan
-            </div>
+    @php
+        $primaryUpload = $lead->uploads->sortByDesc('created_at')->first();
+        $notes = $lead->notes->sortByDesc('created_at');
+    @endphp
 
-            <div class="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                <div class="rounded-lg bg-zinc-50 p-4">
-                    <p class="text-xs font-bold text-zinc-500">وضعیت</p>
-                    <p class="mt-2 font-bold">{{ $lead->status }}</p>
+    <div class="grid gap-5 xl:grid-cols-[1fr_24rem]">
+        <div class="space-y-5">
+            <section class="rounded-lg bg-white p-5 shadow-sm ring-1 ring-zinc-200">
+                <div class="flex flex-wrap items-start justify-between gap-3">
+                    <div>
+                        <p class="text-sm font-bold text-teal-600">{{ $lead->tenant?->name }}</p>
+                        <h2 class="mt-2 text-2xl font-bold">{{ $lead->full_name ?: __('leads.empty_name') }}</h2>
+                        <p class="mt-2 text-sm text-zinc-500">{{ $lead->phone_normalized }}</p>
+                    </div>
+                    @can('update', $lead)
+                        <a href="{{ route('admin.leads.edit', $lead) }}" class="inline-flex items-center gap-2 rounded-lg bg-zinc-950 px-4 py-2 text-sm font-bold text-white transition hover:bg-teal-700">
+                            <x-admin.icon name="settings" class="h-4 w-4" />
+                            <span>{{ __('leads.edit') }}</span>
+                        </a>
+                    @endcan
                 </div>
-                <div class="rounded-lg bg-zinc-50 p-4">
-                    <p class="text-xs font-bold text-zinc-500">مرحله CRM</p>
-                    <p class="mt-2 font-bold">{{ $lead->crm_stage }}</p>
-                </div>
-                <div class="rounded-lg bg-zinc-50 p-4">
-                    <p class="text-xs font-bold text-zinc-500">منبع</p>
-                    <p class="mt-2 font-bold">{{ $lead->source ?: '-' }}</p>
-                </div>
-                <div class="rounded-lg bg-zinc-50 p-4">
-                    <p class="text-xs font-bold text-zinc-500">مسئول</p>
-                    <p class="mt-2 font-bold">{{ $lead->assignedUser?->name ?: '-' }}</p>
-                </div>
-            </div>
 
-            <div class="mt-6">
-                <h3 class="text-lg font-bold">پردازش‌ها</h3>
+                <div class="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                    <div class="rounded-lg bg-zinc-50 p-4">
+                        <p class="text-xs font-bold text-zinc-500">{{ __('leads.fields.status') }}</p>
+                        <p class="mt-2 font-bold">{{ __('leads.statuses.'.$lead->status) }}</p>
+                    </div>
+                    <div class="rounded-lg bg-teal-50 p-4">
+                        <p class="text-xs font-bold text-teal-700">{{ __('leads.fields.crm_stage') }}</p>
+                        <p class="mt-2 font-bold text-teal-900">{{ __('leads.crm_stages.'.$lead->crm_stage) }}</p>
+                    </div>
+                    <div class="rounded-lg bg-zinc-50 p-4">
+                        <p class="text-xs font-bold text-zinc-500">{{ __('leads.fields.source') }}</p>
+                        <p class="mt-2 font-bold">{{ $lead->source ?: __('messages.none') }}</p>
+                    </div>
+                    <div class="rounded-lg bg-zinc-50 p-4">
+                        <p class="text-xs font-bold text-zinc-500">{{ __('leads.fields.owner') }}</p>
+                        <p class="mt-2 font-bold">{{ $lead->assignedUser?->name ?: __('messages.none') }}</p>
+                    </div>
+                </div>
+            </section>
+
+            <section class="rounded-lg bg-white p-5 shadow-sm ring-1 ring-zinc-200">
+                <div class="flex items-center justify-between gap-3">
+                    <h3 class="text-lg font-bold">{{ __('leads.uploads.title') }}</h3>
+                    <x-admin.icon name="sparkles" class="text-teal-700" />
+                </div>
+
+                @if($primaryUpload)
+                    <figure class="mt-4 overflow-hidden rounded-lg border border-zinc-100 bg-zinc-50">
+                        <img src="{{ route('admin.leads.uploads.show', [$lead, $primaryUpload]) }}" alt="{{ __('leads.uploads.alt') }}" class="max-h-[32rem] w-full object-contain">
+                        <figcaption class="border-t border-zinc-100 px-4 py-3 text-xs font-bold text-zinc-500">
+                            {{ __('leads.uploads.uploaded_at', ['date' => $primaryUpload->created_at?->diffForHumans()]) }}
+                        </figcaption>
+                    </figure>
+                @else
+                    <div class="mt-4 rounded-lg border border-dashed border-zinc-200 bg-zinc-50 px-4 py-10 text-center">
+                        <span class="mx-auto grid h-12 w-12 place-items-center rounded-lg bg-white text-zinc-400">
+                            <x-admin.icon name="sparkles" />
+                        </span>
+                        <p class="mt-3 text-sm font-bold text-zinc-500">{{ __('leads.uploads.empty') }}</p>
+                    </div>
+                @endif
+            </section>
+
+            <section class="rounded-lg bg-white p-5 shadow-sm ring-1 ring-zinc-200">
+                <h3 class="text-lg font-bold">{{ __('leads.generations.title') }}</h3>
                 <div class="mt-3 space-y-3">
                     @forelse($lead->generationGroups as $group)
                         <div class="rounded-lg border border-zinc-200 p-4">
                             <div class="flex flex-wrap items-center justify-between gap-2">
-                                <span class="text-sm font-bold">گروه {{ $group->uuid }}</span>
+                                <span class="text-sm font-bold">{{ __('leads.generations.group', ['uuid' => $group->uuid]) }}</span>
                                 <span class="rounded-lg bg-zinc-100 px-3 py-1 text-xs font-bold text-zinc-700">{{ $group->status }}</span>
                             </div>
                             <div class="mt-3 grid gap-2 sm:grid-cols-3">
                                 @foreach($group->jobs as $job)
                                     <div class="rounded-lg bg-zinc-50 p-3 text-sm">
-                                        <p class="font-bold">{{ $job->period }}</p>
+                                        <p class="font-bold">{{ __('leads.periods.'.$job->period) }}</p>
                                         <p class="mt-1 text-zinc-500">{{ $job->status }}</p>
                                     </div>
                                 @endforeach
                             </div>
                         </div>
                     @empty
-                        <p class="rounded-lg bg-zinc-50 px-4 py-8 text-center text-sm text-zinc-500">هنوز پردازشی برای این لید ثبت نشده است.</p>
+                        <p class="rounded-lg bg-zinc-50 px-4 py-8 text-center text-sm text-zinc-500">{{ __('leads.generations.empty') }}</p>
                     @endforelse
                 </div>
-            </div>
-        </section>
+            </section>
+        </div>
 
-        <aside class="rounded-lg bg-white p-5 shadow-sm ring-1 ring-zinc-200">
-            <h3 class="text-lg font-bold">یادداشت‌ها</h3>
-            <div class="mt-4 space-y-3">
-                @forelse($lead->notes->sortByDesc('created_at') as $note)
-                    <article class="rounded-lg bg-zinc-50 p-4">
-                        <p class="text-sm leading-7 text-zinc-700">{{ $note->note }}</p>
-                        <p class="mt-3 text-xs text-zinc-500">{{ $note->user?->name ?? 'سیستم' }} - {{ $note->created_at?->diffForHumans() }}</p>
-                    </article>
-                @empty
-                    <p class="rounded-lg bg-zinc-50 px-4 py-8 text-center text-sm text-zinc-500">یادداشتی ثبت نشده است.</p>
-                @endforelse
-            </div>
+        <aside class="space-y-5">
+            @can('createNote', $lead)
+                <section class="rounded-lg bg-white p-5 shadow-sm ring-1 ring-zinc-200">
+                    <h3 class="text-lg font-bold">{{ __('crm.new_follow_up') }}</h3>
+                    <form method="POST" action="{{ route('admin.leads.follow-ups.store', $lead) }}" class="mt-4 space-y-3">
+                        @csrf
+                        <div>
+                            <label class="text-xs font-bold text-zinc-500">{{ __('crm.status') }}</label>
+                            <select name="status" class="mt-1 h-11 w-full rounded-lg border border-zinc-200 px-3 text-sm outline-none transition focus:border-teal-500">
+                                @foreach(__('leads.crm_stages') as $stage => $label)
+                                    <option value="{{ $stage }}" @selected($lead->crm_stage === $stage)>{{ $label }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div>
+                            <label class="text-xs font-bold text-zinc-500">{{ __('crm.channel') }}</label>
+                            <select name="communication_channel" class="mt-1 h-11 w-full rounded-lg border border-zinc-200 px-3 text-sm outline-none transition focus:border-teal-500">
+                                <option value="">{{ __('messages.select') }}</option>
+                                @foreach(__('crm.channels') as $channel => $label)
+                                    <option value="{{ $channel }}">{{ $label }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div>
+                            <label class="text-xs font-bold text-zinc-500">{{ __('crm.next_follow_up_at') }}</label>
+                            <input name="next_follow_up_at" type="datetime-local" class="mt-1 h-11 w-full rounded-lg border border-zinc-200 px-3 text-sm outline-none transition focus:border-teal-500">
+                        </div>
+                        <div>
+                            <label class="text-xs font-bold text-zinc-500">{{ __('crm.note') }}</label>
+                            <textarea name="note" rows="4" required placeholder="{{ __('crm.note_placeholder') }}" class="mt-1 w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm leading-7 outline-none transition focus:border-teal-500"></textarea>
+                        </div>
+                        <label class="flex items-center gap-2 text-sm font-bold text-zinc-600">
+                            <input type="checkbox" name="is_completed" value="1" class="rounded border-zinc-300 text-teal-700">
+                            <span>{{ __('crm.completed') }}</span>
+                        </label>
+                        <button class="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-zinc-950 px-4 py-2.5 text-sm font-bold text-white transition hover:bg-teal-700">
+                            <x-admin.icon name="message" class="h-4 w-4" />
+                            <span>{{ __('crm.submit') }}</span>
+                        </button>
+                    </form>
+                </section>
+            @endcan
+
+            <section class="rounded-lg bg-white p-5 shadow-sm ring-1 ring-zinc-200">
+                <h3 class="text-lg font-bold">{{ __('crm.timeline_title') }}</h3>
+                <div class="mt-4 space-y-3">
+                    @forelse($notes as $note)
+                        <article class="relative rounded-lg border border-zinc-100 bg-zinc-50 p-4">
+                            <div class="flex flex-wrap items-center justify-between gap-2">
+                                <span class="rounded-full bg-teal-50 px-3 py-1 text-xs font-bold text-teal-700">{{ __('leads.crm_stages.'.$note->status) }}</span>
+                                @if($note->communication_channel)
+                                    <span class="text-xs font-bold text-zinc-500">{{ __('crm.channels.'.$note->communication_channel) }}</span>
+                                @endif
+                            </div>
+                            <p class="mt-3 text-sm leading-7 text-zinc-700">{{ $note->note }}</p>
+                            <div class="mt-3 space-y-1 text-xs text-zinc-500">
+                                <p>{{ $note->user?->name ?? __('leads.system_user') }} - {{ $note->created_at?->diffForHumans() }}</p>
+                                @if($note->next_follow_up_at)
+                                    <p>{{ __('crm.next_follow_up_at') }}: {{ $note->next_follow_up_at?->toDateTimeString() }}</p>
+                                @endif
+                                @if($note->completed_at)
+                                    <p class="font-bold text-emerald-700">{{ __('crm.completed') }}</p>
+                                @endif
+                            </div>
+                            @can('updateNote', [$lead, $note])
+                                @if(! $note->completed_at)
+                                    <form method="POST" action="{{ route('admin.leads.follow-ups.update', [$lead, $note]) }}" class="mt-3">
+                                        @csrf
+                                        @method('PATCH')
+                                        <input type="hidden" name="is_completed" value="1">
+                                        <button class="rounded-lg border border-zinc-200 px-3 py-2 text-xs font-bold text-zinc-700 transition hover:border-emerald-300 hover:text-emerald-700">{{ __('crm.mark_completed') }}</button>
+                                    </form>
+                                @endif
+                            @endcan
+                        </article>
+                    @empty
+                        <p class="rounded-lg bg-zinc-50 px-4 py-8 text-center text-sm text-zinc-500">{{ __('crm.empty') }}</p>
+                    @endforelse
+                </div>
+            </section>
         </aside>
     </div>
 @endsection

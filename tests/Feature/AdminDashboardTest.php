@@ -4,6 +4,8 @@ namespace Tests\Feature;
 
 use App\Models\Lead;
 use App\Models\OtpCode;
+use App\Models\Plan;
+use App\Models\Subscription;
 use App\Models\Tenant;
 use App\Models\TenantDomain;
 use App\Models\User;
@@ -100,6 +102,7 @@ class AdminDashboardTest extends TestCase
         $tenantA = $this->createTenant('Clinic One', 'clinic1', 'clinic1.hairvision-ai.test');
         $tenantB = $this->createTenant('Clinic Two', 'clinic2', 'clinic2.hairvision-ai.test');
         $user = $this->createUserForTenant($tenantA, 'clinic_admin', '09121111111');
+        $this->activateSubscription($user);
         $leadA = $this->createLead($tenantA, '09120000001', 'Tenant A Lead');
         $leadB = $this->createLead($tenantB, '09120000002', 'Tenant B Lead');
 
@@ -123,6 +126,8 @@ class AdminDashboardTest extends TestCase
         $tenant = $this->createTenant('Clinic One', 'clinic1', 'clinic1.hairvision-ai.test');
         $viewer = $this->createUserForTenant($tenant, 'viewer', '09122222222');
         $editor = $this->createUserForTenant($tenant, 'editor', '09123333333');
+        $this->activateSubscription($viewer);
+        $this->activateSubscription($editor);
         $lead = $this->createLead($tenant, '09124444444', 'Original Name');
 
         $this->actingAs($viewer)
@@ -197,6 +202,29 @@ class AdminDashboardTest extends TestCase
             'phone_verified_at' => now(),
             'status' => 'verified',
             'crm_stage' => 'new_lead',
+        ]);
+    }
+
+    private function activateSubscription(User $user): Subscription
+    {
+        $plan = Plan::query()->create([
+            'name' => 'پلن تست',
+            'description' => 'پلن تست',
+            'price' => 1000,
+            'currency' => 'IRR',
+            'duration_days' => 30,
+            'usage_limit' => 100,
+            'status' => 'active',
+        ]);
+
+        return Subscription::query()->create([
+            'user_id' => $user->id,
+            'plan_id' => $plan->id,
+            'status' => 'active',
+            'starts_at' => now(),
+            'ends_at' => now()->addDays(30),
+            'usage_limit' => 100,
+            'usage_used' => 0,
         ]);
     }
 

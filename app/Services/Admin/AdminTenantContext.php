@@ -29,6 +29,10 @@ class AdminTenantContext
             return Tenant::query()->whereKey($tenantId)->first();
         }
 
+        if ($user->isSuperAdmin()) {
+            return null;
+        }
+
         $tenant = $this->defaultTenant($user);
 
         if ($tenant) {
@@ -54,7 +58,7 @@ class AdminTenantContext
 
         if (! is_numeric($tenantId) || ! $user->canAccessTenant((int) $tenantId)) {
             throw ValidationException::withMessages([
-                'tenant_id' => 'دسترسی به این کلینیک مجاز نیست.',
+                'tenant_id' => __('permissions.tenant_denied'),
             ]);
         }
 
@@ -88,10 +92,6 @@ class AdminTenantContext
      */
     private function defaultTenant(User $user): ?Tenant
     {
-        if ($user->isSuperAdmin()) {
-            return Tenant::query()->where('status', 'active')->orderBy('id')->first();
-        }
-
         return $user->tenants()
             ->wherePivot('status', 'active')
             ->where('tenants.status', 'active')

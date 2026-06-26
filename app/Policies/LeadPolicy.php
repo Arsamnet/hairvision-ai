@@ -25,7 +25,8 @@ class LeadPolicy
      */
     public function viewAny(User $user): bool
     {
-        return $user->isActive() && $user->tenants()->wherePivot('status', 'active')->exists();
+        return $user->hasPermission('leads.list')
+            && ($user->isSuperAdmin() || $user->tenants()->wherePivot('status', 'active')->exists());
     }
 
     /**
@@ -33,7 +34,8 @@ class LeadPolicy
      */
     public function view(User $user, Lead $lead): bool
     {
-        return $user->isActive() && $user->canAccessTenant($lead->tenant_id);
+        return $user->hasPermission('leads.view', $lead->tenant_id)
+            && $user->canAccessTenant($lead->tenant_id);
     }
 
     /**
@@ -41,7 +43,7 @@ class LeadPolicy
      */
     public function create(User $user): bool
     {
-        if (in_array($user->role, ['clinic_admin', 'editor'], true)) {
+        if ($user->hasPermission('leads.create')) {
             return true;
         }
 
@@ -60,7 +62,25 @@ class LeadPolicy
             return false;
         }
 
-        return in_array($user->roleForTenant($lead->tenant_id), ['clinic_admin', 'editor'], true);
+        return $user->hasPermission('leads.edit', $lead->tenant_id);
+    }
+
+    /**
+     * Determine whether a user may add a CRM follow-up note.
+     */
+    public function createNote(User $user, Lead $lead): bool
+    {
+        return $this->update($user, $lead);
+    }
+
+    /**
+     * Determine whether a user may update a CRM follow-up note for the lead.
+     */
+    public function updateNote(User $user, Lead $lead, mixed $note): bool
+    {
+        return $note?->lead_id === $lead->id
+            && $note?->tenant_id === $lead->tenant_id
+            && $this->update($user, $lead);
     }
 
     /**
@@ -68,6 +88,7 @@ class LeadPolicy
      */
     public function delete(User $user, Lead $lead): bool
     {
-        return false;
+        return $user->hasPermission('leads.delete', $lead->tenant_id)
+            && $user->canAccessTenant($lead->tenant_id);
     }
 }

@@ -22,6 +22,6 @@ class TenantSwitchController extends Controller
 
         $tenantContext->select($request, $request->user(), $validated['tenant_id']);
 
-        return back()->with('status', 'کلینیک فعال تغییر کرد.');
+        return back()->with('status', __('dashboard.tenant_changed'));
     }
 }

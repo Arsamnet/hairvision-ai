@@ -1,7 +1,7 @@
 # Roles and Permissions
 
-HairVision starts with internal role-based access control rather than an
-external permissions package.
+HairVision uses internal role-based access control rather than an external
+permissions package.
 
 Roles:
 
@@ -12,12 +12,51 @@ Roles:
 
 Current dashboard enforcement:
 
-- Lead policies enforce view, create, update, and delete rules.
+- Permissions are stored in `permissions`.
+- Access levels are stored in `roles`.
+- Role permission assignments are stored in `permission_role`.
+- `users.role` stores the global/default access level.
+- `tenant_user.role` stores the tenant-context access level.
+- Lead policies enforce list, view, create, update, and delete rules.
+- Lead policies also gate CRM follow-up creation and updates through
+  `createNote` and `updateNote`.
 - Viewers cannot edit leads.
 - Editors can update `source`, `crm_stage`, and notes only.
 - Clinic admins can create and update clinic leads.
 - Super admins can cross tenant boundaries through explicit policy bypass.
 - Lead deletion is disabled.
+- Plan definitions can be created, updated, activated/deactivated, or deleted
+  only by Super Admin users or users with the relevant plan permission such as
+  `plans.create`, `plans.edit`, `plans.delete`, or `plans.manage`.
 
 Frontend visibility is treated as a usability aid only. Backend policies and
 tenant-scoped queries are the authority.
+
+Plan access middleware:
+
+- Normal users without an active plan can access dashboard overview, plans,
+  billing/invoices, tenant switch/logout, and account settings.
+- Operational menu items remain visible as locked when the user has permission
+  but lacks active plan access.
+- Direct URL access to plan-restricted routes returns a Persian `403` response
+  for JSON requests or redirects to the plans page for web requests.
+- Super Admin and system-management users with management permissions are exempt
+  from subscription gating.
+
+Example permission codes:
+
+- `users.list`
+- `users.search`
+- `users.view`
+- `users.create`
+- `users.edit`
+- `users.delete`
+- `roles.manage`
+- `permissions.manage`
+- `settings.manage`
+- `sms_gateways.manage`
+- `payment_gateways.manage`
+- `plans.manage`
+- `billing.manage`
+- `reports.management.view`
+- `reports.user.view`

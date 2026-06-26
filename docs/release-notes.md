@@ -1,5 +1,91 @@
 # Release Notes
 
+## Unreleased
+
+### Added
+
+- Grouped, icon-enhanced Persian admin sidebar with active group/item states.
+- Plan-aware locked menu state for normal users without active subscription
+  access.
+- `active_plan` middleware and `PlanAccessService` for inactive, expired, and
+  credit-finished plan states.
+- Persian localization files under `lang/fa` for dashboard, menu, auth, plans,
+  payments, leads, CRM, SMS, settings, permissions, reports, messages, and
+  validation.
+- Dedicated CRM follow-up routes, Form Requests, service, timeline UI, channels,
+  next follow-up date, and completion state.
+- Authorized admin upload streaming route for private lead images.
+- Plan definition deletion route for authorized plan managers.
+- Tests for locked menus, plan route blocking, plan management permissions,
+  purchase/upgrade behavior, CRM timeline isolation, upload authorization,
+  Super Admin clinic context, normal-user dashboard scoping, and language keys.
+
+### Changed
+
+- Super Admin dashboard starts in global platform context instead of selecting a
+  clinic by default.
+- Normal users see only active purchasable plans; managers can manage plan
+  definitions.
+- Dashboard cards, plan notices, lists, tables, badges, empty states, lead
+  detail, plans, and billing views were visually refined for RTL use.
+- Seeded roles, permissions, system setting labels, provider names, gateway
+  names, and default display text are Persian where safe.
+
+### Security
+
+- Plan-restricted routes are blocked server-side for inactive, expired, or
+  credit-finished normal users.
+- Lead upload previews are streamed through policy and tenant checks without
+  exposing private storage paths.
+- CRM follow-up writes are tenant- and lead-scoped and use policy/Form Request
+  authorization.
+
+## 1.2.0
+
+### Added
+
+- Native Super Admin system-management area under `/admin/system`.
+- Database-backed roles, permissions, role-permission assignments, and access
+  assignment pages.
+- Idempotent Super Admin seeding from safe `config('hairvision.super_admin.*')`
+  values.
+- Database-backed system settings with cache clearing on update.
+- Reusable pagination helpers for standard JSON and DataTables-style requests.
+- System SMS gateway management and user-private SMS gateway configuration.
+- System payment gateway management with a local MVP payment adapter.
+- Plan, invoice, payment, and subscription models and management flow.
+- User financial section with own invoices, active subscription, and plan
+  purchase/upgrade flow.
+- Management reports separated from user reports.
+- Focused system-management feature tests.
+
+### Changed
+
+- Admin menu visibility is now permission-aware for leads, users, plans,
+  billing, reports, settings, and system management.
+- Lead policy checks now use explicit permission codes while preserving the
+  existing role behavior through the seeded access levels.
+- Lead list JSON responses support shared pagination metadata and DataTables
+  server-side parameters.
+- Database seeding is idempotent for demo users, tenants, domains, providers,
+  theme settings, roles, permissions, gateways, settings, plans, and demo leads.
+
+### Security
+
+- System-management routes use backend `permission:*` middleware.
+- SMS and payment credentials use encrypted casts and are hidden from model
+  serialization.
+- User-private SMS gateways are scoped to the authenticated owner.
+- Invoices are scoped to the authenticated user unless billing-management
+  permission is present.
+- Payment verification is idempotent before activating subscriptions.
+
+### Documentation
+
+- Added `docs/system-management.md`.
+- Updated README, API, database, dashboard, roles/permissions, security,
+  performance, setup, development, and agent instructions.
+
 ## 1.1.0
 
 ### Added

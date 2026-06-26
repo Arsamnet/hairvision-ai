@@ -19,11 +19,18 @@ class UserController extends Controller
         $user = $request->user();
         $tenant = $request->attributes->get('adminTenant');
 
-        abort_unless($user->isSuperAdmin() || in_array($user->roleForTenant($tenant?->id), ['clinic_admin'], true), 403);
+        abort_unless($user->hasPermission('users.list', $tenant?->id), 403);
 
         $users = $tenant
             ? $tenant->users()->orderBy('name')->paginate(15)
-            : User::query()->with('tenants')->orderBy('name')->paginate(15);
+            : User::query()
+                ->with('tenants')
+                ->when(! $user->hasPermission('users.manage'), function ($query) use ($user): void {
+                    $tenantIds = $user->tenants()->wherePivot('status', 'active')->pluck('tenants.id');
+                    $query->whereHas('tenants', fn ($tenantQuery) => $tenantQuery->whereIn('tenants.id', $tenantIds));
+                })
+                ->orderBy('name')
+                ->paginate(15);
 
         return view('admin.users.index', [
             'tenant' => $tenant,

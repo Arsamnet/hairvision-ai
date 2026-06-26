@@ -47,10 +47,16 @@ return new class extends Migration
             $table->foreignId('lead_id')->constrained('leads')->cascadeOnDelete();
             $table->foreignId('user_id')->nullable()->constrained('users')->nullOnDelete();
             $table->string('type')->default('admin_note');
+            $table->string('status')->default('new_lead');
+            $table->string('communication_channel')->nullable();
             $table->text('note');
+            $table->timestamp('next_follow_up_at')->nullable();
+            $table->timestamp('completed_at')->nullable();
             $table->json('metadata_json')->nullable();
             $table->timestamps();
             $table->index(['tenant_id', 'lead_id']);
+            $table->index(['tenant_id', 'status']);
+            $table->index(['tenant_id', 'next_follow_up_at']);
         });
     }
 

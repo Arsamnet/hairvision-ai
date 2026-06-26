@@ -38,7 +38,7 @@ class AuthController extends Controller
         if (RateLimiter::tooManyAttempts($rateLimitKey, config('hairvision.admin_otp.max_requests'))) {
             return back()
                 ->withInput(['phone' => $phone])
-                ->withErrors(['phone' => 'درخواست کد ورود زیاد شده است. لطفا کمی بعد دوباره تلاش کنید.']);
+                ->withErrors(['phone' => __('auth.too_many_login_requests')]);
         }
 
         RateLimiter::hit($rateLimitKey, config('hairvision.admin_otp.decay_seconds'));
@@ -54,7 +54,7 @@ class AuthController extends Controller
         return redirect()
             ->route('admin.otp.form')
             ->with('debug_sms', app()->hasDebugModeEnabled() && isset($otp->debug_code)
-                ? 'کد ورود آزمایشی: '.$this->toPersianDigits($otp->debug_code)
+                ? __('auth.debug_login_code', ['code' => $this->toPersianDigits($otp->debug_code)])
                 : null);
     }
 
@@ -83,7 +83,7 @@ class AuthController extends Controller
         if (RateLimiter::tooManyAttempts($rateLimitKey, config('hairvision.admin_otp.max_verify_attempts'))) {
             return back()
                 ->withInput(['phone' => $normalized])
-                ->withErrors(['code' => 'تلاش‌های ورود زیاد شده است. لطفا کمی بعد دوباره تلاش کنید.']);
+                ->withErrors(['code' => __('auth.too_many_verify_requests')]);
         }
 
         RateLimiter::hit($rateLimitKey, config('hairvision.admin_otp.verify_decay_seconds'));

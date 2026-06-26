@@ -79,6 +79,12 @@ Before editing code, read:
 - Lead CRM stage and admin-note tables exist for later admin dashboard work.
 - Admin dashboard entry exists under `/admin` with mobile OTP login, tenant
   switcher, role-aware lead management, and demo seed users.
+- System management exists under `/admin/system` with native roles,
+  permissions, system settings, gateways, billing, plans, and management reports.
+- Dashboard copy is localized through Persian language files in `lang/fa`.
+- Normal users without an active plan can access only dashboard overview, plans,
+  billing/invoices, tenant switch/logout, and account settings; operational
+  routes are locked in the UI and blocked by middleware.
 - `php artisan test` passes.
 
 ## Required Agent Prompt

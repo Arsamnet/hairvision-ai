@@ -107,6 +107,32 @@ php artisan test
 - Viewer edit denial.
 - Editor limited lead updates.
 
+`tests/Feature/SystemManagementTest.php` covers:
+
+- Idempotent Super Admin, access-level, permission, gateway, setting, and plan
+  seeding.
+- System management route and menu protection.
+- Permission assignment enforcement.
+- System setting updates.
+- Standard and DataTables-compatible pagination.
+- System SMS gateway and user-private SMS gateway separation.
+- Default payment gateway selection.
+- Invoice visibility and payment flow.
+- Plan activation, upgrade replacement, and subscription expiry by time or
+  usage.
+- Sidebar icons, grouped menu visibility, and locked menu state for users
+  without active plans.
+- Backend route blocking for inactive-plan users while plans, billing, and
+  settings remain accessible.
+- Super Admin plan-definition management and normal-user denial.
+- Route-level plan purchase, payment, and upgrade without carrying old credit.
+- CRM follow-up creation, timeline visibility, and tenant isolation.
+- Authorized lead upload image display and streaming.
+- Super Admin dashboard starting without a selected clinic and manual clinic
+  selection.
+- Normal-user dashboard data scoping.
+- Persian language-file presence and required keys.
+
 ## Release Checklist
 
 Before tagging or committing release-ready work:

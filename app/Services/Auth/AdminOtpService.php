@@ -7,6 +7,7 @@ use App\Models\Tenant;
 use App\Models\User;
 use App\Services\Otp\OtpSenderInterface;
 use App\Services\OtpService;
+use App\Services\Sms\SmsGatewayService;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\ValidationException;
@@ -22,6 +23,7 @@ class AdminOtpService
     public function __construct(
         private readonly OtpService $otpService,
         private readonly OtpSenderInterface $otpSender,
+        private readonly SmsGatewayService $smsGateways,
     ) {}
 
     /**
@@ -38,7 +40,7 @@ class AdminOtpService
 
         if (! $tenantId) {
             throw ValidationException::withMessages([
-                'phone' => 'برای این کاربر هیچ کلینیک فعالی تعریف نشده است.',
+                'phone' => __('auth.no_active_tenant'),
             ]);
         }
 
@@ -54,7 +56,11 @@ class AdminOtpService
             'attempts' => 0,
         ]);
 
-        $this->otpSender->send($phoneNormalized, $code);
+        if ($this->smsGateways->systemDefault()) {
+            $this->smsGateways->sendSystemMessage($phoneNormalized, __('auth.login_sms', ['code' => $code]));
+        } else {
+            $this->otpSender->send($phoneNormalized, $code);
+        }
 
         if (app()->hasDebugModeEnabled()) {
             $otp->debug_code = $code;
@@ -85,7 +91,7 @@ class AdminOtpService
 
         if (! $otp || $otp->attempts >= config('hairvision.admin_otp.max_attempts')) {
             throw ValidationException::withMessages([
-                'code' => 'کد ورود معتبر نیست. لطفا دوباره کد دریافت کنید.',
+                'code' => __('auth.invalid_login_code'),
             ]);
         }
 
@@ -98,7 +104,7 @@ class AdminOtpService
             }
 
             throw ValidationException::withMessages([
-                'code' => 'کد ورود معتبر نیست. لطفا کد را بررسی کنید.',
+                'code' => __('auth.invalid_checked_code'),
             ]);
         }
 
@@ -118,7 +124,7 @@ class AdminOtpService
 
         if (! $this->otpService->hasOnlySupportedDigits($phone) || strlen($normalized) !== 11) {
             throw ValidationException::withMessages([
-                'phone' => 'شماره موبایل باید فقط شامل ۱۱ رقم باشد.',
+                'phone' => __('auth.invalid_phone'),
             ]);
         }
 
@@ -138,7 +144,7 @@ class AdminOtpService
 
         if (! $user || ! $user->isActive()) {
             throw ValidationException::withMessages([
-                'phone' => 'کاربر فعالی با این شماره موبایل پیدا نشد.',
+                'phone' => __('auth.user_not_found'),
             ]);
         }
 

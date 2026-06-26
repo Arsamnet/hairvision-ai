@@ -6,6 +6,7 @@ use App\Models\Lead;
 use App\Models\LeadNote;
 use App\Models\Tenant;
 use App\Models\User;
+use App\Support\Pagination\PaginationParameters;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
@@ -22,10 +23,26 @@ class LeadDashboardService
      */
     public function paginate(Request $request, User $user, ?Tenant $tenant): LengthAwarePaginator
     {
+        $pagination = PaginationParameters::fromRequest(
+            $request,
+            ['created_at', 'full_name', 'phone_normalized', 'crm_stage', 'status'],
+            'created_at'
+        );
+
+        return $this->filteredQuery($request, $user, $tenant, $pagination)
+            ->paginate($pagination->perPage, ['*'], 'page', $pagination->page)
+            ->withQueryString();
+    }
+
+    /**
+     * Build filtered query for paginated Blade or JSON responses.
+     */
+    public function filteredQuery(Request $request, User $user, ?Tenant $tenant, PaginationParameters $pagination): Builder
+    {
         return $this->baseQuery($user, $tenant)
             ->with(['assignedUser'])
-            ->when($request->filled('q'), function (Builder $query) use ($request): void {
-                $search = '%'.$request->string('q')->trim()->toString().'%';
+            ->when($pagination->search, function (Builder $query) use ($pagination): void {
+                $search = '%'.$pagination->search.'%';
                 $query->where(function (Builder $query) use ($search): void {
                     $query->where('full_name', 'like', $search)
                         ->orWhere('phone_normalized', 'like', $search)
@@ -34,13 +51,7 @@ class LeadDashboardService
             })
             ->when($request->filled('status'), fn (Builder $query) => $query->where('status', $request->string('status')->toString()))
             ->when($request->filled('crm_stage'), fn (Builder $query) => $query->where('crm_stage', $request->string('crm_stage')->toString()))
-            ->when(
-                $request->string('sort')->toString() === 'oldest',
-                fn (Builder $query) => $query->orderBy('created_at'),
-                fn (Builder $query) => $query->orderByDesc('created_at'),
-            )
-            ->paginate(15)
-            ->withQueryString();
+            ->orderBy($pagination->sort, $pagination->direction);
     }
 
     /**
@@ -132,6 +143,7 @@ class LeadDashboardService
             'lead_id' => $lead->id,
             'user_id' => $user->id,
             'type' => 'admin_note',
+            'status' => $lead->crm_stage,
             'note' => $note,
         ]);
     }

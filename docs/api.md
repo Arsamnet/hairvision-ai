@@ -243,6 +243,59 @@ GET /api/v1/assets/{uuid}
 Returns the image bytes with an image content type. Storage paths are never
 returned to the client.
 
+## Reusable Pagination
+
+List-style dashboard/API responses should use the shared pagination helpers when
+JSON pagination is needed.
+
+Supported parameters:
+
+```text
+page
+per_page
+search
+sort
+direction
+```
+
+DataTables server-side requests may also send:
+
+```text
+draw
+start
+length
+search[value]
+order[0][dir]
+```
+
+The backend enforces `HAIRVISION_API_MAX_PER_PAGE`.
+
+Standard JSON pagination shape:
+
+```json
+{
+  "data": [],
+  "meta": {
+    "current_page": 1,
+    "per_page": 15,
+    "total": 0,
+    "last_page": 1,
+    "from": null,
+    "to": null
+  }
+}
+```
+
+When `draw` is present, the response also includes DataTables fields:
+
+```json
+{
+  "draw": 1,
+  "recordsTotal": 0,
+  "recordsFiltered": 0
+}
+```
+
 ## Versioning Rules
 
 - Do not make breaking changes inside `/api/v1`.

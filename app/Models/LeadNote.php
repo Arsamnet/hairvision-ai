@@ -21,11 +21,17 @@ class LeadNote extends Model
         'lead_id',
         'user_id',
         'type',
+        'status',
+        'communication_channel',
         'note',
+        'next_follow_up_at',
+        'completed_at',
         'metadata_json',
     ];
 
     protected $casts = [
+        'next_follow_up_at' => 'datetime',
+        'completed_at' => 'datetime',
         'metadata_json' => 'array',
         'created_at' => 'datetime',
         'updated_at' => 'datetime',

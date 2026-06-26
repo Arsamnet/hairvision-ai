@@ -1,8 +1,21 @@
 <?php
 
+use App\Http\Controllers\Admin\AccessAssignmentController;
 use App\Http\Controllers\Admin\AuthController;
+use App\Http\Controllers\Admin\BillingController;
 use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Admin\LeadController;
+use App\Http\Controllers\Admin\LeadFollowUpController;
+use App\Http\Controllers\Admin\LeadUploadController;
+use App\Http\Controllers\Admin\ManagementReportController;
+use App\Http\Controllers\Admin\MySmsGatewayController;
+use App\Http\Controllers\Admin\PaymentGatewayController;
+use App\Http\Controllers\Admin\PermissionController;
+use App\Http\Controllers\Admin\PlanController;
+use App\Http\Controllers\Admin\RoleController;
+use App\Http\Controllers\Admin\SmsGatewayController;
+use App\Http\Controllers\Admin\SystemDashboardController;
+use App\Http\Controllers\Admin\SystemSettingController;
 use App\Http\Controllers\Admin\TenantSwitchController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Middleware\EnsureAdminTenantSelected;
@@ -44,7 +57,7 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
     Route::get('/otp', [AuthController::class, 'showVerify'])->name('otp.form');
     Route::post('/otp/verify', [AuthController::class, 'verify'])->name('otp.verify');
 
-    Route::middleware(['auth', EnsureAdminTenantSelected::class])->group(function (): void {
+    Route::middleware(['auth', EnsureAdminTenantSelected::class, 'active_plan'])->group(function (): void {
         Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
         Route::post('/tenant', TenantSwitchController::class)->name('tenant.switch');
         Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
@@ -52,10 +65,44 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
         Route::get('/leads/create', [LeadController::class, 'create'])->name('leads.create');
         Route::post('/leads', [LeadController::class, 'store'])->name('leads.store');
         Route::get('/leads/{lead}', [LeadController::class, 'show'])->name('leads.show');
+        Route::get('/leads/{lead}/uploads/{upload}', [LeadUploadController::class, 'show'])->name('leads.uploads.show');
+        Route::post('/leads/{lead}/follow-ups', [LeadFollowUpController::class, 'store'])->name('leads.follow-ups.store');
+        Route::patch('/leads/{lead}/follow-ups/{leadNote}', [LeadFollowUpController::class, 'update'])->name('leads.follow-ups.update');
         Route::get('/leads/{lead}/edit', [LeadController::class, 'edit'])->name('leads.edit');
         Route::put('/leads/{lead}', [LeadController::class, 'update'])->name('leads.update');
-        Route::get('/users', [UserController::class, 'index'])->name('users.index');
-        Route::get('/reports', [DashboardController::class, 'reports'])->name('reports');
-        Route::get('/settings', [DashboardController::class, 'settings'])->name('settings');
+        Route::get('/users', [UserController::class, 'index'])->middleware('permission:users.list')->name('users.index');
+        Route::get('/reports', [DashboardController::class, 'reports'])->middleware('permission:reports.user.view')->name('reports');
+        Route::get('/settings', [DashboardController::class, 'settings'])->middleware('permission:settings.view')->name('settings');
+        Route::get('/plans', [PlanController::class, 'index'])->middleware('permission:plans.list')->name('plans.index');
+        Route::post('/plans/{plan}/purchase', [PlanController::class, 'purchase'])->middleware('permission:billing.pay')->name('plans.purchase');
+        Route::get('/billing', [BillingController::class, 'index'])->middleware('permission:billing.list')->name('billing.index');
+        Route::post('/billing/invoices/{invoice}/pay', [BillingController::class, 'pay'])->middleware('permission:billing.pay')->name('billing.pay');
+        Route::post('/billing/payments/{payment}/verify', [BillingController::class, 'verify'])->middleware('permission:billing.pay')->name('billing.verify');
+        Route::get('/my-sms-gateways', [MySmsGatewayController::class, 'index'])->name('sms-gateways.index');
+        Route::post('/my-sms-gateways', [MySmsGatewayController::class, 'store'])->name('sms-gateways.store');
+        Route::put('/my-sms-gateways/{smsGateway}', [MySmsGatewayController::class, 'update'])->name('sms-gateways.update');
+
+        Route::prefix('system')->name('system.')->group(function (): void {
+            Route::get('/', SystemDashboardController::class)->middleware('permission:system.dashboard')->name('dashboard');
+            Route::get('/roles', [RoleController::class, 'index'])->middleware('permission:roles.list')->name('roles.index');
+            Route::post('/roles', [RoleController::class, 'store'])->middleware('permission:roles.create')->name('roles.store');
+            Route::get('/roles/{role}/edit', [RoleController::class, 'edit'])->middleware('permission:roles.view')->name('roles.edit');
+            Route::put('/roles/{role}', [RoleController::class, 'update'])->middleware('permission:roles.edit')->name('roles.update');
+            Route::get('/permissions', PermissionController::class)->middleware('permission:permissions.list')->name('permissions.index');
+            Route::get('/access', [AccessAssignmentController::class, 'index'])->middleware('permission:users.manage')->name('access.index');
+            Route::put('/access/{user}', [AccessAssignmentController::class, 'update'])->middleware('permission:users.manage')->name('access.update');
+            Route::get('/settings', [SystemSettingController::class, 'edit'])->middleware('permission:settings.manage')->name('settings.edit');
+            Route::put('/settings', [SystemSettingController::class, 'update'])->middleware('permission:settings.manage')->name('settings.update');
+            Route::get('/sms-gateways', [SmsGatewayController::class, 'index'])->middleware('permission:sms_gateways.list')->name('sms-gateways.index');
+            Route::post('/sms-gateways', [SmsGatewayController::class, 'store'])->middleware('permission:sms_gateways.create')->name('sms-gateways.store');
+            Route::put('/sms-gateways/{smsGateway}', [SmsGatewayController::class, 'update'])->middleware('permission:sms_gateways.edit')->name('sms-gateways.update');
+            Route::get('/payment-gateways', [PaymentGatewayController::class, 'index'])->middleware('permission:payment_gateways.list')->name('payment-gateways.index');
+            Route::post('/payment-gateways', [PaymentGatewayController::class, 'store'])->middleware('permission:payment_gateways.create')->name('payment-gateways.store');
+            Route::put('/payment-gateways/{paymentGateway}', [PaymentGatewayController::class, 'update'])->middleware('permission:payment_gateways.edit')->name('payment-gateways.update');
+            Route::post('/plans', [PlanController::class, 'store'])->middleware('permission:plans.create,plans.manage')->name('plans.store');
+            Route::put('/plans/{plan}', [PlanController::class, 'update'])->middleware('permission:plans.edit,plans.manage')->name('plans.update');
+            Route::delete('/plans/{plan}', [PlanController::class, 'destroy'])->middleware('permission:plans.delete,plans.manage')->name('plans.destroy');
+            Route::get('/reports', ManagementReportController::class)->middleware('permission:reports.management.view')->name('reports.index');
+        });
     });
 });
