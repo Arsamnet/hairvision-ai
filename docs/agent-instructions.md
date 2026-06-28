@@ -107,6 +107,15 @@ Core constraints:
 - Short AI-style progress cast before showing results.
 - The result gallery should show the original upload plus three result periods and support zoom.
 - No arbitrary external frontend resources.
+- Reuse shared backend utilities instead of duplicating formatting,
+  normalization, query-filter, pagination, or permission logic.
+- Dashboard Blade must use shared components for cards, badges, empty states,
+  modals, and table row action menus where practical.
+- Dashboard icons must use the local Lucide-style `x-admin.icon` component; do
+  not add Font Awesome or external icon assets.
+- Create-capable list pages should expose modal create forms above the list.
+- Important tables should have backend search/filter query parameters and
+  three-dot row action menus at the RTL beginning/right side.
 - Tenant is resolved from request host only.
 - Do not trust tenant_id from requests.
 - Store OTP hashes only.

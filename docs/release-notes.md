@@ -5,6 +5,11 @@
 ### Added
 
 - Grouped, icon-enhanced Persian admin sidebar with active group/item states.
+- Full user management CRUD routes, Form Requests, policy checks, scoped search,
+  clinic filtering, Persian role/status labels, and permission-aware actions.
+- Complete system and private SMS gateway CRUD with list/search/view/create/edit
+  and delete flows, masked credential display, scoped private ownership checks,
+  and credential-preserving updates.
 - Plan-aware locked menu state for normal users without active subscription
   access.
 - `active_plan` middleware and `PlanAccessService` for inactive, expired, and
@@ -19,22 +24,44 @@
 - Tests for locked menus, plan route blocking, plan management permissions,
   purchase/upgrade behavior, CRM timeline isolation, upload authorization,
   Super Admin clinic context, normal-user dashboard scoping, and language keys.
+- `App\Support\NumberNormalizer` for shared Persian/Arabic/Latin digit
+  normalization.
+- Shared admin Blade components for cards, badges, empty states, modal create
+  forms, validation summaries, and table row action menus.
+- Frontend Blade standards and testing documentation.
 
 ### Changed
 
 - Super Admin dashboard starts in global platform context instead of selecting a
   clinic by default.
+- Dashboard header no longer renders a global clinic filter; clinic filters live
+  inside related page filter areas and default lists show all allowed records
+  newest first.
+- Single sidebar items render as normal links, while multi-item groups render as
+  collapsible submenus with active parent and child states.
 - Normal users see only active purchasable plans; managers can manage plan
   definitions.
+- Shared pagination now accepts standard `page`, `per_page`, `search`, `sort`,
+  `direction`, and page-specific filter parameters only. DataTables request and
+  response compatibility was removed from dashboard lists.
 - Dashboard cards, plan notices, lists, tables, badges, empty states, lead
   detail, plans, and billing views were visually refined for RTL use.
 - Seeded roles, permissions, system setting labels, provider names, gateway
   names, and default display text are Persian where safe.
+- Lead, user, SMS gateway, payment gateway, billing, role, and access tables now
+  use compact columns, backend filters where applicable, and shared RTL row
+  action menus.
+- Create-capable dashboard lists now open create forms from modal triggers while
+  preserving the standard Laravel form/redirect flow.
 
 ### Security
 
 - Plan-restricted routes are blocked server-side for inactive, expired, or
   credit-finished normal users.
+- Same active plan repurchase is blocked server-side until the active
+  subscription expires by time, expires by usage, or is no longer active.
+- SMS gateway credentials remain encrypted and are shown in Blade only as masked
+  summaries.
 - Lead upload previews are streamed through policy and tenant checks without
   exposing private storage paths.
 - CRM follow-up writes are tenant- and lead-scoped and use policy/Form Request

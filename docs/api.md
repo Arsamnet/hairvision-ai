@@ -258,16 +258,6 @@ sort
 direction
 ```
 
-DataTables server-side requests may also send:
-
-```text
-draw
-start
-length
-search[value]
-order[0][dir]
-```
-
 The backend enforces `HAIRVISION_API_MAX_PER_PAGE`.
 
 Standard JSON pagination shape:
@@ -286,15 +276,10 @@ Standard JSON pagination shape:
 }
 ```
 
-When `draw` is present, the response also includes DataTables fields:
-
-```json
-{
-  "draw": 1,
-  "recordsTotal": 0,
-  "recordsFiltered": 0
-}
-```
+Page-specific filters such as `clinic_id`, `status`, `role`,
+`owner_scope`, or `provider_code` are accepted only by endpoints that own those
+concepts. Clinic filters are checked against the authenticated user's allowed
+clinics before they affect a query.
 
 ## Versioning Rules
 

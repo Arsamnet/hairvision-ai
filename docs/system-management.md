@@ -77,10 +77,15 @@ System SMS gateways and user-private SMS gateways are both stored in
 
 Rules:
 
+- system managers can list, search, view, create, edit, and delete SMS gateways
+  with the relevant `sms_gateways.*` permission
+- normal users can list, search, view, create, edit, and delete only their own
+  private SMS gateways
 - system OTP/platform messages use the system default gateway when configured
 - user customer messages use only that user's private gateway
 - user-private gateways cannot be used by another user
-- credentials are stored in encrypted casts and hidden from serialized output
+- credentials are stored in encrypted casts, hidden from serialized output, and
+  shown in Blade only as masked summaries
 
 The MVP local adapter is a no-op and does not call external services.
 
@@ -100,6 +105,12 @@ Billing tables:
 Payment verification is idempotent. A successful plan payment activates one
 subscription and replaces any previous active subscription without carrying over
 remaining time or usage credit.
+
+Users cannot buy and activate the same active plan again while the current
+subscription still has time and usage credit. Buying the same plan is allowed
+again only after the current subscription expires by time, expires by usage, or
+is no longer active. Buying a different active plan is treated as an upgrade and
+does not transfer remaining time or credit.
 
 Plan definition management is separate from user plan purchase:
 
@@ -130,7 +141,7 @@ Management reports require `reports.management.view`. User reports require
 - `search`
 - `sort`
 - `direction`
-- DataTables `draw`, `start`, and `length`
 
-`App\Support\Pagination\PaginatedResponse` returns consistent metadata and
-DataTables-compatible fields when `draw` is present.
+`App\Support\Pagination\PaginatedResponse` returns consistent metadata only.
+Dashboard lists do not load DataTables assets and do not accept DataTables
+request fields.

@@ -3,12 +3,15 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Admin\SmsGateways\StoreSmsGatewayRequest;
+use App\Http\Requests\Admin\SmsGateways\UpdateSmsGatewayRequest;
 use App\Models\SmsGateway;
 use App\Models\User;
+use App\Services\Admin\SmsGatewayManagementService;
 use App\Services\Sms\SmsGatewayService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Validation\Rule;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\View\View;
 
 /**
@@ -18,71 +21,80 @@ use Illuminate\View\View;
  */
 class SmsGatewayController extends Controller
 {
-    public function index(Request $request): View
+    public function index(Request $request, SmsGatewayManagementService $manager): View
     {
-        return view('admin.system.sms-gateways.index', [
+        Gate::authorize('viewAny', SmsGateway::class);
+
+        return view('admin.system.sms-gateways.index', $this->formData($request) + [
             'tenant' => $request->attributes->get('adminTenant'),
             'availableTenants' => $request->attributes->get('adminTenants'),
-            'gateways' => SmsGateway::query()->with('user')->latest()->paginate(20),
-            'users' => User::query()->orderBy('name')->get(),
+            'gateways' => $manager->paginateSystem($request),
         ]);
     }
 
-    public function store(Request $request, SmsGatewayService $gateways): RedirectResponse
+    public function create(Request $request): View
     {
-        $validated = $this->validated($request);
+        Gate::authorize('create', SmsGateway::class);
 
-        $gateway = SmsGateway::create($validated);
-
-        if ($gateway->is_default) {
-            $gateways->markDefault($gateway);
-        }
-
-        return back()->with('status', __('sms.created'));
+        return view('admin.system.sms-gateways.create', $this->formData($request));
     }
 
-    public function update(Request $request, SmsGateway $smsGateway, SmsGatewayService $gateways): RedirectResponse
+    public function store(StoreSmsGatewayRequest $request, SmsGatewayManagementService $manager, SmsGatewayService $gateways): RedirectResponse
     {
-        $validated = $this->validated($request);
+        $gateway = $manager->createSystem($request->validated(), $gateways);
 
-        $smsGateway->update($validated);
-
-        if ($smsGateway->is_default) {
-            $gateways->markDefault($smsGateway);
+        if ($request->boolean('return_to_index')) {
+            return redirect()->route('admin.system.sms-gateways.index')->with('status', __('sms.created'));
         }
 
-        return back()->with('status', __('sms.updated'));
+        return redirect()->route('admin.system.sms-gateways.show', $gateway)->with('status', __('sms.created'));
+    }
+
+    public function show(Request $request, SmsGateway $smsGateway): View
+    {
+        Gate::authorize('view', $smsGateway);
+
+        return view('admin.system.sms-gateways.show', [
+            'tenant' => $request->attributes->get('adminTenant'),
+            'availableTenants' => $request->attributes->get('adminTenants'),
+            'gateway' => $smsGateway->load('user'),
+        ]);
+    }
+
+    public function edit(Request $request, SmsGateway $smsGateway): View
+    {
+        Gate::authorize('update', $smsGateway);
+
+        return view('admin.system.sms-gateways.edit', $this->formData($request) + [
+            'gateway' => $smsGateway->load('user'),
+        ]);
+    }
+
+    public function update(UpdateSmsGatewayRequest $request, SmsGateway $smsGateway, SmsGatewayManagementService $manager, SmsGatewayService $gateways): RedirectResponse
+    {
+        $manager->updateSystem($smsGateway, $request->validated(), $gateways);
+
+        return redirect()->route('admin.system.sms-gateways.show', $smsGateway)->with('status', __('sms.updated'));
+    }
+
+    public function destroy(Request $request, SmsGateway $smsGateway): RedirectResponse
+    {
+        Gate::authorize('delete', $smsGateway);
+
+        $smsGateway->delete();
+
+        return redirect()->route('admin.system.sms-gateways.index')->with('status', __('sms.deleted'));
     }
 
     /**
      * @return array<string, mixed>
      */
-    private function validated(Request $request): array
+    private function formData(Request $request): array
     {
-        $validated = $request->validate([
-            'name' => ['required', 'string', 'max:120'],
-            'provider_code' => ['required', 'alpha_dash', 'max:80'],
-            'owner_scope' => ['required', Rule::in(['system', 'user'])],
-            'user_id' => ['nullable', 'required_if:owner_scope,user', Rule::exists('users', 'id')],
-            'status' => ['required', Rule::in(['enabled', 'disabled'])],
-            'is_default' => ['nullable', 'boolean'],
-            'api_key' => ['nullable', 'string', 'max:500'],
-            'sender' => ['nullable', 'string', 'max:120'],
-        ]);
-
         return [
-            'name' => $validated['name'],
-            'provider_code' => $validated['provider_code'],
-            'owner_scope' => $validated['owner_scope'],
-            'user_id' => $validated['owner_scope'] === 'user' ? (int) $validated['user_id'] : null,
-            'status' => $validated['status'],
-            'is_default' => (bool) ($validated['is_default'] ?? false),
-            'encrypted_credentials' => array_filter([
-                'api_key' => $validated['api_key'] ?? null,
-            ]),
-            'settings_json' => array_filter([
-                'sender' => $validated['sender'] ?? null,
-            ]),
+            'tenant' => $request->attributes->get('adminTenant'),
+            'availableTenants' => $request->attributes->get('adminTenants'),
+            'users' => User::query()->orderBy('name')->get(),
         ];
     }
 }

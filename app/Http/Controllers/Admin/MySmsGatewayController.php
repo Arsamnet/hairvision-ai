@@ -3,10 +3,14 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Admin\SmsGateways\StorePrivateSmsGatewayRequest;
+use App\Http\Requests\Admin\SmsGateways\UpdatePrivateSmsGatewayRequest;
 use App\Models\SmsGateway;
+use App\Services\Admin\SmsGatewayManagementService;
 use App\Services\Sms\SmsGatewayService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\View\View;
 
 /**
@@ -16,70 +20,78 @@ use Illuminate\View\View;
  */
 class MySmsGatewayController extends Controller
 {
-    public function index(Request $request): View
+    public function index(Request $request, SmsGatewayManagementService $manager): View
     {
         return view('admin.sms-gateways.index', [
             'tenant' => $request->attributes->get('adminTenant'),
             'availableTenants' => $request->attributes->get('adminTenants'),
-            'gateways' => $request->user()->smsGateways()->latest()->paginate(10),
+            'gateways' => $manager->paginatePrivate($request, $request->user()),
         ]);
     }
 
-    public function store(Request $request, SmsGatewayService $gateways): RedirectResponse
+    public function create(Request $request): View
     {
-        $validated = $request->validate([
-            'name' => ['required', 'string', 'max:120'],
-            'provider_code' => ['required', 'alpha_dash', 'max:80'],
-            'status' => ['required', 'in:enabled,disabled'],
-            'is_default' => ['nullable', 'boolean'],
-            'api_key' => ['nullable', 'string', 'max:500'],
-            'sender' => ['nullable', 'string', 'max:120'],
+        return view('admin.sms-gateways.create', [
+            'tenant' => $request->attributes->get('adminTenant'),
+            'availableTenants' => $request->attributes->get('adminTenants'),
         ]);
-
-        $gateway = SmsGateway::create([
-            'user_id' => $request->user()->id,
-            'name' => $validated['name'],
-            'provider_code' => $validated['provider_code'],
-            'owner_scope' => 'user',
-            'status' => $validated['status'],
-            'is_default' => (bool) ($validated['is_default'] ?? false),
-            'encrypted_credentials' => array_filter(['api_key' => $validated['api_key'] ?? null]),
-            'settings_json' => array_filter(['sender' => $validated['sender'] ?? null]),
-        ]);
-
-        if ($gateway->is_default) {
-            $gateways->markDefault($gateway);
-        }
-
-        return back()->with('status', __('sms.private_created'));
     }
 
-    public function update(Request $request, SmsGateway $smsGateway, SmsGatewayService $gateways): RedirectResponse
+    public function store(StorePrivateSmsGatewayRequest $request, SmsGatewayManagementService $manager, SmsGatewayService $gateways): RedirectResponse
     {
-        abort_unless($smsGateway->user_id === $request->user()->id, 404);
+        $gateway = $manager->createPrivate($request->user(), $request->validated(), $gateways);
 
-        $validated = $request->validate([
-            'name' => ['required', 'string', 'max:120'],
-            'provider_code' => ['required', 'alpha_dash', 'max:80'],
-            'status' => ['required', 'in:enabled,disabled'],
-            'is_default' => ['nullable', 'boolean'],
-            'api_key' => ['nullable', 'string', 'max:500'],
-            'sender' => ['nullable', 'string', 'max:120'],
-        ]);
-
-        $smsGateway->update([
-            'name' => $validated['name'],
-            'provider_code' => $validated['provider_code'],
-            'status' => $validated['status'],
-            'is_default' => (bool) ($validated['is_default'] ?? false),
-            'encrypted_credentials' => array_filter(['api_key' => $validated['api_key'] ?? null]),
-            'settings_json' => array_filter(['sender' => $validated['sender'] ?? null]),
-        ]);
-
-        if ($smsGateway->is_default) {
-            $gateways->markDefault($smsGateway);
+        if ($request->boolean('return_to_index')) {
+            return redirect()->route('admin.sms-gateways.index')->with('status', __('sms.private_created'));
         }
 
-        return back()->with('status', __('sms.private_updated'));
+        return redirect()->route('admin.sms-gateways.show', $gateway)->with('status', __('sms.private_created'));
+    }
+
+    public function show(Request $request, SmsGateway $smsGateway): View
+    {
+        $this->authorizeOwner($request, $smsGateway);
+        Gate::authorize('view', $smsGateway);
+
+        return view('admin.sms-gateways.show', [
+            'tenant' => $request->attributes->get('adminTenant'),
+            'availableTenants' => $request->attributes->get('adminTenants'),
+            'gateway' => $smsGateway,
+        ]);
+    }
+
+    public function edit(Request $request, SmsGateway $smsGateway): View
+    {
+        $this->authorizeOwner($request, $smsGateway);
+        Gate::authorize('update', $smsGateway);
+
+        return view('admin.sms-gateways.edit', [
+            'tenant' => $request->attributes->get('adminTenant'),
+            'availableTenants' => $request->attributes->get('adminTenants'),
+            'gateway' => $smsGateway,
+        ]);
+    }
+
+    public function update(UpdatePrivateSmsGatewayRequest $request, SmsGateway $smsGateway, SmsGatewayManagementService $manager, SmsGatewayService $gateways): RedirectResponse
+    {
+        $this->authorizeOwner($request, $smsGateway);
+        $manager->updatePrivate($smsGateway, $request->validated(), $gateways);
+
+        return redirect()->route('admin.sms-gateways.show', $smsGateway)->with('status', __('sms.private_updated'));
+    }
+
+    public function destroy(Request $request, SmsGateway $smsGateway): RedirectResponse
+    {
+        $this->authorizeOwner($request, $smsGateway);
+        Gate::authorize('delete', $smsGateway);
+
+        $smsGateway->delete();
+
+        return redirect()->route('admin.sms-gateways.index')->with('status', __('sms.private_deleted'));
+    }
+
+    private function authorizeOwner(Request $request, SmsGateway $smsGateway): void
+    {
+        abort_unless($smsGateway->owner_scope === 'user' && $smsGateway->user_id === $request->user()->id, 404);
     }
 }

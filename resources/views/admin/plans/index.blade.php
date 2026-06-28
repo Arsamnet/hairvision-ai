@@ -5,35 +5,36 @@
 
 @section('content')
     @if($canManagePlans)
-        <section class="mb-5 rounded-lg bg-white p-5 shadow-sm ring-1 ring-zinc-200">
-            <div class="flex items-start gap-3">
-                <span class="grid h-11 w-11 shrink-0 place-items-center rounded-lg bg-zinc-950 text-white">
-                    <x-admin.icon name="sparkles" />
-                </span>
+        <x-admin.card class="mb-5">
+            <div class="flex flex-wrap items-center justify-between gap-3">
                 <div>
                     <h2 class="text-lg font-bold">{{ __('plans.new_plan') }}</h2>
                     <p class="mt-1 text-sm leading-6 text-zinc-500">{{ __('plans.management_hint') }}</p>
                 </div>
+                <x-admin.modal id="create-plan-modal" :label="__('plans.new_plan')" :title="__('plans.new_plan')" icon="sparkles" :open="$errors->any() && old('_form') === 'create_plan'">
+                    <form method="POST" action="{{ route('admin.system.plans.store') }}" class="grid gap-3 md:grid-cols-4">
+                        @csrf
+                        <input type="hidden" name="_form" value="create_plan">
+                        <x-admin.validation-summary for="create_plan" class="md:col-span-4" />
+                        <input name="name" class="h-11 rounded-lg border border-zinc-200 px-3 text-sm outline-none focus:border-teal-500" placeholder="{{ __('plans.fields.name') }}">
+                        <input name="price" type="number" class="h-11 rounded-lg border border-zinc-200 px-3 text-sm outline-none focus:border-teal-500" placeholder="{{ __('plans.fields.price') }}">
+                        <input name="duration_days" type="number" class="h-11 rounded-lg border border-zinc-200 px-3 text-sm outline-none focus:border-teal-500" placeholder="{{ __('plans.fields.duration_days') }}">
+                        <input name="usage_limit" type="number" class="h-11 rounded-lg border border-zinc-200 px-3 text-sm outline-none focus:border-teal-500" placeholder="{{ __('plans.fields.usage_limit') }}">
+                        <input name="currency" value="IRR" class="h-11 rounded-lg border border-zinc-200 px-3 text-sm outline-none focus:border-teal-500" dir="ltr" placeholder="{{ __('plans.fields.currency') }}">
+                        <select name="status" class="h-11 rounded-lg border border-zinc-200 px-3 text-sm outline-none focus:border-teal-500">
+                            @foreach(__('plans.statuses') as $status => $label)
+                                <option value="{{ $status }}">{{ $label }}</option>
+                            @endforeach
+                        </select>
+                        <input name="description" class="h-11 rounded-lg border border-zinc-200 px-3 text-sm outline-none focus:border-teal-500 md:col-span-2" placeholder="{{ __('plans.fields.description') }}">
+                        <button class="inline-flex h-11 items-center justify-center gap-2 rounded-lg bg-zinc-950 px-4 text-sm font-bold text-white transition hover:bg-teal-700">
+                            <x-admin.icon name="sparkles" class="h-4 w-4" />
+                            <span>{{ __('plans.create') }}</span>
+                        </button>
+                    </form>
+                </x-admin.modal>
             </div>
-            <form method="POST" action="{{ route('admin.system.plans.store') }}" class="mt-4 grid gap-3 md:grid-cols-4">
-                @csrf
-                <input name="name" class="h-11 rounded-lg border border-zinc-200 px-3 text-sm outline-none focus:border-teal-500" placeholder="{{ __('plans.fields.name') }}">
-                <input name="price" type="number" class="h-11 rounded-lg border border-zinc-200 px-3 text-sm outline-none focus:border-teal-500" placeholder="{{ __('plans.fields.price') }}">
-                <input name="duration_days" type="number" class="h-11 rounded-lg border border-zinc-200 px-3 text-sm outline-none focus:border-teal-500" placeholder="{{ __('plans.fields.duration_days') }}">
-                <input name="usage_limit" type="number" class="h-11 rounded-lg border border-zinc-200 px-3 text-sm outline-none focus:border-teal-500" placeholder="{{ __('plans.fields.usage_limit') }}">
-                <input name="currency" value="IRR" class="h-11 rounded-lg border border-zinc-200 px-3 text-sm outline-none focus:border-teal-500" dir="ltr" placeholder="{{ __('plans.fields.currency') }}">
-                <select name="status" class="h-11 rounded-lg border border-zinc-200 px-3 text-sm outline-none focus:border-teal-500">
-                    @foreach(__('plans.statuses') as $status => $label)
-                        <option value="{{ $status }}">{{ $label }}</option>
-                    @endforeach
-                </select>
-                <input name="description" class="h-11 rounded-lg border border-zinc-200 px-3 text-sm outline-none focus:border-teal-500 md:col-span-2" placeholder="{{ __('plans.fields.description') }}">
-                <button class="inline-flex h-11 items-center justify-center gap-2 rounded-lg bg-zinc-950 px-4 text-sm font-bold text-white transition hover:bg-teal-700">
-                    <x-admin.icon name="sparkles" class="h-4 w-4" />
-                    <span>{{ __('plans.create') }}</span>
-                </button>
-            </form>
-        </section>
+        </x-admin.card>
     @endif
 
     <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
@@ -55,13 +56,17 @@
                 <div class="mt-4 flex flex-wrap items-center gap-2">
                     @can('permission', 'billing.pay')
                         @if($plan->status === 'active')
-                            <form method="POST" action="{{ route('admin.plans.purchase', $plan) }}">
-                                @csrf
-                                <button class="inline-flex items-center gap-2 rounded-lg bg-teal-700 px-4 py-2 text-sm font-bold text-white transition hover:bg-zinc-950">
-                                    <x-admin.icon name="credit-card" class="h-4 w-4" />
-                                    <span>{{ __('plans.purchase_or_upgrade') }}</span>
-                                </button>
-                            </form>
+                            @if($activeSubscription?->plan_id === $plan->id)
+                                <div class="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-bold text-amber-800">{{ __('plans.same_active_plan_blocked') }}</div>
+                            @else
+                                <form method="POST" action="{{ route('admin.plans.purchase', $plan) }}">
+                                    @csrf
+                                    <button class="inline-flex items-center gap-2 rounded-lg bg-teal-700 px-4 py-2 text-sm font-bold text-white transition hover:bg-zinc-950">
+                                        <x-admin.icon name="credit-card" class="h-4 w-4" />
+                                        <span>{{ $activeSubscription ? __('plans.upgrade') : __('plans.purchase_or_upgrade') }}</span>
+                                    </button>
+                                </form>
+                            @endif
                         @endif
                     @endcan
 

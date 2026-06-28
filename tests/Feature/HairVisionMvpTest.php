@@ -14,6 +14,7 @@ use App\Models\TenantAiSetting;
 use App\Models\TenantDomain;
 use App\Models\TenantThemeSetting;
 use App\Models\Upload;
+use App\Support\NumberNormalizer;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Cache;
@@ -185,7 +186,7 @@ class HairVisionMvpTest extends TestCase
         $this->forHost('clinic1.hairvision-ai.test')
             ->postJson('/api/v1/auth/otp/verify', [
                 'phone' => '۰۹۱۲۳۴۵۶۷۸۹',
-                'code' => $this->toPersianDigits($code),
+                'code' => NumberNormalizer::toPersianDigits($code),
             ])
             ->assertOk()
             ->assertJsonPath('lead.phone', '09123456789');
@@ -461,49 +462,7 @@ class HairVisionMvpTest extends TestCase
     {
         preg_match('/([0-9۰-۹٠-٩]{6})/u', $debugSms, $matches);
 
-        return $this->normalizeDigits($matches[1]);
-    }
-
-    private function normalizeDigits(string $value): string
-    {
-        return strtr($value, [
-            '۰' => '0',
-            '۱' => '1',
-            '۲' => '2',
-            '۳' => '3',
-            '۴' => '4',
-            '۵' => '5',
-            '۶' => '6',
-            '۷' => '7',
-            '۸' => '8',
-            '۹' => '9',
-            '٠' => '0',
-            '١' => '1',
-            '٢' => '2',
-            '٣' => '3',
-            '٤' => '4',
-            '٥' => '5',
-            '٦' => '6',
-            '٧' => '7',
-            '٨' => '8',
-            '٩' => '9',
-        ]);
-    }
-
-    private function toPersianDigits(string $value): string
-    {
-        return strtr($value, [
-            '0' => '۰',
-            '1' => '۱',
-            '2' => '۲',
-            '3' => '۳',
-            '4' => '۴',
-            '5' => '۵',
-            '6' => '۶',
-            '7' => '۷',
-            '8' => '۸',
-            '9' => '۹',
-        ]);
+        return NumberNormalizer::toLatinDigits($matches[1]);
     }
 
     private function fakeImageUpload(): UploadedFile

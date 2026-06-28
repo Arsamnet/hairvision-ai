@@ -32,6 +32,14 @@ class BillingService
             ]);
         }
 
+        $activeSubscription = $this->activeSubscription($user);
+
+        if ($activeSubscription?->plan_id === $plan->id) {
+            throw ValidationException::withMessages([
+                'plan' => __('plans.same_active_plan_blocked'),
+            ]);
+        }
+
         return Invoice::query()->firstOrCreate(
             [
                 'user_id' => $user->id,

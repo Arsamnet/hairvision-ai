@@ -88,6 +88,10 @@ public function store(StoreClientRequest $request): JsonResponse
 ## Clean Code Rules
 
 - Avoid duplicated logic.
+- Move repeated generic formatting and normalization to focused support classes,
+  such as `App\Support\NumberNormalizer`.
+- Move repeated tenant-scoped dashboard filtering into focused services or
+  actions instead of copying request-input authorization checks.
 - Avoid large methods.
 - Keep each method focused on one responsibility.
 - Use meaningful class, method, and variable names.
@@ -97,6 +101,19 @@ public function store(StoreClientRequest $request): JsonResponse
 - Do not build provider-specific database columns.
 - Do not make synchronous real AI calls from the HTTP lifecycle.
 - Add or update tests for every behavior change.
+
+## Dashboard Reuse Rules
+
+- Use shared Blade components for cards, badges, empty states, modals, and table
+  row action menus.
+- Use the local `x-admin.icon` Lucide-style icon surface; do not introduce Font
+  Awesome or external icon assets.
+- Put table row actions inside a three-dot action menu at the beginning/right
+  side of RTL tables.
+- Keep create forms on list pages inside modal triggers when the module supports
+  creating records.
+- Implement table search and filters through backend query parameters and
+  preserve filters through pagination.
 
 ## SemVer Rules
 

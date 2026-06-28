@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Str;
 
 /**
  * SMS gateway configuration for platform messages or a user's own customers.
@@ -68,5 +69,19 @@ class SmsGateway extends Model
     public function scopeEnabled(Builder $query): Builder
     {
         return $query->where('status', 'enabled');
+    }
+
+    /**
+     * Return a safe masked credential value for dashboard display.
+     */
+    public function maskedCredential(string $key): ?string
+    {
+        $value = data_get($this->encrypted_credentials ?? [], $key);
+
+        if (! is_string($value) || $value === '') {
+            return null;
+        }
+
+        return Str::mask($value, '*', 4, -4);
     }
 }

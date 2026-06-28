@@ -23,7 +23,21 @@ class AccessAssignmentController extends Controller
         return view('admin.system.access.index', [
             'tenant' => $request->attributes->get('adminTenant'),
             'availableTenants' => $request->attributes->get('adminTenants'),
-            'users' => User::query()->with('tenants')->orderBy('name')->paginate(20),
+            'users' => User::query()
+                ->with('tenants')
+                ->when($request->filled('search'), function ($query) use ($request): void {
+                    $search = '%'.$request->string('search')->toString().'%';
+                    $query->where(function ($query) use ($search): void {
+                        $query->where('name', 'like', $search)
+                            ->orWhere('email', 'like', $search)
+                            ->orWhere('phone_normalized', 'like', $search);
+                    });
+                })
+                ->when($request->filled('role'), fn ($query) => $query->where('role', $request->string('role')->toString()))
+                ->when($request->filled('status'), fn ($query) => $query->where('status', $request->string('status')->toString()))
+                ->orderBy('name')
+                ->paginate(20)
+                ->withQueryString(),
             'roles' => Role::query()->where('status', 'active')->orderBy('name')->get(),
             'tenants' => Tenant::query()->where('status', 'active')->orderBy('name')->get(),
         ]);

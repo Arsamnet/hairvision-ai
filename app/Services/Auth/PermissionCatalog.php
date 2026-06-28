@@ -106,13 +106,13 @@ class PermissionCatalog
 
         return [
             'super_admin' => [
-                'name' => 'مدیر سیستم',
-                'description' => 'دسترسی کامل به همه کلینیک‌ها و ماژول‌های مدیریتی سیستم.',
+                'name' => __('system.roles.super_admin'),
+                'description' => __('system.role_descriptions.super_admin'),
                 'permissions' => $allPermissions,
             ],
             'clinic_admin' => [
-                'name' => 'مدیر کلینیک',
-                'description' => 'مدیریت لیدها، کاربران، مالی و گزارش‌های همان کلینیک.',
+                'name' => __('system.roles.clinic_admin'),
+                'description' => __('system.role_descriptions.clinic_admin'),
                 'permissions' => [
                     'leads.list',
                     'leads.search',
@@ -132,8 +132,8 @@ class PermissionCatalog
                 ],
             ],
             'editor' => [
-                'name' => 'کارشناس پذیرش',
-                'description' => 'امکان ایجاد لید و به‌روزرسانی فیلدهای عملیاتی لید را دارد.',
+                'name' => __('system.roles.editor'),
+                'description' => __('system.role_descriptions.editor'),
                 'permissions' => [
                     'leads.list',
                     'leads.search',
@@ -146,8 +146,8 @@ class PermissionCatalog
                 ],
             ],
             'viewer' => [
-                'name' => 'مشاهده‌گر',
-                'description' => 'دسترسی فقط خواندنی به داشبورد کلینیک.',
+                'name' => __('system.roles.viewer'),
+                'description' => __('system.role_descriptions.viewer'),
                 'permissions' => [
                     'leads.list',
                     'leads.search',

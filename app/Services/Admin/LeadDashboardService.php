@@ -18,6 +18,8 @@ use Illuminate\Http\Request;
  */
 class LeadDashboardService
 {
+    public function __construct(private readonly ClinicFilterResolver $clinicFilterResolver) {}
+
     /**
      * Paginate leads visible to the user in the active tenant context.
      */
@@ -28,6 +30,10 @@ class LeadDashboardService
             ['created_at', 'full_name', 'phone_normalized', 'crm_stage', 'status'],
             'created_at'
         );
+
+        if ($pagination->search && ! $user->hasPermission('leads.search', $tenant?->id)) {
+            abort(403, __('permissions.denied'));
+        }
 
         return $this->filteredQuery($request, $user, $tenant, $pagination)
             ->paginate($pagination->perPage, ['*'], 'page', $pagination->page)
@@ -52,6 +58,14 @@ class LeadDashboardService
             ->when($request->filled('status'), fn (Builder $query) => $query->where('status', $request->string('status')->toString()))
             ->when($request->filled('crm_stage'), fn (Builder $query) => $query->where('crm_stage', $request->string('crm_stage')->toString()))
             ->orderBy($pagination->sort, $pagination->direction);
+    }
+
+    /**
+     * Resolve an optional clinic filter without trusting arbitrary tenant input.
+     */
+    public function resolveClinicFilter(Request $request, User $user): ?Tenant
+    {
+        return $this->clinicFilterResolver->resolve($request, $user);
     }
 
     /**

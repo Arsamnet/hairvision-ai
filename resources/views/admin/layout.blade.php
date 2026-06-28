@@ -125,8 +125,9 @@
             return false;
         };
 
-        $groupHasVisibleItems = fn (array $group): bool => collect($group['items'])->contains(fn (array $item): bool => $canSeeItem($item));
-        $groupIsActive = fn (array $group): bool => collect($group['items'])->contains(fn (array $item): bool => $itemIsActive($item));
+        $visibleItemsForGroup = fn (array $group) => collect($group['items'])->filter(fn (array $item): bool => $canSeeItem($item))->values();
+        $groupHasVisibleItems = fn (array $group): bool => $visibleItemsForGroup($group)->isNotEmpty();
+        $groupIsActive = fn (array $group): bool => $visibleItemsForGroup($group)->contains(fn (array $item): bool => $itemIsActive($item));
     @endphp
 
     <div class="min-h-screen lg:grid lg:grid-cols-[18.5rem_1fr]">
@@ -148,15 +149,48 @@
 
                 <nav class="flex-1 space-y-5 overflow-y-auto p-3 text-sm font-bold">
                     @foreach($menuGroups as $group)
-                        @if($groupHasVisibleItems($group))
-                            <section>
-                                <p class="mb-2 flex items-center gap-2 px-3 text-xs font-bold {{ $groupIsActive($group) ? 'text-teal-700' : 'text-zinc-400' }}">
-                                    <span class="h-1.5 w-1.5 rounded-full {{ $groupIsActive($group) ? 'bg-teal-600' : 'bg-zinc-300' }}"></span>
-                                    {{ $group['label'] }}
-                                </p>
-                                <div class="space-y-1">
-                                    @foreach($group['items'] as $item)
-                                        @continue(! $canSeeItem($item))
+                        @php
+                            $visibleItems = $visibleItemsForGroup($group);
+                        @endphp
+                        @continue($visibleItems->isEmpty())
+
+                        @if($visibleItems->count() === 1)
+                            @php
+                                $item = $visibleItems->first();
+                                $locked = $itemIsLocked($item);
+                                $active = $itemIsActive($item);
+                                $classes = $active
+                                    ? 'bg-zinc-950 text-white shadow-sm'
+                                    : ($locked
+                                        ? 'cursor-not-allowed bg-zinc-50 text-zinc-400 ring-1 ring-zinc-100'
+                                        : 'text-zinc-600 hover:bg-zinc-100 hover:text-zinc-950');
+                            @endphp
+
+                            @if($locked)
+                                <span data-menu-item="{{ $item['route'] }}" class="flex items-center justify-between rounded-lg px-3 py-2.5 {{ $classes }}" aria-disabled="true" title="{{ __('permissions.plan_required') }}">
+                                    <span class="flex items-center gap-2">
+                                        <x-admin.icon :name="$item['icon']" />
+                                        <span>{{ $item['label'] }}</span>
+                                    </span>
+                                    <x-admin.icon name="lock" class="h-4 w-4" />
+                                </span>
+                            @else
+                                <a data-menu-item="{{ $item['route'] }}" href="{{ route($item['route']) }}" class="flex items-center gap-2 rounded-lg px-3 py-2.5 transition {{ $classes }}" @if($active) aria-current="page" @endif>
+                                    <x-admin.icon :name="$item['icon']" />
+                                    <span>{{ $item['label'] }}</span>
+                                </a>
+                            @endif
+                        @else
+                            <details data-menu-group="{{ $group['label'] }}" class="rounded-lg" @if($groupIsActive($group)) open @endif>
+                                <summary class="flex cursor-pointer list-none items-center justify-between rounded-lg px-3 py-2 text-xs font-bold transition {{ $groupIsActive($group) ? 'bg-teal-50 text-teal-700' : 'text-zinc-500 hover:bg-zinc-50 hover:text-zinc-800' }}">
+                                    <span class="flex items-center gap-2">
+                                        <span class="h-1.5 w-1.5 rounded-full {{ $groupIsActive($group) ? 'bg-teal-600' : 'bg-zinc-300' }}"></span>
+                                        <span>{{ $group['label'] }}</span>
+                                    </span>
+                                    <x-admin.icon name="chevron-down" class="h-4 w-4 text-zinc-400" />
+                                </summary>
+                                <div class="mt-1 space-y-1">
+                                    @foreach($visibleItems as $item)
                                         @php
                                             $locked = $itemIsLocked($item);
                                             $active = $itemIsActive($item);
@@ -168,7 +202,7 @@
                                         @endphp
 
                                         @if($locked)
-                                            <span class="flex items-center justify-between rounded-lg px-3 py-2.5 {{ $classes }}" aria-disabled="true" title="{{ __('permissions.plan_required') }}">
+                                            <span data-menu-item="{{ $item['route'] }}" class="flex items-center justify-between rounded-lg px-3 py-2.5 {{ $classes }}" aria-disabled="true" title="{{ __('permissions.plan_required') }}">
                                                 <span class="flex items-center gap-2">
                                                     <x-admin.icon :name="$item['icon']" />
                                                     <span>{{ $item['label'] }}</span>
@@ -176,40 +210,57 @@
                                                 <x-admin.icon name="lock" class="h-4 w-4" />
                                             </span>
                                         @else
-                                            <a href="{{ route($item['route']) }}" class="flex items-center gap-2 rounded-lg px-3 py-2.5 transition {{ $classes }}" @if($active) aria-current="page" @endif>
+                                            <a data-menu-item="{{ $item['route'] }}" href="{{ route($item['route']) }}" class="flex items-center gap-2 rounded-lg px-3 py-2.5 transition {{ $classes }}" @if($active) aria-current="page" @endif>
                                                 <x-admin.icon :name="$item['icon']" />
                                                 <span>{{ $item['label'] }}</span>
                                             </a>
                                         @endif
                                     @endforeach
                                 </div>
-                            </section>
+                            </details>
                         @endif
                     @endforeach
 
                     @if(collect($systemGroups)->contains(fn (array $group): bool => $groupHasVisibleItems($group)))
                         <div class="border-t border-zinc-100 pt-5">
                             @foreach($systemGroups as $group)
-                                @if($groupHasVisibleItems($group))
-                                    <section class="mb-5 last:mb-0">
-                                        <p class="mb-2 flex items-center gap-2 px-3 text-xs font-bold {{ $groupIsActive($group) ? 'text-teal-700' : 'text-zinc-400' }}">
-                                            <span class="h-1.5 w-1.5 rounded-full {{ $groupIsActive($group) ? 'bg-teal-600' : 'bg-zinc-300' }}"></span>
-                                            {{ $group['label'] }}
-                                        </p>
-                                        <div class="space-y-1">
-                                            @foreach($group['items'] as $item)
-                                                @continue(! $canSeeItem($item))
+                                @php
+                                    $visibleItems = $visibleItemsForGroup($group);
+                                @endphp
+                                @continue($visibleItems->isEmpty())
+
+                                @if($visibleItems->count() === 1)
+                                    @php
+                                        $item = $visibleItems->first();
+                                        $active = $itemIsActive($item);
+                                        $classes = $active ? 'bg-zinc-950 text-white shadow-sm' : 'text-zinc-600 hover:bg-zinc-100 hover:text-zinc-950';
+                                    @endphp
+                                    <a data-menu-item="{{ $item['route'] }}" href="{{ route($item['route']) }}" class="flex items-center gap-2 rounded-lg px-3 py-2.5 transition {{ $classes }}" @if($active) aria-current="page" @endif>
+                                        <x-admin.icon :name="$item['icon']" />
+                                        <span>{{ $item['label'] }}</span>
+                                    </a>
+                                @else
+                                    <details data-menu-group="{{ $group['label'] }}" class="mb-2 rounded-lg last:mb-0" @if($groupIsActive($group)) open @endif>
+                                        <summary class="flex cursor-pointer list-none items-center justify-between rounded-lg px-3 py-2 text-xs font-bold transition {{ $groupIsActive($group) ? 'bg-teal-50 text-teal-700' : 'text-zinc-500 hover:bg-zinc-50 hover:text-zinc-800' }}">
+                                            <span class="flex items-center gap-2">
+                                                <span class="h-1.5 w-1.5 rounded-full {{ $groupIsActive($group) ? 'bg-teal-600' : 'bg-zinc-300' }}"></span>
+                                                <span>{{ $group['label'] }}</span>
+                                            </span>
+                                            <x-admin.icon name="chevron-down" class="h-4 w-4 text-zinc-400" />
+                                        </summary>
+                                        <div class="mt-1 space-y-1">
+                                            @foreach($visibleItems as $item)
                                                 @php
                                                     $active = $itemIsActive($item);
                                                     $classes = $active ? 'bg-zinc-950 text-white shadow-sm' : 'text-zinc-600 hover:bg-zinc-100 hover:text-zinc-950';
                                                 @endphp
-                                                <a href="{{ route($item['route']) }}" class="flex items-center gap-2 rounded-lg px-3 py-2.5 transition {{ $classes }}" @if($active) aria-current="page" @endif>
+                                                <a data-menu-item="{{ $item['route'] }}" href="{{ route($item['route']) }}" class="flex items-center gap-2 rounded-lg px-3 py-2.5 transition {{ $classes }}" @if($active) aria-current="page" @endif>
                                                     <x-admin.icon :name="$item['icon']" />
                                                     <span>{{ $item['label'] }}</span>
                                                 </a>
                                             @endforeach
                                         </div>
-                                    </section>
+                                    </details>
                                 @endif
                             @endforeach
                         </div>
@@ -241,20 +292,6 @@
                         @elseif(($planAccess['status']->value ?? null) !== 'exempt')
                             <span class="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-bold text-amber-800">{{ __('dashboard.plan.'.($planAccess['status']->value ?? 'inactive')) }}</span>
                         @endif
-
-                        @isset($availableTenants)
-                            <form method="POST" action="{{ route('admin.tenant.switch') }}">
-                                @csrf
-                                <select name="tenant_id" onchange="this.form.submit()" class="h-10 rounded-lg border border-zinc-200 bg-white px-3 text-sm font-bold text-zinc-700 outline-none focus:border-teal-500">
-                                    @if($user?->isSuperAdmin())
-                                        <option value="all" @selected($tenant === null)>{{ __('dashboard.all_clinics') }}</option>
-                                    @endif
-                                    @foreach($availableTenants as $optionTenant)
-                                        <option value="{{ $optionTenant->id }}" @selected($tenant?->id === $optionTenant->id)>{{ $optionTenant->name }}</option>
-                                    @endforeach
-                                </select>
-                            </form>
-                        @endisset
 
                         <nav class="flex max-w-full items-center gap-1 overflow-x-auto lg:hidden">
                             @foreach($menuGroups as $group)

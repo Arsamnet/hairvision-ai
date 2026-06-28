@@ -24,7 +24,19 @@ class RoleController extends Controller
         return view('admin.system.roles.index', [
             'tenant' => $request->attributes->get('adminTenant'),
             'availableTenants' => $request->attributes->get('adminTenants'),
-            'roles' => Role::query()->withCount('permissions')->orderBy('name')->paginate(20),
+            'roles' => Role::query()
+                ->withCount('permissions')
+                ->when($request->filled('search'), function ($query) use ($request): void {
+                    $search = '%'.$request->string('search')->toString().'%';
+                    $query->where(function ($query) use ($search): void {
+                        $query->where('name', 'like', $search)
+                            ->orWhere('code', 'like', $search);
+                    });
+                })
+                ->when($request->filled('status'), fn ($query) => $query->where('status', $request->string('status')->toString()))
+                ->orderBy('name')
+                ->paginate(20)
+                ->withQueryString(),
         ]);
     }
 

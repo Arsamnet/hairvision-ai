@@ -21,7 +21,19 @@ class PaymentGatewayController extends Controller
         return view('admin.system.payment-gateways.index', [
             'tenant' => $request->attributes->get('adminTenant'),
             'availableTenants' => $request->attributes->get('adminTenants'),
-            'gateways' => PaymentGateway::query()->latest()->paginate(20),
+            'gateways' => PaymentGateway::query()
+                ->when($request->filled('search'), function ($query) use ($request): void {
+                    $search = '%'.$request->string('search')->toString().'%';
+                    $query->where(function ($query) use ($search): void {
+                        $query->where('name', 'like', $search)
+                            ->orWhere('provider_code', 'like', $search);
+                    });
+                })
+                ->when($request->filled('status'), fn ($query) => $query->where('status', $request->string('status')->toString()))
+                ->when($request->filled('provider_code'), fn ($query) => $query->where('provider_code', $request->string('provider_code')->toString()))
+                ->latest()
+                ->paginate(20)
+                ->withQueryString(),
         ]);
     }
 
@@ -38,7 +50,7 @@ class PaymentGatewayController extends Controller
 
     public function update(Request $request, PaymentGateway $paymentGateway, PaymentGatewayService $gateways): RedirectResponse
     {
-        $paymentGateway->update($this->validated($request));
+        $paymentGateway->update($this->validated($request, $paymentGateway));
 
         if ($paymentGateway->is_default) {
             $gateways->markDefault($paymentGateway);
@@ -50,7 +62,7 @@ class PaymentGatewayController extends Controller
     /**
      * @return array<string, mixed>
      */
-    private function validated(Request $request): array
+    private function validated(Request $request, ?PaymentGateway $gateway = null): array
     {
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:120'],
@@ -66,8 +78,12 @@ class PaymentGatewayController extends Controller
             'provider_code' => $validated['provider_code'],
             'status' => $validated['status'],
             'is_default' => (bool) ($validated['is_default'] ?? false),
-            'encrypted_credentials' => array_filter(['merchant_id' => $validated['merchant_id'] ?? null]),
-            'settings_json' => array_filter(['callback_url' => $validated['callback_url'] ?? null]),
+            'encrypted_credentials' => array_filter([
+                'merchant_id' => $validated['merchant_id'] ?? data_get($gateway?->encrypted_credentials, 'merchant_id'),
+            ]),
+            'settings_json' => array_filter([
+                'callback_url' => $validated['callback_url'] ?? data_get($gateway?->settings_json, 'callback_url'),
+            ]),
         ];
     }
 }

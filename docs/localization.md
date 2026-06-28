@@ -26,6 +26,11 @@ payment statuses, and CRM status keys remain English because they are technical
 identifiers. Display names and user-facing messages should be translated through
 `__()` in controllers, services, requests, Blade views, and seeders.
 
+Role and user-status labels shown in the UI come from `lang/fa/system.php`.
+Examples include `super_admin` as `سوپر ادمین`, `editor` as `ویرایشگر`,
+`viewer` as `مشاهده‌گر`, `active` as `فعال`, `inactive` as `غیرفعال`, and
+`blocked` as `مسدود`.
+
 Seeded display names for roles, permissions, gateways, plans, providers,
 settings, templates, demo users, and demo leads should be Persian where safe.
 Technical values such as `sample_image`, `local`, `IRR`, and permission codes

@@ -25,6 +25,17 @@ visitor flow and the local sample-image provider until the MVP is stable.
 - No CDN is allowed for CSS, JavaScript, fonts, or icons.
 - Tenant logos and theme images may be served from the primary HairVision domain.
 - Do not introduce React, Vue, Inertia, Livewire, or Next.js in the MVP.
+- Dashboard Blade should use the shared components documented in
+  `docs/frontend-blade-standards.md`.
+- Create-capable list pages should use modal create forms and table rows should
+  use the shared three-dot action menu.
+
+## Shared Backend Utilities
+
+Use `App\Support\NumberNormalizer` for Persian, Arabic, and Latin digit
+normalization. Do not add private `normalizeDigits` copies to controllers,
+requests, tests, or services. For tenant-safe dashboard clinic filters, reuse a
+focused resolver/service instead of trusting raw `clinic_id` input.
 
 ## Phase 1 Implementation Checklist
 
@@ -61,6 +72,8 @@ Required command:
 ```bash
 php artisan test
 ```
+
+Additional testing expectations are documented in `docs/testing.md`.
 
 Run when CSS, JavaScript, Blade, fonts, or Vite inputs change:
 
@@ -114,7 +127,7 @@ php artisan test
 - System management route and menu protection.
 - Permission assignment enforcement.
 - System setting updates.
-- Standard and DataTables-compatible pagination.
+- Standard pagination, search, sorting, and page-specific filters.
 - System SMS gateway and user-private SMS gateway separation.
 - Default payment gateway selection.
 - Invoice visibility and payment flow.
@@ -128,8 +141,8 @@ php artisan test
 - Route-level plan purchase, payment, and upgrade without carrying old credit.
 - CRM follow-up creation, timeline visibility, and tenant isolation.
 - Authorized lead upload image display and streaming.
-- Super Admin dashboard starting without a selected clinic and manual clinic
-  selection.
+- Super Admin dashboard starting without a selected clinic and page-level clinic
+  filters for clinic-owned data.
 - Normal-user dashboard data scoping.
 - Persian language-file presence and required keys.
 
@@ -158,8 +171,9 @@ Before tagging or committing release-ready work:
 1. `/` on `hairvision-ai.test` renders the product landing page.
 2. `/admin` starts mobile OTP login.
 3. Authenticated users reach `/admin/dashboard`.
-4. The active tenant switcher validates membership server-side.
-5. Lead lists are filtered, searchable, paginated, and tenant-scoped.
+4. Page-level clinic filters validate membership server-side.
+5. Lead lists are filtered, searchable, paginated, newest-first, and
+   tenant-scoped.
 6. Viewer users cannot edit leads.
 7. Editor users can update only limited operational fields.
 8. Clinic admins can create and update clinic leads.

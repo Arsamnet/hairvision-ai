@@ -7,6 +7,7 @@ use App\Http\Requests\Admin\Auth\RequestAdminOtpRequest;
 use App\Http\Requests\Admin\Auth\VerifyAdminOtpRequest;
 use App\Services\Admin\AdminTenantContext;
 use App\Services\Auth\AdminOtpService;
+use App\Support\NumberNormalizer;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
@@ -54,7 +55,7 @@ class AuthController extends Controller
         return redirect()
             ->route('admin.otp.form')
             ->with('debug_sms', app()->hasDebugModeEnabled() && isset($otp->debug_code)
-                ? __('auth.debug_login_code', ['code' => $this->toPersianDigits($otp->debug_code)])
+                ? __('auth.debug_login_code', ['code' => NumberNormalizer::toPersianDigits($otp->debug_code)])
                 : null);
     }
 
@@ -113,11 +114,4 @@ class AuthController extends Controller
         return redirect()->route('admin.login');
     }
 
-    private function toPersianDigits(string $value): string
-    {
-        return strtr($value, [
-            '0' => '۰', '1' => '۱', '2' => '۲', '3' => '۳', '4' => '۴',
-            '5' => '۵', '6' => '۶', '7' => '۷', '8' => '۸', '9' => '۹',
-        ]);
-    }
 }

@@ -14,7 +14,15 @@ return [
     'payment_activated' => 'پرداخت فاکتور تایید و اشتراک فعال شد.',
     'payment_verified' => 'پرداخت تایید شد.',
     'pay' => 'پرداخت',
+    'filter' => 'فیلتر',
+    'search_placeholder' => 'جستجوی نام یا ارائه‌دهنده',
+    'invoice_search_placeholder' => 'جستجوی شماره فاکتور، کاربر یا پلن',
+    'all_statuses' => 'همه وضعیت‌ها',
+    'provider_placeholder' => 'ارائه‌دهنده',
+    'merchant_id' => 'شناسه پذیرنده',
+    'callback_url' => 'نشانی بازگشت',
     'empty_invoices' => 'هنوز فاکتوری برای این محدوده ثبت نشده است.',
+    'empty_gateways' => 'درگاه پرداختی برای نمایش وجود ندارد.',
 
     'fields' => [
         'number' => 'شماره',

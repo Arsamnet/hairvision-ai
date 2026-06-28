@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\RequestOtpRequest;
 use App\Http\Requests\Api\VerifyOtpRequest;
 use App\Services\OtpService;
+use App\Support\NumberNormalizer;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\RateLimiter;
 
@@ -58,7 +59,7 @@ class OtpController extends Controller
         ];
 
         if (app()->hasDebugModeEnabled() && isset($otp->debug_code)) {
-            $payload['debug_sms'] = 'کد تایید HairVision: '.$this->toPersianDigits($otp->debug_code);
+            $payload['debug_sms'] = 'کد تایید HairVision: '.NumberNormalizer::toPersianDigits($otp->debug_code);
         }
 
         return response()->json($payload);
@@ -103,22 +104,4 @@ class OtpController extends Controller
         ]);
     }
 
-    /**
-     * Convert Latin digits to Persian digits for debug SMS output.
-     */
-    private function toPersianDigits(string $value): string
-    {
-        return strtr($value, [
-            '0' => '۰',
-            '1' => '۱',
-            '2' => '۲',
-            '3' => '۳',
-            '4' => '۴',
-            '5' => '۵',
-            '6' => '۶',
-            '7' => '۷',
-            '8' => '۸',
-            '9' => '۹',
-        ]);
-    }
 }

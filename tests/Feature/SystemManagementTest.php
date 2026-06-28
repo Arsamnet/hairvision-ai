@@ -3,7 +3,6 @@
 namespace Tests\Feature;
 
 use App\Models\Lead;
-use App\Models\LeadNote;
 use App\Models\PaymentGateway;
 use App\Models\Permission;
 use App\Models\Plan;
@@ -114,7 +113,7 @@ class SystemManagementTest extends TestCase
         $this->assertSame('HairVision Enterprise', SystemSetting::query()->where('key', 'system.name')->firstOrFail()->value_json['value']);
     }
 
-    public function test_lead_json_pagination_supports_standard_and_datatables_parameters(): void
+    public function test_lead_json_pagination_supports_standard_parameters_only(): void
     {
         $tenant = $this->createTenant('Clinic One', 'clinic1', 'clinic1.hairvision-ai.test');
         $user = $this->createUserForTenant($tenant, 'clinic_admin', '09121111111');
@@ -130,14 +129,117 @@ class SystemManagementTest extends TestCase
             ->assertJsonPath('meta.per_page', 1)
             ->assertJsonPath('meta.total', 1);
 
-        $this->actingAs($user)
+        $response = $this->actingAs($user)
             ->withSession(['admin_active_tenant_id' => $tenant->id])
             ->forHost('hairvision-ai.test')
-            ->getJson('/admin/leads?draw=3&start=0&length=1&search[value]=Lead')
+            ->getJson('/admin/leads?per_page=1&page=2&search=Lead&sort=full_name&direction=desc')
             ->assertOk()
-            ->assertJsonPath('draw', 3)
-            ->assertJsonPath('recordsTotal', 2)
-            ->assertJsonPath('meta.per_page', 1);
+            ->assertJsonPath('meta.current_page', 2)
+            ->assertJsonPath('meta.per_page', 1)
+            ->assertJsonPath('meta.total', 2);
+
+        $this->assertArrayNotHasKey('draw', $response->json());
+        $this->assertArrayNotHasKey('recordsTotal', $response->json());
+        $this->assertArrayNotHasKey('recordsFiltered', $response->json());
+    }
+
+    public function test_super_admin_can_fully_manage_users_and_search_user_list(): void
+    {
+        $this->seed(DatabaseSeeder::class);
+
+        $tenant = Tenant::query()->where('slug', 'clinic1')->firstOrFail();
+        $superAdmin = User::query()->where('role', 'super_admin')->firstOrFail();
+
+        $this->actingAs($superAdmin)
+            ->forHost('hairvision-ai.test')
+            ->get('/admin/users')
+            ->assertOk()
+            ->assertSee(__('system.roles.super_admin'))
+            ->assertSee('data-menu-item="admin.users.index"', false)
+            ->assertSee('create-user-modal-toggle', false)
+            ->assertSee('data-table-action-menu', false);
+
+        $this->actingAs($superAdmin)
+            ->forHost('hairvision-ai.test')
+            ->get('/admin/users?search=09129999999')
+            ->assertOk()
+            ->assertSee('09129999999');
+
+        $this->actingAs($superAdmin)
+            ->forHost('hairvision-ai.test')
+            ->get('/admin/users/create')
+            ->assertOk();
+
+        $this->actingAs($superAdmin)
+            ->forHost('hairvision-ai.test')
+            ->post('/admin/users', [
+                'name' => 'کاربر تست مدیریت',
+                'email' => 'managed-user@example.com',
+                'phone_normalized' => '09127770000',
+                'role' => 'viewer',
+                'status' => 'active',
+                'tenant_ids' => [$tenant->id],
+                'tenant_roles' => [$tenant->id => 'viewer'],
+                'tenant_statuses' => [$tenant->id => 'active'],
+            ])
+            ->assertRedirect();
+
+        $managedUser = User::query()->where('email', 'managed-user@example.com')->firstOrFail();
+
+        $this->actingAs($superAdmin)
+            ->forHost('hairvision-ai.test')
+            ->get('/admin/users/'.$managedUser->id)
+            ->assertOk()
+            ->assertSee('کاربر تست مدیریت')
+            ->assertSee(__('system.roles.viewer'));
+
+        $this->actingAs($superAdmin)
+            ->forHost('hairvision-ai.test')
+            ->get('/admin/users/'.$managedUser->id.'/edit')
+            ->assertOk();
+
+        $this->actingAs($superAdmin)
+            ->forHost('hairvision-ai.test')
+            ->put('/admin/users/'.$managedUser->id, [
+                'name' => 'کاربر تست ویرایش شده',
+                'email' => 'managed-user@example.com',
+                'phone_normalized' => '09127770001',
+                'role' => 'editor',
+                'status' => 'blocked',
+                'tenant_ids' => [$tenant->id],
+                'tenant_roles' => [$tenant->id => 'editor'],
+                'tenant_statuses' => [$tenant->id => 'active'],
+            ])
+            ->assertRedirect(route('admin.users.show', $managedUser));
+
+        $this->assertDatabaseHas('users', [
+            'id' => $managedUser->id,
+            'name' => 'کاربر تست ویرایش شده',
+            'role' => 'editor',
+            'status' => 'blocked',
+        ]);
+
+        $this->actingAs($superAdmin)
+            ->forHost('hairvision-ai.test')
+            ->delete('/admin/users/'.$managedUser->id)
+            ->assertRedirect(route('admin.users.index'));
+
+        $this->assertDatabaseMissing('users', ['id' => $managedUser->id]);
+    }
+
+    public function test_users_without_permissions_cannot_access_user_management_actions(): void
+    {
+        $tenant = $this->createTenant('Clinic One', 'clinic1', 'clinic1.hairvision-ai.test');
+        $viewer = $this->createUserForTenant($tenant, 'viewer', '09121111111');
+        $target = $this->createUserForTenant($tenant, 'editor', '09122222222');
+        $this->activateSubscription($viewer);
+
+        $this->actingAs($viewer)->withSession(['admin_active_tenant_id' => $tenant->id])->forHost('hairvision-ai.test')->get('/admin/users')->assertForbidden();
+        $this->actingAs($viewer)->withSession(['admin_active_tenant_id' => $tenant->id])->forHost('hairvision-ai.test')->get('/admin/users/create')->assertForbidden();
+        $this->actingAs($viewer)->withSession(['admin_active_tenant_id' => $tenant->id])->forHost('hairvision-ai.test')->get('/admin/users/'.$target->id)->assertForbidden();
+        $this->actingAs($viewer)->withSession(['admin_active_tenant_id' => $tenant->id])->forHost('hairvision-ai.test')->get('/admin/users/'.$target->id.'/edit')->assertForbidden();
+        $this->actingAs($viewer)->withSession(['admin_active_tenant_id' => $tenant->id])->forHost('hairvision-ai.test')->put('/admin/users/'.$target->id, [])->assertForbidden();
+        $this->actingAs($viewer)->withSession(['admin_active_tenant_id' => $tenant->id])->forHost('hairvision-ai.test')->delete('/admin/users/'.$target->id)->assertForbidden();
     }
 
     public function test_gateway_selection_separates_system_and_user_private_sms(): void
@@ -165,6 +267,133 @@ class SystemManagementTest extends TestCase
         $this->assertArrayNotHasKey('encrypted_credentials', $privateGateway->toArray());
     }
 
+    public function test_sms_gateway_crud_masks_credentials_and_enforces_authorization(): void
+    {
+        $this->seed(DatabaseSeeder::class);
+
+        $superAdmin = User::query()->where('role', 'super_admin')->firstOrFail();
+        $viewer = User::query()->where('role', 'viewer')->firstOrFail();
+        $this->activateSubscription($viewer);
+
+        $this->actingAs($superAdmin)
+            ->forHost('hairvision-ai.test')
+            ->post('/admin/system/sms-gateways', [
+                'name' => 'درگاه تست کاوه',
+                'provider_code' => 'kavenegar',
+                'owner_scope' => 'system',
+                'status' => 'enabled',
+                'is_default' => '1',
+                'api_key' => 'super-secret-api-key',
+                'sender' => 'HV',
+            ])
+            ->assertRedirect();
+
+        $gateway = SmsGateway::query()->where('provider_code', 'kavenegar')->firstOrFail();
+
+        $this->actingAs($superAdmin)
+            ->forHost('hairvision-ai.test')
+            ->get('/admin/system/sms-gateways?search=kavenegar')
+            ->assertOk()
+            ->assertSee('درگاه تست کاوه')
+            ->assertSee('create-system-sms-gateway-modal-toggle', false)
+            ->assertSee('data-table-action-menu', false)
+            ->assertDontSee('super-secret-api-key');
+
+        $this->actingAs($superAdmin)
+            ->forHost('hairvision-ai.test')
+            ->get('/admin/system/sms-gateways/'.$gateway->id)
+            ->assertOk()
+            ->assertSee($gateway->maskedCredential('api_key'))
+            ->assertDontSee('super-secret-api-key');
+
+        $this->actingAs($superAdmin)
+            ->forHost('hairvision-ai.test')
+            ->put('/admin/system/sms-gateways/'.$gateway->id, [
+                'name' => 'درگاه تست کاوه ویرایش',
+                'provider_code' => 'kavenegar',
+                'owner_scope' => 'system',
+                'status' => 'disabled',
+                'sender' => 'HV2',
+            ])
+            ->assertRedirect();
+
+        $gateway->refresh();
+        $this->assertSame('disabled', $gateway->status);
+        $this->assertSame('super-secret-api-key', $gateway->encrypted_credentials['api_key']);
+
+        $this->actingAs($viewer)
+            ->forHost('hairvision-ai.test')
+            ->get('/admin/system/sms-gateways')
+            ->assertForbidden();
+
+        $this->actingAs($superAdmin)
+            ->forHost('hairvision-ai.test')
+            ->delete('/admin/system/sms-gateways/'.$gateway->id)
+            ->assertRedirect(route('admin.system.sms-gateways.index'));
+
+        $this->assertDatabaseMissing('sms_gateways', ['id' => $gateway->id]);
+    }
+
+    public function test_private_sms_gateway_crud_is_scoped_to_owner(): void
+    {
+        $tenant = $this->createTenant('Clinic One', 'clinic1', 'clinic1.hairvision-ai.test');
+        $owner = $this->createUserForTenant($tenant, 'clinic_admin', '09121111111');
+        $other = $this->createUserForTenant($tenant, 'clinic_admin', '09122222222');
+        $this->activateSubscription($owner);
+        $this->activateSubscription($other);
+
+        $this->actingAs($owner)
+            ->withSession(['admin_active_tenant_id' => $tenant->id])
+            ->forHost('hairvision-ai.test')
+            ->post('/admin/my-sms-gateways', [
+                'name' => 'درگاه خصوصی',
+                'provider_code' => 'melipayamak',
+                'status' => 'enabled',
+                'is_default' => '1',
+                'api_key' => 'private-secret-key',
+                'sender' => 'HV',
+            ])
+            ->assertRedirect();
+
+        $gateway = SmsGateway::query()->where('user_id', $owner->id)->where('provider_code', 'melipayamak')->firstOrFail();
+
+        $this->actingAs($owner)
+            ->withSession(['admin_active_tenant_id' => $tenant->id])
+            ->forHost('hairvision-ai.test')
+            ->get('/admin/my-sms-gateways/'.$gateway->id)
+            ->assertOk()
+            ->assertDontSee('private-secret-key');
+
+        $this->actingAs($other)
+            ->withSession(['admin_active_tenant_id' => $tenant->id])
+            ->forHost('hairvision-ai.test')
+            ->get('/admin/my-sms-gateways/'.$gateway->id)
+            ->assertNotFound();
+
+        $this->actingAs($owner)
+            ->withSession(['admin_active_tenant_id' => $tenant->id])
+            ->forHost('hairvision-ai.test')
+            ->put('/admin/my-sms-gateways/'.$gateway->id, [
+                'name' => 'درگاه خصوصی ویرایش',
+                'provider_code' => 'melipayamak',
+                'status' => 'disabled',
+                'sender' => 'HV2',
+            ])
+            ->assertRedirect(route('admin.sms-gateways.show', $gateway));
+
+        $gateway->refresh();
+        $this->assertSame('disabled', $gateway->status);
+        $this->assertSame('private-secret-key', $gateway->encrypted_credentials['api_key']);
+
+        $this->actingAs($owner)
+            ->withSession(['admin_active_tenant_id' => $tenant->id])
+            ->forHost('hairvision-ai.test')
+            ->delete('/admin/my-sms-gateways/'.$gateway->id)
+            ->assertRedirect(route('admin.sms-gateways.index'));
+
+        $this->assertDatabaseMissing('sms_gateways', ['id' => $gateway->id]);
+    }
+
     public function test_payment_default_gateway_invoice_payment_and_plan_upgrade_are_idempotent(): void
     {
         $this->seed(DatabaseSeeder::class);
@@ -183,6 +412,15 @@ class SystemManagementTest extends TestCase
 
         $gatewayService = app(PaymentGatewayService::class);
         $this->assertSame('local', $gatewayService->default()?->provider_code);
+
+        $superAdmin = User::query()->where('role', 'super_admin')->firstOrFail();
+        $this->actingAs($superAdmin)
+            ->forHost('hairvision-ai.test')
+            ->get('/admin/system/payment-gateways?search=local')
+            ->assertOk()
+            ->assertSee('local')
+            ->assertSee('create-payment-gateway-modal-toggle', false)
+            ->assertSee('data-table-action-menu', false);
 
         $billing = app(BillingService::class);
         $invoice = $billing->invoiceForPlan($user, $starter);
@@ -269,10 +507,24 @@ class SystemManagementTest extends TestCase
             ->get('/admin/dashboard')
             ->assertOk()
             ->assertSee('data-menu-icon="layout-dashboard"', false)
+            ->assertSee('data-menu-item="admin.dashboard"', false)
+            ->assertDontSee('data-menu-group="'.__('menu.groups.dashboard').'"', false)
+            ->assertDontSee('data-menu-group="'.__('menu.groups.crm').'"', false)
+            ->assertSee('data-menu-group="'.__('menu.groups.plans_payments').'"', false)
             ->assertSee('data-menu-icon="lock"', false)
             ->assertSee('aria-disabled="true"', false)
             ->assertSee('لیدها')
             ->assertSee(__('dashboard.plan.view_plans'));
+
+        $superAdmin = User::query()->where('role', 'super_admin')->firstOrFail();
+
+        $this->actingAs($superAdmin)
+            ->forHost('hairvision-ai.test')
+            ->get('/admin/dashboard')
+            ->assertOk()
+            ->assertSee('data-menu-group="'.__('menu.groups.users_access').'"', false)
+            ->assertSee('data-menu-item="admin.system.roles.index"', false)
+            ->assertDontSee('name="tenant_id"', false);
     }
 
     public function test_inactive_plan_users_can_access_allowed_pages_and_restricted_routes_are_blocked(): void
@@ -382,6 +634,67 @@ class SystemManagementTest extends TestCase
         $this->assertSame($upgrade->id, $newActive->plan_id);
         $this->assertSame(0, $newActive->usage_used);
         $this->assertSame(300, $newActive->usage_limit);
+    }
+
+    public function test_same_active_plan_cannot_be_purchased_until_expired_or_credit_finished(): void
+    {
+        $this->seed(DatabaseSeeder::class);
+
+        $user = User::query()->where('role', 'clinic_admin')->firstOrFail();
+        $plan = Plan::query()->where('status', 'active')->firstOrFail();
+
+        $this->actingAs($user)
+            ->forHost('hairvision-ai.test')
+            ->post('/admin/plans/'.$plan->id.'/purchase')
+            ->assertRedirect(route('admin.billing.index'));
+
+        $invoice = $user->invoices()->where('plan_id', $plan->id)->firstOrFail();
+
+        $this->actingAs($user)
+            ->forHost('hairvision-ai.test')
+            ->post('/admin/billing/invoices/'.$invoice->id.'/pay')
+            ->assertRedirect();
+
+        $active = $user->subscriptions()->where('status', 'active')->firstOrFail();
+
+        $this->actingAs($user)
+            ->forHost('hairvision-ai.test')
+            ->post('/admin/plans/'.$plan->id.'/purchase')
+            ->assertSessionHasErrors('plan');
+
+        $this->actingAs($user)
+            ->forHost('hairvision-ai.test')
+            ->get('/admin/plans')
+            ->assertOk()
+            ->assertSee(__('plans.same_active_plan_blocked'));
+
+        $active->forceFill(['ends_at' => now()->subMinute()])->save();
+
+        $this->actingAs($user)
+            ->forHost('hairvision-ai.test')
+            ->post('/admin/plans/'.$plan->id.'/purchase')
+            ->assertRedirect(route('admin.billing.index'));
+
+        $renewedInvoice = $user->invoices()->where('plan_id', $plan->id)->where('status', 'pending')->latest('id')->firstOrFail();
+        $renewedInvoice->forceFill(['status' => 'paid'])->save();
+        $active->forceFill(['status' => 'expired'])->save();
+        $renewed = Subscription::query()->create([
+            'user_id' => $user->id,
+            'plan_id' => $plan->id,
+            'invoice_id' => $renewedInvoice->id,
+            'status' => 'active',
+            'starts_at' => now(),
+            'ends_at' => now()->addDays(30),
+            'usage_limit' => 10,
+            'usage_used' => 10,
+        ]);
+
+        $this->actingAs($user)
+            ->forHost('hairvision-ai.test')
+            ->post('/admin/plans/'.$plan->id.'/purchase')
+            ->assertRedirect(route('admin.billing.index'));
+
+        $this->assertSame('expired', $renewed->refresh()->status);
     }
 
     public function test_crm_follow_up_creation_timeline_visibility_and_tenant_scope(): void
@@ -537,6 +850,8 @@ class SystemManagementTest extends TestCase
         $this->assertSame('نیاز به پیگیری', __('leads.crm_stages.needs_follow_up'));
         $this->assertSame('تماس تلفنی', __('crm.channels.phone'));
         $this->assertSame('مدیریت سیستم', __('system.dashboard_title'));
+        $this->assertSame('سوپر ادمین', __('system.roles.super_admin'));
+        $this->assertSame('مسدود', __('system.statuses.blocked'));
         $this->assertSame('برای دسترسی به این بخش باید پلن فعال داشته باشید.', __('permissions.plan_required'));
     }
 

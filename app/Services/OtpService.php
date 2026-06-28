@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Lead;
 use App\Models\OtpCode;
+use App\Support\NumberNormalizer;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Hash;
 use Random\RandomException;
@@ -119,28 +120,7 @@ class OtpService
      */
     public function normalizeDigits(string $value): string
     {
-        return strtr($value, [
-            '۰' => '0',
-            '۱' => '1',
-            '۲' => '2',
-            '۳' => '3',
-            '۴' => '4',
-            '۵' => '5',
-            '۶' => '6',
-            '۷' => '7',
-            '۸' => '8',
-            '۹' => '9',
-            '٠' => '0',
-            '١' => '1',
-            '٢' => '2',
-            '٣' => '3',
-            '٤' => '4',
-            '٥' => '5',
-            '٦' => '6',
-            '٧' => '7',
-            '٨' => '8',
-            '٩' => '9',
-        ]);
+        return NumberNormalizer::toLatinDigits($value);
     }
 
     /**
@@ -151,7 +131,7 @@ class OtpService
      */
     public function hasOnlySupportedDigits(string $value): bool
     {
-        return preg_match('/^[0-9۰-۹٠-٩]+$/u', $value) === 1;
+        return NumberNormalizer::hasOnlySupportedDigits($value);
     }
 
     /**
@@ -162,6 +142,6 @@ class OtpService
      */
     private function normalizePhone(string $phone): string
     {
-        return preg_replace('/[^0-9]/', '', $this->normalizeDigits($phone));
+        return NumberNormalizer::digitsOnly($phone);
     }
 }

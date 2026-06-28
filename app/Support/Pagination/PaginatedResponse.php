@@ -14,9 +14,9 @@ class PaginatedResponse
     /**
      * Convert a paginator to a standard API payload.
      */
-    public static function make(LengthAwarePaginator $paginator, ?int $draw = null): array
+    public static function make(LengthAwarePaginator $paginator): array
     {
-        $payload = [
+        return [
             'data' => $paginator->items(),
             'meta' => [
                 'current_page' => $paginator->currentPage(),
@@ -27,13 +27,5 @@ class PaginatedResponse
                 'to' => $paginator->lastItem(),
             ],
         ];
-
-        if ($draw !== null) {
-            $payload['draw'] = $draw;
-            $payload['recordsTotal'] = $paginator->total();
-            $payload['recordsFiltered'] = $paginator->total();
-        }
-
-        return $payload;
     }
 }

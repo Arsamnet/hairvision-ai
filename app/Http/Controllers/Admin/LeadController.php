@@ -25,24 +25,33 @@ class LeadController extends Controller
     public function index(Request $request, LeadDashboardService $leadService): View|JsonResponse
     {
         Gate::authorize('viewAny', Lead::class);
+        $clinicFilter = $leadService->resolveClinicFilter($request, $request->user());
 
-        if ($request->expectsJson() || $request->filled('draw')) {
+        if ($request->expectsJson()) {
             $pagination = PaginationParameters::fromRequest(
                 $request,
                 ['created_at', 'full_name', 'phone_normalized', 'crm_stage', 'status'],
                 'created_at'
             );
+            if ($pagination->search && ! $request->user()->hasPermission('leads.search', $clinicFilter?->id)) {
+                abort(403, __('permissions.denied'));
+            }
+
             $paginator = $leadService
-                ->filteredQuery($request, $request->user(), $request->attributes->get('adminTenant'), $pagination)
+                ->filteredQuery($request, $request->user(), $clinicFilter, $pagination)
                 ->paginate($pagination->perPage, ['*'], 'page', $pagination->page);
 
-            return response()->json(PaginatedResponse::make($paginator, $pagination->draw));
+            return response()->json(PaginatedResponse::make($paginator));
         }
 
         return view('admin.leads.index', [
             'tenant' => $request->attributes->get('adminTenant'),
             'availableTenants' => $request->attributes->get('adminTenants'),
-            'leads' => $leadService->paginate($request, $request->user(), $request->attributes->get('adminTenant')),
+            'clinicFilter' => $clinicFilter,
+            'assignableUsers' => $request->attributes->get('adminTenant')
+                ? $request->attributes->get('adminTenant')->users()->wherePivot('status', 'active')->orderBy('name')->get()
+                : collect(),
+            'leads' => $leadService->paginate($request, $request->user(), $clinicFilter),
         ]);
     }
 
@@ -80,6 +89,10 @@ class LeadController extends Controller
 
         $lead = $leadService->create($request->validated(), $tenant, $request->user());
 
+        if ($request->boolean('return_to_index')) {
+            return redirect()->route('admin.leads.index')->with('status', __('leads.created'));
+        }
+
         return redirect()->route('admin.leads.show', $lead)->with('status', __('leads.created'));
     }
 
@@ -113,12 +126,6 @@ class LeadController extends Controller
      */
     private function isLeadVisible(Request $request, Lead $lead): bool
     {
-        $tenant = $request->attributes->get('adminTenant');
-
-        if ($tenant) {
-            return $lead->tenant_id === $tenant->id;
-        }
-
         return $request->user()->canAccessTenant($lead->tenant_id);
     }
 }

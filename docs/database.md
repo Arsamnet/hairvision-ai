@@ -302,6 +302,9 @@ and verification status.
 Stores active and historical user plan entitlements. Only one active
 subscription should exist per user after successful payment; upgrades replace the
 previous active subscription without carrying remaining time or credit.
+The same active plan cannot be purchased again while it still has remaining time
+and usage credit. Renewal is allowed after expiration by time, expiration by
+usage, or any non-active current subscription state.
 
 ## Required Invariants
 

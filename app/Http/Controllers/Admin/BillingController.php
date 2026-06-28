@@ -25,8 +25,18 @@ class BillingController extends Controller
         $invoices = Invoice::query()
             ->with(['user', 'plan', 'payments.gateway'])
             ->when(! $canManage, fn ($query) => $query->where('user_id', $user->id))
+            ->when($request->filled('search'), function ($query) use ($request): void {
+                $search = '%'.$request->string('search')->toString().'%';
+                $query->where(function ($query) use ($search): void {
+                    $query->where('number', 'like', $search)
+                        ->orWhereHas('user', fn ($userQuery) => $userQuery->where('name', 'like', $search)->orWhere('phone_normalized', 'like', $search))
+                        ->orWhereHas('plan', fn ($planQuery) => $planQuery->where('name', 'like', $search));
+                });
+            })
+            ->when($request->filled('status'), fn ($query) => $query->where('status', $request->string('status')->toString()))
             ->latest()
-            ->paginate(20);
+            ->paginate(20)
+            ->withQueryString();
 
         return view('admin.billing.index', [
             'tenant' => $request->attributes->get('adminTenant'),

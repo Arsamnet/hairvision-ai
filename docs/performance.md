@@ -3,7 +3,7 @@
 Dashboard performance rules:
 
 - Paginate lead lists.
-- Use reusable pagination helpers for JSON/DataTables-backed lists.
+- Use reusable pagination helpers for JSON and dashboard-backed lists.
 - Enforce `HAIRVISION_API_MAX_PER_PAGE` on shared pagination paths.
 - Use tenant-scoped indexes for lead filters and reporting.
 - Eager load assigned users, notes, uploads, generation groups, jobs, and assets

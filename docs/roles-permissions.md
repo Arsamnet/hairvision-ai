@@ -20,6 +20,11 @@ Current dashboard enforcement:
 - Lead policies enforce list, view, create, update, and delete rules.
 - Lead policies also gate CRM follow-up creation and updates through
   `createNote` and `updateNote`.
+- User management is protected by `UserPolicy`, `permission:*` route
+  middleware, and `UserManagementService` scoped queries. `super_admin` can
+  list, search, view, create, edit, and delete users. Other users need the
+  matching `users.list`, `users.search`, `users.view`, `users.create`,
+  `users.edit`, and `users.delete` permissions.
 - Viewers cannot edit leads.
 - Editors can update `source`, `crm_stage`, and notes only.
 - Clinic admins can create and update clinic leads.
@@ -28,6 +33,8 @@ Current dashboard enforcement:
 - Plan definitions can be created, updated, activated/deactivated, or deleted
   only by Super Admin users or users with the relevant plan permission such as
   `plans.create`, `plans.edit`, `plans.delete`, or `plans.manage`.
+- Role and user-status display labels are translated through `lang/fa/system.php`.
+  Internal role and status keys remain English.
 
 Frontend visibility is treated as a usability aid only. Backend policies and
 tenant-scoped queries are the authority.

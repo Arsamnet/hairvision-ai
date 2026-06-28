@@ -49,10 +49,12 @@ relative Markdown link.
 - [Roles and Permissions](docs/roles-permissions.md)
 - [System Management](docs/system-management.md)
 - [Dashboard](docs/dashboard.md)
+- [Frontend Blade Standards](docs/frontend-blade-standards.md)
 - [Localization](docs/localization.md)
 - [Security](docs/security.md)
 - [Performance](docs/performance.md)
 - [Coding Standards](docs/coding-standards.md)
+- [Testing](docs/testing.md)
 - [Release Notes](docs/release-notes.md)
 - [AI Agent Instructions](docs/agent-instructions.md)
 

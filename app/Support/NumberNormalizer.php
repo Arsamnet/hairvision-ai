@@ -1,0 +1,79 @@
+<?php
+
+namespace App\Support;
+
+/**
+ * Normalizes Persian, Arabic, and Latin digit strings for validation/storage.
+ *
+ * @since 1.0.0
+ */
+class NumberNormalizer
+{
+    private const TO_LATIN_DIGITS = [
+        '۰' => '0',
+        '۱' => '1',
+        '۲' => '2',
+        '۳' => '3',
+        '۴' => '4',
+        '۵' => '5',
+        '۶' => '6',
+        '۷' => '7',
+        '۸' => '8',
+        '۹' => '9',
+        '٠' => '0',
+        '١' => '1',
+        '٢' => '2',
+        '٣' => '3',
+        '٤' => '4',
+        '٥' => '5',
+        '٦' => '6',
+        '٧' => '7',
+        '٨' => '8',
+        '٩' => '9',
+    ];
+
+    private const TO_PERSIAN_DIGITS = [
+        '0' => '۰',
+        '1' => '۱',
+        '2' => '۲',
+        '3' => '۳',
+        '4' => '۴',
+        '5' => '۵',
+        '6' => '۶',
+        '7' => '۷',
+        '8' => '۸',
+        '9' => '۹',
+    ];
+
+    /**
+     * Convert supported Persian and Arabic numerals to Latin digits.
+     */
+    public static function toLatinDigits(string $value): string
+    {
+        return strtr($value, self::TO_LATIN_DIGITS);
+    }
+
+    /**
+     * Convert Latin digits to Persian numerals for user-facing debug text.
+     */
+    public static function toPersianDigits(string $value): string
+    {
+        return strtr($value, self::TO_PERSIAN_DIGITS);
+    }
+
+    /**
+     * Strip non-digit characters after digit-script normalization.
+     */
+    public static function digitsOnly(string $value): string
+    {
+        return preg_replace('/[^0-9]/', '', self::toLatinDigits($value));
+    }
+
+    /**
+     * Determine whether all characters are Persian, Arabic, or Latin digits.
+     */
+    public static function hasOnlySupportedDigits(string $value): bool
+    {
+        return preg_match('/^[0-9۰-۹٠-٩]+$/u', $value) === 1;
+    }
+}
