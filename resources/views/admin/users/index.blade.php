@@ -20,41 +20,33 @@
             @endcan
         </div>
 
-        <form method="GET" class="mt-5 grid gap-3 lg:grid-cols-[1fr_11rem_11rem_13rem_8rem]">
-            @can('permission', 'users.search')
-                <input name="search" value="{{ request('search') }}" placeholder="{{ __('system.users.search_placeholder') }}" class="h-11 rounded-lg border border-zinc-200 px-3 text-sm outline-none transition focus:border-teal-500">
-            @else
-                <div></div>
-            @endcan
-            <select name="role" class="h-11 rounded-lg border border-zinc-200 px-3 text-sm outline-none transition focus:border-teal-500">
-                <option value="">{{ __('system.users.all_roles') }}</option>
-                @foreach($roles as $role)
-                    <option value="{{ $role->code }}" @selected(request('role') === $role->code)>{{ __('system.roles.'.$role->code) }}</option>
-                @endforeach
-            </select>
-            <select name="status" class="h-11 rounded-lg border border-zinc-200 px-3 text-sm outline-none transition focus:border-teal-500">
-                <option value="">{{ __('system.users.all_statuses') }}</option>
-                @foreach(['active', 'inactive', 'blocked', 'suspended', 'disabled'] as $status)
-                    <option value="{{ $status }}" @selected(request('status') === $status)>{{ __('system.statuses.'.$status) }}</option>
-                @endforeach
-            </select>
-            @if(($availableTenants?->count() ?? 0) > 1)
-                <select name="clinic_id" class="h-11 rounded-lg border border-zinc-200 px-3 text-sm outline-none transition focus:border-teal-500">
-                    <option value="">{{ __('dashboard.all_clinics') }}</option>
-                    @foreach($availableTenants as $tenantOption)
-                        <option value="{{ $tenantOption->id }}" @selected((string) request('clinic_id') === (string) $tenantOption->id)>{{ $tenantOption->name }}</option>
-                    @endforeach
-                </select>
-            @else
-                <div></div>
-            @endif
-            <button class="inline-flex h-11 items-center justify-center gap-2 rounded-lg bg-zinc-950 px-4 text-sm font-bold text-white transition hover:bg-teal-700">
-                <x-admin.icon name="settings" class="h-4 w-4" />
-                <span>{{ __('system.users.filter') }}</span>
-            </button>
-        </form>
+        @php
+            $userFilters = [
+                ['name' => 'role', 'label' => __('system.role'), 'type' => 'select', 'placeholder' => __('system.users.all_roles'), 'options' => $roles->mapWithKeys(fn ($role) => [$role->code => __('system.roles.'.$role->code)])->all()],
+                ['name' => 'status', 'label' => __('system.status'), 'type' => 'select', 'placeholder' => __('system.users.all_statuses'), 'options' => collect(['active', 'inactive', 'blocked', 'suspended', 'disabled'])->mapWithKeys(fn ($status) => [$status => __('system.statuses.'.$status)])->all()],
+            ];
 
-        <div class="mt-5 overflow-x-auto rounded-lg border border-zinc-100">
+            if (($availableTenants?->count() ?? 0) > 1) {
+                $userFilters[] = ['name' => 'clinic_id', 'label' => __('system.clinic'), 'type' => 'select', 'placeholder' => __('dashboard.all_clinics'), 'options' => $availableTenants->pluck('name', 'id')->all()];
+            }
+        @endphp
+
+        <x-admin.list-filters
+            preset-key="admin.users.index"
+            :can-search="auth()->user()?->hasPermission('users.search', $clinicFilter?->id) ?? false"
+            :search-placeholder="__('system.users.search_placeholder')"
+            :filters="$userFilters"
+            :sorts="[
+                'created_at' => __('messages.created_at'),
+                'name' => __('system.name'),
+                'email' => __('system.users.email'),
+                'phone_normalized' => __('system.mobile'),
+                'role' => __('system.role'),
+                'status' => __('system.status'),
+            ]"
+        />
+
+        <div data-admin-table-container class="mt-5 overflow-visible rounded-lg border border-zinc-100">
             <table class="w-full min-w-[50rem] text-right text-sm">
                 <thead class="bg-zinc-50 text-xs text-zinc-500">
                     <tr>

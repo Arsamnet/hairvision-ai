@@ -6,6 +6,8 @@ use App\Models\SmsGateway;
 use App\Models\User;
 use App\Services\Sms\SmsGatewayService;
 use App\Support\Pagination\PaginationParameters;
+use App\Support\Query\DateRangeFilter;
+use App\Support\Query\SearchFilter;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
@@ -45,34 +47,36 @@ class SmsGatewayManagementService
 
     public function systemQuery(Request $request, PaginationParameters $pagination): Builder
     {
-        return SmsGateway::query()
-            ->with('user')
-            ->when($pagination->search, function (Builder $query) use ($pagination): void {
-                $search = '%'.$pagination->search.'%';
-                $query->where(function (Builder $query) use ($search): void {
-                    $query->where('name', 'like', $search)
-                        ->orWhere('provider_code', 'like', $search)
-                        ->orWhereHas('user', fn (Builder $userQuery) => $userQuery->where('name', 'like', $search));
-                });
-            })
+        $query = SmsGateway::query()->with('user');
+        SearchFilter::apply($query, $pagination->search, ['name', 'provider_code'], [
+            'user' => ['name'],
+        ]);
+
+        $query
             ->when($request->filled('status'), fn (Builder $query) => $query->where('status', $request->string('status')->toString()))
             ->when($request->filled('owner_scope'), fn (Builder $query) => $query->where('owner_scope', $request->string('owner_scope')->toString()))
-            ->when($request->filled('provider_code'), fn (Builder $query) => $query->where('provider_code', $request->string('provider_code')->toString()))
+            ->when($request->filled('provider_code'), fn (Builder $query) => $query->where('provider_code', $request->string('provider_code')->toString()));
+
+        DateRangeFilter::apply($query, $request);
+
+        return $query
             ->orderBy($pagination->sort, $pagination->direction);
     }
 
     public function privateQuery(Request $request, User $user, PaginationParameters $pagination): Builder
     {
-        return $user->smsGateways()
-            ->when($pagination->search, function (Builder $query) use ($pagination): void {
-                $search = '%'.$pagination->search.'%';
-                $query->where(function (Builder $query) use ($search): void {
-                    $query->where('name', 'like', $search)
-                        ->orWhere('provider_code', 'like', $search);
-                });
-            })
+        $query = SmsGateway::query()
+            ->where('owner_scope', 'user')
+            ->where('user_id', $user->id);
+        SearchFilter::apply($query, $pagination->search, ['name', 'provider_code']);
+
+        $query
             ->when($request->filled('status'), fn (Builder $query) => $query->where('status', $request->string('status')->toString()))
-            ->when($request->filled('provider_code'), fn (Builder $query) => $query->where('provider_code', $request->string('provider_code')->toString()))
+            ->when($request->filled('provider_code'), fn (Builder $query) => $query->where('provider_code', $request->string('provider_code')->toString()));
+
+        DateRangeFilter::apply($query, $request);
+
+        return $query
             ->orderBy($pagination->sort, $pagination->direction);
     }
 

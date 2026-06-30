@@ -267,7 +267,9 @@
                                         <input id="image" type="file" accept="image/*" class="sr-only" />
                                         <img id="imagePreview" alt="پیش نمایش تصویر" class="hidden h-full max-h-72 w-full rounded-2xl object-cover" />
                                         <span id="imagePlaceholder" class="space-y-2">
-                                            <span class="relative z-10 mx-auto grid h-12 w-12 place-items-center rounded-2xl bg-linear-to-br from-zinc-950 via-indigo-800 to-emerald-700 text-xl text-white shadow-lg shadow-indigo-200 transition group-hover:scale-110">+</span>
+                                            <span class="relative z-10 mx-auto grid h-12 w-12 place-items-center rounded-2xl bg-linear-to-br from-zinc-950 via-indigo-800 to-emerald-700 text-xl text-white shadow-lg shadow-indigo-200 transition group-hover:scale-110" aria-hidden="true">
+                                                <span class="fi fi-rr-upload h-6 w-6"></span>
+                                            </span>
                                             <span class="block text-sm font-bold text-zinc-800">انتخاب تصویر</span>
                                             <span class="block text-xs text-zinc-500">JPG یا PNG تا ۵ مگابایت</span>
                                         </span>
@@ -320,13 +322,20 @@
     </div>
 
     <div id="imageModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-zinc-950/85 p-4 backdrop-blur">
-        <button id="closeImageModal" class="absolute left-4 top-4 rounded-full bg-white px-4 py-2 text-sm font-bold text-zinc-950 shadow-lg transition hover:-translate-y-0.5">بستن</button>
-        <button id="prevImageModal" class="absolute right-4 top-1/2 grid h-11 w-11 -translate-y-1/2 place-items-center rounded-full bg-white/95 text-xl font-bold text-zinc-950 shadow-lg transition hover:scale-105 sm:right-8" aria-label="تصویر قبلی">‹</button>
+        <button id="closeImageModal" class="absolute left-4 top-4 inline-flex items-center gap-2 rounded-full bg-white px-4 py-2 text-sm font-bold text-zinc-950 shadow-lg transition hover:-translate-y-0.5">
+            <span class="fi fi-rr-x h-4 w-4" aria-hidden="true"></span>
+            <span>بستن</span>
+        </button>
+        <button id="prevImageModal" class="absolute right-4 top-1/2 grid h-11 w-11 -translate-y-1/2 place-items-center rounded-full bg-white/95 text-xl font-bold text-zinc-950 shadow-lg transition hover:scale-105 sm:right-8" aria-label="تصویر قبلی">
+            <span class="fi fi-rr-arrow-small-right h-5 w-5" aria-hidden="true"></span>
+        </button>
         <figure class="w-full max-w-5xl">
             <img id="modalImage" alt="نمای بزرگ تصویر" class="hv-modal-image mx-auto max-h-[82vh] max-w-full rounded-3xl object-contain shadow-2xl" />
             <figcaption id="modalCaption" class="mt-4 text-center text-sm font-bold text-white"></figcaption>
         </figure>
-        <button id="nextImageModal" class="absolute left-4 top-1/2 grid h-11 w-11 -translate-y-1/2 place-items-center rounded-full bg-white/95 text-xl font-bold text-zinc-950 shadow-lg transition hover:scale-105 sm:left-8" aria-label="تصویر بعدی">›</button>
+        <button id="nextImageModal" class="absolute left-4 top-1/2 grid h-11 w-11 -translate-y-1/2 place-items-center rounded-full bg-white/95 text-xl font-bold text-zinc-950 shadow-lg transition hover:scale-105 sm:left-8" aria-label="تصویر بعدی">
+            <span class="fi fi-rr-arrow-small-left h-5 w-5" aria-hidden="true"></span>
+        </button>
     </div>
 
     <script>
@@ -407,7 +416,9 @@
                             : 'step-indicator hv-step hv-step-upcoming rounded-2xl px-3 py-3 text-right text-sm transition hover:bg-indigo-50';
 
                     if (marker) {
-                        marker.textContent = done ? '✓' : toPersianDigits(index);
+                        marker.innerHTML = done
+                            ? '<span class="fi fi-rr-check h-4 w-4" aria-hidden="true"></span>'
+                            : toPersianDigits(index);
                         marker.className = active
                             ? 'step-marker mb-2 grid h-7 w-7 place-items-center rounded-xl bg-white/15 text-xs font-bold text-white'
                             : done
@@ -708,7 +719,7 @@
                 card.style.animationDelay = `${index * 70}ms`;
                 const galleryIndex = STATE.galleryItems.findIndex((galleryItem) => galleryItem.period === item.period);
                 card.innerHTML = item.url
-                    ? `<button type="button" class="block w-full text-right" data-gallery-index="${galleryIndex}"><span class="block overflow-hidden"><img src="${item.url}" alt="${item.label}" class="hv-result-image aspect-[4/5] w-full object-cover" loading="lazy" /></span><span class="block p-4"><span class="block text-base font-bold text-zinc-950">${item.label}</span><span class="mt-1 block text-sm leading-6 text-zinc-500">${item.caption}</span></span></button>`
+                    ? `<button type="button" class="block w-full text-right" data-gallery-index="${galleryIndex}"><span class="relative block overflow-hidden"><img src="${item.url}" alt="${item.label}" class="hv-result-image aspect-[4/5] w-full object-cover" loading="lazy" /><span class="absolute left-3 top-3 grid h-9 w-9 place-items-center rounded-full bg-white/95 text-zinc-950 shadow-lg"><span class="fi fi-rr-zoom-in h-4 w-4" aria-hidden="true"></span></span></span><span class="block p-4"><span class="block text-base font-bold text-zinc-950">${item.label}</span><span class="mt-1 block text-sm leading-6 text-zinc-500">${item.caption}</span></span></button>`
                     : `<div class="aspect-[4/5] w-full bg-zinc-100"></div><div class="p-4"><p class="text-base font-bold text-zinc-950">${item.label}</p><p class="mt-1 text-sm leading-6 text-zinc-500">تصویر آماده نشد.</p></div>`;
                 container.appendChild(card);
             });

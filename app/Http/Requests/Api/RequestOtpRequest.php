@@ -2,6 +2,8 @@
 
 namespace App\Http\Requests\Api;
 
+use App\Rules\SupportedDigits;
+use App\Support\NumberNormalizer;
 use Illuminate\Foundation\Http\FormRequest;
 
 /**
@@ -25,7 +27,7 @@ class RequestOtpRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'phone' => ['required', 'string'],
+            'phone' => ['required', 'string', new SupportedDigits(__('auth.invalid_phone')), 'digits:11'],
         ];
     }
 
@@ -35,8 +37,18 @@ class RequestOtpRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'phone.required' => 'شماره موبایل را وارد کنید.',
-            'phone.string' => 'شماره موبایل باید به صورت متن عددی ارسال شود.',
+            'phone.required' => __('auth.phone_required'),
+            'phone.string' => __('auth.phone_string'),
+            'phone.digits' => __('auth.invalid_phone'),
         ];
+    }
+
+    protected function prepareForValidation(): void
+    {
+        if ($this->has('phone')) {
+            $this->merge([
+                'phone' => NumberNormalizer::toLatinDigits((string) $this->input('phone')),
+            ]);
+        }
     }
 }

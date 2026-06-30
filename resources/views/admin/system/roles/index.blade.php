@@ -42,7 +42,7 @@
             </button>
         </form>
 
-        <div class="mt-5 overflow-x-auto rounded-lg border border-zinc-100">
+        <div data-admin-table-container class="mt-5 overflow-visible rounded-lg border border-zinc-100">
             <table class="w-full min-w-[42rem] text-right text-sm">
                 <thead class="bg-zinc-50 text-xs text-zinc-500">
                     <tr>

@@ -24,8 +24,12 @@ class PaginationParameters
      *
      * @param  array<int, string>  $allowedSorts
      */
-    public static function fromRequest(Request $request, array $allowedSorts, string $defaultSort = 'created_at'): self
-    {
+    public static function fromRequest(
+        Request $request,
+        array $allowedSorts,
+        string $defaultSort = 'created_at',
+        string $defaultDirection = 'desc'
+    ): self {
         $maxPerPage = (int) config('hairvision.pagination.max_per_page', 100);
         $defaultPerPage = (int) config('hairvision.pagination.default_per_page', 15);
         $perPageInput = $request->input('per_page', $defaultPerPage);
@@ -34,7 +38,8 @@ class PaginationParameters
 
         $sort = (string) $request->input('sort', $defaultSort);
         $sort = in_array($sort, $allowedSorts, true) ? $sort : $defaultSort;
-        $direction = strtolower((string) $request->input('direction', 'desc')) === 'asc'
+        $defaultDirection = strtolower($defaultDirection) === 'asc' ? 'asc' : 'desc';
+        $direction = strtolower((string) $request->input('direction', $defaultDirection)) === 'asc'
             ? 'asc'
             : 'desc';
         $search = $request->input('search', $request->input('q'));

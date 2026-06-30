@@ -7,6 +7,9 @@ use App\Http\Requests\Admin\Plans\StorePlanRequest;
 use App\Http\Requests\Admin\Plans\UpdatePlanRequest;
 use App\Models\Plan;
 use App\Services\Billing\BillingService;
+use App\Support\Pagination\PaginationParameters;
+use App\Support\Query\DateRangeFilter;
+use App\Support\Query\SearchFilter;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -21,14 +24,25 @@ class PlanController extends Controller
     public function index(Request $request): View
     {
         $canManagePlans = $request->user()->hasAnyPermission(['plans.create', 'plans.edit', 'plans.delete', 'plans.manage']);
+        $pagination = PaginationParameters::fromRequest(
+            $request,
+            ['created_at', 'name', 'price', 'duration_days', 'usage_limit', 'status'],
+            'price',
+            'asc'
+        );
+        $query = Plan::query()
+            ->when(! $canManagePlans, fn ($query) => $query->where('status', 'active'))
+            ->when($request->filled('status') && $canManagePlans, fn ($query) => $query->where('status', $request->string('status')->toString()));
+        SearchFilter::apply($query, $pagination->search, ['name', 'description', 'currency']);
+        DateRangeFilter::apply($query, $request);
 
         return view('admin.plans.index', [
             'tenant' => $request->attributes->get('adminTenant'),
             'availableTenants' => $request->attributes->get('adminTenants'),
-            'plans' => Plan::query()
-                ->when(! $canManagePlans, fn ($query) => $query->where('status', 'active'))
-                ->orderBy('price')
-                ->paginate(20),
+            'plans' => $query
+                ->orderBy($pagination->sort, $pagination->direction)
+                ->paginate($pagination->perPage, ['*'], 'page', $pagination->page)
+                ->withQueryString(),
             'canManagePlans' => $canManagePlans,
             'activeSubscription' => $request->attributes->get('activeSubscription'),
         ]);

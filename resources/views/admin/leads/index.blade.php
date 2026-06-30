@@ -22,37 +22,31 @@
             @endcan
         </div>
 
-        <form method="GET" class="mt-5 grid gap-3 lg:grid-cols-[1fr_11rem_13rem_13rem_9rem]">
-            <input name="search" value="{{ request('search', request('q')) }}" placeholder="{{ __('leads.search_placeholder') }}" class="h-11 rounded-lg border border-zinc-200 px-3 text-sm outline-none transition focus:border-teal-500">
-            <select name="status" class="h-11 rounded-lg border border-zinc-200 px-3 text-sm outline-none transition focus:border-teal-500">
-                <option value="">{{ __('leads.all_statuses') }}</option>
-                @foreach(__('leads.statuses') as $status => $label)
-                    <option value="{{ $status }}" @selected(request('status') === $status)>{{ $label }}</option>
-                @endforeach
-            </select>
-            <select name="crm_stage" class="h-11 rounded-lg border border-zinc-200 px-3 text-sm outline-none transition focus:border-teal-500">
-                <option value="">{{ __('leads.all_stages') }}</option>
-                @foreach(__('leads.crm_stages') as $stage => $label)
-                    <option value="{{ $stage }}" @selected(request('crm_stage') === $stage)>{{ $label }}</option>
-                @endforeach
-            </select>
-            @if(($availableTenants?->count() ?? 0) > 1)
-                <select name="clinic_id" class="h-11 rounded-lg border border-zinc-200 px-3 text-sm outline-none transition focus:border-teal-500">
-                    <option value="">{{ __('dashboard.all_clinics') }}</option>
-                    @foreach($availableTenants as $tenantOption)
-                        <option value="{{ $tenantOption->id }}" @selected((string) request('clinic_id') === (string) $tenantOption->id)>{{ $tenantOption->name }}</option>
-                    @endforeach
-                </select>
-            @else
-                <div></div>
-            @endif
-            <button class="inline-flex h-11 items-center justify-center gap-2 rounded-lg bg-zinc-950 px-4 text-sm font-bold text-white transition hover:bg-teal-700">
-                <x-admin.icon name="settings" class="h-4 w-4" />
-                <span>{{ __('leads.filter') }}</span>
-            </button>
-        </form>
+        @php
+            $leadFilters = [
+                ['name' => 'status', 'label' => __('leads.fields.status'), 'type' => 'select', 'placeholder' => __('leads.all_statuses'), 'options' => __('leads.statuses')],
+                ['name' => 'crm_stage', 'label' => __('leads.fields.crm_stage'), 'type' => 'select', 'placeholder' => __('leads.all_stages'), 'options' => __('leads.crm_stages')],
+            ];
 
-        <div class="mt-5 overflow-x-auto rounded-lg border border-zinc-100">
+            if (($availableTenants?->count() ?? 0) > 1) {
+                $leadFilters[] = ['name' => 'clinic_id', 'label' => __('system.clinic'), 'type' => 'select', 'placeholder' => __('dashboard.all_clinics'), 'options' => $availableTenants->pluck('name', 'id')->all()];
+            }
+        @endphp
+
+        <x-admin.list-filters
+            preset-key="admin.leads.index"
+            :search-placeholder="__('leads.search_placeholder')"
+            :filters="$leadFilters"
+            :sorts="[
+                'created_at' => __('leads.fields.created_at'),
+                'full_name' => __('leads.fields.name'),
+                'phone_normalized' => __('leads.fields.phone'),
+                'crm_stage' => __('leads.fields.crm_stage'),
+                'status' => __('leads.fields.status'),
+            ]"
+        />
+
+        <div data-admin-table-container class="mt-5 overflow-visible rounded-lg border border-zinc-100">
             <table class="w-full min-w-[46rem] text-right text-sm">
                 <thead class="bg-zinc-50 text-xs text-zinc-500">
                     <tr>

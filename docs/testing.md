@@ -20,6 +20,10 @@ npm run build
 Add focused tests for changed behavior. Examples:
 
 - Shared utilities such as `App\Support\NumberNormalizer`.
+- Validation rules such as `App\Rules\SupportedDigits`.
+- Shared query helpers such as `App\Support\Query\SearchFilter` when table
+  search/filter behavior changes.
+- Shared dashboard/report overview services when management metrics change.
 - Tenant-scoped query and filter behavior.
 - Permission-aware dashboard actions.
 - Modal create flows where validation, redirect, or authorization changes.

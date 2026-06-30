@@ -90,8 +90,15 @@ public function store(StoreClientRequest $request): JsonResponse
 - Avoid duplicated logic.
 - Move repeated generic formatting and normalization to focused support classes,
   such as `App\Support\NumberNormalizer`.
+- Move digit-only validation to reusable validation rules, such as
+  `App\Rules\SupportedDigits`, instead of controller checks.
+- Move repeated list search behavior to focused query helpers, such as
+  `App\Support\Query\SearchFilter`, and keep pagination/sorting on
+  `PaginationParameters`.
 - Move repeated tenant-scoped dashboard filtering into focused services or
   actions instead of copying request-input authorization checks.
+- Move repeated dashboard/report statistics into focused services instead of
+  duplicating count/sum queries in controllers.
 - Avoid large methods.
 - Keep each method focused on one responsibility.
 - Use meaningful class, method, and variable names.
@@ -110,6 +117,8 @@ public function store(StoreClientRequest $request): JsonResponse
   Awesome or external icon assets.
 - Put table row actions inside a three-dot action menu at the beginning/right
   side of RTL tables.
+- Compact list/card management actions should also use the shared action-menu
+  pattern when it improves consistency.
 - Keep create forms on list pages inside modal triggers when the module supports
   creating records.
 - Implement table search and filters through backend query parameters and

@@ -100,6 +100,16 @@ class User extends Authenticatable
     }
 
     /**
+     * Saved list filter presets owned by this dashboard user.
+     *
+     * @return HasMany<UserSavedFilter, $this>
+     */
+    public function savedFilters(): HasMany
+    {
+        return $this->hasMany(UserSavedFilter::class);
+    }
+
+    /**
      * Determine whether the user has platform-level access.
      */
     public function isSuperAdmin(): bool

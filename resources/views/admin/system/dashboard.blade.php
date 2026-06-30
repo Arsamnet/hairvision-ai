@@ -1,7 +1,7 @@
 @extends('admin.layout')
 
-@section('title', __('system.dashboard_title'))
-@section('page_title', __('system.dashboard_title'))
+@section('title', request()->routeIs('admin.dashboard') ? __('dashboard.admin_title') : __('system.dashboard_title'))
+@section('page_title', request()->routeIs('admin.dashboard') ? __('dashboard.dashboard') : __('system.dashboard_title'))
 
 @section('content')
     <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">

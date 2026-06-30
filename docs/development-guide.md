@@ -34,8 +34,18 @@ visitor flow and the local sample-image provider until the MVP is stable.
 
 Use `App\Support\NumberNormalizer` for Persian, Arabic, and Latin digit
 normalization. Do not add private `normalizeDigits` copies to controllers,
-requests, tests, or services. For tenant-safe dashboard clinic filters, reuse a
-focused resolver/service instead of trusting raw `clinic_id` input.
+requests, tests, or services. Use `App\Rules\SupportedDigits` in Form Requests
+when input must contain only supported digit scripts.
+
+Use `App\Support\Query\SearchFilter` with
+`App\Support\Pagination\PaginationParameters` for dashboard table searches
+instead of repeating `LIKE` blocks in controllers or services. For tenant-safe
+dashboard clinic filters, reuse a focused resolver/service instead of trusting
+raw `clinic_id` input.
+
+Use focused overview/statistics services, such as
+`App\Services\Admin\SystemOverviewService`, when dashboard and report pages need
+overlapping metrics.
 
 ## Phase 1 Implementation Checklist
 

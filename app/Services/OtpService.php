@@ -66,7 +66,7 @@ class OtpService
     public function verifyCode(string $phone, string $code, int $tenantId): Lead
     {
         $phoneNormalized = $this->normalizePhone($phone);
-        $codeNormalized = $this->normalizeDigits($code);
+        $codeNormalized = NumberNormalizer::toLatinDigits($code);
 
         $otp = OtpCode::query()
             ->where('tenant_id', '=', $tenantId)
@@ -78,11 +78,11 @@ class OtpService
             ->first();
 
         if (! $otp) {
-            abort(422, 'کد تایید معتبر نیست. لطفا کد را بررسی کنید یا دوباره کد بگیرید.');
+            abort(422, __('auth.invalid_lead_otp'));
         }
 
         if ($otp->attempts >= config('hairvision.otp.max_attempts')) {
-            abort(422, 'تعداد تلاش‌ها بیش از حد مجاز است. لطفا دوباره کد دریافت کنید.');
+            abort(422, __('auth.too_many_otp_attempts'));
         }
 
         if (! Hash::check($codeNormalized, $otp->code_hash)) {
@@ -93,7 +93,7 @@ class OtpService
                 $otp->update(['verified_at' => Carbon::now()]);
             }
 
-            abort(422, 'کد تایید معتبر نیست. لطفا کد را بررسی کنید یا دوباره کد بگیرید.');
+            abort(422, __('auth.invalid_lead_otp'));
         }
 
         $otp->update(['verified_at' => Carbon::now()]);
@@ -110,28 +110,6 @@ class OtpService
         );
 
         return $lead;
-    }
-
-    /**
-     * Convert supported Persian and Arabic numerals to Latin digits.
-     *
-     * @param  string  $value  Input value that may contain Persian, Arabic, or Latin digits.
-     * @return string Value with supported digits normalized to Latin digits.
-     */
-    public function normalizeDigits(string $value): string
-    {
-        return NumberNormalizer::toLatinDigits($value);
-    }
-
-    /**
-     * Determine whether a value contains only supported digit scripts.
-     *
-     * @param  string  $value  Input value to validate.
-     * @return bool True when all characters are Persian, Arabic, or Latin digits.
-     */
-    public function hasOnlySupportedDigits(string $value): bool
-    {
-        return NumberNormalizer::hasOnlySupportedDigits($value);
     }
 
     /**

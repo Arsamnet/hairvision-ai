@@ -6,6 +6,9 @@ use App\Http\Controllers\Controller;
 use App\Models\Invoice;
 use App\Models\Payment;
 use App\Services\Billing\BillingService;
+use App\Support\Pagination\PaginationParameters;
+use App\Support\Query\DateRangeFilter;
+use App\Support\Query\SearchFilter;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -21,21 +24,24 @@ class BillingController extends Controller
     {
         $user = $request->user();
         $canManage = $user->hasPermission('billing.manage');
+        $pagination = PaginationParameters::fromRequest(
+            $request,
+            ['created_at', 'number', 'amount', 'status'],
+            'created_at'
+        );
 
         $invoices = Invoice::query()
             ->with(['user', 'plan', 'payments.gateway'])
             ->when(! $canManage, fn ($query) => $query->where('user_id', $user->id))
-            ->when($request->filled('search'), function ($query) use ($request): void {
-                $search = '%'.$request->string('search')->toString().'%';
-                $query->where(function ($query) use ($search): void {
-                    $query->where('number', 'like', $search)
-                        ->orWhereHas('user', fn ($userQuery) => $userQuery->where('name', 'like', $search)->orWhere('phone_normalized', 'like', $search))
-                        ->orWhereHas('plan', fn ($planQuery) => $planQuery->where('name', 'like', $search));
-                });
-            })
-            ->when($request->filled('status'), fn ($query) => $query->where('status', $request->string('status')->toString()))
-            ->latest()
-            ->paginate(20)
+            ->when($request->filled('status'), fn ($query) => $query->where('status', $request->string('status')->toString()));
+        SearchFilter::apply($invoices, $pagination->search, ['number'], [
+            'user' => ['name', 'phone_normalized'],
+            'plan' => ['name'],
+        ]);
+        DateRangeFilter::apply($invoices, $request);
+        $invoices = $invoices
+            ->orderBy($pagination->sort, $pagination->direction)
+            ->paginate($pagination->perPage, ['*'], 'page', $pagination->page)
             ->withQueryString();
 
         return view('admin.billing.index', [

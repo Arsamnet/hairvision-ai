@@ -157,7 +157,15 @@ class SystemManagementTest extends TestCase
             ->assertSee(__('system.roles.super_admin'))
             ->assertSee('data-menu-item="admin.users.index"', false)
             ->assertSee('create-user-modal-toggle', false)
-            ->assertSee('data-table-action-menu', false);
+            ->assertSee('data-table-action-menu', false)
+            ->assertSee('data-table-action-item', false)
+            ->assertSee('admin-confirm-modal-toggle', false)
+            ->assertSee('data-admin-confirm-modal', false)
+            ->assertSee('data-admin-modal-backdrop="admin-confirm-modal"', false)
+            ->assertSee('data-admin-modal-close="admin-confirm-modal"', false)
+            ->assertDontSee('<label for="admin-confirm-modal-toggle"', false)
+            ->assertSee('data-confirm-form', false)
+            ->assertDontSee('confirm(', false);
 
         $this->actingAs($superAdmin)
             ->forHost('hairvision-ai.test')
@@ -191,7 +199,9 @@ class SystemManagementTest extends TestCase
             ->get('/admin/users/'.$managedUser->id)
             ->assertOk()
             ->assertSee('کاربر تست مدیریت')
-            ->assertSee(__('system.roles.viewer'));
+            ->assertSee(__('system.roles.viewer'))
+            ->assertSee('data-confirm-form', false)
+            ->assertDontSee('confirm(', false);
 
         $this->actingAs($superAdmin)
             ->forHost('hairvision-ai.test')
@@ -297,6 +307,8 @@ class SystemManagementTest extends TestCase
             ->assertSee('درگاه تست کاوه')
             ->assertSee('create-system-sms-gateway-modal-toggle', false)
             ->assertSee('data-table-action-menu', false)
+            ->assertSee('data-confirm-form', false)
+            ->assertDontSee('confirm(', false)
             ->assertDontSee('super-secret-api-key');
 
         $this->actingAs($superAdmin)
@@ -304,6 +316,8 @@ class SystemManagementTest extends TestCase
             ->get('/admin/system/sms-gateways/'.$gateway->id)
             ->assertOk()
             ->assertSee($gateway->maskedCredential('api_key'))
+            ->assertSee('data-confirm-form', false)
+            ->assertDontSee('confirm(', false)
             ->assertDontSee('super-secret-api-key');
 
         $this->actingAs($superAdmin)
@@ -362,6 +376,8 @@ class SystemManagementTest extends TestCase
             ->forHost('hairvision-ai.test')
             ->get('/admin/my-sms-gateways/'.$gateway->id)
             ->assertOk()
+            ->assertSee('data-confirm-form', false)
+            ->assertDontSee('confirm(', false)
             ->assertDontSee('private-secret-key');
 
         $this->actingAs($other)
@@ -420,7 +436,14 @@ class SystemManagementTest extends TestCase
             ->assertOk()
             ->assertSee('local')
             ->assertSee('create-payment-gateway-modal-toggle', false)
-            ->assertSee('data-table-action-menu', false);
+            ->assertSee('data-admin-table-container', false)
+            ->assertSee('mt-5 overflow-visible rounded-lg border border-zinc-100', false)
+            ->assertDontSee('mt-5 overflow-x-auto rounded-lg border border-zinc-100', false)
+            ->assertSee('data-table-action-menu', false)
+            ->assertSee('open:z-[80]', false)
+            ->assertSee('z-[90]', false)
+            ->assertSee('admin-confirm-modal-toggle', false)
+            ->assertSee('data-admin-modal-backdrop="admin-confirm-modal"', false);
 
         $billing = app(BillingService::class);
         $invoice = $billing->invoiceForPlan($user, $starter);
@@ -506,8 +529,28 @@ class SystemManagementTest extends TestCase
             ->forHost('hairvision-ai.test')
             ->get('/admin/dashboard')
             ->assertOk()
+            ->assertSee('admin-app-shell h-screen overflow-hidden', false)
+            ->assertSee('admin-main-panel flex h-screen min-h-0 min-w-0 flex-col', false)
+            ->assertSee('admin-content min-h-0 flex-1 overflow-y-auto', false)
+            ->assertSee('data-admin-menu-scroll', false)
+            ->assertSee('data-admin-user-menu', false)
+            ->assertSee('data-theme-toggle', false)
+            ->assertSee('data-admin-theme-script', false)
+            ->assertSee('admin-logo-light', false)
+            ->assertSee('admin-logo-dark', false)
+            ->assertSee('/theme/admin-logo-light.svg', false)
+            ->assertSee('/theme/admin-logo-dark.svg', false)
+            ->assertSee($user->name)
+            ->assertSee(__('system.roles.'.$user->role))
+            ->assertDontSee($user->phone_normalized)
+            ->assertSee(__('dashboard.theme.menu_item'))
+            ->assertSee('data-menu-icon="more-horizontal"', false)
+            ->assertSee('data-menu-icon="moon"', false)
+            ->assertSee('data-menu-icon="sun"', false)
+            ->assertSee('/admin/logout', false)
             ->assertSee('data-menu-icon="layout-dashboard"', false)
             ->assertSee('data-menu-item="admin.dashboard"', false)
+            ->assertDontSee('data-menu-item="admin.system.dashboard"', false)
             ->assertDontSee('data-menu-group="'.__('menu.groups.dashboard').'"', false)
             ->assertDontSee('data-menu-group="'.__('menu.groups.crm').'"', false)
             ->assertSee('data-menu-group="'.__('menu.groups.plans_payments').'"', false)
@@ -522,6 +565,10 @@ class SystemManagementTest extends TestCase
             ->forHost('hairvision-ai.test')
             ->get('/admin/dashboard')
             ->assertOk()
+            ->assertSee(__('dashboard.dashboard'))
+            ->assertSee('admin-menu-caret', false)
+            ->assertDontSee('data-menu-group="'.__('menu.groups.dashboard').'"', false)
+            ->assertDontSee('data-menu-item="admin.system.dashboard"', false)
             ->assertSee('data-menu-group="'.__('menu.groups.users_access').'"', false)
             ->assertSee('data-menu-item="admin.system.roles.index"', false)
             ->assertDontSee('name="tenant_id"', false);
@@ -571,6 +618,16 @@ class SystemManagementTest extends TestCase
             ->assertRedirect();
 
         $this->assertDatabaseHas('plans', ['name' => 'پلن مدیریتی']);
+
+        $this->actingAs($superAdmin)
+            ->forHost('hairvision-ai.test')
+            ->get('/admin/plans?'.http_build_query(['search' => 'پلن مدیریتی', 'status' => 'active']))
+            ->assertOk()
+            ->assertSee('پلن مدیریتی')
+            ->assertSee('create-plan-modal-toggle', false)
+            ->assertSee('data-table-action-menu', false)
+            ->assertSee('data-confirm-form', false)
+            ->assertDontSee('confirm(', false);
 
         $this->actingAs($normalUser)
             ->forHost('hairvision-ai.test')
@@ -795,7 +852,7 @@ class SystemManagementTest extends TestCase
             ->assertForbidden();
     }
 
-    public function test_super_admin_dashboard_starts_without_selected_clinic_and_can_select_one(): void
+    public function test_super_admin_dashboard_starts_on_management_overview_and_can_select_one(): void
     {
         $this->seed(DatabaseSeeder::class);
 
@@ -806,7 +863,8 @@ class SystemManagementTest extends TestCase
             ->forHost('hairvision-ai.test')
             ->get('/admin/dashboard')
             ->assertOk()
-            ->assertSee(__('dashboard.platform_overview'))
+            ->assertSee(__('dashboard.dashboard'))
+            ->assertSee(__('system.metrics.users'))
             ->assertSessionMissing('admin_active_tenant_id');
 
         $this->actingAs($superAdmin)
@@ -818,7 +876,8 @@ class SystemManagementTest extends TestCase
             ->forHost('hairvision-ai.test')
             ->get('/admin/dashboard')
             ->assertOk()
-            ->assertSee($tenant->name);
+            ->assertSee(__('dashboard.dashboard'))
+            ->assertSee(__('system.metrics.plans'));
     }
 
     public function test_normal_user_dashboard_is_scoped_to_own_tenant_data(): void
@@ -836,6 +895,8 @@ class SystemManagementTest extends TestCase
             ->get('/admin/dashboard')
             ->assertOk()
             ->assertSee($leadA->full_name)
+            ->assertSee('data-table-action-menu', false)
+            ->assertSee(__('leads.details'))
             ->assertDontSee($leadB->full_name);
     }
 
@@ -846,6 +907,8 @@ class SystemManagementTest extends TestCase
         }
 
         $this->assertSame('داشبورد', __('menu.groups.dashboard'));
+        $this->assertSame('پیشخوان', __('menu.items.dashboard'));
+        $this->assertSame('حالت شب', __('dashboard.theme.menu_item'));
         $this->assertSame('پلن‌ها و پرداخت‌ها', __('menu.groups.plans_payments'));
         $this->assertSame('نیاز به پیگیری', __('leads.crm_stages.needs_follow_up'));
         $this->assertSame('تماس تلفنی', __('crm.channels.phone'));
@@ -853,6 +916,52 @@ class SystemManagementTest extends TestCase
         $this->assertSame('سوپر ادمین', __('system.roles.super_admin'));
         $this->assertSame('مسدود', __('system.statuses.blocked'));
         $this->assertSame('برای دسترسی به این بخش باید پلن فعال داشته باشید.', __('permissions.plan_required'));
+        $this->assertSame('تایید عملیات', __('messages.confirm_action'));
+        $this->assertSame('حذف', __('messages.delete'));
+        $this->assertSame('شماره موبایل باید فقط شامل ۱۱ رقم باشد.', __('auth.invalid_phone'));
+        $this->assertSame('کد تایید باید فقط شامل ۶ رقم باشد.', __('auth.invalid_code'));
+        $this->assertSame('جستجوی نام، توضیح یا واحد پلن', __('plans.search_placeholder'));
+    }
+
+    public function test_admin_javascript_is_split_into_focused_modules(): void
+    {
+        $entrypoint = resource_path('js/app.js');
+        $adminIndex = resource_path('js/admin/index.js');
+        $actionMenus = resource_path('js/admin/action-menus.js');
+        $modals = resource_path('js/admin/modals.js');
+        $confirmationModal = resource_path('js/admin/confirmation-modal.js');
+        $theme = resource_path('js/admin/theme.js');
+
+        foreach ([$entrypoint, $adminIndex, $actionMenus, $modals, $confirmationModal, $theme] as $path) {
+            $this->assertFileExists($path);
+        }
+
+        $this->assertStringContainsString("import { bootAdmin } from './admin/index.js';", file_get_contents($entrypoint));
+        $this->assertStringContainsString("import { bootActionMenus, closeActionMenus } from './action-menus.js';", file_get_contents($adminIndex));
+        $this->assertStringContainsString("import { bootAdminTheme } from './theme.js';", file_get_contents($adminIndex));
+        $this->assertStringContainsString('export const closeActionMenus', file_get_contents($actionMenus));
+        $this->assertStringContainsString('export const closeModal', file_get_contents($modals));
+        $this->assertStringContainsString('preserveScrollPosition', file_get_contents($modals));
+        $this->assertStringContainsString('export const bootConfirmationModal', file_get_contents($confirmationModal));
+        $this->assertStringContainsString('localStorage.setItem', file_get_contents($theme));
+    }
+
+    public function test_admin_logos_have_light_and_dark_variants(): void
+    {
+        $lightLogo = public_path('theme/admin-logo-light.svg');
+        $darkLogo = public_path('theme/admin-logo-dark.svg');
+
+        $this->assertFileExists($lightLogo);
+        $this->assertFileExists($darkLogo);
+        $this->assertStringContainsString('#132232', file_get_contents($lightLogo));
+        $this->assertStringContainsString('#FFFFFF', file_get_contents($darkLogo));
+        $this->assertStringNotContainsString('#132232', file_get_contents($darkLogo));
+        $dashboardCss = file_get_contents(resource_path('css/app.css'));
+
+        $this->assertStringContainsString('--admin-header: #0f172a;', $dashboardCss);
+        $this->assertStringContainsString('--admin-user-menu-bg: #111625;', $dashboardCss);
+        $this->assertStringContainsString('background: var(--admin-user-menu-bg);', $dashboardCss);
+        $this->assertStringContainsString('.admin-topbar .bg-amber-50', $dashboardCss);
     }
 
     private function createTenant(string $name, string $slug, string $domain): Tenant

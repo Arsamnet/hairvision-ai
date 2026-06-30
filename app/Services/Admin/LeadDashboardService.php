@@ -7,6 +7,8 @@ use App\Models\LeadNote;
 use App\Models\Tenant;
 use App\Models\User;
 use App\Support\Pagination\PaginationParameters;
+use App\Support\Query\DateRangeFilter;
+use App\Support\Query\SearchFilter;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
@@ -45,18 +47,16 @@ class LeadDashboardService
      */
     public function filteredQuery(Request $request, User $user, ?Tenant $tenant, PaginationParameters $pagination): Builder
     {
-        return $this->baseQuery($user, $tenant)
-            ->with(['assignedUser'])
-            ->when($pagination->search, function (Builder $query) use ($pagination): void {
-                $search = '%'.$pagination->search.'%';
-                $query->where(function (Builder $query) use ($search): void {
-                    $query->where('full_name', 'like', $search)
-                        ->orWhere('phone_normalized', 'like', $search)
-                        ->orWhere('source', 'like', $search);
-                });
-            })
+        $query = $this->baseQuery($user, $tenant)->with(['assignedUser']);
+        SearchFilter::apply($query, $pagination->search, ['full_name', 'phone_normalized', 'source']);
+
+        $query
             ->when($request->filled('status'), fn (Builder $query) => $query->where('status', $request->string('status')->toString()))
-            ->when($request->filled('crm_stage'), fn (Builder $query) => $query->where('crm_stage', $request->string('crm_stage')->toString()))
+            ->when($request->filled('crm_stage'), fn (Builder $query) => $query->where('crm_stage', $request->string('crm_stage')->toString()));
+
+        DateRangeFilter::apply($query, $request);
+
+        return $query
             ->orderBy($pagination->sort, $pagination->direction);
     }
 

@@ -4,9 +4,9 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Enums\PlanAccessStatus;
-use App\Models\Lead;
 use App\Models\Tenant;
 use App\Services\Admin\LeadDashboardService;
+use App\Services\Admin\SystemOverviewService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\View\View;
@@ -18,10 +18,20 @@ use Illuminate\View\View;
  */
 class DashboardController extends Controller
 {
-    public function index(Request $request, LeadDashboardService $leads): View
+    public function index(Request $request, LeadDashboardService $leads, SystemOverviewService $overview): View
     {
         $tenant = $request->attributes->get('adminTenant');
         $planAccess = $request->attributes->get('planAccess');
+        $user = $request->user();
+
+        if ($user->hasPermission('system.dashboard', $tenant?->id)) {
+            return view('admin.system.dashboard', [
+                'tenant' => $tenant,
+                'availableTenants' => $request->attributes->get('adminTenants'),
+                'counts' => $overview->dashboardCounts(),
+            ]);
+        }
+
         $canSeeOperationalData = $request->user()->isSuperAdmin()
             || ($planAccess['status'] ?? null) === PlanAccessStatus::Active
             || ($planAccess['status'] ?? null) === PlanAccessStatus::Exempt;

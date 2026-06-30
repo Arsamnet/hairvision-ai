@@ -36,8 +36,8 @@ class StoreGenerationRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'upload_id.required' => 'شناسه تصویر ارسال نشده است.',
-            'upload_id.uuid' => 'شناسه تصویر معتبر نیست.',
+            'upload_id.required' => __('messages.upload_id_required'),
+            'upload_id.uuid' => __('messages.upload_id_invalid'),
         ];
     }
 }

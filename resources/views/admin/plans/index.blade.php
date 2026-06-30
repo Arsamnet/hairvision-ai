@@ -37,6 +37,25 @@
         </x-admin.card>
     @endif
 
+    <x-admin.card class="mb-5">
+        <x-admin.list-filters
+            class="mt-0"
+            preset-key="admin.plans.index"
+            :search-placeholder="__('plans.search_placeholder')"
+            :filters="$canManagePlans ? [
+                ['name' => 'status', 'label' => __('plans.fields.status'), 'type' => 'select', 'placeholder' => __('plans.all_statuses'), 'options' => __('plans.statuses')],
+            ] : []"
+            :sorts="[
+                'price' => __('plans.fields.price'),
+                'created_at' => __('messages.created_at'),
+                'name' => __('plans.fields.name'),
+                'duration_days' => __('plans.fields.duration_days'),
+                'usage_limit' => __('plans.fields.usage_limit'),
+                'status' => __('plans.fields.status'),
+            ]"
+        />
+    </x-admin.card>
+
     <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
         @forelse($plans as $plan)
             <section class="rounded-lg bg-white p-5 shadow-sm ring-1 ring-zinc-200 transition hover:-translate-y-0.5 hover:shadow-md">
@@ -45,7 +64,30 @@
                         <h2 class="text-lg font-bold">{{ $plan->name }}</h2>
                         <p class="mt-1 min-h-10 text-sm leading-6 text-zinc-500">{{ $plan->description }}</p>
                     </div>
-                    <span class="rounded-full {{ $plan->status === 'active' ? 'bg-emerald-50 text-emerald-700' : 'bg-zinc-100 text-zinc-500' }} px-3 py-1 text-xs font-bold">{{ __('plans.statuses.'.$plan->status) }}</span>
+                    <div class="flex items-center gap-2">
+                        <span class="rounded-full {{ $plan->status === 'active' ? 'bg-emerald-50 text-emerald-700' : 'bg-zinc-100 text-zinc-500' }} px-3 py-1 text-xs font-bold">{{ __('plans.statuses.'.$plan->status) }}</span>
+                        @if($canManagePlans)
+                            <x-admin.table.action-menu>
+                                <x-admin.table.action-item
+                                    :action="route('admin.system.plans.update', $plan)"
+                                    method="PUT"
+                                    icon="edit"
+                                    :inputs="[
+                                        'name' => $plan->name,
+                                        'description' => $plan->description,
+                                        'price' => $plan->price,
+                                        'currency' => $plan->currency,
+                                        'duration_days' => $plan->duration_days,
+                                        'usage_limit' => $plan->usage_limit,
+                                        'status' => $plan->status === 'active' ? 'inactive' : 'active',
+                                    ]"
+                                >
+                                    {{ $plan->status === 'active' ? __('plans.statuses.inactive') : __('plans.statuses.active') }}
+                                </x-admin.table.action-item>
+                                <x-admin.table.action-item :action="route('admin.system.plans.destroy', $plan)" method="DELETE" icon="trash" danger :confirm="__('messages.confirm_delete')">{{ __('plans.delete') }}</x-admin.table.action-item>
+                            </x-admin.table.action-menu>
+                        @endif
+                    </div>
                 </div>
                 <dl class="mt-4 grid grid-cols-3 gap-3 text-sm">
                     <div class="rounded-lg bg-zinc-50 p-3"><dt class="text-zinc-500">{{ __('plans.fields.price') }}</dt><dd class="mt-1 font-bold">{{ number_format($plan->price) }}</dd></div>
@@ -70,25 +112,6 @@
                         @endif
                     @endcan
 
-                    @if($canManagePlans)
-                        <form method="POST" action="{{ route('admin.system.plans.update', $plan) }}" class="contents">
-                            @csrf
-                            @method('PUT')
-                            <input type="hidden" name="name" value="{{ $plan->name }}">
-                            <input type="hidden" name="description" value="{{ $plan->description }}">
-                            <input type="hidden" name="price" value="{{ $plan->price }}">
-                            <input type="hidden" name="currency" value="{{ $plan->currency }}">
-                            <input type="hidden" name="duration_days" value="{{ $plan->duration_days }}">
-                            <input type="hidden" name="usage_limit" value="{{ $plan->usage_limit }}">
-                            <input type="hidden" name="status" value="{{ $plan->status === 'active' ? 'inactive' : 'active' }}">
-                            <button class="rounded-lg border border-zinc-200 px-3 py-2 text-xs font-bold text-zinc-700 transition hover:border-teal-300 hover:text-teal-700">{{ $plan->status === 'active' ? __('plans.statuses.inactive') : __('plans.statuses.active') }}</button>
-                        </form>
-                        <form method="POST" action="{{ route('admin.system.plans.destroy', $plan) }}">
-                            @csrf
-                            @method('DELETE')
-                            <button class="rounded-lg border border-rose-200 px-3 py-2 text-xs font-bold text-rose-700 transition hover:bg-rose-50">{{ __('plans.delete') }}</button>
-                        </form>
-                    @endif
                 </div>
             </section>
         @empty

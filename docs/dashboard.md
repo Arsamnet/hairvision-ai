@@ -63,7 +63,8 @@ Dashboard features:
   `users.*` permissions.
 - Basic reports by CRM stage and tenant.
 - User financial section with own invoices and active subscription state.
-- Plan list and purchase/upgrade action.
+- Plan list with backend search/filter parameters, purchase/upgrade action, and
+  permission-aware management actions inside the shared three-dot menu.
 - Plan status is shown in the header/dashboard. If a normal user has no active
   plan, expired plan, or finished credit, plan-restricted menu items render as
   locked and backend middleware blocks direct route access.
@@ -72,6 +73,8 @@ Dashboard features:
 - Dedicated system management menu for authorized system managers.
 - Roles, permissions, access assignment, settings, system SMS gateways, payment
   gateways, plans, billing, and management reports.
+- System dashboard and management reports reuse the shared platform overview
+  service so overlapping metrics are not duplicated in controllers.
 - Demo seed data for `clinic1`.
 
 Plan-restricted normal-user routes include operational lead, CRM, user, SMS, and

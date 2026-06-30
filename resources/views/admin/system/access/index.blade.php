@@ -25,7 +25,7 @@
             </button>
         </form>
 
-        <div class="overflow-x-auto">
+        <div data-admin-table-container class="overflow-visible">
             <table class="w-full min-w-[60rem] text-right text-sm">
                 <thead class="border-b border-zinc-200 text-xs text-zinc-500">
                     <tr>

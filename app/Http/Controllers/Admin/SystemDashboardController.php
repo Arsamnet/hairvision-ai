@@ -3,14 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
-use App\Models\Invoice;
-use App\Models\PaymentGateway;
-use App\Models\Plan;
-use App\Models\Role;
-use App\Models\SmsGateway;
-use App\Models\Subscription;
-use App\Models\SystemSetting;
-use App\Models\User;
+use App\Services\Admin\SystemOverviewService;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
@@ -21,21 +14,12 @@ use Illuminate\View\View;
  */
 class SystemDashboardController extends Controller
 {
-    public function __invoke(Request $request): View
+    public function __invoke(Request $request, SystemOverviewService $overview): View
     {
         return view('admin.system.dashboard', [
             'tenant' => $request->attributes->get('adminTenant'),
             'availableTenants' => $request->attributes->get('adminTenants'),
-            'counts' => [
-                'users' => User::query()->count(),
-                'roles' => Role::query()->count(),
-                'settings' => SystemSetting::query()->count(),
-                'sms_gateways' => SmsGateway::query()->count(),
-                'payment_gateways' => PaymentGateway::query()->count(),
-                'plans' => Plan::query()->count(),
-                'open_invoices' => Invoice::query()->whereIn('status', ['pending', 'failed'])->count(),
-                'active_subscriptions' => Subscription::query()->where('status', 'active')->count(),
-            ],
+            'counts' => $overview->dashboardCounts(),
         ]);
     }
 }

@@ -6,6 +6,9 @@ use App\Http\Controllers\Controller;
 use App\Models\Role;
 use App\Models\Tenant;
 use App\Models\User;
+use App\Support\Pagination\PaginationParameters;
+use App\Support\Query\DateRangeFilter;
+use App\Support\Query\SearchFilter;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -20,23 +23,25 @@ class AccessAssignmentController extends Controller
 {
     public function index(Request $request): View
     {
+        $pagination = PaginationParameters::fromRequest(
+            $request,
+            ['name', 'email', 'phone_normalized', 'role', 'status', 'created_at'],
+            'name',
+            'asc'
+        );
+        $query = User::query()
+            ->with('tenants')
+            ->when($request->filled('role'), fn ($query) => $query->where('role', $request->string('role')->toString()))
+            ->when($request->filled('status'), fn ($query) => $query->where('status', $request->string('status')->toString()));
+        SearchFilter::apply($query, $pagination->search, ['name', 'email', 'phone_normalized']);
+        DateRangeFilter::apply($query, $request);
+
         return view('admin.system.access.index', [
             'tenant' => $request->attributes->get('adminTenant'),
             'availableTenants' => $request->attributes->get('adminTenants'),
-            'users' => User::query()
-                ->with('tenants')
-                ->when($request->filled('search'), function ($query) use ($request): void {
-                    $search = '%'.$request->string('search')->toString().'%';
-                    $query->where(function ($query) use ($search): void {
-                        $query->where('name', 'like', $search)
-                            ->orWhere('email', 'like', $search)
-                            ->orWhere('phone_normalized', 'like', $search);
-                    });
-                })
-                ->when($request->filled('role'), fn ($query) => $query->where('role', $request->string('role')->toString()))
-                ->when($request->filled('status'), fn ($query) => $query->where('status', $request->string('status')->toString()))
-                ->orderBy('name')
-                ->paginate(20)
+            'users' => $query
+                ->orderBy($pagination->sort, $pagination->direction)
+                ->paginate($pagination->perPage, ['*'], 'page', $pagination->page)
                 ->withQueryString(),
             'roles' => Role::query()->where('status', 'active')->orderBy('name')->get(),
             'tenants' => Tenant::query()->where('status', 'active')->orderBy('name')->get(),

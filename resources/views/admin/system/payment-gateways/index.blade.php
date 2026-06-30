@@ -53,7 +53,7 @@
             </button>
         </form>
 
-        <div class="mt-5 overflow-x-auto rounded-lg border border-zinc-100">
+        <div data-admin-table-container class="mt-5 overflow-visible rounded-lg border border-zinc-100">
             <table class="w-full min-w-[42rem] text-right text-sm">
                 <thead class="bg-zinc-50 text-xs text-zinc-500">
                     <tr>
@@ -70,20 +70,19 @@
                             <td class="px-4 py-3 align-top">
                                 <x-admin.table.action-menu>
                                     @can('permission', 'payment_gateways.edit')
-                                        <form method="POST" action="{{ route('admin.system.payment-gateways.update', $gateway) }}">
-                                            @csrf
-                                            @method('PUT')
-                                            <input type="hidden" name="name" value="{{ $gateway->name }}">
-                                            <input type="hidden" name="provider_code" value="{{ $gateway->provider_code }}">
-                                            <input type="hidden" name="status" value="{{ $gateway->status === 'enabled' ? 'disabled' : 'enabled' }}">
-                                            @if($gateway->is_default)
-                                                <input type="hidden" name="is_default" value="1">
-                                            @endif
-                                            <button class="flex w-full items-center gap-2 px-3 py-2 text-right text-xs font-bold text-zinc-700 transition hover:bg-teal-50 hover:text-teal-700">
-                                                <x-admin.icon name="edit" class="h-4 w-4" />
-                                                <span>{{ $gateway->status === 'enabled' ? __('system.statuses.disabled') : __('system.statuses.enabled') }}</span>
-                                            </button>
-                                        </form>
+                                        <x-admin.table.action-item
+                                            :action="route('admin.system.payment-gateways.update', $gateway)"
+                                            method="PUT"
+                                            icon="edit"
+                                            :inputs="array_filter([
+                                                'name' => $gateway->name,
+                                                'provider_code' => $gateway->provider_code,
+                                                'status' => $gateway->status === 'enabled' ? 'disabled' : 'enabled',
+                                                'is_default' => $gateway->is_default ? 1 : null,
+                                            ], fn ($value) => $value !== null)"
+                                        >
+                                            {{ $gateway->status === 'enabled' ? __('system.statuses.disabled') : __('system.statuses.enabled') }}
+                                        </x-admin.table.action-item>
                                     @endcan
                                 </x-admin.table.action-menu>
                             </td>

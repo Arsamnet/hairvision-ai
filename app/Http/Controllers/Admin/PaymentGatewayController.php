@@ -5,6 +5,9 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\PaymentGateway;
 use App\Services\Payment\PaymentGatewayService;
+use App\Support\Pagination\PaginationParameters;
+use App\Support\Query\DateRangeFilter;
+use App\Support\Query\SearchFilter;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -18,21 +21,23 @@ class PaymentGatewayController extends Controller
 {
     public function index(Request $request): View
     {
+        $pagination = PaginationParameters::fromRequest(
+            $request,
+            ['created_at', 'name', 'provider_code', 'status'],
+            'created_at'
+        );
+        $query = PaymentGateway::query()
+            ->when($request->filled('status'), fn ($query) => $query->where('status', $request->string('status')->toString()))
+            ->when($request->filled('provider_code'), fn ($query) => $query->where('provider_code', $request->string('provider_code')->toString()));
+        SearchFilter::apply($query, $pagination->search, ['name', 'provider_code']);
+        DateRangeFilter::apply($query, $request);
+
         return view('admin.system.payment-gateways.index', [
             'tenant' => $request->attributes->get('adminTenant'),
             'availableTenants' => $request->attributes->get('adminTenants'),
-            'gateways' => PaymentGateway::query()
-                ->when($request->filled('search'), function ($query) use ($request): void {
-                    $search = '%'.$request->string('search')->toString().'%';
-                    $query->where(function ($query) use ($search): void {
-                        $query->where('name', 'like', $search)
-                            ->orWhere('provider_code', 'like', $search);
-                    });
-                })
-                ->when($request->filled('status'), fn ($query) => $query->where('status', $request->string('status')->toString()))
-                ->when($request->filled('provider_code'), fn ($query) => $query->where('provider_code', $request->string('provider_code')->toString()))
-                ->latest()
-                ->paginate(20)
+            'gateways' => $query
+                ->orderBy($pagination->sort, $pagination->direction)
+                ->paginate($pagination->perPage, ['*'], 'page', $pagination->page)
                 ->withQueryString(),
         ]);
     }

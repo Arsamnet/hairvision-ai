@@ -6,8 +6,8 @@ use App\Models\OtpCode;
 use App\Models\Tenant;
 use App\Models\User;
 use App\Services\Otp\OtpSenderInterface;
-use App\Services\OtpService;
 use App\Services\Sms\SmsGatewayService;
+use App\Support\NumberNormalizer;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\ValidationException;
@@ -21,7 +21,6 @@ use Random\RandomException;
 class AdminOtpService
 {
     public function __construct(
-        private readonly OtpService $otpService,
         private readonly OtpSenderInterface $otpSender,
         private readonly SmsGatewayService $smsGateways,
     ) {}
@@ -77,7 +76,7 @@ class AdminOtpService
     public function verifyCode(string $phone, string $code): User
     {
         $phoneNormalized = $this->normalizePhone($phone);
-        $codeNormalized = $this->otpService->normalizeDigits($code);
+        $codeNormalized = NumberNormalizer::toLatinDigits($code);
         $user = $this->findActiveUser($phoneNormalized);
 
         $otp = OtpCode::query()
@@ -120,15 +119,15 @@ class AdminOtpService
      */
     public function normalizePhone(string $phone): string
     {
-        $normalized = $this->otpService->normalizeDigits($phone);
+        $normalized = NumberNormalizer::toLatinDigits($phone);
 
-        if (! $this->otpService->hasOnlySupportedDigits($phone) || strlen($normalized) !== 11) {
+        if (! NumberNormalizer::hasOnlySupportedDigits($phone) || strlen($normalized) !== 11) {
             throw ValidationException::withMessages([
                 'phone' => __('auth.invalid_phone'),
             ]);
         }
 
-        return preg_replace('/[^0-9]/', '', $normalized);
+        return NumberNormalizer::digitsOnly($normalized);
     }
 
     /**

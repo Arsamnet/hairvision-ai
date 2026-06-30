@@ -5,6 +5,8 @@ namespace App\Services\Admin;
 use App\Models\Tenant;
 use App\Models\User;
 use App\Support\Pagination\PaginationParameters;
+use App\Support\Query\DateRangeFilter;
+use App\Support\Query\SearchFilter;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
@@ -47,18 +49,16 @@ class UserManagementService
      */
     public function filteredQuery(Request $request, User $actor, ?Tenant $clinicFilter, PaginationParameters $pagination): Builder
     {
-        return $this->baseQuery($actor, $clinicFilter)
-            ->with('tenants')
-            ->when($pagination->search, function (Builder $query) use ($pagination): void {
-                $search = '%'.$pagination->search.'%';
-                $query->where(function (Builder $query) use ($search): void {
-                    $query->where('name', 'like', $search)
-                        ->orWhere('email', 'like', $search)
-                        ->orWhere('phone_normalized', 'like', $search);
-                });
-            })
+        $query = $this->baseQuery($actor, $clinicFilter)->with('tenants');
+        SearchFilter::apply($query, $pagination->search, ['name', 'email', 'phone_normalized']);
+
+        $query
             ->when($request->filled('role'), fn (Builder $query) => $query->where('role', $request->string('role')->toString()))
-            ->when($request->filled('status'), fn (Builder $query) => $query->where('status', $request->string('status')->toString()))
+            ->when($request->filled('status'), fn (Builder $query) => $query->where('status', $request->string('status')->toString()));
+
+        DateRangeFilter::apply($query, $request);
+
+        return $query
             ->orderBy($pagination->sort, $pagination->direction);
     }
 

@@ -10,6 +10,7 @@ return [
     'date' => ':attribute باید تاریخ معتبر باشد.',
     'in' => ':attribute معتبر نیست.',
     'boolean' => ':attribute باید بله یا خیر باشد.',
+    'supported_digits' => ':attribute باید فقط شامل ارقام فارسی، عربی یا انگلیسی باشد.',
     'attributes' => [
         'phone' => 'شماره موبایل',
         'code' => 'کد تایید',

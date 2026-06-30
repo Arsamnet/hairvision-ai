@@ -29,22 +29,14 @@ class OtpController extends Controller
     public function request(RequestOtpRequest $request, OtpService $otpService): JsonResponse
     {
         $tenant = app('currentTenant');
-        $phoneInput = (string) $request->post('phone');
-        $phone = $otpService->normalizeDigits($phoneInput);
-
-        if (! $otpService->hasOnlySupportedDigits($phoneInput) || strlen($phone) !== 11) {
-            return response()->json([
-                'success' => false,
-                'message' => 'شماره موبایل باید فقط شامل ۱۱ رقم باشد.',
-            ], 422);
-        }
+        $phone = (string) $request->validated('phone');
 
         $rateLimitKey = 'otp-request:'.$tenant->id.':'.$phone.':'.$request->ip();
 
         if (RateLimiter::tooManyAttempts($rateLimitKey, config('hairvision.otp.max_requests'))) {
             return response()->json([
                 'success' => false,
-                'message' => 'درخواست‌های کد تایید زیاد شده است. لطفا کمی بعد دوباره تلاش کنید.',
+                'message' => __('auth.too_many_otp_requests'),
             ], 429);
         }
 
@@ -54,12 +46,12 @@ class OtpController extends Controller
 
         $payload = [
             'success' => true,
-            'message' => 'کد تایید ارسال شد.',
+            'message' => __('auth.otp_sent'),
             'expires_in' => 120,
         ];
 
         if (app()->hasDebugModeEnabled() && isset($otp->debug_code)) {
-            $payload['debug_sms'] = 'کد تایید HairVision: '.NumberNormalizer::toPersianDigits($otp->debug_code);
+            $payload['debug_sms'] = __('auth.lead_otp_sms', ['code' => NumberNormalizer::toPersianDigits($otp->debug_code)]);
         }
 
         return response()->json($payload);
@@ -74,24 +66,8 @@ class OtpController extends Controller
     public function verify(VerifyOtpRequest $request, OtpService $otpService): JsonResponse
     {
         $tenant = app('currentTenant');
-        $phoneInput = (string) $request->post('phone');
-        $codeInput = (string) $request->post('code');
-        $phone = $otpService->normalizeDigits($phoneInput);
-        $code = $otpService->normalizeDigits($codeInput);
-
-        if (! $otpService->hasOnlySupportedDigits($phoneInput) || strlen($phone) !== 11) {
-            return response()->json([
-                'success' => false,
-                'message' => 'شماره موبایل باید فقط شامل ۱۱ رقم باشد.',
-            ], 422);
-        }
-
-        if (! $otpService->hasOnlySupportedDigits($codeInput) || strlen($code) !== 6) {
-            return response()->json([
-                'success' => false,
-                'message' => 'کد تایید باید فقط شامل ۶ رقم باشد.',
-            ], 422);
-        }
+        $phone = (string) $request->validated('phone');
+        $code = (string) $request->validated('code');
 
         $lead = $otpService->verifyCode($phone, $code, $tenant->id);
 
@@ -100,8 +76,7 @@ class OtpController extends Controller
         return response()->json([
             'success' => true,
             'lead' => ['id' => $lead->uuid, 'phone' => $lead->phone],
-            'message' => 'شماره موبایل تایید شد.',
+            'message' => __('auth.phone_verified'),
         ]);
     }
-
 }

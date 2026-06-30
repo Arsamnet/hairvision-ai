@@ -37,10 +37,10 @@ class StoreUploadRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'image.required' => 'لطفا یک تصویر انتخاب کنید.',
-            'image.image' => 'فایل انتخاب‌شده باید تصویر معتبر باشد.',
-            'image.max' => 'حجم تصویر نباید بیشتر از ۵ مگابایت باشد.',
-            'consent.accepted' => 'برای ادامه، تایید پردازش تصویر لازم است.',
+            'image.required' => __('messages.upload_image_required'),
+            'image.image' => __('messages.upload_image_invalid'),
+            'image.max' => __('messages.upload_image_max'),
+            'consent.accepted' => __('messages.upload_consent_required'),
         ];
     }
 }

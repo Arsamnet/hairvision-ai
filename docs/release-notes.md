@@ -5,6 +5,9 @@
 ### Added
 
 - Grouped, icon-enhanced Persian admin sidebar with active group/item states.
+- Persistent automatic light/dark dashboard theme with a per-browser toggle.
+- Role-aware admin overview so clinic users see the clinic dashboard and system
+  managers see the management overview from the default dashboard entry.
 - Full user management CRUD routes, Form Requests, policy checks, scoped search,
   clinic filtering, Persian role/status labels, and permission-aware actions.
 - Complete system and private SMS gateway CRUD with list/search/view/create/edit
@@ -26,6 +29,10 @@
   Super Admin clinic context, normal-user dashboard scoping, and language keys.
 - `App\Support\NumberNormalizer` for shared Persian/Arabic/Latin digit
   normalization.
+- `App\Rules\SupportedDigits` for reusable digit-only Form Request validation.
+- `App\Support\Query\SearchFilter` for shared dashboard table search behavior.
+- `App\Services\Admin\SystemOverviewService` for shared system dashboard and
+  management report metrics.
 - Shared admin Blade components for cards, badges, empty states, modal create
   forms, validation summaries, and table row action menus.
 - Frontend Blade standards and testing documentation.
@@ -39,6 +46,8 @@
   newest first.
 - Single sidebar items render as normal links, while multi-item groups render as
   collapsible submenus with active parent and child states.
+- Admin sidebar groups are ordered by dashboard workflow importance, use matching
+  parent/item styling, keep the logo area logo-only, and scroll independently.
 - Normal users see only active purchasable plans; managers can manage plan
   definitions.
 - Shared pagination now accepts standard `page`, `per_page`, `search`, `sort`,
@@ -51,6 +60,11 @@
 - Lead, user, SMS gateway, payment gateway, billing, role, and access tables now
   use compact columns, backend filters where applicable, and shared RTL row
   action menus.
+- Plan lists now support backend search/status filtering and use shared
+  three-dot management actions for status toggles and deletion.
+- Dashboard recent leads now expose the standard row action menu.
+- Public OTP validation moved from controllers into Form Requests backed by the
+  shared digit normalizer and validation rule.
 - Create-capable dashboard lists now open create forms from modal triggers while
   preserving the standard Laravel form/redirect flow.
 

@@ -5,11 +5,21 @@ return [
     'product_name' => 'HairVision AI',
     'clinic_panel' => 'پنل کلینیک',
     'management_panel' => 'پنل مدیریت',
-    'dashboard' => 'داشبورد',
+    'dashboard' => 'پیشخوان',
     'all_clinics' => 'همه کلینیک‌ها',
     'platform_overview' => 'نمای کل پلتفرم',
     'logout' => 'خروج',
     'tenant_changed' => 'کلینیک فعال تغییر کرد.',
+    'theme' => [
+        'toggle' => 'حالت نمایش',
+        'menu_item' => 'حالت شب',
+        'dark' => 'تغییر به حالت تاریک',
+        'light' => 'تغییر به حالت روشن',
+    ],
+    'user_menu' => [
+        'account' => 'حساب کاربری',
+        'open' => 'منوی کاربر',
+    ],
 
     'cards' => [
         'total_leads' => 'کل لیدها',

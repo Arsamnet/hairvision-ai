@@ -25,7 +25,7 @@ class AssetController extends Controller
     public function show(Request $request, string $uuid, LeadSessionService $leadSessionService): Response
     {
         $tenant = app('currentTenant');
-        $lead = $leadSessionService->verifiedLead($request, $tenant, 'برای مشاهده تصویر، ابتدا شماره موبایل را تایید کنید.');
+        $lead = $leadSessionService->verifiedLead($request, $tenant, __('auth.verify_phone_to_view_asset'));
 
         $asset = GeneratedAsset::query()
             ->where('uuid', '=', $uuid)

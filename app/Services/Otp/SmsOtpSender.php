@@ -15,6 +15,6 @@ class SmsOtpSender implements OtpSenderInterface
 
     public function send(string $phoneNormalized, string $code): void
     {
-        $this->gateways->sendSystemMessage($phoneNormalized, 'کد تایید HairVision: '.$code);
+        $this->gateways->sendSystemMessage($phoneNormalized, __('auth.lead_otp_sms', ['code' => $code]));
     }
 }

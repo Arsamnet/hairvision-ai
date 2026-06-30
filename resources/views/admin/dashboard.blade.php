@@ -74,10 +74,11 @@
             @endcan
         </div>
 
-        <div class="mt-5 overflow-x-auto">
+        <div data-admin-table-container class="mt-5 overflow-visible">
             <table class="w-full min-w-[42rem] text-right text-sm">
                 <thead class="border-b border-zinc-200 text-xs text-zinc-500">
                     <tr>
+                        <th class="w-14 py-3 font-bold">{{ __('messages.actions') }}</th>
                         <th class="py-3 font-bold">{{ __('leads.fields.name') }}</th>
                         <th class="py-3 font-bold">{{ __('leads.fields.phone') }}</th>
                         <th class="py-3 font-bold">{{ __('leads.fields.crm_stage') }}</th>
@@ -88,6 +89,13 @@
                 <tbody class="divide-y divide-zinc-100">
                     @forelse($recentLeads as $lead)
                         <tr class="transition hover:bg-zinc-50/80">
+                            <td class="py-3 align-top">
+                                <x-admin.table.action-menu>
+                                    @can('view', $lead)
+                                        <x-admin.table.action-item :href="route('admin.leads.show', $lead)" icon="eye">{{ __('leads.details') }}</x-admin.table.action-item>
+                                    @endcan
+                                </x-admin.table.action-menu>
+                            </td>
                             <td class="py-3"><a class="font-bold text-zinc-950 hover:text-teal-700" href="{{ route('admin.leads.show', $lead) }}">{{ $lead->full_name ?: __('dashboard.no_name') }}</a></td>
                             <td class="py-3 text-zinc-600">{{ $lead->phone_normalized }}</td>
                             <td class="py-3">
@@ -98,7 +106,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="5" class="py-10 text-center text-zinc-500">{{ __('dashboard.empty_recent_leads') }}</td>
+                            <td colspan="6" class="py-10 text-center text-zinc-500">{{ __('dashboard.empty_recent_leads') }}</td>
                         </tr>
                     @endforelse
                 </tbody>

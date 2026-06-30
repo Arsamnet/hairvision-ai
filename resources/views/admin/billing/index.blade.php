@@ -24,21 +24,22 @@
     </x-admin.card>
 
     <x-admin.card>
-        <form method="GET" class="mb-5 grid gap-3 md:grid-cols-[1fr_12rem_8rem]">
-            <input name="search" value="{{ request('search') }}" placeholder="{{ __('payments.invoice_search_placeholder') }}" class="h-11 rounded-lg border border-zinc-200 px-3 text-sm outline-none transition focus:border-teal-500">
-            <select name="status" class="h-11 rounded-lg border border-zinc-200 px-3 text-sm outline-none transition focus:border-teal-500">
-                <option value="">{{ __('payments.all_statuses') }}</option>
-                @foreach(__('payments.invoice_statuses') as $status => $label)
-                    <option value="{{ $status }}" @selected(request('status') === $status)>{{ $label }}</option>
-                @endforeach
-            </select>
-            <button class="inline-flex h-11 items-center justify-center gap-2 rounded-lg bg-zinc-950 px-4 text-sm font-bold text-white transition hover:bg-teal-700">
-                <x-admin.icon name="settings" class="h-4 w-4" />
-                <span>{{ __('payments.filter') }}</span>
-            </button>
-        </form>
+        <x-admin.list-filters
+            class="mb-5 mt-0"
+            preset-key="admin.billing.index"
+            :search-placeholder="__('payments.invoice_search_placeholder')"
+            :filters="[
+                ['name' => 'status', 'label' => __('payments.fields.status'), 'type' => 'select', 'placeholder' => __('payments.all_statuses'), 'options' => __('payments.invoice_statuses')],
+            ]"
+            :sorts="[
+                'created_at' => __('messages.created_at'),
+                'number' => __('payments.fields.number'),
+                'amount' => __('payments.fields.amount'),
+                'status' => __('payments.fields.status'),
+            ]"
+        />
 
-        <div class="overflow-x-auto rounded-lg border border-zinc-100">
+        <div data-admin-table-container class="overflow-visible rounded-lg border border-zinc-100">
             <table class="w-full min-w-[50rem] text-right text-sm">
                 <thead class="bg-zinc-50 text-xs text-zinc-500">
                     <tr>

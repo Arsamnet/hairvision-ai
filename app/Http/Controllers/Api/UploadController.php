@@ -28,7 +28,7 @@ class UploadController extends Controller
         LeadSessionService $leadSessionService
     ): JsonResponse {
         $tenant = app('currentTenant');
-        $lead = $leadSessionService->verifiedLead($request, $tenant, 'برای ادامه، ابتدا شماره موبایل را تایید کنید.');
+        $lead = $leadSessionService->verifiedLead($request, $tenant, __('auth.verify_phone_to_continue'));
 
         $upload = $uploadService->storeUpload($lead, $request->file('image'));
 

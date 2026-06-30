@@ -6,6 +6,9 @@ use App\Http\Controllers\Controller;
 use App\Models\Permission;
 use App\Models\Role;
 use App\Services\Auth\PermissionService;
+use App\Support\Pagination\PaginationParameters;
+use App\Support\Query\DateRangeFilter;
+use App\Support\Query\SearchFilter;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
@@ -21,21 +24,24 @@ class RoleController extends Controller
 {
     public function index(Request $request): View
     {
+        $pagination = PaginationParameters::fromRequest(
+            $request,
+            ['name', 'code', 'status', 'created_at'],
+            'name',
+            'asc'
+        );
+        $query = Role::query()
+            ->withCount('permissions')
+            ->when($request->filled('status'), fn ($query) => $query->where('status', $request->string('status')->toString()));
+        SearchFilter::apply($query, $pagination->search, ['name', 'code']);
+        DateRangeFilter::apply($query, $request);
+
         return view('admin.system.roles.index', [
             'tenant' => $request->attributes->get('adminTenant'),
             'availableTenants' => $request->attributes->get('adminTenants'),
-            'roles' => Role::query()
-                ->withCount('permissions')
-                ->when($request->filled('search'), function ($query) use ($request): void {
-                    $search = '%'.$request->string('search')->toString().'%';
-                    $query->where(function ($query) use ($search): void {
-                        $query->where('name', 'like', $search)
-                            ->orWhere('code', 'like', $search);
-                    });
-                })
-                ->when($request->filled('status'), fn ($query) => $query->where('status', $request->string('status')->toString()))
-                ->orderBy('name')
-                ->paginate(20)
+            'roles' => $query
+                ->orderBy($pagination->sort, $pagination->direction)
+                ->paginate($pagination->perPage, ['*'], 'page', $pagination->page)
                 ->withQueryString(),
         ]);
     }

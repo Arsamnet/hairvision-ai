@@ -19,6 +19,8 @@ Current shared components:
 - `x-admin.validation-summary`: form validation errors inside forms/modals.
 - `x-admin.table.action-menu`: three-dot row action menu.
 - `x-admin.table.action-item`: link or simple form action inside row menus.
+  Form actions may pass hidden scalar fields through the component `inputs`
+  prop for compact status-toggle operations.
 
 Keep components small and specific. Do not hide business rules inside Blade
 components; authorization and scoping must still be enforced by policies,
@@ -41,6 +43,9 @@ Management tables must:
 - Place the action column first in markup so it appears at the beginning/right
   side in RTL layouts.
 - Use `x-admin.table.action-menu` for row actions.
+- Summary tables that link to a record, such as dashboard recent rows, should
+  still provide a standard action menu when the user is authorized to view the
+  row.
 - Show only important list columns; move secondary details to show/edit pages.
 - Use `x-admin.badge` for status, role, and stage values.
 - Use `x-admin.empty-state` for empty filtered results.
@@ -53,7 +58,9 @@ authorization. Hidden or absent buttons are not a security control.
 
 Important lists must support backend search/filter query parameters. Do not load
 all records and filter in the browser. Default ordering should show newest
-records first unless a module has a clearer domain-specific order.
+records first unless a module has a clearer domain-specific order. New table
+searches should use `App\Support\Query\SearchFilter` and preserve query strings
+through pagination.
 
 ## Create Forms
 

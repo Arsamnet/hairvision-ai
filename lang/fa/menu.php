@@ -14,7 +14,7 @@ return [
     ],
 
     'items' => [
-        'dashboard' => 'نمای کلی',
+        'dashboard' => 'پیشخوان',
         'system_dashboard' => 'داشبورد سیستم',
         'leads' => 'لیدها',
         'users' => 'کاربران',

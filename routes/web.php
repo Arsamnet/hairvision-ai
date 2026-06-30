@@ -18,6 +18,7 @@ use App\Http\Controllers\Admin\SystemDashboardController;
 use App\Http\Controllers\Admin\SystemSettingController;
 use App\Http\Controllers\Admin\TenantSwitchController;
 use App\Http\Controllers\Admin\UserController;
+use App\Http\Controllers\Admin\UserSavedFilterController;
 use App\Http\Middleware\EnsureAdminTenantSelected;
 use App\Models\TenantDomain;
 use App\Services\LandingPageVisitService;
@@ -60,6 +61,7 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
     Route::middleware(['auth', EnsureAdminTenantSelected::class, 'active_plan'])->group(function (): void {
         Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
         Route::post('/tenant', TenantSwitchController::class)->name('tenant.switch');
+        Route::post('/filter-presets', [UserSavedFilterController::class, 'store'])->name('filter-presets.store');
         Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
         Route::get('/leads', [LeadController::class, 'index'])->name('leads.index');
         Route::get('/leads/create', [LeadController::class, 'create'])->name('leads.create');

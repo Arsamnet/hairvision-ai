@@ -56,6 +56,7 @@ class EnsureActivePlanAccess
             'admin.billing.*',
             'admin.settings',
             'admin.tenant.switch',
+            'admin.filter-presets.store',
             'admin.logout',
             'admin.system.*',
         );

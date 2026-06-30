@@ -34,7 +34,7 @@ class GenerationController extends Controller
         LeadSessionService $leadSessionService
     ): JsonResponse {
         $tenant = app('currentTenant');
-        $lead = $leadSessionService->verifiedLead($request, $tenant, 'برای مشاهده نتایج، ابتدا شماره موبایل را تایید کنید.');
+        $lead = $leadSessionService->verifiedLead($request, $tenant, __('auth.verify_phone_to_view_results'));
 
         $upload = Upload::query()
             ->where('uuid', '=', $request->post('upload_id'))
@@ -58,7 +58,7 @@ class GenerationController extends Controller
     public function status(Request $request, string $groupUuid, LeadSessionService $leadSessionService): JsonResponse
     {
         $tenant = app('currentTenant');
-        $lead = $leadSessionService->verifiedLead($request, $tenant, 'برای مشاهده نتایج، ابتدا شماره موبایل را تایید کنید.');
+        $lead = $leadSessionService->verifiedLead($request, $tenant, __('auth.verify_phone_to_view_results'));
 
         $group = GenerationGroup::query()
             ->where('uuid', '=', $groupUuid)
@@ -79,7 +79,7 @@ class GenerationController extends Controller
     public function results(Request $request, string $groupUuid, LeadSessionService $leadSessionService): JsonResponse
     {
         $tenant = app('currentTenant');
-        $lead = $leadSessionService->verifiedLead($request, $tenant, 'برای مشاهده نتایج، ابتدا شماره موبایل را تایید کنید.');
+        $lead = $leadSessionService->verifiedLead($request, $tenant, __('auth.verify_phone_to_view_results'));
 
         $group = GenerationGroup::query()
             ->where('uuid', '=', $groupUuid)
@@ -94,7 +94,7 @@ class GenerationController extends Controller
                 'period' => $asset->period,
                 'url' => '/api/v1/assets/'.$asset->uuid,
             ]),
-            'disclaimer' => 'این تصاویر شبیه‌سازی هستند و نتیجه واقعی درمان را تضمین نمی‌کنند.',
+            'disclaimer' => __('messages.result_disclaimer'),
         ]);
     }
 }

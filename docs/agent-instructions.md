@@ -109,6 +109,10 @@ Core constraints:
 - No arbitrary external frontend resources.
 - Reuse shared backend utilities instead of duplicating formatting,
   normalization, query-filter, pagination, or permission logic.
+- Use `App\Support\NumberNormalizer` plus `App\Rules\SupportedDigits` for
+  Persian/Arabic/Latin digit normalization and validation.
+- Use `App\Support\Query\SearchFilter` with `PaginationParameters` for reusable
+  dashboard table search/sort/filter behavior.
 - Dashboard Blade must use shared components for cards, badges, empty states,
   modals, and table row action menus where practical.
 - Dashboard icons must use the local Lucide-style `x-admin.icon` component; do
