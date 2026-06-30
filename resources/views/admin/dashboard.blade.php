@@ -15,7 +15,7 @@
             <div class="p-5 sm:p-6">
                 <div class="flex items-start gap-3">
                     <span class="grid h-11 w-11 shrink-0 place-items-center rounded-lg bg-teal-50 text-teal-700">
-                        <x-admin.icon name="sparkles" />
+                        <x-admin.icon name="package" />
                     </span>
                     <div>
                         <h2 class="text-lg font-bold">{{ __('dashboard.plan.status_title') }}</h2>
@@ -23,11 +23,23 @@
                     </div>
                 </div>
 
-                @if(! in_array($planStatus, ['active', 'exempt'], true))
+                @if($planStatus !== 'exempt')
                     <div class="mt-5 flex flex-wrap gap-2">
-                        <a href="{{ route('admin.plans.index') }}" class="rounded-lg bg-zinc-950 px-4 py-2 text-sm font-bold text-white transition hover:bg-teal-700">{{ __('dashboard.plan.view_plans') }}</a>
-                        <a href="{{ route('admin.plans.index') }}" class="rounded-lg border border-zinc-200 px-4 py-2 text-sm font-bold text-zinc-700 transition hover:border-teal-300 hover:text-teal-700">{{ __('dashboard.plan.renew_plan') }}</a>
-                        <a href="{{ route('admin.plans.index') }}" class="rounded-lg border border-zinc-200 px-4 py-2 text-sm font-bold text-zinc-700 transition hover:border-teal-300 hover:text-teal-700">{{ __('dashboard.plan.upgrade_plan') }}</a>
+                        <a href="{{ route('admin.plans.index') }}" class="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-zinc-950 px-4 text-sm font-bold text-white transition hover:bg-teal-700">
+                            <x-admin.icon name="package" class="h-4 w-4" />
+                            <span>{{ __('dashboard.plan.view_plans') }}</span>
+                        </a>
+                        @if($activeSubscription)
+                            <a href="{{ route('admin.plans.index') }}" class="inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-zinc-200 px-4 text-sm font-bold text-zinc-700 transition hover:border-teal-300 hover:text-teal-700">
+                                <x-admin.icon name="credit-card" class="h-4 w-4" />
+                                <span>{{ __('dashboard.plan.upgrade_plan') }}</span>
+                            </a>
+                        @else
+                            <a href="{{ route('admin.plans.index') }}" class="inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-zinc-200 px-4 text-sm font-bold text-zinc-700 transition hover:border-teal-300 hover:text-teal-700">
+                                <x-admin.icon name="credit-card" class="h-4 w-4" />
+                                <span>{{ __('dashboard.plan.renew_plan') }}</span>
+                            </a>
+                        @endif
                     </div>
                 @endif
             </div>

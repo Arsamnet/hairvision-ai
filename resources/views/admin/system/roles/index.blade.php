@@ -28,29 +28,29 @@
             @endcan
         </div>
 
-        <form method="GET" class="mt-5 grid gap-3 md:grid-cols-[1fr_10rem_8rem]">
-            <input name="search" value="{{ request('search') }}" placeholder="{{ __('system.roles_search_placeholder') }}" class="h-11 rounded-lg border border-zinc-200 px-3 text-sm outline-none transition focus:border-teal-500">
-            <select name="status" class="h-11 rounded-lg border border-zinc-200 px-3 text-sm outline-none transition focus:border-teal-500">
-                <option value="">{{ __('system.users.all_statuses') }}</option>
-                @foreach(['active', 'inactive'] as $status)
-                    <option value="{{ $status }}" @selected(request('status') === $status)>{{ __('system.statuses.'.$status) }}</option>
-                @endforeach
-            </select>
-            <button class="inline-flex h-11 items-center justify-center gap-2 rounded-lg bg-zinc-950 px-4 text-sm font-bold text-white transition hover:bg-teal-700">
-                <x-admin.icon name="settings" class="h-4 w-4" />
-                <span>{{ __('sms.filter') }}</span>
-            </button>
-        </form>
+        <x-admin.list-filters
+            preset-key="admin.system.roles.index"
+            :search-placeholder="__('system.roles_search_placeholder')"
+            :filters="[
+                ['name' => 'status', 'label' => __('system.status'), 'type' => 'select', 'placeholder' => __('system.users.all_statuses'), 'options' => collect(['active', 'inactive'])->mapWithKeys(fn ($status) => [$status => __('system.statuses.'.$status)])->all()],
+            ]"
+            :sorts="[
+                'name' => __('system.name'),
+                'code' => __('system.code'),
+                'status' => __('system.status'),
+                'created_at' => __('messages.created_at'),
+            ]"
+        />
 
         <div data-admin-table-container class="mt-5 overflow-visible rounded-lg border border-zinc-100">
             <table class="w-full min-w-[42rem] text-right text-sm">
                 <thead class="bg-zinc-50 text-xs text-zinc-500">
                     <tr>
                         <th class="w-14 px-4 py-3">{{ __('messages.actions') }}</th>
-                        <th class="px-4 py-3">{{ __('system.name') }}</th>
-                        <th class="px-4 py-3">{{ __('system.code') }}</th>
+                        <th class="px-4 py-3"><x-admin.table.sortable-heading sort="name" :label="__('system.name')" /></th>
+                        <th class="px-4 py-3"><x-admin.table.sortable-heading sort="code" :label="__('system.code')" /></th>
                         <th class="px-4 py-3">{{ __('system.permissions') }}</th>
-                        <th class="px-4 py-3">{{ __('system.status') }}</th>
+                        <th class="px-4 py-3"><x-admin.table.sortable-heading sort="status" :label="__('system.status')" /></th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-zinc-100">
@@ -80,6 +80,6 @@
                 </tbody>
             </table>
         </div>
-        <div class="mt-5">{{ $roles->links() }}</div>
+        <x-admin.table.pagination-footer :paginator="$roles" />
     </x-admin.card>
 @endsection

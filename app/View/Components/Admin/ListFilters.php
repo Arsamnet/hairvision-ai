@@ -30,6 +30,7 @@ class ListFilters extends Component
         public readonly bool $showDates = true,
         public readonly bool $showSort = true,
         public readonly bool $showPerPage = true,
+        public readonly int $primaryFilterCount = 2,
     ) {}
 
     public function render(): View

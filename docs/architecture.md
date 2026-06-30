@@ -81,8 +81,10 @@ Required provider flow:
 ```text
 Controller
   -> GenerationService
+  -> AiModelManager active clinic assignment lookup
   -> Dispatch Job
   -> Job
+  -> RunAiModelAction credit/log guard
   -> ProviderResolver
   -> ImageGenerationProvider interface
   -> Provider implementation
@@ -115,6 +117,11 @@ job override
 
 Current `1.0.0` behavior resolves the tenant default when available and falls
 back to `sample_image`.
+
+AI model access management adds a database-backed access layer before generation
+jobs are created. Public generation resolves the current clinic from the host and
+then selects an active assigned access record for `hair_transplant`. Unassigned,
+inactive, or credit-finished records are rejected before provider execution.
 
 Each generation period is a separate job:
 

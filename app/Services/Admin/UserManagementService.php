@@ -22,6 +22,8 @@ use Illuminate\Validation\ValidationException;
  */
 class UserManagementService
 {
+    private const CLINIC_ROLE_CODES = ['clinic_admin', 'editor', 'viewer'];
+
     public function __construct(private readonly ClinicFilterResolver $clinicFilterResolver) {}
 
     /**
@@ -181,6 +183,12 @@ class UserManagementService
             ]);
         }
 
+        if (! $actor->isSuperAdmin() && ! in_array($role, self::CLINIC_ROLE_CODES, true)) {
+            throw ValidationException::withMessages([
+                'role' => __('permissions.denied'),
+            ]);
+        }
+
         return $role;
     }
 
@@ -213,6 +221,12 @@ class UserManagementService
 
             if ($tenantRole === 'super_admin') {
                 $tenantRole = 'clinic_admin';
+            }
+
+            if (! $actor->isSuperAdmin() && ! in_array($tenantRole, self::CLINIC_ROLE_CODES, true)) {
+                throw ValidationException::withMessages([
+                    'tenant_roles' => __('permissions.denied'),
+                ]);
             }
 
             $sync[$tenantId] = [

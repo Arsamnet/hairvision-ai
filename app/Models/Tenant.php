@@ -78,6 +78,28 @@ class Tenant extends Model
     }
 
     /**
+     * AI model access records assigned to this clinic.
+     *
+     * @return BelongsToMany<AiModelAccess, $this>
+     */
+    public function aiModelAccesses(): BelongsToMany
+    {
+        return $this->belongsToMany(AiModelAccess::class, 'clinic_ai_model_access', 'clinic_id', 'ai_model_access_id')
+            ->withPivot(['is_active', 'assigned_by'])
+            ->withTimestamps();
+    }
+
+    /**
+     * Safe usage logs recorded for this clinic.
+     *
+     * @return HasMany<AiModelUsageLog, $this>
+     */
+    public function aiModelUsageLogs(): HasMany
+    {
+        return $this->hasMany(AiModelUsageLog::class, 'clinic_id');
+    }
+
+    /**
      * OTP records requested by this tenant's visitors.
      *
      * @return HasMany<OtpCode, $this>

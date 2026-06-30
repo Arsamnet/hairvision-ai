@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\AiProvider;
+use App\Models\AiModelAccess;
 use App\Models\GeneratedAsset;
 use App\Models\GenerationGroup;
 use App\Models\GenerationJob;
@@ -435,6 +436,27 @@ class HairVisionMvpTest extends TestCase
             'tenant_id' => $tenant->id,
             'provider_id' => $provider->id,
             'is_default' => true,
+        ]);
+
+        $access = AiModelAccess::query()->firstOrCreate(
+            [
+                'model_key' => 'sample_image',
+                'usage_category_key' => 'hair_transplant',
+                'name' => 'Test Sample Access',
+            ],
+            [
+                'credentials' => [],
+                'prompt' => 'Sample hair growth preview',
+                'credit_limit' => null,
+                'is_active' => true,
+                'is_demo' => true,
+                'is_protected' => true,
+                'priority' => 1,
+            ]
+        );
+
+        $tenant->aiModelAccesses()->syncWithoutDetaching([
+            $access->id => ['is_active' => true],
         ]);
 
         return $tenant;

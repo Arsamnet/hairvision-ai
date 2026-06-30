@@ -36,6 +36,18 @@
 - Shared admin Blade components for cards, badges, empty states, modal create
   forms, validation summaries, and table row action menus.
 - Frontend Blade standards and testing documentation.
+- Shared dashboard table search/filter component behavior with limited primary
+  filters, advanced filter dialog, active filter chips, per-filter clearing,
+  sortable heading links, active sort icons, and table pagination footers.
+- Config-backed AI model definitions and usage categories, including the
+  protected `sample_image` demo model for `کاشت مو`.
+- Admin AI model access management under `/admin/ai-models` with encrypted
+  credentials, prompts, active status, credit limits, protected/demo flags,
+  backend filters, masked credential display, and usage logs.
+- Clinic AI model assignment under `/admin/clinics/{clinic}/ai-models`.
+- `AiModelResolver`, `AiModelManager`, `RunAiModelAction`,
+  `AssignAiModelToClinicAction`, and `AiModelProviderInterface` for separated
+  AI model access logic.
 
 ### Changed
 
@@ -55,13 +67,19 @@
   response compatibility was removed from dashboard lists.
 - Dashboard cards, plan notices, lists, tables, badges, empty states, lead
   detail, plans, and billing views were visually refined for RTL use.
+- Dashboard list pages now use the shared filter/search surface instead of
+  hand-written GET filter forms, and table pagination is rendered in a common
+  footer component.
+- Shared table controls now use the local UIcons icon-font pack for
+  search/filter/check/close icons and RTL-aware previous/next pagination icons.
 - Seeded roles, permissions, system setting labels, provider names, gateway
   names, and default display text are Persian where safe.
 - Lead, user, SMS gateway, payment gateway, billing, role, and access tables now
   use compact columns, backend filters where applicable, and shared RTL row
   action menus.
-- Plan lists now support backend search/status filtering and use shared
-  three-dot management actions for status toggles and deletion.
+- Plan definitions now render as a management table for authorized managers,
+  while clinic users use the dashboard and purchase/upgrade cards without a
+  plan table.
 - Dashboard recent leads now expose the standard row action menu.
 - Public OTP validation moved from controllers into Form Requests backed by the
   shared digit normalizer and validation rule.
@@ -76,10 +94,23 @@
   subscription expires by time, expires by usage, or is no longer active.
 - SMS gateway credentials remain encrypted and are shown in Blade only as masked
   summaries.
+- AI model credentials remain encrypted, hidden from serialization, masked in
+  Blade, and excluded from usage logs.
+- Protected demo AI model access records cannot be deleted.
+- Clinics can use only active AI model access records assigned to them, and
+  failed provider responses do not consume credit.
 - Lead upload previews are streamed through policy and tenant checks without
   exposing private storage paths.
 - CRM follow-up writes are tenant- and lead-scoped and use policy/Form Request
   authorization.
+
+### Documentation
+
+- Added `docs/ai-models.md`, `docs/ai-model-security.md`, and
+  `docs/permissions.md`.
+- Updated README, architecture, API, database, dashboard, roles/permissions,
+  testing, development guide, release notes, and agent instructions for AI model
+  access management.
 
 ## 1.2.0
 

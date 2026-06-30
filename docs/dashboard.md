@@ -21,6 +21,9 @@ Routes:
 - `/admin/settings`
 - `/admin/plans`
 - `/admin/billing`
+- `/admin/ai-models`
+- `/admin/ai-models/{aiModelAccess}`
+- `/admin/clinics/{clinic}/ai-models`
 - `/admin/my-sms-gateways`
 - `/admin/my-sms-gateways/create`
 - `/admin/my-sms-gateways/{smsGateway}`
@@ -44,10 +47,17 @@ Dashboard features:
   allowed records by default and expose a `clinic_id` filter inside the page
   filter area when multiple clinics are available.
 - Responsive RTL admin shell.
-- Persian sidebar menu with consistent inline SVG icons, item active states,
-  permission-hidden items, and plan-locked disabled items. Single items render
-  as normal links; groups with multiple visible children render as collapsible
-  submenus with active parent and child states.
+- Persian sidebar menu with consistent local UIcons icon-font icons, item active
+  states, permission-hidden items, and plan-locked disabled items. Single items
+  render as normal links; groups with multiple visible children render as
+  collapsible submenus with active parent and child states.
+- Important list pages use the shared search/filter component. The compact bar
+  keeps only the main filters visible, the filter dialog holds secondary
+  filters, active filters can be edited from chips, and individual filters can
+  be removed with their `x` action.
+- Sortable table columns use clickable headings with active direction icons and
+  a distinct active color. Pagination lives in table footers and renders a
+  disabled one-page state when there is nothing to paginate.
 - Lead search, clinic/status/stage filters, newest-first sorting, pagination,
   and detail page.
 - Lead creation for allowed roles.
@@ -70,6 +80,10 @@ Dashboard features:
   locked and backend middleware blocks direct route access.
 - User-private SMS gateway list/search/view/create/edit/delete with credentials
   masked in the UI.
+- AI model access management for Super Admin or permitted admins under
+  `/admin/ai-models`, including backend search/filter/pagination, masked
+  credentials, credit summaries, usage logs, protected/demo badges, and clinic
+  assignment.
 - Dedicated system management menu for authorized system managers.
 - Roles, permissions, access assignment, settings, system SMS gateways, payment
   gateways, plans, billing, and management reports.

@@ -1,8 +1,10 @@
 <?php
 
 use App\Http\Controllers\Admin\AccessAssignmentController;
+use App\Http\Controllers\Admin\AiModelAccessController;
 use App\Http\Controllers\Admin\AuthController;
 use App\Http\Controllers\Admin\BillingController;
+use App\Http\Controllers\Admin\ClinicAiModelAccessController;
 use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Admin\LeadController;
 use App\Http\Controllers\Admin\LeadFollowUpController;
@@ -79,6 +81,15 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
         Route::get('/users/{user}/edit', [UserController::class, 'edit'])->middleware('permission:users.edit')->name('users.edit');
         Route::put('/users/{user}', [UserController::class, 'update'])->middleware('permission:users.edit')->name('users.update');
         Route::delete('/users/{user}', [UserController::class, 'destroy'])->middleware('permission:users.delete')->name('users.destroy');
+        Route::get('/ai-models', [AiModelAccessController::class, 'index'])->middleware('permission:ai_models.list')->name('ai-models.index');
+        Route::post('/ai-models', [AiModelAccessController::class, 'store'])->middleware('permission:ai_models.create')->name('ai-models.store');
+        Route::get('/ai-models/{aiModelAccess}', [AiModelAccessController::class, 'show'])->middleware('permission:ai_models.view')->name('ai-models.show');
+        Route::put('/ai-models/{aiModelAccess}', [AiModelAccessController::class, 'update'])->middleware('permission:ai_models.edit')->name('ai-models.update');
+        Route::delete('/ai-models/{aiModelAccess}', [AiModelAccessController::class, 'destroy'])->middleware('permission:ai_models.delete')->name('ai-models.destroy');
+        Route::patch('/ai-models/{aiModelAccess}/toggle', [AiModelAccessController::class, 'toggle'])->middleware('permission:ai_models.toggle')->name('ai-models.toggle');
+        Route::get('/clinics/{clinic}/ai-models', [ClinicAiModelAccessController::class, 'index'])->middleware('permission:ai_models.assign_to_clinic')->name('clinics.ai-models.index');
+        Route::post('/clinics/{clinic}/ai-models', [ClinicAiModelAccessController::class, 'store'])->middleware('permission:ai_models.assign_to_clinic')->name('clinics.ai-models.store');
+        Route::delete('/clinics/{clinic}/ai-models/{aiModelAccess}', [ClinicAiModelAccessController::class, 'destroy'])->middleware('permission:ai_models.assign_to_clinic')->name('clinics.ai-models.destroy');
         Route::get('/reports', [DashboardController::class, 'reports'])->middleware('permission:reports.user.view')->name('reports');
         Route::get('/settings', [DashboardController::class, 'settings'])->middleware('permission:settings.view')->name('settings');
         Route::get('/plans', [PlanController::class, 'index'])->middleware('permission:plans.list')->name('plans.index');

@@ -81,6 +81,9 @@ Before editing code, read:
   switcher, role-aware lead management, and demo seed users.
 - System management exists under `/admin/system` with native roles,
   permissions, system settings, gateways, billing, plans, and management reports.
+- AI model access management exists under `/admin/ai-models` with config-backed
+  model definitions, encrypted access credentials, clinic assignment, credit
+  tracking, and safe usage logs.
 - Dashboard copy is localized through Persian language files in `lang/fa`.
 - Normal users without an active plan can access only dashboard overview, plans,
   billing/invoices, tenant switch/logout, and account settings; operational
@@ -115,8 +118,13 @@ Core constraints:
   dashboard table search/sort/filter behavior.
 - Dashboard Blade must use shared components for cards, badges, empty states,
   modals, and table row action menus where practical.
-- Dashboard icons must use the local Lucide-style `x-admin.icon` component; do
-  not add Font Awesome or external icon assets.
+- Dashboard icons must use the local UIcons regular-rounded `x-admin.icon`
+  component; do not add Font Awesome, inline SVG dashboard icons, external icon
+  assets, or one-off custom icons for buttons, menus, and primary UI elements.
+- Dashboard list pages must use `x-admin.list-filters`,
+  `x-admin.table.sortable-heading`, and `x-admin.table.pagination-footer`
+  instead of hand-written filter forms, ad hoc sortable URLs, or direct
+  paginator links.
 - Create-capable list pages should expose modal create forms above the list.
 - Important tables should have backend search/filter query parameters and
   three-dot row action menus at the RTL beginning/right side.

@@ -51,10 +51,10 @@
                 <thead class="bg-zinc-50 text-xs text-zinc-500">
                     <tr>
                         <th class="w-14 px-4 py-3 font-bold">{{ __('messages.actions') }}</th>
-                        <th class="px-4 py-3 font-bold">{{ __('system.name') }}</th>
-                        <th class="px-4 py-3 font-bold">{{ __('system.mobile') }}</th>
-                        <th class="px-4 py-3 font-bold">{{ __('system.role') }}</th>
-                        <th class="px-4 py-3 font-bold">{{ __('system.status') }}</th>
+                        <th class="px-4 py-3"><x-admin.table.sortable-heading sort="name" :label="__('system.name')" /></th>
+                        <th class="px-4 py-3"><x-admin.table.sortable-heading sort="phone_normalized" :label="__('system.mobile')" /></th>
+                        <th class="px-4 py-3"><x-admin.table.sortable-heading sort="role" :label="__('system.role')" /></th>
+                        <th class="px-4 py-3"><x-admin.table.sortable-heading sort="status" :label="__('system.status')" /></th>
                         <th class="px-4 py-3 font-bold">{{ __('system.clinic') }}</th>
                     </tr>
                 </thead>
@@ -104,6 +104,6 @@
             </table>
         </div>
 
-        <div class="mt-5">{{ $users->links() }}</div>
+        <x-admin.table.pagination-footer :paginator="$users" />
     </x-admin.card>
 @endsection

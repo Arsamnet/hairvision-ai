@@ -3,6 +3,7 @@
 namespace Database\Seeders;
 
 use App\Models\AiProvider;
+use App\Models\AiModelAccess;
 use App\Models\Lead;
 use App\Models\LeadNote;
 use App\Models\PaymentGateway;
@@ -32,7 +33,7 @@ class DatabaseSeeder extends Seeder
         $this->seedAccessControl();
         $this->seedSystemDefaults();
 
-        $this->upsertUser(
+        $superAdmin = $this->upsertUser(
             config('hairvision.super_admin.name'),
             config('hairvision.super_admin.email'),
             config('hairvision.super_admin.phone'),
@@ -104,6 +105,35 @@ class DatabaseSeeder extends Seeder
             ['tenant_id' => $tenant->id, 'provider_id' => $provider->id],
             ['is_default' => true]
         );
+
+        $demoAccess = AiModelAccess::query()->updateOrCreate(
+            [
+                'model_key' => 'sample_image',
+                'usage_category_key' => 'hair_transplant',
+                'name' => __('ai_models.seed.demo_access_name'),
+            ],
+            [
+                'description' => __('ai_models.seed.demo_access_description'),
+                'credentials' => [],
+                'settings' => [],
+                'prompt' => __('ai_models.seed.demo_prompt'),
+                'credit_limit' => null,
+                'credit_used' => 0,
+                'is_active' => true,
+                'is_demo' => true,
+                'is_protected' => true,
+                'priority' => 1,
+                'created_by' => $superAdmin->id,
+                'updated_by' => $superAdmin->id,
+            ]
+        );
+
+        $tenant->aiModelAccesses()->syncWithoutDetaching([
+            $demoAccess->id => [
+                'is_active' => true,
+                'assigned_by' => $superAdmin->id,
+            ],
+        ]);
 
         $template = Template::query()->updateOrCreate(
             ['code' => 'classic'],

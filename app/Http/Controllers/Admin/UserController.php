@@ -130,7 +130,7 @@ class UserController extends Controller
             'availableTenants' => $request->attributes->get('adminTenants'),
             'roles' => Role::query()
                 ->where('status', 'active')
-                ->when(! $actor->isSuperAdmin(), fn ($query) => $query->where('code', '!=', 'super_admin'))
+                ->when(! $actor->isSuperAdmin(), fn ($query) => $query->whereIn('code', ['clinic_admin', 'editor', 'viewer']))
                 ->orderBy('name')
                 ->get(),
             'tenants' => $actor->isSuperAdmin()

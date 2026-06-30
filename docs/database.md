@@ -161,6 +161,57 @@ Required fields:
 - `encrypted_api_key`
 - `is_default`
 
+### `ai_model_accesses`
+
+Stores system-admin managed access records for configured AI model types.
+
+Required fields:
+
+- `model_key`
+- `usage_category_key`
+- `name`
+- `credentials`
+- `prompt`
+- `credit_limit`
+- `credit_used`
+- `is_active`
+- `is_demo`
+- `is_protected`
+
+Credentials are encrypted and hidden from serialization. Protected demo rows
+cannot be deleted, but they can be disabled.
+
+### `clinic_ai_model_access`
+
+Assigns AI model access records to clinic tenants.
+
+Required fields:
+
+- `clinic_id`
+- `ai_model_access_id`
+- `is_active`
+- `assigned_by`
+
+A clinic can use only active assigned access records.
+
+### `ai_model_usage_logs`
+
+Stores safe AI model execution logs.
+
+Required fields:
+
+- `clinic_id`
+- `user_id`
+- `ai_model_access_id`
+- `usage_category_key`
+- `status`
+- `credit_consumed`
+- `request_reference`
+- `response_reference`
+- `error_code`
+- `error_message`
+- `metadata_json`
+
 ### `generation_groups`
 
 Groups the three period jobs for one upload.
@@ -320,6 +371,10 @@ usage, or any non-active current subscription state.
   routes and never expose private storage paths.
 - Normal users may query only their own invoices, subscriptions, private SMS
   gateways, and user reports.
+- Clinics may use only active AI model access records assigned through
+  `clinic_ai_model_access`.
+- AI model usage logs must not contain credentials, private payloads, or storage
+  paths.
 - Normal users need an active subscription to access operational dashboard
   sections beyond dashboard overview, plans, billing, and settings.
 - Super Admin can cross tenant and user boundaries only through explicit

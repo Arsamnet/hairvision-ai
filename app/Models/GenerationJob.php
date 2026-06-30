@@ -23,6 +23,7 @@ class GenerationJob extends Model
         'lead_id',
         'upload_id',
         'provider_id',
+        'ai_model_access_id',
         'period',
         'model_name',
         'prompt',
@@ -99,5 +100,15 @@ class GenerationJob extends Model
     public function asset(): HasOne
     {
         return $this->hasOne(GeneratedAsset::class);
+    }
+
+    /**
+     * AI model access record selected for this execution.
+     *
+     * @return BelongsTo<AiModelAccess, $this>
+     */
+    public function aiModelAccess(): BelongsTo
+    {
+        return $this->belongsTo(AiModelAccess::class);
     }
 }

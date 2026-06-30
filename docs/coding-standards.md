@@ -113,8 +113,9 @@ public function store(StoreClientRequest $request): JsonResponse
 
 - Use shared Blade components for cards, badges, empty states, modals, and table
   row action menus.
-- Use the local `x-admin.icon` Lucide-style icon surface; do not introduce Font
-  Awesome or external icon assets.
+- Use the local `x-admin.icon` UIcons regular-rounded icon surface; do not add
+  Font Awesome, inline SVG dashboard icons, external icon assets, or one-off
+  custom icons for buttons, menus, and primary UI elements.
 - Put table row actions inside a three-dot action menu at the beginning/right
   side of RTL tables.
 - Compact list/card management actions should also use the shared action-menu

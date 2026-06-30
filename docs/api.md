@@ -156,6 +156,10 @@ Response:
 Requires a verified lead session. The upload must belong to the current tenant
 and the current session lead.
 
+The backend also requires an active AI model access record assigned to the
+current clinic for `hair_transplant`. The client does not submit `tenant_id` or
+provider credentials.
+
 ```http
 POST /api/v1/generations
 ```

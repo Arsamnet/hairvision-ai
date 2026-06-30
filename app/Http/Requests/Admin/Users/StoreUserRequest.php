@@ -24,7 +24,7 @@ class StoreUserRequest extends FormRequest
      */
     public function rules(): array
     {
-        $roles = Role::query()->where('status', 'active')->pluck('code')->all();
+        $roles = $this->allowedRoleCodes();
 
         return [
             'name' => ['required', 'string', 'max:120'],
@@ -48,5 +48,19 @@ class StoreUserRequest extends FormRequest
                 'phone_normalized' => NumberNormalizer::digitsOnly((string) $this->input('phone_normalized')),
             ]);
         }
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private function allowedRoleCodes(): array
+    {
+        $query = Role::query()->where('status', 'active');
+
+        if (! $this->user()?->isSuperAdmin()) {
+            $query->whereIn('code', ['clinic_admin', 'editor', 'viewer']);
+        }
+
+        return $query->pluck('code')->all();
     }
 }

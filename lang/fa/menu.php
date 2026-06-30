@@ -23,6 +23,7 @@ return [
         'permissions' => 'مجوزها',
         'plans' => 'پلن‌ها',
         'billing' => 'پرداخت‌ها و فاکتورها',
+        'ai_models' => 'مدل‌های هوش مصنوعی',
         'my_sms_gateways' => 'درگاه پیامک من',
         'system_sms_gateways' => 'درگاه‌های پیامک',
         'payment_gateways' => 'درگاه‌های پرداخت',

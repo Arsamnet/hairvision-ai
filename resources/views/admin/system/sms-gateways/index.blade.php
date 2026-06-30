@@ -20,38 +20,34 @@
             @endcan
         </div>
 
-        <form method="GET" class="mt-5 grid gap-3 lg:grid-cols-[1fr_10rem_10rem_10rem_8rem]">
-            <input name="search" value="{{ request('search') }}" placeholder="{{ __('sms.search_placeholder') }}" class="h-11 rounded-lg border border-zinc-200 px-3 text-sm outline-none transition focus:border-teal-500">
-            <select name="status" class="h-11 rounded-lg border border-zinc-200 px-3 text-sm outline-none transition focus:border-teal-500">
-                <option value="">{{ __('sms.all_statuses') }}</option>
-                @foreach(['enabled', 'disabled'] as $status)
-                    <option value="{{ $status }}" @selected(request('status') === $status)>{{ __('system.statuses.'.$status) }}</option>
-                @endforeach
-            </select>
-            <select name="owner_scope" class="h-11 rounded-lg border border-zinc-200 px-3 text-sm outline-none transition focus:border-teal-500">
-                <option value="">{{ __('sms.all_owners') }}</option>
-                @foreach(['system', 'user'] as $owner)
-                    <option value="{{ $owner }}" @selected(request('owner_scope') === $owner)>{{ __('system.owners.'.$owner) }}</option>
-                @endforeach
-            </select>
-            <input name="provider_code" value="{{ request('provider_code') }}" placeholder="{{ __('system.provider') }}" class="h-11 rounded-lg border border-zinc-200 px-3 text-sm outline-none transition focus:border-teal-500" dir="ltr">
-            <button class="inline-flex h-11 items-center justify-center gap-2 rounded-lg bg-zinc-950 px-4 text-sm font-bold text-white transition hover:bg-teal-700">
-                <x-admin.icon name="settings" class="h-4 w-4" />
-                <span>{{ __('sms.filter') }}</span>
-            </button>
-        </form>
+        <x-admin.list-filters
+            preset-key="admin.system.sms-gateways.index"
+            :search-placeholder="__('sms.search_placeholder')"
+            :filters="[
+                ['name' => 'status', 'label' => __('system.status'), 'type' => 'select', 'placeholder' => __('sms.all_statuses'), 'options' => collect(['enabled', 'disabled'])->mapWithKeys(fn ($status) => [$status => __('system.statuses.'.$status)])->all()],
+                ['name' => 'owner_scope', 'label' => __('system.owner'), 'type' => 'select', 'placeholder' => __('sms.all_owners'), 'options' => collect(['system', 'user'])->mapWithKeys(fn ($owner) => [$owner => __('system.owners.'.$owner)])->all()],
+                ['name' => 'provider_code', 'label' => __('system.provider'), 'placeholder' => __('system.provider'), 'dir' => 'ltr'],
+            ]"
+            :sorts="[
+                'created_at' => __('messages.created_at'),
+                'name' => __('system.name'),
+                'provider_code' => __('system.provider'),
+                'owner_scope' => __('system.owner'),
+                'status' => __('system.status'),
+            ]"
+        />
 
         <div data-admin-table-container class="mt-5 overflow-visible rounded-lg border border-zinc-100">
             <table class="w-full min-w-[52rem] text-right text-sm">
                 <thead class="bg-zinc-50 text-xs text-zinc-500">
                     <tr>
                         <th class="w-14 px-4 py-3">{{ __('messages.actions') }}</th>
-                        <th class="px-4 py-3">{{ __('system.name') }}</th>
-                        <th class="px-4 py-3">{{ __('system.provider') }}</th>
-                        <th class="px-4 py-3">{{ __('system.owner') }}</th>
-                        <th class="px-4 py-3">{{ __('system.status') }}</th>
+                        <th class="px-4 py-3"><x-admin.table.sortable-heading sort="name" :label="__('system.name')" /></th>
+                        <th class="px-4 py-3"><x-admin.table.sortable-heading sort="provider_code" :label="__('system.provider')" /></th>
+                        <th class="px-4 py-3"><x-admin.table.sortable-heading sort="owner_scope" :label="__('system.owner')" /></th>
+                        <th class="px-4 py-3"><x-admin.table.sortable-heading sort="status" :label="__('system.status')" /></th>
                         <th class="px-4 py-3">{{ __('system.default') }}</th>
-                        <th class="px-4 py-3">{{ __('messages.created_at') }}</th>
+                        <th class="px-4 py-3"><x-admin.table.sortable-heading sort="created_at" :label="__('messages.created_at')" /></th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-zinc-100">
@@ -87,6 +83,6 @@
                 </tbody>
             </table>
         </div>
-        <div class="mt-5">{{ $gateways->links() }}</div>
+        <x-admin.table.pagination-footer :paginator="$gateways" />
     </x-admin.card>
 @endsection

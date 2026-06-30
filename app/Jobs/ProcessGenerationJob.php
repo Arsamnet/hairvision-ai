@@ -2,6 +2,7 @@
 
 namespace App\Jobs;
 
+use App\Actions\Ai\RunAiModelAction;
 use App\Models\GeneratedAsset;
 use App\Models\GenerationJob;
 use App\Services\AI\Dtos\ImageGenerationRequest;
@@ -14,6 +15,7 @@ use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesAndRestoresModelIdentifiers;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Storage;
+use Throwable;
 
 /**
  * Processes one tenant- and lead-scoped generation period.
@@ -51,6 +53,31 @@ class ProcessGenerationJob implements ShouldQueue
         $upload = $this->generationJob->upload;
         $lead = $this->generationJob->lead;
 
+        if ($this->generationJob->aiModelAccess) {
+            try {
+                $response = app(RunAiModelAction::class)->execute(
+                    clinic: $this->generationJob->tenant,
+                    usageCategoryKey: $this->generationJob->aiModelAccess->usage_category_key,
+                    payload: [
+                        'generation_job_id' => $this->generationJob->uuid,
+                        'upload_id' => $upload->uuid,
+                        'period' => $this->generationJob->period,
+                    ],
+                    selectedAccess: $this->generationJob->aiModelAccess,
+                );
+
+                if (! $response->successful) {
+                    $this->markFailed($response->safeErrorMessage ?: __('ai_models.errors.provider_failed'));
+
+                    return;
+                }
+            } catch (Throwable) {
+                $this->markFailed(__('ai_models.errors.provider_failed'));
+
+                return;
+            }
+        }
+
         $request = new ImageGenerationRequest(
             tenantUuid: $lead->tenant->uuid,
             leadUuid: $lead->uuid,
@@ -63,12 +90,7 @@ class ProcessGenerationJob implements ShouldQueue
         $response = $provider->submit($request);
 
         if ($response->status !== 'completed' || ! $response->localPath) {
-            $this->generationJob->update([
-                'status' => 'failed',
-                'last_error' => 'sample provider did not return completed',
-            ]);
-
-            $this->generationJob->group->update(['status' => 'partially_failed']);
+            $this->markFailed('sample provider did not return completed');
 
             return;
         }
@@ -85,6 +107,19 @@ class ProcessGenerationJob implements ShouldQueue
         } else {
             $this->generationJob->group->update(['status' => 'processing']);
         }
+    }
+
+    /**
+     * Mark the current period and group as safely failed.
+     */
+    private function markFailed(string $message): void
+    {
+        $this->generationJob->update([
+            'status' => 'failed',
+            'last_error' => $message,
+        ]);
+
+        $this->generationJob->group->update(['status' => 'partially_failed']);
     }
 
     /**

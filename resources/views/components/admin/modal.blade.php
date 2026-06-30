@@ -2,7 +2,7 @@
     'id',
     'label',
     'title' => null,
-    'icon' => 'plus',
+    'icon' => 'sparkles',
     'open' => false,
     'trigger' => true,
     'triggerClass' => 'inline-flex h-10 cursor-pointer items-center justify-center gap-2 rounded-lg bg-zinc-950 px-4 text-sm font-bold text-white transition hover:bg-teal-700',

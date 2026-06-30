@@ -544,9 +544,10 @@ class SystemManagementTest extends TestCase
             ->assertSee(__('system.roles.'.$user->role))
             ->assertDontSee($user->phone_normalized)
             ->assertSee(__('dashboard.theme.menu_item'))
-            ->assertSee('data-menu-icon="more-horizontal"', false)
+            ->assertSee('data-menu-icon="menu-dots-vertical"', false)
             ->assertSee('data-menu-icon="moon"', false)
             ->assertSee('data-menu-icon="sun"', false)
+            ->assertDontSee('admin-svg-icon', false)
             ->assertSee('/admin/logout', false)
             ->assertSee('data-menu-icon="layout-dashboard"', false)
             ->assertSee('data-menu-item="admin.dashboard"', false)
@@ -554,6 +555,7 @@ class SystemManagementTest extends TestCase
             ->assertDontSee('data-menu-group="'.__('menu.groups.dashboard').'"', false)
             ->assertDontSee('data-menu-group="'.__('menu.groups.crm').'"', false)
             ->assertSee('data-menu-group="'.__('menu.groups.plans_payments').'"', false)
+            ->assertSee('data-menu-icon="package"', false)
             ->assertSee('data-menu-icon="lock"', false)
             ->assertSee('aria-disabled="true"', false)
             ->assertSee('لیدها')
@@ -570,6 +572,8 @@ class SystemManagementTest extends TestCase
             ->assertDontSee('data-menu-group="'.__('menu.groups.dashboard').'"', false)
             ->assertDontSee('data-menu-item="admin.system.dashboard"', false)
             ->assertSee('data-menu-group="'.__('menu.groups.users_access').'"', false)
+            ->assertSee('data-menu-icon="package"', false)
+            ->assertSee('data-menu-icon="sparkles"', false)
             ->assertSee('data-menu-item="admin.system.roles.index"', false)
             ->assertDontSee('name="tenant_id"', false);
     }
@@ -621,13 +625,29 @@ class SystemManagementTest extends TestCase
 
         $this->actingAs($superAdmin)
             ->forHost('hairvision-ai.test')
-            ->get('/admin/plans?'.http_build_query(['search' => 'پلن مدیریتی', 'status' => 'active']))
+            ->get('/admin/plans?'.http_build_query(['search' => 'پلن مدیریتی', 'status' => 'active', 'sort' => 'name', 'direction' => 'asc']))
             ->assertOk()
             ->assertSee('پلن مدیریتی')
             ->assertSee('create-plan-modal-toggle', false)
+            ->assertSee('data-admin-table-container', false)
+            ->assertSee('aria-sort="ascending"', false)
             ->assertSee('data-table-action-menu', false)
             ->assertSee('data-confirm-form', false)
             ->assertDontSee('confirm(', false);
+
+        $this->actingAs($normalUser)
+            ->forHost('hairvision-ai.test')
+            ->get('/admin/plans')
+            ->assertOk()
+            ->assertSee(__('plans.current_plan'))
+            ->assertSee(__('plans.same_active_plan_blocked'))
+            ->assertDontSee('data-admin-table-container', false);
+
+        $this->actingAs($normalUser)
+            ->forHost('hairvision-ai.test')
+            ->get('/admin/dashboard')
+            ->assertOk()
+            ->assertSee(__('dashboard.plan.upgrade_plan'));
 
         $this->actingAs($normalUser)
             ->forHost('hairvision-ai.test')
@@ -902,7 +922,7 @@ class SystemManagementTest extends TestCase
 
     public function test_persian_language_files_contain_required_keys(): void
     {
-        foreach (['dashboard', 'menu', 'auth', 'plans', 'payments', 'leads', 'crm', 'sms', 'settings', 'system', 'permissions', 'reports', 'messages', 'validation'] as $file) {
+        foreach (['dashboard', 'menu', 'auth', 'plans', 'payments', 'leads', 'crm', 'sms', 'settings', 'system', 'permissions', 'reports', 'messages', 'ai_models', 'validation'] as $file) {
             $this->assertFileExists(base_path('lang/fa/'.$file.'.php'));
         }
 
@@ -918,9 +938,13 @@ class SystemManagementTest extends TestCase
         $this->assertSame('برای دسترسی به این بخش باید پلن فعال داشته باشید.', __('permissions.plan_required'));
         $this->assertSame('تایید عملیات', __('messages.confirm_action'));
         $this->assertSame('حذف', __('messages.delete'));
+        $this->assertSame('ویرایش فیلتر', __('messages.edit_filters'));
+        $this->assertSame('فیلترهای فعال', __('messages.active_filters'));
         $this->assertSame('شماره موبایل باید فقط شامل ۱۱ رقم باشد.', __('auth.invalid_phone'));
         $this->assertSame('کد تایید باید فقط شامل ۶ رقم باشد.', __('auth.invalid_code'));
         $this->assertSame('جستجوی نام، توضیح یا واحد پلن', __('plans.search_placeholder'));
+        $this->assertSame('مدل‌های هوش مصنوعی', __('ai_models.title'));
+        $this->assertSame('کاشت مو', __('ai_models.usage_categories.hair_transplant'));
     }
 
     public function test_admin_javascript_is_split_into_focused_modules(): void
@@ -944,6 +968,38 @@ class SystemManagementTest extends TestCase
         $this->assertStringContainsString('preserveScrollPosition', file_get_contents($modals));
         $this->assertStringContainsString('export const bootConfirmationModal', file_get_contents($confirmationModal));
         $this->assertStringContainsString('localStorage.setItem', file_get_contents($theme));
+    }
+
+    public function test_shared_table_filter_sort_and_pagination_components_render_consistently(): void
+    {
+        $this->seed(DatabaseSeeder::class);
+
+        $superAdmin = User::query()->where('role', 'super_admin')->firstOrFail();
+
+        $this->actingAs($superAdmin)
+            ->forHost('hairvision-ai.test')
+            ->get('/admin/users?status=active&sort=name&direction=asc&per_page=100')
+            ->assertOk()
+            ->assertSee(__('messages.search'))
+            ->assertSee('data-menu-icon="search"', false)
+            ->assertSee('data-menu-icon="filter"', false)
+            ->assertSee(__('messages.edit_filters'))
+            ->assertSee(__('messages.active_filters'))
+            ->assertSee(__('messages.remove_filters'))
+            ->assertSee('aria-sort="ascending"', false)
+            ->assertSee('data-menu-icon="arrow-up"', false)
+            ->assertSee('data-menu-icon="chevron-right"', false)
+            ->assertSee('data-menu-icon="chevron-left"', false)
+            ->assertSee(__('messages.pagination_summary', ['from' => '1', 'to' => '4', 'total' => '4']))
+            ->assertSee('aria-disabled="true"', false);
+
+        $this->actingAs($superAdmin)
+            ->forHost('hairvision-ai.test')
+            ->get('/admin/system/payment-gateways?status=enabled&sort=provider_code&direction=asc')
+            ->assertOk()
+            ->assertSee(__('messages.edit_filters'))
+            ->assertSee(__('system.status').': '.__('system.statuses.enabled'))
+            ->assertSee('data-menu-icon="arrow-up"', false);
     }
 
     public function test_admin_logos_have_light_and_dark_variants(): void

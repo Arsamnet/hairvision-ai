@@ -145,9 +145,13 @@ php artisan test
   usage.
 - Sidebar icons, grouped menu visibility, and locked menu state for users
   without active plans.
+- Shared dashboard list filter/search components, sortable table headings, and
+  RTL pagination footer behavior.
 - Backend route blocking for inactive-plan users while plans, billing, and
   settings remain accessible.
 - Super Admin plan-definition management and normal-user denial.
+- Plan definitions render as an admin management table, while clinic users use
+  the dashboard and purchase/upgrade flow without a plan table.
 - Route-level plan purchase, payment, and upgrade without carrying old credit.
 - CRM follow-up creation, timeline visibility, and tenant isolation.
 - Authorized lead upload image display and streaming.
@@ -155,6 +159,18 @@ php artisan test
   filters for clinic-owned data.
 - Normal-user dashboard data scoping.
 - Persian language-file presence and required keys.
+
+`tests/Feature/AiModelAccessManagementTest.php` covers:
+
+- AI model config and Persian usage category loading.
+- Protected demo model seeding and Super Admin permissions.
+- AI model access CRUD, credential encryption, masking, toggling, and protected
+  delete denial.
+- Clinic assignment and generation credit/log creation.
+- Unassigned, inactive, and credit-finished access blocking.
+- Failed provider responses not consuming credit.
+- Clinic manager user creation scoped to the actor's clinic and clinic-level
+  role assignment.
 
 ## Release Checklist
 

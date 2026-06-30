@@ -44,11 +44,11 @@
                 <thead class="bg-zinc-50 text-xs text-zinc-500">
                     <tr>
                         <th class="w-14 px-4 py-3">{{ __('messages.actions') }}</th>
-                        <th class="px-4 py-3">{{ __('payments.fields.number') }}</th>
+                        <th class="px-4 py-3"><x-admin.table.sortable-heading sort="number" :label="__('payments.fields.number')" /></th>
                         <th class="px-4 py-3">{{ __('payments.fields.user') }}</th>
                         <th class="px-4 py-3">{{ __('payments.fields.plan') }}</th>
-                        <th class="px-4 py-3">{{ __('payments.fields.amount') }}</th>
-                        <th class="px-4 py-3">{{ __('payments.fields.status') }}</th>
+                        <th class="px-4 py-3"><x-admin.table.sortable-heading sort="amount" :label="__('payments.fields.amount')" /></th>
+                        <th class="px-4 py-3"><x-admin.table.sortable-heading sort="status" :label="__('payments.fields.status')" /></th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-zinc-100">
@@ -79,6 +79,6 @@
                 </tbody>
             </table>
         </div>
-        <div class="mt-5">{{ $invoices->links() }}</div>
+        <x-admin.table.pagination-footer :paginator="$invoices" />
     </x-admin.card>
 @endsection

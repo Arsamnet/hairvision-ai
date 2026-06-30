@@ -68,7 +68,7 @@
                 'label' => __('menu.groups.plans_payments'),
                 'icon' => 'credit-card',
                 'items' => [
-                    ['label' => __('menu.items.plans'), 'route' => 'admin.plans.index', 'active' => ['admin.plans.*'], 'icon' => 'sparkles', 'permissions' => ['plans.list']],
+                    ['label' => __('menu.items.plans'), 'route' => 'admin.plans.index', 'active' => ['admin.plans.*'], 'icon' => 'package', 'permissions' => ['plans.list']],
                     ['label' => __('menu.items.billing'), 'route' => 'admin.billing.index', 'active' => ['admin.billing.*'], 'icon' => 'invoice', 'permissions' => ['billing.list']],
                     ['label' => __('menu.items.payment_gateways'), 'route' => 'admin.system.payment-gateways.index', 'active' => ['admin.system.payment-gateways.*'], 'icon' => 'credit-card', 'permissions' => ['payment_gateways.list']],
                 ],
@@ -79,6 +79,13 @@
                 'items' => [
                     ['label' => __('menu.items.my_sms_gateways'), 'route' => 'admin.sms-gateways.index', 'active' => ['admin.sms-gateways.*'], 'icon' => 'message', 'planRestricted' => true],
                     ['label' => __('menu.items.system_sms_gateways'), 'route' => 'admin.system.sms-gateways.index', 'active' => ['admin.system.sms-gateways.*'], 'icon' => 'message', 'permissions' => ['sms_gateways.list']],
+                ],
+            ],
+            [
+                'label' => __('menu.groups.system_management'),
+                'icon' => 'settings',
+                'items' => [
+                    ['label' => __('menu.items.ai_models'), 'route' => 'admin.ai-models.index', 'active' => ['admin.ai-models.*', 'admin.clinics.ai-models.*'], 'icon' => 'sparkles', 'permissions' => ['ai_models.list']],
                 ],
             ],
             [
@@ -128,7 +135,7 @@
     <div class="admin-app-shell h-screen overflow-hidden lg:grid lg:grid-cols-[18.5rem_1fr]">
         <aside class="admin-sidebar hidden lg:block lg:h-screen">
             <div class="flex h-full min-h-0 flex-col">
-                <div class="admin-sidebar-logo flex h-[73px] shrink-0 items-center justify-center px-5">
+                <div class="admin-sidebar-logo flex h-18.25 shrink-0 items-center justify-center px-5">
                     <a href="{{ route('admin.dashboard') }}" class="admin-brand-logo" aria-label="{{ __('dashboard.product_name') }}">
                         <img src="/theme/admin-logo-light.svg" alt="{{ __('dashboard.product_name') }}" class="admin-logo admin-logo-light">
                         <img src="/theme/admin-logo-dark.svg" alt="{{ __('dashboard.product_name') }}" class="admin-logo admin-logo-dark">
@@ -209,7 +216,7 @@
 
         <div class="admin-main-panel flex h-screen min-h-0 min-w-0 flex-col">
             <header class="admin-topbar z-20 shrink-0 backdrop-blur">
-                <div class="flex min-h-[73px] flex-wrap items-center justify-between gap-3 px-4 py-3 sm:px-6">
+                <div class="flex min-h-18.25 flex-wrap items-center justify-between gap-3 px-4 py-3 sm:px-6">
                     <div>
                         <p class="text-xs font-bold text-teal-600">{{ __('dashboard.management_panel') }}</p>
                         <h1 class="mt-1 text-lg font-bold">@yield('page_title', __('dashboard.dashboard'))</h1>
@@ -225,7 +232,7 @@
 
                         <details class="admin-user-menu" data-admin-user-menu>
                             <summary class="admin-user-menu-trigger" aria-label="{{ __('dashboard.user_menu.open') }}" title="{{ __('dashboard.user_menu.open') }}">
-                                <x-admin.icon name="more-horizontal" class="h-5 w-5" />
+                                <x-admin.icon name="menu-dots-vertical" class="h-5 w-5" />
                             </summary>
                             <div class="admin-user-menu-panel">
                                 <div class="admin-user-menu-header">

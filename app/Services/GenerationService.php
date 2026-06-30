@@ -3,11 +3,13 @@
 namespace App\Services;
 
 use App\Jobs\ProcessGenerationJob;
+use App\Models\AiModelAccess;
 use App\Models\AiProvider;
 use App\Models\GenerationGroup;
 use App\Models\GenerationJob;
 use App\Models\TenantAiSetting;
 use App\Models\Upload;
+use App\Services\AI\AiModelManager;
 
 /**
  * Creates generation groups and dispatches period jobs.
@@ -19,6 +21,8 @@ use App\Models\Upload;
  */
 class GenerationService
 {
+    public function __construct(private readonly AiModelManager $aiModels) {}
+
     /**
      * Create one generation group and three period jobs for an upload.
      *
@@ -27,6 +31,8 @@ class GenerationService
      */
     public function createForUpload(Upload $upload): GenerationGroup
     {
+        $modelAccess = $this->aiModels->resolveForClinic($upload->tenant, 'hair_transplant');
+
         $group = GenerationGroup::create([
             'tenant_id' => $upload->tenant_id,
             'lead_id' => $upload->lead_id,
@@ -34,7 +40,7 @@ class GenerationService
             'status' => 'pending',
         ]);
 
-        $provider = $this->resolveProvider($upload->tenant_id);
+        $provider = $this->resolveProvider($upload->tenant_id, $modelAccess);
         $periods = ['3_months', '6_months', '12_months'];
 
         foreach ($periods as $period) {
@@ -44,9 +50,11 @@ class GenerationService
                 'lead_id' => $upload->lead_id,
                 'upload_id' => $upload->id,
                 'provider_id' => $provider->id,
+                'ai_model_access_id' => $modelAccess->id,
                 'period' => $period,
                 'status' => 'pending',
-                'prompt' => 'Sample hair growth preview for '.$period,
+                'model_name' => $modelAccess->model_key,
+                'prompt' => $modelAccess->prompt ?: 'Sample hair growth preview for '.$period,
             ]);
 
             if (config('hairvision.debug_fast_samples') && $provider->code === 'sample_image') {
@@ -65,8 +73,12 @@ class GenerationService
      * @param  int  $tenantId  Tenant id used for tenant default provider lookup.
      * @return AiProvider Provider database record attached to created jobs.
      */
-    private function resolveProvider(int $tenantId): AiProvider
+    private function resolveProvider(int $tenantId, ?AiModelAccess $modelAccess = null): AiProvider
     {
+        if ($modelAccess) {
+            return AiProvider::query()->where('code', '=', $modelAccess->model_key)->firstOrFail();
+        }
+
         $setting = TenantAiSetting::query()
             ->where('tenant_id', '=', $tenantId)
             ->where('is_default', '=', true)

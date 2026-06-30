@@ -25,6 +25,11 @@ Current dashboard enforcement:
   list, search, view, create, edit, and delete users. Other users need the
   matching `users.list`, `users.search`, `users.view`, `users.create`,
   `users.edit`, and `users.delete` permissions.
+- AI model management is protected by `AiModelAccessPolicy`,
+  `permission:*` route middleware, and `ai_models.*` permissions. Default
+  clinic roles do not receive global AI model permissions.
+- Clinic managers can create users only inside their allowed clinics and can
+  assign only clinic-level roles: `clinic_admin`, `editor`, and `viewer`.
 - Viewers cannot edit leads.
 - Editors can update `source`, `crm_stage`, and notes only.
 - Clinic admins can create and update clinic leads.
@@ -63,6 +68,9 @@ Example permission codes:
 - `settings.manage`
 - `sms_gateways.manage`
 - `payment_gateways.manage`
+- `ai_models.list`
+- `ai_models.assign_to_clinic`
+- `ai_models.manage_credentials`
 - `plans.manage`
 - `billing.manage`
 - `reports.management.view`

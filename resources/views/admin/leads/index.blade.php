@@ -51,11 +51,11 @@
                 <thead class="bg-zinc-50 text-xs text-zinc-500">
                     <tr>
                         <th class="w-14 px-4 py-3 font-bold">{{ __('messages.actions') }}</th>
-                        <th class="px-4 py-3 font-bold">{{ __('leads.fields.name') }}</th>
-                        <th class="px-4 py-3 font-bold">{{ __('leads.fields.phone') }}</th>
-                        <th class="px-4 py-3 font-bold">{{ __('leads.fields.status') }}</th>
-                        <th class="px-4 py-3 font-bold">{{ __('leads.fields.crm_stage') }}</th>
-                        <th class="px-4 py-3 font-bold">{{ __('leads.fields.created_at') }}</th>
+                        <th class="px-4 py-3"><x-admin.table.sortable-heading sort="full_name" :label="__('leads.fields.name')" /></th>
+                        <th class="px-4 py-3"><x-admin.table.sortable-heading sort="phone_normalized" :label="__('leads.fields.phone')" /></th>
+                        <th class="px-4 py-3"><x-admin.table.sortable-heading sort="status" :label="__('leads.fields.status')" /></th>
+                        <th class="px-4 py-3"><x-admin.table.sortable-heading sort="crm_stage" :label="__('leads.fields.crm_stage')" /></th>
+                        <th class="px-4 py-3"><x-admin.table.sortable-heading sort="created_at" :label="__('leads.fields.created_at')" /></th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-zinc-100">
@@ -92,6 +92,6 @@
             </table>
         </div>
 
-        <div class="mt-5">{{ $leads->links() }}</div>
+        <x-admin.table.pagination-footer :paginator="$leads" />
     </x-admin.card>
 @endsection

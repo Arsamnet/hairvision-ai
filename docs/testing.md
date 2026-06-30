@@ -30,6 +30,10 @@ Add focused tests for changed behavior. Examples:
 - Table action menus for important management tables.
 - Sidebar visibility, active state, and locked state.
 - Localization keys used by new UI.
+- AI model config, encrypted credentials, protected demo behavior, clinic
+  assignment, credit consumption, usage logs, and direct-route authorization.
+- Shared table filter behavior, active filter chips, sortable heading state,
+  and disabled pagination-footer state for one-page results.
 
 Tests should assert backend behavior, not just hidden UI. Unauthorized actions
 must be blocked by policies, middleware, scoped services, or route checks.
