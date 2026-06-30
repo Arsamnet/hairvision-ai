@@ -18,6 +18,7 @@ class Invoice extends Model
     use HasFactory, HasUuid;
 
     protected $fillable = [
+        'tenant_id',
         'user_id',
         'plan_id',
         'number',
@@ -27,6 +28,7 @@ class Invoice extends Model
         'due_at',
         'paid_at',
         'expires_at',
+        'activated_at',
         'metadata_json',
     ];
 
@@ -34,10 +36,21 @@ class Invoice extends Model
         'due_at' => 'datetime',
         'paid_at' => 'datetime',
         'expires_at' => 'datetime',
+        'activated_at' => 'datetime',
         'metadata_json' => 'array',
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
     ];
+
+    /**
+     * Clinic tenant connected to this billing document.
+     *
+     * @return BelongsTo<Tenant, $this>
+     */
+    public function tenant(): BelongsTo
+    {
+        return $this->belongsTo(Tenant::class);
+    }
 
     /**
      * User that owns and may pay this invoice.

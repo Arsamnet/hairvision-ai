@@ -8,9 +8,14 @@ return [
     'management_hint' => 'تعریف و وضعیت پلن‌ها فقط برای مدیر سیستم یا کاربر دارای مجوز مدیریت پلن قابل تغییر است.',
     'clinic_hint' => 'پلن فعال شما در پیشخوان نمایش داده می‌شود؛ از این بخش فقط برای خرید، تمدید یا ارتقا استفاده کنید.',
     'current_plan' => 'پلن فعال',
+    'service_credits' => 'اعتبار سرویس‌ها',
+    'services' => 'سرویس‌ها',
     'purchase_or_upgrade' => 'خرید / ارتقا',
     'upgrade' => 'ارتقا',
+    'buy_add_on' => 'خرید سرویس افزوده',
+    'buy_top_up' => 'خرید اعتبار',
     'create' => 'ثبت',
+    'edit' => 'ویرایش',
     'update' => 'به‌روزرسانی',
     'delete' => 'حذف',
     'filter' => 'فیلتر',
@@ -27,6 +32,8 @@ return [
     'fields' => [
         'name' => 'نام',
         'description' => 'توضیح',
+        'plan_type' => 'نوع پلن',
+        'service_key' => 'سرویس',
         'price' => 'قیمت',
         'duration_days' => 'روز',
         'usage_limit' => 'اعتبار',
@@ -37,5 +44,16 @@ return [
     'statuses' => [
         'active' => 'فعال',
         'inactive' => 'غیرفعال',
+    ],
+
+    'types' => [
+        'base_subscription' => 'پلن پایه',
+        'service_add_on' => 'سرویس افزوده',
+        'credit_top_up' => 'بسته افزایش اعتبار',
+    ],
+
+    'validation' => [
+        'duration_required' => 'مدت اعتبار برای پلن پایه و سرویس افزوده الزامی است.',
+        'service_credit_required' => 'حداقل برای یک سرویس باید اعتبار مثبت وارد شود.',
     ],
 ];

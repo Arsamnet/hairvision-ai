@@ -336,16 +336,26 @@ class DatabaseSeeder extends Seeder
             ]
         );
 
-        Plan::query()->updateOrCreate(
+        $starterPlan = Plan::query()->updateOrCreate(
             ['name' => 'پلن شروع'],
             [
                 'description' => 'پلن نمونه برای تست خرید، تمدید و ارتقا در MVP.',
+                'plan_type' => 'base_subscription',
+                'service_key' => 'hair_transplant',
                 'price' => 9900000,
                 'currency' => 'IRR',
                 'duration_days' => 30,
                 'usage_limit' => 100,
                 'features_json' => ['leads' => true, 'reports' => true],
                 'status' => 'active',
+            ]
+        );
+
+        $starterPlan->serviceEntitlements()->updateOrCreate(
+            ['service_key' => 'hair_transplant'],
+            [
+                'credit_amount' => 100,
+                'is_active' => true,
             ]
         );
     }

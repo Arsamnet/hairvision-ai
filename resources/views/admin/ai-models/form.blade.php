@@ -68,8 +68,7 @@
         <span>{{ __('ai_models.statuses.active') }}</span>
     </label>
 
-    <button class="inline-flex h-11 items-center justify-center gap-2 rounded-lg bg-zinc-950 px-4 text-sm font-bold text-white transition hover:bg-teal-700 md:col-span-2">
-        <x-admin.icon name="sparkles" class="h-4 w-4" />
+    <x-admin.button type="submit" icon="sparkles" class="md:col-span-2">
         <span>{{ __('system.submit') }}</span>
-    </button>
+    </x-admin.button>
 </div>

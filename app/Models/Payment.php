@@ -17,6 +17,7 @@ class Payment extends Model
     use HasFactory, HasUuid;
 
     protected $fillable = [
+        'tenant_id',
         'user_id',
         'invoice_id',
         'payment_gateway_id',
@@ -29,6 +30,16 @@ class Payment extends Model
         'gateway_response_json',
         'verified_at',
     ];
+
+    /**
+     * Clinic tenant connected to this payment.
+     *
+     * @return BelongsTo<Tenant, $this>
+     */
+    public function tenant(): BelongsTo
+    {
+        return $this->belongsTo(Tenant::class);
+    }
 
     protected $casts = [
         'gateway_response_json' => 'array',

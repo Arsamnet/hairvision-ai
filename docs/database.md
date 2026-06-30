@@ -336,26 +336,83 @@ serialized output.
 
 ### `plans`
 
-Stores plan definitions, including price, duration, usage limit, features, and
-status.
+Stores purchasable product definitions. Each row has `plan_type`:
+
+- `base_subscription`
+- `service_add_on`
+- `credit_top_up`
+
+Base and add-on plans may have `duration_days`; credit top-ups do not extend
+time. `usage_limit` remains as an aggregate compatibility value, while service
+credits are defined by `plan_service_entitlements`.
+
+### `plan_service_entitlements`
+
+Stores service credit definitions per plan.
+
+Required fields:
+
+- `plan_id`
+- `service_key`
+- `credit_amount`
+- `is_active`
 
 ### `invoices`
 
-Stores user-owned invoices connected to plans and payment transactions.
+Stores user- and clinic-owned invoices connected to plans and payment
+transactions. Clinic purchases include `tenant_id`, and paid invoices are
+activated exactly once through `activated_at`.
 
 ### `payments`
 
 Stores payment attempts, authority/reference ids, safe gateway response payloads,
-and verification status.
+and verification status. Clinic-owned payments include `tenant_id`.
 
 ### `subscriptions`
 
-Stores active and historical user plan entitlements. Only one active
-subscription should exist per user after successful payment; upgrades replace the
-previous active subscription without carrying remaining time or credit.
-The same active plan cannot be purchased again while it still has remaining time
-and usage credit. Renewal is allowed after expiration by time, expiration by
-usage, or any non-active current subscription state.
+Stores active and historical clinic base subscriptions. Only one active base
+subscription should exist per clinic after successful payment. Upgrades replace
+the previous active base subscription without carrying remaining time or service
+credit. The same active base plan cannot be purchased again while it is active.
+Renewal is allowed after expiration by time or any non-active current
+subscription state.
+
+### `subscription_service_entitlements`
+
+Stores enabled AI services and service-level credit balances for a clinic
+subscription.
+
+Required fields:
+
+- `tenant_id`
+- `subscription_id`
+- `plan_id`
+- `service_key`
+- `source_type`
+- `included_credit`
+- `purchased_credit`
+- `used_credit`
+- `is_active`
+- `starts_at`
+- `ends_at`
+
+### `credit_transactions`
+
+Stores an immutable credit ledger for service grants, top-ups, usage, refunds,
+and adjustments.
+
+Required fields:
+
+- `tenant_id`
+- `subscription_id`
+- `subscription_service_entitlement_id`
+- `service_key`
+- `type`
+- `amount`
+- `balance_after`
+- `related_type`
+- `related_id`
+- `created_by`
 
 ## Required Invariants
 
@@ -371,6 +428,10 @@ usage, or any non-active current subscription state.
   routes and never expose private storage paths.
 - Normal users may query only their own invoices, subscriptions, private SMS
   gateways, and user reports.
+- Clinic service credit usage is checked and consumed through
+  `subscription_service_entitlements` and `credit_transactions`.
+- Credit exhaustion blocks the affected AI service but does not expire the base
+  subscription.
 - Clinics may use only active AI model access records assigned through
   `clinic_ai_model_access`.
 - AI model usage logs must not contain credentials, private payloads, or storage

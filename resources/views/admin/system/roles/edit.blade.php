@@ -42,6 +42,6 @@
             @endforeach
         </div>
 
-        <button class="mt-5 rounded-lg bg-zinc-950 px-5 py-2.5 text-sm font-bold text-white">{{ __('system.save') }}</button>
+        <x-admin.button type="submit" size="compact-md" class="mt-5">{{ __('system.save') }}</x-admin.button>
     </form>
 @endsection

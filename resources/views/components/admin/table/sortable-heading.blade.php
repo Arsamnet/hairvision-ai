@@ -18,7 +18,7 @@
     $href = request()->url().'?'.http_build_query($query);
     $icon = $active
         ? ($currentDirection === 'asc' ? 'arrow-up' : 'arrow-down')
-        : 'chevrons-up-down';
+        : 'sort-alt';
 @endphp
 
 <a

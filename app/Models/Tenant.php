@@ -100,6 +100,46 @@ class Tenant extends Model
     }
 
     /**
+     * Active and historical subscriptions owned by this clinic.
+     *
+     * @return HasMany<Subscription, $this>
+     */
+    public function subscriptions(): HasMany
+    {
+        return $this->hasMany(Subscription::class);
+    }
+
+    /**
+     * Service-level entitlements currently or historically owned by this clinic.
+     *
+     * @return HasMany<SubscriptionServiceEntitlement, $this>
+     */
+    public function serviceEntitlements(): HasMany
+    {
+        return $this->hasMany(SubscriptionServiceEntitlement::class);
+    }
+
+    /**
+     * Credit ledger entries for this clinic.
+     *
+     * @return HasMany<CreditTransaction, $this>
+     */
+    public function creditTransactions(): HasMany
+    {
+        return $this->hasMany(CreditTransaction::class);
+    }
+
+    /**
+     * Billing invoices issued for this clinic.
+     *
+     * @return HasMany<Invoice, $this>
+     */
+    public function invoices(): HasMany
+    {
+        return $this->hasMany(Invoice::class);
+    }
+
+    /**
      * OTP records requested by this tenant's visitors.
      *
      * @return HasMany<OtpCode, $this>

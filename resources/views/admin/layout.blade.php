@@ -7,27 +7,7 @@
     <meta name="robots" content="noindex,nofollow">
     <?php $faviconHref = app('Illuminate\Foundation\Vite')->asset('resources/img/favicon.png'); ?>
     <link rel="icon" href="<?php echo e($faviconHref); ?>">
-    <script data-admin-theme-script>
-        (() => {
-            const key = 'hairvision.admin.theme';
-            const root = document.documentElement;
-            let stored = null;
-
-            try {
-                stored = localStorage.getItem(key);
-            } catch (error) {
-                stored = null;
-            }
-
-            const theme = ['dark', 'light'].includes(stored)
-                ? stored
-                : (window.matchMedia?.('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
-
-            root.dataset.adminTheme = theme;
-            root.classList.toggle('dark', theme === 'dark');
-            root.style.colorScheme = theme;
-        })();
-    </script>
+    @include('admin.partials.theme-script')
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
 <body class="admin-shell h-screen overflow-hidden font-sans antialiased">
@@ -216,7 +196,7 @@
 
         <div class="admin-main-panel flex h-screen min-h-0 min-w-0 flex-col">
             <header class="admin-topbar z-20 shrink-0 backdrop-blur">
-                <div class="flex min-h-18.25 flex-wrap items-center justify-between gap-3 px-4 py-3 sm:px-6">
+                <div class="admin-topbar-wrapper flex min-h-18.25 flex-wrap items-center justify-between gap-3 px-4 py-3 sm:px-6">
                     <div>
                         <p class="text-xs font-bold text-teal-600">{{ __('dashboard.management_panel') }}</p>
                         <h1 class="mt-1 text-lg font-bold">@yield('page_title', __('dashboard.dashboard'))</h1>
@@ -245,22 +225,22 @@
                                     </div>
                                 </div>
 
-                                <button type="button" class="admin-user-menu-item" data-theme-toggle data-light-label="{{ __('dashboard.theme.light') }}" data-dark-label="{{ __('dashboard.theme.dark') }}" aria-label="{{ __('dashboard.theme.toggle') }}" title="{{ __('dashboard.theme.toggle') }}">
+                                <x-admin.button type="button" variant="unstyled" size="none" class="admin-user-menu-item" data-theme-toggle data-light-label="{{ __('dashboard.theme.light') }}" data-dark-label="{{ __('dashboard.theme.dark') }}" aria-label="{{ __('dashboard.theme.toggle') }}" title="{{ __('dashboard.theme.toggle') }}">
                                     <span class="admin-user-menu-item-label">
                                         <x-admin.icon name="moon" class="theme-icon-moon h-4 w-4" />
                                         <x-admin.icon name="sun" class="theme-icon-sun h-4 w-4" />
                                         <span>{{ __('dashboard.theme.menu_item') }}</span>
                                     </span>
-                                </button>
+                                </x-admin.button>
 
                                 <form method="POST" action="{{ route('admin.logout') }}">
                                     @csrf
-                                    <button type="submit" class="admin-user-menu-item is-danger">
+                                    <x-admin.button type="submit" variant="unstyled" size="none" class="admin-user-menu-item is-danger">
                                         <span class="admin-user-menu-item-label">
                                             <x-admin.icon name="lock" class="h-4 w-4" />
                                             <span>{{ __('dashboard.logout') }}</span>
                                         </span>
-                                    </button>
+                                    </x-admin.button>
                                 </form>
                             </div>
                         </details>
@@ -297,13 +277,12 @@
         <div data-admin-confirm-modal>
             <p class="text-sm leading-7 text-zinc-600" data-admin-confirm-message>{{ __('messages.confirm_delete') }}</p>
             <div class="mt-5 flex flex-wrap items-center justify-end gap-2">
-                <button type="button" class="rounded-lg border border-zinc-200 px-4 py-2 text-sm font-bold text-zinc-700 transition hover:border-teal-300 hover:text-teal-700" data-admin-confirm-cancel>
+                <x-admin.button type="button" variant="secondary" size="compact" data-admin-confirm-cancel>
                     {{ __('messages.cancel') }}
-                </button>
-                <button type="button" class="inline-flex items-center justify-center gap-2 rounded-lg bg-rose-600 px-4 py-2 text-sm font-bold text-white transition hover:bg-rose-700" data-admin-confirm-submit>
-                    <x-admin.icon name="trash" class="h-4 w-4" />
+                </x-admin.button>
+                <x-admin.button type="button" variant="danger" size="compact" icon="trash" data-admin-confirm-submit>
                     <span>{{ __('messages.delete') }}</span>
-                </button>
+                </x-admin.button>
             </div>
         </div>
     </x-admin.modal>

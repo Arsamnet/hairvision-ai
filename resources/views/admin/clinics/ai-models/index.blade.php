@@ -11,10 +11,9 @@
                     <h2 class="text-lg font-bold">{{ $clinic->name }}</h2>
                     <p class="mt-1 text-sm text-zinc-500">{{ __('ai_models.assignment_title') }}</p>
                 </div>
-                <a href="{{ route('admin.ai-models.index') }}" class="inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-zinc-200 px-4 text-sm font-bold text-zinc-700 transition hover:border-teal-300 hover:text-teal-700">
-                    <x-admin.icon name="sparkles" class="h-4 w-4" />
+                <x-admin.button :href="route('admin.ai-models.index')" variant="secondary" size="sm" icon="sparkles">
                     <span>{{ __('ai_models.title') }}</span>
-                </a>
+                </x-admin.button>
             </div>
 
             <form method="POST" action="{{ route('admin.clinics.ai-models.store', $clinic) }}" class="mt-5 grid gap-3 md:grid-cols-[1fr_10rem_8rem]">
@@ -28,10 +27,9 @@
                     <input type="checkbox" name="is_active" value="1" checked>
                     <span>{{ __('ai_models.statuses.active') }}</span>
                 </label>
-                <button class="inline-flex h-11 items-center justify-center gap-2 rounded-lg bg-zinc-950 px-4 text-sm font-bold text-white transition hover:bg-teal-700">
-                    <x-admin.icon name="plus" class="h-4 w-4" />
+                <x-admin.button type="submit" icon="plus">
                     <span>{{ __('ai_models.assign') }}</span>
-                </button>
+                </x-admin.button>
             </form>
         </x-admin.card>
 

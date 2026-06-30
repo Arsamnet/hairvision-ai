@@ -11,11 +11,11 @@
                 <p class="mt-1 text-sm text-zinc-500" dir="ltr">{{ $gateway->provider_code }}</p>
             </div>
             <div class="flex flex-wrap items-center gap-2">
-                <a href="{{ route('admin.sms-gateways.edit', $gateway) }}" class="rounded-lg bg-zinc-950 px-4 py-2 text-sm font-bold text-white transition hover:bg-teal-700">{{ __('system.edit') }}</a>
+                <x-admin.button :href="route('admin.sms-gateways.edit', $gateway)" size="compact">{{ __('system.edit') }}</x-admin.button>
                 <form method="POST" action="{{ route('admin.sms-gateways.destroy', $gateway) }}" data-confirm-form data-confirm-message="{{ __('messages.confirm_delete') }}">
                     @csrf
                     @method('DELETE')
-                    <button class="rounded-lg border border-rose-200 px-4 py-2 text-sm font-bold text-rose-700 transition hover:bg-rose-50">{{ __('sms.delete') }}</button>
+                    <x-admin.button type="submit" variant="danger-outline" size="compact">{{ __('sms.delete') }}</x-admin.button>
                 </form>
             </div>
         </div>

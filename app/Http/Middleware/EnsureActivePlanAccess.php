@@ -27,7 +27,7 @@ class EnsureActivePlanAccess
             return redirect()->route('admin.login');
         }
 
-        $state = $this->plans->stateFor($user);
+        $state = $this->plans->stateFor($user, $request->attributes->get('adminTenant'));
         $request->attributes->set('planAccess', $state);
         $request->attributes->set('planSubscription', $state['subscription']);
         $request->attributes->set(

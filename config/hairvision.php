@@ -7,6 +7,22 @@ return [
 
     'primary_domain' => env('HAIRVISION_PRIMARY_DOMAIN', 'hairvision-ai.test'),
 
+    'billing' => [
+        'default_service_key' => env('HAIRVISION_DEFAULT_SERVICE_KEY', 'hair_transplant'),
+        'allow_duplicate_service_add_ons' => false,
+    ],
+
+    'ai_services' => [
+        'hair_transplant' => [
+            'label_key' => 'services.keys.hair_transplant',
+            'description_key' => 'services.descriptions.hair_transplant',
+        ],
+        'eyebrow_transplant' => [
+            'label_key' => 'services.keys.eyebrow_transplant',
+            'description_key' => 'services.descriptions.eyebrow_transplant',
+        ],
+    ],
+
     'super_admin' => [
         'name' => env('HAIRVISION_SUPER_ADMIN_NAME', 'مدیر سیستم HairVision'),
         'email' => env('HAIRVISION_SUPER_ADMIN_EMAIL', 'superadmin@example.com'),

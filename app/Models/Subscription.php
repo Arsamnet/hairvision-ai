@@ -6,6 +6,7 @@ use App\Models\Concerns\HasUuid;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 /**
  * Active or historical user plan entitlement.
@@ -17,6 +18,7 @@ class Subscription extends Model
     use HasFactory, HasUuid;
 
     protected $fillable = [
+        'tenant_id',
         'user_id',
         'plan_id',
         'invoice_id',
@@ -30,9 +32,21 @@ class Subscription extends Model
     protected $casts = [
         'starts_at' => 'datetime',
         'ends_at' => 'datetime',
+        'usage_limit' => 'integer',
+        'usage_used' => 'integer',
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
     ];
+
+    /**
+     * Clinic tenant that owns this entitlement.
+     *
+     * @return BelongsTo<Tenant, $this>
+     */
+    public function tenant(): BelongsTo
+    {
+        return $this->belongsTo(Tenant::class);
+    }
 
     /**
      * User that owns this entitlement.
@@ -62,5 +76,25 @@ class Subscription extends Model
     public function invoice(): BelongsTo
     {
         return $this->belongsTo(Invoice::class);
+    }
+
+    /**
+     * Service entitlements attached to this base subscription.
+     *
+     * @return HasMany<SubscriptionServiceEntitlement, $this>
+     */
+    public function serviceEntitlements(): HasMany
+    {
+        return $this->hasMany(SubscriptionServiceEntitlement::class);
+    }
+
+    /**
+     * Credit ledger entries recorded for this subscription.
+     *
+     * @return HasMany<CreditTransaction, $this>
+     */
+    public function creditTransactions(): HasMany
+    {
+        return $this->hasMany(CreditTransaction::class);
     }
 }

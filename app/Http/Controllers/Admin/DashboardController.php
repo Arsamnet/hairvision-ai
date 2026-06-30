@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Enums\PlanAccessStatus;
 use App\Models\Tenant;
+use App\Services\Billing\ServiceEntitlementService;
 use App\Services\Admin\LeadDashboardService;
 use App\Services\Admin\SystemOverviewService;
 use Illuminate\Http\Request;
@@ -18,7 +19,7 @@ use Illuminate\View\View;
  */
 class DashboardController extends Controller
 {
-    public function index(Request $request, LeadDashboardService $leads, SystemOverviewService $overview): View
+    public function index(Request $request, LeadDashboardService $leads, SystemOverviewService $overview, ServiceEntitlementService $entitlements): View
     {
         $tenant = $request->attributes->get('adminTenant');
         $planAccess = $request->attributes->get('planAccess');
@@ -42,6 +43,7 @@ class DashboardController extends Controller
             'availableTenants' => $request->attributes->get('adminTenants'),
             'planAccess' => $planAccess,
             'activeSubscription' => $request->attributes->get('activeSubscription'),
+            'serviceSummaries' => $entitlements->summaryForSubscription($request->attributes->get('activeSubscription')),
             'leadCount' => $query ? (clone $query)->count() : 0,
             'newLeadCount' => $query ? (clone $query)->where('crm_stage', 'new_lead')->count() : 0,
             'followUpCount' => $query ? (clone $query)->where('crm_stage', 'needs_follow_up')->count() : 0,

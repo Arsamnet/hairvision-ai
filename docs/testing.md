@@ -32,6 +32,10 @@ Add focused tests for changed behavior. Examples:
 - Localization keys used by new UI.
 - AI model config, encrypted credentials, protected demo behavior, clinic
   assignment, credit consumption, usage logs, and direct-route authorization.
+- SaaS plan types, service entitlements, add-on/top-up purchase rules, credit
+  ledger rows, and atomic credit consumption.
+- AI generation blocking for expired subscriptions, missing service access, and
+  exhausted service credit.
 - Shared table filter behavior, active filter chips, sortable heading state,
   and disabled pagination-footer state for one-page results.
 

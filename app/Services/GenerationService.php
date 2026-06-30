@@ -10,6 +10,7 @@ use App\Models\GenerationJob;
 use App\Models\TenantAiSetting;
 use App\Models\Upload;
 use App\Services\AI\AiModelManager;
+use App\Services\Billing\ServiceEntitlementService;
 
 /**
  * Creates generation groups and dispatches period jobs.
@@ -21,7 +22,10 @@ use App\Services\AI\AiModelManager;
  */
 class GenerationService
 {
-    public function __construct(private readonly AiModelManager $aiModels) {}
+    public function __construct(
+        private readonly AiModelManager $aiModels,
+        private readonly ServiceEntitlementService $entitlements,
+    ) {}
 
     /**
      * Create one generation group and three period jobs for an upload.
@@ -31,6 +35,9 @@ class GenerationService
      */
     public function createForUpload(Upload $upload): GenerationGroup
     {
+        $periods = ['3_months', '6_months', '12_months'];
+        $this->entitlements->assertCanUse($upload->tenant, 'hair_transplant', count($periods));
+
         $modelAccess = $this->aiModels->resolveForClinic($upload->tenant, 'hair_transplant');
 
         $group = GenerationGroup::create([
@@ -41,7 +48,6 @@ class GenerationService
         ]);
 
         $provider = $this->resolveProvider($upload->tenant_id, $modelAccess);
-        $periods = ['3_months', '6_months', '12_months'];
 
         foreach ($periods as $period) {
             $job = GenerationJob::create([

@@ -156,8 +156,24 @@ class AiModelAccess extends Model
                     return [$key => __('messages.none')];
                 }
 
-                return [$key => Str::mask($value, '*', 4, -4)];
+                return [$key => $this->maskCredentialValue($value)];
             })
             ->all();
+    }
+
+    /**
+     * Mask stored secrets without revealing short API keys.
+     */
+    private function maskCredentialValue(string $value): string
+    {
+        $length = Str::length($value);
+
+        if ($length <= 8) {
+            return str_repeat('*', $length);
+        }
+
+        return Str::substr($value, 0, 4)
+            .str_repeat('*', $length - 8)
+            .Str::substr($value, -4);
     }
 }

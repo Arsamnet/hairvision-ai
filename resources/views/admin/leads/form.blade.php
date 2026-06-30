@@ -51,6 +51,6 @@
     <textarea name="note" rows="4" class="mt-2 w-full rounded-lg border border-zinc-200 px-3 py-2 outline-none focus:border-teal-500">{{ old('note') }}</textarea>
 </div>
 <div class="flex flex-wrap gap-3 md:col-span-2">
-    <button class="rounded-lg bg-zinc-950 px-5 py-2.5 text-sm font-bold text-white hover:bg-teal-700">{{ __('leads.submit_create') }}</button>
-    <a href="{{ route('admin.leads.index') }}" class="rounded-lg bg-zinc-100 px-5 py-2.5 text-sm font-bold text-zinc-700 hover:bg-zinc-200">{{ __('leads.cancel') }}</a>
+    <x-admin.button type="submit" size="compact-md">{{ __('leads.submit_create') }}</x-admin.button>
+    <x-admin.button :href="route('admin.leads.index')" variant="subtle" size="compact-md">{{ __('leads.cancel') }}</x-admin.button>
 </div>

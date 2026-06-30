@@ -84,6 +84,9 @@ Before editing code, read:
 - AI model access management exists under `/admin/ai-models` with config-backed
   model definitions, encrypted access credentials, clinic assignment, credit
   tracking, and safe usage logs.
+- SaaS billing uses plan types for base subscriptions, service add-ons, and
+  credit top-ups; service credit is tracked through subscription entitlements
+  and credit ledger rows, not only a mutable aggregate counter.
 - Dashboard copy is localized through Persian language files in `lang/fa`.
 - Normal users without an active plan can access only dashboard overview, plans,
   billing/invoices, tenant switch/logout, and account settings; operational
@@ -134,6 +137,10 @@ Core constraints:
 - Store uploads and generated assets privately.
 - Use SampleImageProvider only.
 - SampleImageProvider must not call external services or generate images.
+- Enforce active base subscription, service entitlement, remaining service
+  credit, and assigned AI model access before public AI generation.
+- Consume service credit atomically after successful provider execution and log
+  the ledger transaction.
 - Redis Queue and Horizon are required outside tests.
 - Add or update tests for every behavior change.
 - Run php artisan test after every change.

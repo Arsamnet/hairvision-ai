@@ -8,6 +8,7 @@ use App\Models\GenerationJob;
 use App\Services\AI\Dtos\ImageGenerationRequest;
 use App\Services\AI\Dtos\ImageGenerationResponse;
 use App\Services\AI\Resolvers\ProviderResolver;
+use App\Services\Billing\CreditLedgerService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -15,6 +16,7 @@ use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesAndRestoresModelIdentifiers;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\ValidationException;
 use Throwable;
 
 /**
@@ -91,6 +93,23 @@ class ProcessGenerationJob implements ShouldQueue
 
         if ($response->status !== 'completed' || ! $response->localPath) {
             $this->markFailed('sample provider did not return completed');
+
+            return;
+        }
+
+        try {
+            app(CreditLedgerService::class)->consume(
+                tenant: $this->generationJob->tenant,
+                serviceKey: $this->generationJob->aiModelAccess?->usage_category_key ?? 'hair_transplant',
+                related: $this->generationJob,
+                description: __('credits.descriptions.ai_usage', ['period' => $this->generationJob->period]),
+            );
+        } catch (ValidationException $exception) {
+            $this->markFailed(collect($exception->errors())->flatten()->first() ?: __('credits.errors.consume_failed'));
+
+            return;
+        } catch (Throwable) {
+            $this->markFailed(__('credits.errors.consume_failed'));
 
             return;
         }

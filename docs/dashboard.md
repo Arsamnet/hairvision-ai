@@ -47,6 +47,9 @@ Dashboard features:
   allowed records by default and expose a `clinic_id` filter inside the page
   filter area when multiple clinics are available.
 - Responsive RTL admin shell.
+- Light is the default dashboard theme. The per-browser theme toggle persists
+  `hairvision.admin.theme`, and dark mode is used only after the user chooses it.
+  Admin login and OTP verification screens also read the same persisted theme.
 - Persian sidebar menu with consistent local UIcons icon-font icons, item active
   states, permission-hidden items, and plan-locked disabled items. Single items
   render as normal links; groups with multiple visible children render as

@@ -99,6 +99,10 @@ public function store(StoreClientRequest $request): JsonResponse
   actions instead of copying request-input authorization checks.
 - Move repeated dashboard/report statistics into focused services instead of
   duplicating count/sum queries in controllers.
+- Keep plan purchase, service entitlement, and credit ledger behavior in billing
+  services/actions; controllers should not mutate subscription credits directly.
+- Do not model service credit as only one mutable subscription counter. Use
+  `subscription_service_entitlements` plus `credit_transactions`.
 - Avoid large methods.
 - Keep each method focused on one responsibility.
 - Use meaningful class, method, and variable names.

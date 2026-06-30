@@ -26,6 +26,10 @@ Security priorities for the dashboard and public MVP:
 - Make payment verification idempotent before activating plans.
 - Replace any previous active subscription during successful payment
   verification without carrying remaining time or usage credit.
+- Enforce service entitlement and remaining service credit before public AI
+  generation.
+- Consume service credit through row-locked ledger writes so balances cannot go
+  negative or be double-spent.
 
 Sensitive events such as admin OTP requests and successful admin verification
 are logged without plain OTP values.

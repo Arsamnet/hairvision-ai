@@ -107,8 +107,10 @@ html[data-admin-theme='light'] {
         radial-gradient(circle at 15% 0%, rgba(124, 58, 237, 0.12), transparent 28rem),
         radial-gradient(circle at 82% 10%, rgba(20, 184, 166, 0.15), transparent 24rem),
         linear-gradient(180deg, #fbfcff 0%, #f5f7fb 100%);
+    --admin-auth-bg-image: linear-gradient(135deg, #f0fdfa 0%, #f8fafc 36%, #eef2ff 100%);
     --admin-surface: #ffffff;
     --admin-elevated: #f7f9fd;
+    --admin-surface-hover: rgba(15, 23, 42, 0.045);
     --admin-sidebar: rgba(255, 255, 255, 0.95);
     --admin-header: #ffffff;
     --admin-logo-header: #ffffff;
@@ -133,12 +135,33 @@ html[data-admin-theme='light'] {
     --admin-border: #dfe6f0;
     --admin-ring: #e0e7f1;
     --admin-ink: #0f172a;
+    --admin-strong-bg: #0f172a;
+    --admin-strong-hover: #0f766e;
+    --admin-on-strong: #ffffff;
     --admin-primary: #0f766e;
+    --admin-primary-solid: #0f766e;
+    --admin-primary-solid-hover: #115e59;
+    --admin-on-primary: #ffffff;
     --admin-accent: #7c3aed;
     --admin-primary-text: #0f766e;
     --admin-accent-text: #6d28d9;
     --admin-primary-soft: rgba(20, 184, 166, 0.1);
     --admin-accent-soft: rgba(124, 58, 237, 0.09);
+    --admin-success-bg: #ecfdf5;
+    --admin-success-border: #a7f3d0;
+    --admin-success-text: #047857;
+    --admin-warning-bg: #fffbeb;
+    --admin-warning-border: #fde68a;
+    --admin-warning-text: #92400e;
+    --admin-danger-bg: #fff1f2;
+    --admin-danger-border: #fecdd3;
+    --admin-danger-text: #be123c;
+    --admin-danger-solid: #e11d48;
+    --admin-danger-solid-hover: #be123c;
+    --admin-info-bg: #ecfeff;
+    --admin-info-border: #a5f3fc;
+    --admin-info-text: #155e75;
+    --admin-shadow-color: rgba(79, 70, 229, 0.14);
     --admin-menu-text: #0f172a;
     --admin-menu-muted: #526174;
     --admin-menu-hover: rgba(100, 116, 139, 0.1);
@@ -158,8 +181,10 @@ html[data-admin-theme='dark'] {
         radial-gradient(circle at 12% 0%, rgba(124, 58, 237, 0.22), transparent 26rem),
         radial-gradient(circle at 84% 12%, rgba(45, 212, 191, 0.18), transparent 24rem),
         linear-gradient(180deg, #0d1021 0%, #090b16 100%);
+    --admin-auth-bg-image: linear-gradient(135deg, #0b1020 0%, #111625 48%, #090b16 100%);
     --admin-surface: #111625;
     --admin-elevated: #171d30;
+    --admin-surface-hover: rgba(148, 163, 184, 0.11);
     --admin-sidebar: rgba(12, 16, 29, 0.96);
     --admin-header: #0f172a;
     --admin-logo-header: #0f172a;
@@ -184,12 +209,33 @@ html[data-admin-theme='dark'] {
     --admin-border: #293047;
     --admin-ring: #313950;
     --admin-ink: #171d30;
+    --admin-strong-bg: #0f766e;
+    --admin-strong-hover: #115e59;
+    --admin-on-strong: #ffffff;
     --admin-primary: #2dd4bf;
+    --admin-primary-solid: #0f766e;
+    --admin-primary-solid-hover: #115e59;
+    --admin-on-primary: #ffffff;
     --admin-accent: #a78bfa;
     --admin-primary-text: #99f6e4;
     --admin-accent-text: #c4b5fd;
     --admin-primary-soft: rgba(45, 212, 191, 0.12);
     --admin-accent-soft: rgba(167, 139, 250, 0.12);
+    --admin-success-bg: rgba(16, 185, 129, 0.14);
+    --admin-success-border: rgba(45, 212, 191, 0.32);
+    --admin-success-text: #a7f3d0;
+    --admin-warning-bg: rgba(245, 158, 11, 0.16);
+    --admin-warning-border: rgba(251, 191, 36, 0.35);
+    --admin-warning-text: #fde68a;
+    --admin-danger-bg: rgba(244, 63, 94, 0.14);
+    --admin-danger-border: rgba(251, 113, 133, 0.3);
+    --admin-danger-text: #fda4af;
+    --admin-danger-solid: #be123c;
+    --admin-danger-solid-hover: #9f1239;
+    --admin-info-bg: rgba(6, 182, 212, 0.14);
+    --admin-info-border: rgba(34, 211, 238, 0.32);
+    --admin-info-text: #a5f3fc;
+    --admin-shadow-color: rgba(0, 0, 0, 0.36);
     --admin-menu-text: #f8fafc;
     --admin-menu-muted: #c6d0df;
     --admin-menu-hover: rgba(148, 163, 184, 0.12);
@@ -207,6 +253,14 @@ html[data-admin-theme='dark'] {
     overflow: hidden;
     background-color: var(--admin-bg);
     background-image: var(--admin-bg-image);
+    color: var(--admin-text);
+    transition: background-color 180ms ease, color 180ms ease;
+}
+
+.admin-auth-shell {
+    min-height: 100vh;
+    background-color: var(--admin-bg);
+    background-image: var(--admin-auth-bg-image);
     color: var(--admin-text);
     transition: background-color 180ms ease, color 180ms ease;
 }
@@ -229,9 +283,12 @@ html[data-admin-theme='dark'] {
 }
 
 .admin-topbar {
-    border-bottom: 1px solid var(--admin-border);
     background: var(--admin-header);
     color: var(--admin-bar-text);
+}
+
+.admin-topbar-wrapper {
+    border-bottom: 1px solid var(--admin-border);
 }
 
 .admin-sidebar-logo,
@@ -588,61 +645,216 @@ html[data-admin-theme='dark'] .theme-icon-sun {
     background: rgba(225, 29, 72, 0.11);
 }
 
-.admin-shell .bg-white {
+:where(.admin-shell, .admin-auth-shell) .bg-white {
     background-color: var(--admin-surface) !important;
 }
 
-.admin-shell .bg-zinc-50,
-.admin-shell .bg-zinc-100 {
+:where(.admin-shell, .admin-auth-shell) .bg-zinc-50,
+:where(.admin-shell, .admin-auth-shell) .bg-zinc-50\/60,
+:where(.admin-shell, .admin-auth-shell) .bg-zinc-100 {
     background-color: var(--admin-elevated) !important;
 }
 
-.admin-shell .bg-zinc-950 {
-    background-color: var(--admin-ink) !important;
+:where(.admin-shell, .admin-auth-shell) .bg-zinc-50\/80 {
+    background-color: color-mix(in srgb, var(--admin-elevated) 80%, transparent) !important;
 }
 
-.admin-shell .text-zinc-950 {
+:where(.admin-shell, .admin-auth-shell) .bg-zinc-950 {
+    background-color: var(--admin-strong-bg) !important;
+}
+
+:where(.admin-shell, .admin-auth-shell) .bg-teal-600,
+:where(.admin-shell, .admin-auth-shell) .bg-teal-700 {
+    background-color: var(--admin-primary-solid) !important;
+}
+
+:where(.admin-shell, .admin-auth-shell) .text-zinc-950,
+:where(.admin-shell, .admin-auth-shell) .text-zinc-900 {
     color: var(--admin-text) !important;
 }
 
-.admin-shell .text-zinc-800,
-.admin-shell .text-zinc-700,
-.admin-shell .text-zinc-600,
-.admin-shell .text-zinc-500,
-.admin-shell .text-zinc-400 {
+:where(.admin-shell, .admin-auth-shell) .text-zinc-800,
+:where(.admin-shell, .admin-auth-shell) .text-zinc-700,
+:where(.admin-shell, .admin-auth-shell) .text-zinc-600,
+:where(.admin-shell, .admin-auth-shell) .text-zinc-500,
+:where(.admin-shell, .admin-auth-shell) .text-zinc-400 {
     color: var(--admin-muted) !important;
 }
 
-.admin-shell .text-teal-600,
-.admin-shell .text-teal-700 {
+:where(.admin-shell, .admin-auth-shell) .text-teal-600,
+:where(.admin-shell, .admin-auth-shell) .text-teal-700,
+:where(.admin-shell, .admin-auth-shell) .text-teal-900 {
     color: var(--admin-primary-text) !important;
 }
 
-.admin-shell .bg-teal-50 {
+:where(.admin-shell, .admin-auth-shell) .bg-teal-50 {
     background-color: var(--admin-primary-soft) !important;
 }
 
-.admin-shell .border-zinc-100,
-.admin-shell .border-zinc-200,
-.admin-shell .border-zinc-200\/80,
-.admin-shell .border-teal-100 {
+:where(.admin-shell, .admin-auth-shell) .border-zinc-100,
+:where(.admin-shell, .admin-auth-shell) .border-zinc-200,
+:where(.admin-shell, .admin-auth-shell) .border-zinc-200\/80,
+:where(.admin-shell, .admin-auth-shell) .border-teal-100 {
     border-color: var(--admin-border) !important;
 }
 
-.admin-shell .ring-zinc-100,
-.admin-shell .ring-zinc-200 {
+:where(.admin-shell, .admin-auth-shell) .border-teal-600 {
+    border-color: var(--admin-primary-solid) !important;
+}
+
+:where(.admin-shell, .admin-auth-shell) .ring-zinc-100,
+:where(.admin-shell, .admin-auth-shell) .ring-zinc-200,
+:where(.admin-shell, .admin-auth-shell) .ring-zinc-950 {
     --tw-ring-color: var(--admin-ring) !important;
 }
 
-.admin-shell input,
-.admin-shell select,
-.admin-shell textarea {
+:where(.admin-shell, .admin-auth-shell) .bg-emerald-50 {
+    background-color: var(--admin-success-bg) !important;
+}
+
+:where(.admin-shell, .admin-auth-shell) .border-emerald-200 {
+    border-color: var(--admin-success-border) !important;
+}
+
+:where(.admin-shell, .admin-auth-shell) .text-emerald-700,
+:where(.admin-shell, .admin-auth-shell) .text-emerald-800 {
+    color: var(--admin-success-text) !important;
+}
+
+:where(.admin-shell, .admin-auth-shell) .bg-amber-50 {
+    background-color: var(--admin-warning-bg) !important;
+}
+
+:where(.admin-shell, .admin-auth-shell) .border-amber-200 {
+    border-color: var(--admin-warning-border) !important;
+}
+
+:where(.admin-shell, .admin-auth-shell) .text-amber-800 {
+    color: var(--admin-warning-text) !important;
+}
+
+:where(.admin-shell, .admin-auth-shell) .bg-rose-50 {
+    background-color: var(--admin-danger-bg) !important;
+}
+
+:where(.admin-shell, .admin-auth-shell) .border-rose-200 {
+    border-color: var(--admin-danger-border) !important;
+}
+
+:where(.admin-shell, .admin-auth-shell) .text-rose-700 {
+    color: var(--admin-danger-text) !important;
+}
+
+:where(.admin-shell, .admin-auth-shell) .bg-rose-600 {
+    background-color: var(--admin-danger-solid) !important;
+}
+
+:where(.admin-shell, .admin-auth-shell) .bg-cyan-50 {
+    background-color: var(--admin-info-bg) !important;
+}
+
+:where(.admin-shell, .admin-auth-shell) .border-cyan-200 {
+    border-color: var(--admin-info-border) !important;
+}
+
+:where(.admin-shell, .admin-auth-shell) .text-cyan-800 {
+    color: var(--admin-info-text) !important;
+}
+
+:where(.admin-shell, .admin-auth-shell) .hover\:bg-zinc-50\/80:hover,
+:where(.admin-shell, .admin-auth-shell) .hover\:bg-zinc-100:hover,
+:where(.admin-shell, .admin-auth-shell) .hover\:bg-zinc-200:hover {
+    background-color: var(--admin-surface-hover) !important;
+}
+
+:where(.admin-shell, .admin-auth-shell) .hover\:bg-teal-50:hover {
+    background-color: var(--admin-primary-soft) !important;
+}
+
+:where(.admin-shell, .admin-auth-shell) .hover\:bg-teal-700:hover,
+:where(.admin-shell, .admin-auth-shell) .hover\:bg-zinc-950:hover {
+    background-color: var(--admin-strong-hover) !important;
+}
+
+:where(.admin-shell, .admin-auth-shell) .hover\:bg-rose-50:hover {
+    background-color: var(--admin-danger-bg) !important;
+}
+
+:where(.admin-shell, .admin-auth-shell) .hover\:bg-rose-700:hover {
+    background-color: var(--admin-danger-solid-hover) !important;
+}
+
+:where(.admin-shell, .admin-auth-shell) .hover\:text-teal-700:hover,
+:where(.admin-shell, .admin-auth-shell) .hover\:text-teal-900:hover {
+    color: var(--admin-primary-text) !important;
+}
+
+:where(.admin-shell, .admin-auth-shell) .hover\:text-rose-700:hover {
+    color: var(--admin-danger-text) !important;
+}
+
+:where(.admin-shell, .admin-auth-shell) .hover\:text-zinc-950:hover {
+    color: var(--admin-text) !important;
+}
+
+:where(.admin-shell, .admin-auth-shell) .hover\:border-teal-300:hover {
+    border-color: var(--admin-primary) !important;
+}
+
+:where(.admin-shell, .admin-auth-shell) .hover\:border-amber-300:hover {
+    border-color: var(--admin-warning-border) !important;
+}
+
+:where(.admin-shell, .admin-auth-shell) .hover\:border-emerald-300:hover {
+    border-color: var(--admin-success-border) !important;
+}
+
+:where(.admin-shell, .admin-auth-shell) .focus\:border-teal-500:focus {
+    border-color: var(--admin-primary) !important;
+}
+
+:where(.admin-shell, .admin-auth-shell) .focus\:ring-teal-100:focus {
+    --tw-ring-color: color-mix(in srgb, var(--admin-primary) 22%, transparent) !important;
+}
+
+:where(.admin-shell, .admin-auth-shell) .shadow-indigo-100,
+:where(.admin-shell, .admin-auth-shell) .shadow-zinc-100\/80 {
+    --tw-shadow-color: var(--admin-shadow-color) !important;
+}
+
+:where(.admin-shell, .admin-auth-shell) input,
+:where(.admin-shell, .admin-auth-shell) select,
+:where(.admin-shell, .admin-auth-shell) textarea {
     border-color: var(--admin-border);
+    background-color: var(--admin-surface);
+    color: var(--admin-text);
+    accent-color: var(--admin-primary);
+}
+
+:where(.admin-shell, .admin-auth-shell) input::placeholder,
+:where(.admin-shell, .admin-auth-shell) textarea::placeholder {
+    color: var(--admin-muted);
+}
+
+:where(.admin-shell, .admin-auth-shell) option {
     background-color: var(--admin-surface);
     color: var(--admin-text);
 }
 
-.admin-shell input::placeholder,
-.admin-shell textarea::placeholder {
-    color: var(--admin-muted);
+:where(.admin-shell, .admin-auth-shell) [data-admin-table-container] {
+    border-color: var(--admin-border) !important;
+    background-color: var(--admin-surface);
+}
+
+:where(.admin-shell, .admin-auth-shell) [data-admin-table-container] thead {
+    background-color: var(--admin-elevated) !important;
+    color: var(--admin-muted) !important;
+}
+
+:where(.admin-shell, .admin-auth-shell) [data-admin-table-container] tbody tr {
+    border-color: var(--admin-border);
+}
+
+:where(.admin-shell, .admin-auth-shell) [data-admin-table-container] tbody tr:hover {
+    background-color: var(--admin-surface-hover) !important;
 }

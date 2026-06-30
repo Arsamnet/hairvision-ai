@@ -6,12 +6,14 @@ use App\Actions\Ai\RunAiModelAction;
 use App\Models\AiModelAccess;
 use App\Models\AiModelUsageLog;
 use App\Models\AiProvider;
+use App\Models\CreditTransaction;
 use App\Models\GenerationGroup;
 use App\Models\Lead;
 use App\Models\Permission;
 use App\Models\Plan;
 use App\Models\Role;
 use App\Models\Subscription;
+use App\Models\SubscriptionServiceEntitlement;
 use App\Models\Tenant;
 use App\Models\TenantAiSetting;
 use App\Models\TenantDomain;
@@ -106,6 +108,25 @@ class AiModelAccessManagementTest extends TestCase
             ->assertSee($access->maskedCredentials()['api_key'])
             ->assertDontSee('super-secret-ai-key');
 
+        $shortSecretAccess = AiModelAccess::create([
+            'model_key' => 'sample_image',
+            'usage_category_key' => 'hair_transplant',
+            'name' => 'دسترسی کلید کوتاه',
+            'credentials' => ['api_key' => 'abcde'],
+            'is_active' => true,
+            'created_by' => $superAdmin->id,
+            'updated_by' => $superAdmin->id,
+        ]);
+
+        $this->assertSame('*****', $shortSecretAccess->maskedCredentials()['api_key']);
+
+        $this->actingAs($superAdmin)
+            ->forHost('hairvision-ai.test')
+            ->get('/admin/ai-models/'.$shortSecretAccess->id)
+            ->assertOk()
+            ->assertSee('*****')
+            ->assertDontSee('abcde');
+
         $this->actingAs($superAdmin)
             ->forHost('hairvision-ai.test')
             ->put('/admin/ai-models/'.$access->id, [
@@ -150,6 +171,7 @@ class AiModelAccessManagementTest extends TestCase
 
         $tenant = Tenant::query()->where('slug', 'clinic1')->firstOrFail();
         $superAdmin = User::query()->where('role', 'super_admin')->firstOrFail();
+        $this->activateSubscription(User::query()->where('role', 'clinic_admin')->firstOrFail());
         $access = AiModelAccess::create([
             'model_key' => 'sample_image',
             'usage_category_key' => 'hair_transplant',
@@ -187,6 +209,7 @@ class AiModelAccessManagementTest extends TestCase
     public function test_unassigned_inactive_and_finished_credit_models_cannot_be_used(): void
     {
         $tenant = $this->createTenant('Clinic One', 'clinic1', 'clinic1.hairvision-ai.test');
+        $this->activateTenantSubscription($tenant);
         $upload = $this->createVerifiedUpload($tenant);
         $access = $this->createAccess(['credit_limit' => null]);
 
@@ -425,25 +448,82 @@ class AiModelAccessManagementTest extends TestCase
 
     private function activateSubscription(User $user): Subscription
     {
-        $plan = Plan::query()->create([
-            'name' => 'پلن تست',
-            'description' => 'پلن تست',
-            'price' => 1000,
-            'currency' => 'IRR',
-            'duration_days' => 30,
-            'usage_limit' => 100,
+        $tenant = $user->tenants()->first();
+
+        if (! $tenant) {
+            $tenant = $this->createTenant('Clinic For Subscription', 'clinic-sub-'.$user->id, 'clinic-sub-'.$user->id.'.hairvision-ai.test');
+            $tenant->users()->attach($user->id, ['role' => $user->role, 'status' => 'active']);
+        }
+
+        return $this->activateTenantSubscription($tenant, $user);
+    }
+
+    private function activateTenantSubscription(Tenant $tenant, ?User $user = null, int $credit = 100): Subscription
+    {
+        $user ??= User::factory()->create([
+            'role' => 'clinic_admin',
             'status' => 'active',
         ]);
 
-        return Subscription::query()->create([
+        if (! $tenant->users()->whereKey($user->id)->exists()) {
+            $tenant->users()->attach($user->id, ['role' => $user->role, 'status' => 'active']);
+        }
+
+        $plan = Plan::query()->create([
+            'name' => 'پلن تست',
+            'description' => 'پلن تست',
+            'plan_type' => 'base_subscription',
+            'service_key' => 'hair_transplant',
+            'price' => 1000,
+            'currency' => 'IRR',
+            'duration_days' => 30,
+            'usage_limit' => $credit,
+            'status' => 'active',
+        ]);
+
+        $plan->serviceEntitlements()->create([
+            'service_key' => 'hair_transplant',
+            'credit_amount' => $credit,
+            'is_active' => true,
+        ]);
+
+        $subscription = Subscription::query()->create([
+            'tenant_id' => $tenant->id,
             'user_id' => $user->id,
             'plan_id' => $plan->id,
             'status' => 'active',
             'starts_at' => now(),
             'ends_at' => now()->addDays(30),
-            'usage_limit' => 100,
+            'usage_limit' => $credit,
             'usage_used' => 0,
         ]);
+
+        $entitlement = SubscriptionServiceEntitlement::query()->create([
+            'tenant_id' => $tenant->id,
+            'subscription_id' => $subscription->id,
+            'plan_id' => $plan->id,
+            'service_key' => 'hair_transplant',
+            'source_type' => 'base_plan',
+            'source_id' => $plan->id,
+            'included_credit' => $credit,
+            'purchased_credit' => 0,
+            'used_credit' => 0,
+            'is_active' => true,
+            'starts_at' => now(),
+            'ends_at' => now()->addDays(30),
+        ]);
+
+        CreditTransaction::query()->create([
+            'tenant_id' => $tenant->id,
+            'subscription_id' => $subscription->id,
+            'subscription_service_entitlement_id' => $entitlement->id,
+            'service_key' => 'hair_transplant',
+            'type' => 'grant',
+            'amount' => $credit,
+            'balance_after' => $credit,
+        ]);
+
+        return $subscription;
     }
 
     private function forHost(string $host): self

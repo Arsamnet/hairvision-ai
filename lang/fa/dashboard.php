@@ -42,6 +42,8 @@ return [
         'credit_finished' => 'اعتبار پلن شما تمام شده است. برای ادامه استفاده، پلن را تمدید یا ارتقا دهید.',
         'active_until' => 'فعال تا :date',
         'remaining_credit' => ':count اعتبار باقی مانده',
+        'service_credits' => 'اعتبار سرویس‌ها',
+        'no_service_credit' => 'برای این اشتراک هنوز سرویس فعالی ثبت نشده است.',
         'view_plans' => 'مشاهده پلن‌ها',
         'renew_plan' => 'تمدید پلن',
         'upgrade_plan' => 'ارتقای پلن',

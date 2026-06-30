@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\CreditTransaction;
 use App\Models\Lead;
 use App\Models\PaymentGateway;
 use App\Models\Permission;
@@ -9,6 +10,7 @@ use App\Models\Plan;
 use App\Models\Role;
 use App\Models\SmsGateway;
 use App\Models\Subscription;
+use App\Models\SubscriptionServiceEntitlement;
 use App\Models\SystemSetting;
 use App\Models\Tenant;
 use App\Models\TenantDomain;
@@ -497,7 +499,7 @@ class SystemManagementTest extends TestCase
             ->assertSee($invoiceB->number);
     }
 
-    public function test_subscriptions_expire_by_usage_or_time(): void
+    public function test_subscriptions_expire_by_time_not_service_usage(): void
     {
         $this->seed(DatabaseSeeder::class);
 
@@ -510,7 +512,8 @@ class SystemManagementTest extends TestCase
         $subscription->forceFill(['usage_limit' => 2, 'usage_used' => 1])->save();
         $billing->consumeUsage($user);
 
-        $this->assertSame('expired', $subscription->refresh()->status);
+        $this->assertSame('active', $subscription->refresh()->status);
+        $this->assertSame(2, $subscription->usage_used);
 
         $timeExpired = $billing->activatePlan($user, $plan, $invoice);
         $timeExpired->forceFill(['ends_at' => now()->subMinute()])->save();
@@ -629,6 +632,7 @@ class SystemManagementTest extends TestCase
             ->assertOk()
             ->assertSee('پلن مدیریتی')
             ->assertSee('create-plan-modal-toggle', false)
+            ->assertSee('edit-plan-', false)
             ->assertSee('data-admin-table-container', false)
             ->assertSee('aria-sort="ascending"', false)
             ->assertSee('data-table-action-menu', false)
@@ -713,7 +717,7 @@ class SystemManagementTest extends TestCase
         $this->assertSame(300, $newActive->usage_limit);
     }
 
-    public function test_same_active_plan_cannot_be_purchased_until_expired_or_credit_finished(): void
+    public function test_same_active_base_plan_cannot_be_purchased_until_expired(): void
     {
         $this->seed(DatabaseSeeder::class);
 
@@ -753,25 +757,20 @@ class SystemManagementTest extends TestCase
             ->assertRedirect(route('admin.billing.index'));
 
         $renewedInvoice = $user->invoices()->where('plan_id', $plan->id)->where('status', 'pending')->latest('id')->firstOrFail();
-        $renewedInvoice->forceFill(['status' => 'paid'])->save();
-        $active->forceFill(['status' => 'expired'])->save();
-        $renewed = Subscription::query()->create([
-            'user_id' => $user->id,
-            'plan_id' => $plan->id,
-            'invoice_id' => $renewedInvoice->id,
-            'status' => 'active',
-            'starts_at' => now(),
-            'ends_at' => now()->addDays(30),
-            'usage_limit' => 10,
-            'usage_used' => 10,
-        ]);
+        $this->actingAs($user)
+            ->forHost('hairvision-ai.test')
+            ->post('/admin/billing/invoices/'.$renewedInvoice->id.'/pay')
+            ->assertRedirect();
+
+        $renewed = $user->subscriptions()->where('status', 'active')->firstOrFail();
+        $renewed->serviceEntitlements()->firstOrFail()->forceFill(['used_credit' => $renewed->serviceEntitlements()->firstOrFail()->totalCredit()])->save();
 
         $this->actingAs($user)
             ->forHost('hairvision-ai.test')
             ->post('/admin/plans/'.$plan->id.'/purchase')
-            ->assertRedirect(route('admin.billing.index'));
+            ->assertSessionHasErrors('plan');
 
-        $this->assertSame('expired', $renewed->refresh()->status);
+        $this->assertSame('active', $renewed->refresh()->status);
     }
 
     public function test_crm_follow_up_creation_timeline_visibility_and_tenant_scope(): void
@@ -922,7 +921,7 @@ class SystemManagementTest extends TestCase
 
     public function test_persian_language_files_contain_required_keys(): void
     {
-        foreach (['dashboard', 'menu', 'auth', 'plans', 'payments', 'leads', 'crm', 'sms', 'settings', 'system', 'permissions', 'reports', 'messages', 'ai_models', 'validation'] as $file) {
+        foreach (['dashboard', 'menu', 'auth', 'plans', 'payments', 'subscriptions', 'credits', 'services', 'leads', 'crm', 'sms', 'settings', 'system', 'permissions', 'reports', 'messages', 'ai_models', 'validation'] as $file) {
             $this->assertFileExists(base_path('lang/fa/'.$file.'.php'));
         }
 
@@ -945,6 +944,8 @@ class SystemManagementTest extends TestCase
         $this->assertSame('جستجوی نام، توضیح یا واحد پلن', __('plans.search_placeholder'));
         $this->assertSame('مدل‌های هوش مصنوعی', __('ai_models.title'));
         $this->assertSame('کاشت مو', __('ai_models.usage_categories.hair_transplant'));
+        $this->assertSame('کاشت ابرو', __('services.keys.eyebrow_transplant'));
+        $this->assertSame('اعتبار سرویس :service به پایان رسیده است. برای ادامه استفاده، بسته افزایش اعتبار تهیه کنید.', __('credits.errors.finished'));
     }
 
     public function test_admin_javascript_is_split_into_focused_modules(): void
@@ -1071,9 +1072,18 @@ class SystemManagementTest extends TestCase
 
     private function activateSubscription(User $user): Subscription
     {
+        $tenant = $user->tenants()->first();
+
+        if (! $tenant) {
+            $tenant = $this->createTenant('Clinic For Subscription', 'clinic-sub-'.$user->id, 'clinic-sub-'.$user->id.'.hairvision-ai.test');
+            $tenant->users()->attach($user->id, ['role' => $user->role, 'status' => 'active']);
+        }
+
         $plan = Plan::query()->create([
             'name' => 'پلن تست',
             'description' => 'پلن تست',
+            'plan_type' => 'base_subscription',
+            'service_key' => 'hair_transplant',
             'price' => 1000,
             'currency' => 'IRR',
             'duration_days' => 30,
@@ -1081,7 +1091,14 @@ class SystemManagementTest extends TestCase
             'status' => 'active',
         ]);
 
-        return Subscription::query()->create([
+        $plan->serviceEntitlements()->create([
+            'service_key' => 'hair_transplant',
+            'credit_amount' => 100,
+            'is_active' => true,
+        ]);
+
+        $subscription = Subscription::query()->create([
+            'tenant_id' => $tenant->id,
             'user_id' => $user->id,
             'plan_id' => $plan->id,
             'status' => 'active',
@@ -1090,6 +1107,33 @@ class SystemManagementTest extends TestCase
             'usage_limit' => 100,
             'usage_used' => 0,
         ]);
+
+        $entitlement = SubscriptionServiceEntitlement::query()->create([
+            'tenant_id' => $tenant->id,
+            'subscription_id' => $subscription->id,
+            'plan_id' => $plan->id,
+            'service_key' => 'hair_transplant',
+            'source_type' => 'base_plan',
+            'source_id' => $plan->id,
+            'included_credit' => 100,
+            'purchased_credit' => 0,
+            'used_credit' => 0,
+            'is_active' => true,
+            'starts_at' => now(),
+            'ends_at' => now()->addDays(30),
+        ]);
+
+        CreditTransaction::query()->create([
+            'tenant_id' => $tenant->id,
+            'subscription_id' => $subscription->id,
+            'subscription_service_entitlement_id' => $entitlement->id,
+            'service_key' => 'hair_transplant',
+            'type' => 'grant',
+            'amount' => 100,
+            'balance_after' => 100,
+        ]);
+
+        return $subscription;
     }
 
     private function forHost(string $host): self

@@ -15,10 +15,9 @@
 @endphp
 
 @if($href)
-    <a href="{{ $href }}" class="flex w-full items-center gap-2 px-3 py-2 text-right text-xs font-bold transition {{ $classes }}" data-table-action-item>
-        <x-admin.icon :name="$icon" class="h-4 w-4" />
+    <x-admin.button :href="$href" variant="unstyled" size="none" :icon="$icon" class="flex w-full items-center gap-2 px-3 py-2 text-right text-xs font-bold transition {{ $classes }}" data-table-action-item>
         <span>{{ $slot }}</span>
-    </a>
+    </x-admin.button>
 @else
     <form method="POST" action="{{ $action }}" @if($confirm) data-confirm-form data-confirm-message="{{ $confirm }}" @endif>
         @csrf
@@ -28,9 +27,8 @@
         @foreach($inputs as $name => $value)
             <input type="hidden" name="{{ $name }}" value="{{ $value }}">
         @endforeach
-        <button type="submit" class="flex w-full items-center gap-2 px-3 py-2 text-right text-xs font-bold transition {{ $classes }}" data-table-action-item>
-            <x-admin.icon :name="$icon" class="h-4 w-4" />
+        <x-admin.button type="submit" variant="unstyled" size="none" :icon="$icon" class="flex w-full items-center gap-2 px-3 py-2 text-right text-xs font-bold transition {{ $classes }}" data-table-action-item>
             <span>{{ $slot }}</span>
-        </button>
+        </x-admin.button>
     </form>
 @endif

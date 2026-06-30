@@ -81,12 +81,14 @@ Required provider flow:
 ```text
 Controller
   -> GenerationService
+  -> ServiceEntitlementService active subscription/service credit check
   -> AiModelManager active clinic assignment lookup
   -> Dispatch Job
   -> Job
   -> RunAiModelAction credit/log guard
   -> ProviderResolver
   -> ImageGenerationProvider interface
+  -> CreditLedgerService service credit consumption after success
   -> Provider implementation
 ```
 
@@ -122,6 +124,12 @@ AI model access management adds a database-backed access layer before generation
 jobs are created. Public generation resolves the current clinic from the host and
 then selects an active assigned access record for `hair_transplant`. Unassigned,
 inactive, or credit-finished records are rejected before provider execution.
+
+SaaS plan access is checked before AI model access. Public generation requires an
+active clinic base subscription, an active service entitlement for
+`hair_transplant`, and enough remaining service credit for the three period jobs.
+Service credit is consumed per completed job through `CreditLedgerService`; a
+failed provider response does not consume service credit.
 
 Each generation period is a separate job:
 

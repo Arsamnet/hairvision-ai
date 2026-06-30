@@ -77,9 +77,8 @@
 </fieldset>
 
 <div class="mt-6 flex flex-wrap items-center gap-2">
-    <button class="inline-flex h-11 items-center justify-center gap-2 rounded-lg bg-zinc-950 px-5 text-sm font-bold text-white transition hover:bg-teal-700">
-        <x-admin.icon name="users" class="h-4 w-4" />
+    <x-admin.button type="submit" size="md-wide" icon="users">
         <span>{{ __('system.save') }}</span>
-    </button>
-    <a href="{{ route('admin.users.index') }}" class="rounded-lg border border-zinc-200 px-4 py-2.5 text-sm font-bold text-zinc-700 transition hover:border-teal-300 hover:text-teal-700">{{ __('messages.cancel') }}</a>
+    </x-admin.button>
+    <x-admin.button :href="route('admin.users.index')" variant="secondary" size="compact-md">{{ __('messages.cancel') }}</x-admin.button>
 </div>

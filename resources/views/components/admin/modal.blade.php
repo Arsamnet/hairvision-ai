@@ -25,7 +25,7 @@
         @if($trigger)
             <label for="{{ $toggleId }}" class="absolute inset-0 cursor-pointer bg-zinc-950/45" aria-label="{{ __('messages.close') }}"></label>
         @else
-            <button type="button" class="absolute inset-0 cursor-pointer bg-zinc-950/45" aria-label="{{ __('messages.close') }}" data-admin-modal-backdrop="{{ $id }}"></button>
+            <x-admin.button type="button" variant="unstyled" size="none" class="absolute inset-0 bg-zinc-950/45" aria-label="{{ __('messages.close') }}" data-admin-modal-backdrop="{{ $id }}" />
         @endif
         <section class="relative z-10 max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-lg bg-white p-5 shadow-2xl ring-1 ring-zinc-200">
             <div class="flex items-center justify-between gap-3 border-b border-zinc-100 pb-3">
@@ -40,9 +40,7 @@
                         <x-admin.icon name="x" class="h-4 w-4" />
                     </label>
                 @else
-                    <button type="button" class="grid h-9 w-9 cursor-pointer place-items-center rounded-lg text-zinc-500 transition hover:bg-zinc-100 hover:text-zinc-950" aria-label="{{ __('messages.close') }}" data-admin-modal-close="{{ $id }}">
-                        <x-admin.icon name="x" class="h-4 w-4" />
-                    </button>
+                    <x-admin.button type="button" variant="unstyled" size="none" icon="x" class="grid h-9 w-9 place-items-center rounded-lg text-zinc-500 transition hover:bg-zinc-100 hover:text-zinc-950" aria-label="{{ __('messages.close') }}" data-admin-modal-close="{{ $id }}" />
                 @endif
             </div>
 

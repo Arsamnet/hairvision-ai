@@ -11,6 +11,8 @@ use App\Models\TenantDomain;
 use App\Models\User;
 use App\Support\NumberNormalizer;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Blade;
+use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Hash;
 use Tests\TestCase;
 
@@ -67,6 +69,74 @@ class AdminDashboardTest extends TestCase
 
         $this->assertAuthenticatedAs($user);
         $this->assertNotNull($otp->refresh()->verified_at);
+    }
+
+    public function test_expired_admin_session_redirects_to_admin_login(): void
+    {
+        $this->forHost('hairvision-ai.test')
+            ->get('/admin/leads')
+            ->assertRedirect(route('admin.login'));
+    }
+
+    public function test_admin_theme_defaults_to_light_until_user_persists_dark_mode(): void
+    {
+        $themeScript = file_get_contents(resource_path('views/admin/partials/theme-script.blade.php'));
+        $themeModule = file_get_contents(resource_path('js/admin/theme.js'));
+        $css = file_get_contents(resource_path('css/app.css'));
+
+        $this->assertStringContainsString("const defaultTheme = 'light';", $themeModule);
+        $this->assertStringContainsString(": 'light';", $themeScript);
+        $this->assertStringNotContainsString('prefers-color-scheme', $themeScript);
+        $this->assertStringNotContainsString('prefers-color-scheme', $themeModule);
+        $this->assertStringContainsString('.admin-auth-shell', $css);
+        $this->assertStringContainsString('.hover\\:bg-zinc-50\\/80:hover', $css);
+        $this->assertStringContainsString('[data-admin-table-container] tbody tr:hover', $css);
+
+        $this->forHost('hairvision-ai.test')
+            ->get('/admin')
+            ->assertOk()
+            ->assertSee('data-admin-theme-script', false)
+            ->assertSee('hairvision.admin.theme', false)
+            ->assertSee('admin-auth-shell', false);
+
+        $this->withSession(['admin_pending_phone' => '09120000000'])
+            ->forHost('hairvision-ai.test')
+            ->get('/admin/otp')
+            ->assertOk()
+            ->assertSee('data-admin-theme-script', false)
+            ->assertSee('admin-auth-shell', false);
+    }
+
+    public function test_admin_buttons_use_shared_component_with_pointer_cursor(): void
+    {
+        $button = Blade::render('<x-admin.button type="submit">ثبت</x-admin.button>');
+        $link = Blade::render('<x-admin.button href="/admin" variant="secondary">بازگشت</x-admin.button>');
+
+        $this->assertStringContainsString('<button', $button);
+        $this->assertStringContainsString('cursor-pointer', $button);
+        $this->assertStringContainsString('data-admin-button', $button);
+        $this->assertStringContainsString('<a href="/admin"', $link);
+        $this->assertStringContainsString('cursor-pointer', $link);
+        $this->assertStringContainsString('data-admin-button', $link);
+
+        $viewFiles = collect([
+            resource_path('views/admin'),
+            resource_path('views/components/admin'),
+        ])->flatMap(fn (string $path) => File::allFiles($path));
+
+        foreach ($viewFiles as $file) {
+            $relativePath = str_replace(base_path().DIRECTORY_SEPARATOR, '', $file->getRealPath());
+
+            if ($relativePath === 'resources/views/components/admin/button.blade.php') {
+                continue;
+            }
+
+            $this->assertStringNotContainsString(
+                '<button',
+                $file->getContents(),
+                $relativePath.' should use x-admin.button instead of a raw button element.'
+            );
+        }
     }
 
     public function test_database_seeder_creates_super_admin_and_clinic_demo_data(): void

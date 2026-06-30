@@ -7,6 +7,8 @@ use App\Http\Requests\Admin\Plans\StorePlanRequest;
 use App\Http\Requests\Admin\Plans\UpdatePlanRequest;
 use App\Models\Plan;
 use App\Services\Billing\BillingService;
+use App\Services\Billing\PlanCatalogService;
+use App\Services\Billing\ServiceCatalog;
 use App\Support\Pagination\PaginationParameters;
 use App\Support\Query\DateRangeFilter;
 use App\Support\Query\SearchFilter;
@@ -26,15 +28,19 @@ class PlanController extends Controller
         $canManagePlans = $request->user()->hasAnyPermission(['plans.create', 'plans.edit', 'plans.delete', 'plans.manage']);
         $pagination = PaginationParameters::fromRequest(
             $request,
-            ['created_at', 'name', 'price', 'duration_days', 'usage_limit', 'status'],
+            ['created_at', 'name', 'plan_type', 'price', 'duration_days', 'usage_limit', 'status'],
             'price',
             'asc'
         );
         $query = Plan::query()
+            ->with('serviceEntitlements')
             ->when(! $canManagePlans, fn ($query) => $query->where('status', 'active'))
-            ->when($request->filled('status') && $canManagePlans, fn ($query) => $query->where('status', $request->string('status')->toString()));
+            ->when(! $canManagePlans, fn ($query) => $query->whereIn('plan_type', ['base_subscription', 'service_add_on', 'credit_top_up']))
+            ->when($request->filled('status') && $canManagePlans, fn ($query) => $query->where('status', $request->string('status')->toString()))
+            ->when($request->filled('plan_type'), fn ($query) => $query->where('plan_type', $request->string('plan_type')->toString()));
         SearchFilter::apply($query, $pagination->search, ['name', 'description', 'currency']);
         DateRangeFilter::apply($query, $request);
+        $services = app(ServiceCatalog::class);
 
         return view('admin.plans.index', [
             'tenant' => $request->attributes->get('adminTenant'),
@@ -45,19 +51,20 @@ class PlanController extends Controller
                 ->withQueryString(),
             'canManagePlans' => $canManagePlans,
             'activeSubscription' => $request->attributes->get('activeSubscription'),
+            'serviceOptions' => $services->options(),
         ]);
     }
 
-    public function store(StorePlanRequest $request): RedirectResponse
+    public function store(StorePlanRequest $request, PlanCatalogService $plans): RedirectResponse
     {
-        Plan::create($request->validated() + ['features_json' => []]);
+        $plans->create($request->validated());
 
         return back()->with('status', __('plans.created'));
     }
 
-    public function update(UpdatePlanRequest $request, Plan $plan): RedirectResponse
+    public function update(UpdatePlanRequest $request, Plan $plan, PlanCatalogService $plans): RedirectResponse
     {
-        $plan->update($request->validated() + ['features_json' => $plan->features_json ?? []]);
+        $plans->update($plan, $request->validated());
 
         return back()->with('status', __('plans.updated'));
     }
@@ -73,7 +80,7 @@ class PlanController extends Controller
 
     public function purchase(Request $request, Plan $plan, BillingService $billing): RedirectResponse
     {
-        $invoice = $billing->invoiceForPlan($request->user(), $plan);
+        $invoice = $billing->invoiceForPlan($request->user(), $plan, $request->attributes->get('adminTenant'));
 
         return redirect()
             ->route('admin.billing.index')

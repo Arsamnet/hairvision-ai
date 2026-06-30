@@ -4,6 +4,7 @@ namespace App\Services\Billing;
 
 use App\Enums\PlanAccessStatus;
 use App\Models\Subscription;
+use App\Models\Tenant;
 use App\Models\User;
 
 /**
@@ -13,31 +14,32 @@ use App\Models\User;
  */
 class PlanAccessService
 {
+    public function __construct(private readonly ServiceEntitlementService $entitlements) {}
+
     /**
      * Return the user's plan access state and relevant subscription record.
      *
      * @return array{status: PlanAccessStatus, allowed: bool, subscription: ?Subscription, message_key: string}
      */
-    public function stateFor(User $user): array
+    public function stateFor(User $user, ?Tenant $tenant = null): array
     {
         if ($this->isExempt($user)) {
             return $this->state(PlanAccessStatus::Exempt, true);
         }
 
-        $subscription = $user->subscriptions()
+        $subscription = $tenant
+            ? $this->entitlements->activeBaseSubscriptionForTenant($tenant)
+            : null;
+
+        $subscription ??= $user->subscriptions()
             ->with('plan')
+            ->whereHas('plan', fn ($query) => $query->where('plan_type', 'base_subscription'))
             ->latest('starts_at')
             ->latest('id')
             ->first();
 
         if (! $subscription) {
             return $this->state(PlanAccessStatus::Inactive, false);
-        }
-
-        if ($subscription->status === 'active' && $subscription->usage_used >= $subscription->usage_limit) {
-            $subscription->forceFill(['status' => 'expired'])->save();
-
-            return $this->state(PlanAccessStatus::CreditFinished, false, $subscription->refresh());
         }
 
         if ($subscription->status === 'active' && $subscription->ends_at <= now()) {

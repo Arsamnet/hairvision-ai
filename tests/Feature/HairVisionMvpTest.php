@@ -9,12 +9,17 @@ use App\Models\GenerationGroup;
 use App\Models\GenerationJob;
 use App\Models\Lead;
 use App\Models\LeadNote;
+use App\Models\CreditTransaction;
+use App\Models\Plan;
+use App\Models\Subscription;
+use App\Models\SubscriptionServiceEntitlement;
 use App\Models\Template;
 use App\Models\Tenant;
 use App\Models\TenantAiSetting;
 use App\Models\TenantDomain;
 use App\Models\TenantThemeSetting;
 use App\Models\Upload;
+use App\Models\User;
 use App\Support\NumberNormalizer;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
@@ -243,6 +248,7 @@ class HairVisionMvpTest extends TestCase
     public function test_sample_generation_flow_creates_three_private_assets_without_external_http(): void
     {
         $tenant = $this->createTenant('Clinic One', 'clinic1', 'clinic1.hairvision-ai.test');
+        $this->activateTenantSubscription($tenant, 10);
         $this->seedSampleImages();
         Http::fake();
 
@@ -277,6 +283,8 @@ class HairVisionMvpTest extends TestCase
         $this->assertSame('completed', $group->refresh()->status);
         $this->assertSame(3, $group->jobs()->where('status', 'completed')->count());
         $this->assertSame(3, GeneratedAsset::query()->where('generation_group_id', $group->id)->count());
+        $this->assertSame(3, CreditTransaction::query()->where('tenant_id', $tenant->id)->where('type', 'use')->count());
+        $this->assertSame(7, SubscriptionServiceEntitlement::query()->where('tenant_id', $tenant->id)->where('service_key', 'hair_transplant')->firstOrFail()->remainingCredit());
 
         $this->assertDatabaseHas('uploads', [
             'uuid' => $uploadId,
@@ -500,6 +508,71 @@ class HairVisionMvpTest extends TestCase
         foreach (['3-months.jpg', '6-months.jpg', '12-months.jpg'] as $filename) {
             Storage::disk('local')->put('sample-results/'.$filename, base64_decode(self::TEST_JPEG_BASE64));
         }
+    }
+
+    private function activateTenantSubscription(Tenant $tenant, int $credit = 100): Subscription
+    {
+        $user = User::factory()->create([
+            'role' => 'clinic_admin',
+            'status' => 'active',
+        ]);
+        $tenant->users()->attach($user->id, ['role' => 'clinic_admin', 'status' => 'active']);
+
+        $plan = Plan::query()->create([
+            'name' => 'پلن تست سرویس',
+            'description' => 'پلن تست سرویس',
+            'plan_type' => 'base_subscription',
+            'service_key' => 'hair_transplant',
+            'price' => 1000,
+            'currency' => 'IRR',
+            'duration_days' => 30,
+            'usage_limit' => $credit,
+            'status' => 'active',
+        ]);
+
+        $plan->serviceEntitlements()->create([
+            'service_key' => 'hair_transplant',
+            'credit_amount' => $credit,
+            'is_active' => true,
+        ]);
+
+        $subscription = Subscription::query()->create([
+            'tenant_id' => $tenant->id,
+            'user_id' => $user->id,
+            'plan_id' => $plan->id,
+            'status' => 'active',
+            'starts_at' => now(),
+            'ends_at' => now()->addDays(30),
+            'usage_limit' => $credit,
+            'usage_used' => 0,
+        ]);
+
+        $entitlement = SubscriptionServiceEntitlement::query()->create([
+            'tenant_id' => $tenant->id,
+            'subscription_id' => $subscription->id,
+            'plan_id' => $plan->id,
+            'service_key' => 'hair_transplant',
+            'source_type' => 'base_plan',
+            'source_id' => $plan->id,
+            'included_credit' => $credit,
+            'purchased_credit' => 0,
+            'used_credit' => 0,
+            'is_active' => true,
+            'starts_at' => now(),
+            'ends_at' => now()->addDays(30),
+        ]);
+
+        CreditTransaction::query()->create([
+            'tenant_id' => $tenant->id,
+            'subscription_id' => $subscription->id,
+            'subscription_service_entitlement_id' => $entitlement->id,
+            'service_key' => 'hair_transplant',
+            'type' => 'grant',
+            'amount' => $credit,
+            'balance_after' => $credit,
+        ]);
+
+        return $subscription;
     }
 
     private function createCompletedGenerationJob(Tenant $tenant, Lead $lead, Upload $upload, GenerationGroup $group): GenerationJob

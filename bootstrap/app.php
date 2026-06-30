@@ -20,6 +20,10 @@ return Application::configure(basePath: dirname(__DIR__))
             StartSession::class,
         ]);
 
+        $middleware->redirectGuestsTo(fn (Request $request): ?string => $request->is('admin') || $request->is('admin/*')
+            ? route('admin.login')
+            : null);
+
         $middleware->alias([
             'active_plan' => EnsureActivePlanAccess::class,
             'permission' => EnsureAdminPermission::class,

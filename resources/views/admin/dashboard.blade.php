@@ -7,7 +7,7 @@
     @php
         $planStatus = $planAccess['status']->value ?? 'inactive';
         $planMessage = __('dashboard.plan.'.$planStatus);
-        $remainingCredit = $activeSubscription ? max(0, $activeSubscription->usage_limit - $activeSubscription->usage_used) : 0;
+        $remainingCredit = $activeSubscription ? $serviceSummaries->sum('remaining_credit') : 0;
     @endphp
 
     <section class="mb-5 overflow-hidden rounded-lg border border-teal-100 bg-white shadow-sm">
@@ -25,20 +25,17 @@
 
                 @if($planStatus !== 'exempt')
                     <div class="mt-5 flex flex-wrap gap-2">
-                        <a href="{{ route('admin.plans.index') }}" class="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-zinc-950 px-4 text-sm font-bold text-white transition hover:bg-teal-700">
-                            <x-admin.icon name="package" class="h-4 w-4" />
+                        <x-admin.button :href="route('admin.plans.index')" size="sm" icon="package">
                             <span>{{ __('dashboard.plan.view_plans') }}</span>
-                        </a>
+                        </x-admin.button>
                         @if($activeSubscription)
-                            <a href="{{ route('admin.plans.index') }}" class="inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-zinc-200 px-4 text-sm font-bold text-zinc-700 transition hover:border-teal-300 hover:text-teal-700">
-                                <x-admin.icon name="credit-card" class="h-4 w-4" />
+                            <x-admin.button :href="route('admin.plans.index')" variant="secondary" size="sm" icon="credit-card">
                                 <span>{{ __('dashboard.plan.upgrade_plan') }}</span>
-                            </a>
+                            </x-admin.button>
                         @else
-                            <a href="{{ route('admin.plans.index') }}" class="inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-zinc-200 px-4 text-sm font-bold text-zinc-700 transition hover:border-teal-300 hover:text-teal-700">
-                                <x-admin.icon name="credit-card" class="h-4 w-4" />
+                            <x-admin.button :href="route('admin.plans.index')" variant="secondary" size="sm" icon="credit-card">
                                 <span>{{ __('dashboard.plan.renew_plan') }}</span>
-                            </a>
+                            </x-admin.button>
                         @endif
                     </div>
                 @endif
@@ -49,6 +46,19 @@
                     <p class="text-sm font-bold text-zinc-500">{{ $activeSubscription->plan?->name }}</p>
                     <p class="mt-3 text-2xl font-bold text-zinc-950">{{ __('dashboard.plan.remaining_credit', ['count' => number_format($remainingCredit)]) }}</p>
                     <p class="mt-2 text-sm text-zinc-600">{{ __('dashboard.plan.active_until', ['date' => $activeSubscription->ends_at?->toDateString()]) }}</p>
+                    <div class="mt-4 space-y-2">
+                        <p class="text-xs font-bold text-zinc-500">{{ __('dashboard.plan.service_credits') }}</p>
+                        @forelse($serviceSummaries as $service)
+                            <div class="rounded-lg bg-white/80 px-3 py-2 text-xs ring-1 ring-zinc-100">
+                                <div class="flex items-center justify-between gap-3">
+                                    <span class="font-bold text-zinc-800">{{ $service['label'] }}</span>
+                                    <span class="text-zinc-600">{{ number_format($service['remaining_credit']) }} / {{ number_format($service['total_credit']) }}</span>
+                                </div>
+                            </div>
+                        @empty
+                            <p class="rounded-lg bg-amber-50 px-3 py-2 text-xs font-bold text-amber-800">{{ __('dashboard.plan.no_service_credit') }}</p>
+                        @endforelse
+                    </div>
                 @else
                     <p class="text-sm font-bold text-zinc-500">{{ $tenant?->name ?? __('dashboard.platform_overview') }}</p>
                     <p class="mt-3 text-2xl font-bold text-zinc-950">{{ __('dashboard.plan.'.($planStatus === 'exempt' ? 'exempt' : 'status_title')) }}</p>
@@ -82,7 +92,7 @@
                 <p class="mt-1 text-sm text-zinc-500">{{ $tenant?->name ?? __('dashboard.platform_overview') }}</p>
             </div>
             @can('permission', 'leads.list')
-                <a href="{{ route('admin.leads.index') }}" class="rounded-lg bg-zinc-950 px-4 py-2 text-sm font-bold text-white transition hover:bg-teal-700">{{ __('dashboard.view_all') }}</a>
+                <x-admin.button :href="route('admin.leads.index')" size="compact">{{ __('dashboard.view_all') }}</x-admin.button>
             @endcan
         </div>
 

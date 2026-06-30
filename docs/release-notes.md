@@ -5,7 +5,7 @@
 ### Added
 
 - Grouped, icon-enhanced Persian admin sidebar with active group/item states.
-- Persistent automatic light/dark dashboard theme with a per-browser toggle.
+- Persistent default-light dashboard theme with a per-browser light/dark toggle.
 - Role-aware admin overview so clinic users see the clinic dashboard and system
   managers see the management overview from the default dashboard entry.
 - Full user management CRUD routes, Form Requests, policy checks, scoped search,
@@ -35,6 +35,8 @@
   management report metrics.
 - Shared admin Blade components for cards, badges, empty states, modal create
   forms, validation summaries, and table row action menus.
+- Shared admin button component for dashboard button/link actions with a central
+  pointer cursor style.
 - Frontend Blade standards and testing documentation.
 - Shared dashboard table search/filter component behavior with limited primary
   filters, advanced filter dialog, active filter chips, per-filter clearing,
@@ -48,6 +50,16 @@
 - `AiModelResolver`, `AiModelManager`, `RunAiModelAction`,
   `AssignAiModelToClinicAction`, and `AiModelProviderInterface` for separated
   AI model access logic.
+- SaaS plan product types for base subscriptions, service add-ons, and credit
+  top-up packages.
+- Plan service entitlement definitions, clinic subscription service
+  entitlements, and credit transaction ledger rows.
+- `PlanCatalogService`, `SubscriptionActivationService`,
+  `ServiceEntitlementService`, `CreditLedgerService`, and `ServiceCatalog` for
+  billing and service-access rules.
+- Persian localization files for services, subscriptions, and credits.
+- Tests for service-level entitlements, top-ups, add-ons, upgrade replacement,
+  ledger consumption, and subscription/credit generation blocking.
 
 ### Changed
 
@@ -85,6 +97,13 @@
   shared digit normalizer and validation rule.
 - Create-capable dashboard lists now open create forms from modal triggers while
   preserving the standard Laravel form/redirect flow.
+- Dashboard and admin OTP auth screens now default to light mode unless the
+  user has explicitly persisted dark mode in that browser.
+- Billing and plan purchase activation are clinic-aware and use service-level
+  credit balances instead of expiring the whole base subscription when one
+  service credit is exhausted.
+- Public generation now checks active base subscription, service entitlement,
+  remaining service credit, and AI model assignment before creating period jobs.
 
 ### Security
 
@@ -99,6 +118,8 @@
 - Protected demo AI model access records cannot be deleted.
 - Clinics can use only active AI model access records assigned to them, and
   failed provider responses do not consume credit.
+- Service credit consumption is recorded in `credit_transactions` and uses row
+  locking to prevent negative balances and double spending.
 - Lead upload previews are streamed through policy and tenant checks without
   exposing private storage paths.
 - CRM follow-up writes are tenant- and lead-scoped and use policy/Form Request
@@ -108,9 +129,13 @@
 
 - Added `docs/ai-models.md`, `docs/ai-model-security.md`, and
   `docs/permissions.md`.
+- Added `docs/plans.md`, `docs/subscriptions.md`, `docs/credits.md`,
+  `docs/billing.md`, and `docs/ai-service-access.md`.
 - Updated README, architecture, API, database, dashboard, roles/permissions,
   testing, development guide, release notes, and agent instructions for AI model
-  access management.
+  access management and SaaS service-credit billing.
+- Documented the admin theme contract, including the default-light behavior,
+  persisted user override, and shared dashboard/auth theme surfaces.
 
 ## 1.2.0
 

@@ -19,10 +19,9 @@
                         <input name="name" class="h-11 rounded-lg border border-zinc-200 px-3 text-sm outline-none focus:border-teal-500" placeholder="{{ __('system.name') }}">
                         <input name="code" class="h-11 rounded-lg border border-zinc-200 px-3 text-sm outline-none focus:border-teal-500" dir="ltr" placeholder="{{ __('system.code') }}">
                         <input name="description" class="h-11 rounded-lg border border-zinc-200 px-3 text-sm outline-none focus:border-teal-500 md:col-span-2" placeholder="{{ __('system.description') }}">
-                        <button class="inline-flex h-11 items-center justify-center gap-2 rounded-lg bg-zinc-950 px-4 text-sm font-bold text-white transition hover:bg-teal-700 md:col-span-2">
-                            <x-admin.icon name="shield" class="h-4 w-4" />
+                        <x-admin.button type="submit" icon="shield" class="md:col-span-2">
                             <span>{{ __('system.submit') }}</span>
-                        </button>
+                        </x-admin.button>
                     </form>
                 </x-admin.modal>
             @endcan

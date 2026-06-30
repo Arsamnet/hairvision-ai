@@ -19,10 +19,9 @@
                         <p class="mt-2 text-sm text-zinc-500">{{ $lead->phone_normalized }}</p>
                     </div>
                     @can('update', $lead)
-                        <a href="{{ route('admin.leads.edit', $lead) }}" class="inline-flex items-center gap-2 rounded-lg bg-zinc-950 px-4 py-2 text-sm font-bold text-white transition hover:bg-teal-700">
-                            <x-admin.icon name="settings" class="h-4 w-4" />
+                        <x-admin.button :href="route('admin.leads.edit', $lead)" size="compact" icon="settings">
                             <span>{{ __('leads.edit') }}</span>
-                        </a>
+                        </x-admin.button>
                     @endcan
                 </div>
 
@@ -129,10 +128,9 @@
                             <input type="checkbox" name="is_completed" value="1" class="rounded border-zinc-300 text-teal-700">
                             <span>{{ __('crm.completed') }}</span>
                         </label>
-                        <button class="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-zinc-950 px-4 py-2.5 text-sm font-bold text-white transition hover:bg-teal-700">
-                            <x-admin.icon name="message" class="h-4 w-4" />
+                        <x-admin.button type="submit" size="compact-md" icon="message" block>
                             <span>{{ __('crm.submit') }}</span>
-                        </button>
+                        </x-admin.button>
                     </form>
                 </section>
             @endcan
@@ -164,7 +162,7 @@
                                         @csrf
                                         @method('PATCH')
                                         <input type="hidden" name="is_completed" value="1">
-                                        <button class="rounded-lg border border-zinc-200 px-3 py-2 text-xs font-bold text-zinc-700 transition hover:border-emerald-300 hover:text-emerald-700">{{ __('crm.mark_completed') }}</button>
+                                        <x-admin.button type="submit" variant="success-outline" size="compact-sm">{{ __('crm.mark_completed') }}</x-admin.button>
                                     </form>
                                 @endif
                             @endcan

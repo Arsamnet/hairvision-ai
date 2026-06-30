@@ -52,9 +52,11 @@ return [
     ],
     'usage_categories' => [
         'hair_transplant' => 'کاشت مو',
+        'eyebrow_transplant' => 'کاشت ابرو',
     ],
     'usage_category_descriptions' => [
         'hair_transplant' => 'تولید پیش‌نمایش و نمونه مسیر کاشت مو برای لیدهای کلینیک.',
+        'eyebrow_transplant' => 'تولید پیش‌نمایش و نمونه مسیر کاشت ابرو برای سرویس‌های آینده.',
     ],
     'models' => [
         'sample_image' => [

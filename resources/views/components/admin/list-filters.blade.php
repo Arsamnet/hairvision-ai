@@ -134,16 +134,14 @@
             @endforeach
 
             <div class="flex gap-2">
-                <button class="inline-flex h-11 items-center justify-center gap-2 rounded-lg bg-zinc-950 px-4 text-sm font-bold text-white transition hover:bg-teal-700">
-                    <x-admin.icon name="search" class="h-4 w-4" />
+                <x-admin.button type="submit" icon="search">
                     <span>{{ __('messages.search') }}</span>
-                </button>
+                </x-admin.button>
 
                 @if(filled($searchValue))
-                    <a href="{{ $queryUrl($clearSearchQuery) }}" class="inline-flex h-11 items-center justify-center gap-2 rounded-lg border border-zinc-200 px-3 text-sm font-bold text-zinc-600 transition hover:border-teal-300 hover:text-teal-700">
-                        <x-admin.icon name="x" />
+                    <x-admin.button :href="$queryUrl($clearSearchQuery)" variant="secondary-muted" icon="x" class="px-3">
                         <span>{{ __('messages.clear_search') }}</span>
-                    </a>
+                    </x-admin.button>
                 @endif
             </div>
         </form>
@@ -239,14 +237,12 @@
                     @endif
 
                     <div class="flex flex-wrap items-center justify-end gap-2 border-t border-zinc-100 pt-4 md:col-span-2">
-                        <a href="{{ $queryUrl($clearAllQuery) }}" class="inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-zinc-200 px-4 text-sm font-bold text-zinc-600 transition hover:border-teal-300 hover:text-teal-700">
-                            <x-admin.icon name="x" />
+                        <x-admin.button :href="$queryUrl($clearAllQuery)" variant="secondary-muted" size="sm" icon="x">
                             <span>{{ __('messages.clear_filters') }}</span>
-                        </a>
-                        <button class="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-zinc-950 px-4 text-sm font-bold text-white transition hover:bg-teal-700">
-                            <x-admin.icon name="check" />
+                        </x-admin.button>
+                        <x-admin.button type="submit" size="sm" icon="check">
                             <span>{{ __('messages.apply_filters') }}</span>
-                        </button>
+                        </x-admin.button>
                     </div>
                 </form>
 
@@ -262,10 +258,9 @@
                                 <span>{{ __('messages.save_current_filter') }}</span>
                                 <input name="name" placeholder="{{ __('messages.filter_name_placeholder') }}" class="h-10 w-full rounded-lg border border-zinc-200 px-3 text-sm outline-none transition focus:border-teal-500">
                             </label>
-                            <button class="inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-zinc-200 px-4 text-sm font-bold text-zinc-700 transition hover:border-teal-300 hover:text-teal-700">
-                                <x-admin.icon name="bookmark" class="h-4 w-4" />
+                            <x-admin.button type="submit" variant="secondary" size="sm" icon="bookmark">
                                 <span>{{ __('messages.save_filter') }}</span>
-                            </button>
+                            </x-admin.button>
                         </form>
 
                         <div>
@@ -278,9 +273,9 @@
                                             ->merge($savedFilter->filters_json ?? [])
                                             ->all();
                                     @endphp
-                                    <a href="{{ $queryUrl($savedQuery) }}" class="inline-flex h-9 items-center justify-center rounded-lg bg-zinc-50 px-3 text-xs font-bold text-zinc-600 ring-1 ring-zinc-200 transition hover:text-teal-700">
+                                    <x-admin.button :href="$queryUrl($savedQuery)" variant="saved-filter" size="xs">
                                         {{ $savedFilter->name }}
-                                    </a>
+                                    </x-admin.button>
                                 @empty
                                     <p class="rounded-lg bg-zinc-50 px-3 py-2 text-xs font-bold text-zinc-500">{{ __('messages.no_saved_filters') }}</p>
                                 @endforelse
@@ -291,9 +286,7 @@
             </x-admin.modal>
 
             @if($activeAdvancedCount > 0)
-                <a href="{{ $queryUrl($clearAdvancedQuery) }}" class="grid h-11 w-11 place-items-center rounded-lg border border-amber-200 bg-amber-50 text-amber-800 transition hover:border-amber-300" aria-label="{{ __('messages.remove_filters') }}" title="{{ __('messages.remove_filters') }}">
-                    <x-admin.icon name="x" />
-                </a>
+                <x-admin.button :href="$queryUrl($clearAdvancedQuery)" variant="warning-soft" size="icon-md" icon="x" aria-label="{{ __('messages.remove_filters') }}" title="{{ __('messages.remove_filters') }}" />
             @endif
         </div>
     </div>
@@ -315,9 +308,7 @@
                         <x-admin.icon name="filter" class="h-3.5 w-3.5 text-zinc-400" />
                         <span>{{ $filterLabel($name) }}: {{ $filterValue($name, $value) }}</span>
                     </label>
-                    <a href="{{ $queryUrl($removeQuery) }}" class="grid h-full w-8 place-items-center border-r border-zinc-100 text-zinc-400 transition hover:bg-rose-50 hover:text-rose-700" aria-label="{{ __('messages.remove_filters') }}">
-                        <x-admin.icon name="x" />
-                    </a>
+                    <x-admin.button :href="$queryUrl($removeQuery)" variant="unstyled" size="none" icon="x" class="grid h-full w-8 place-items-center border-r border-zinc-100 text-zinc-400 transition hover:bg-rose-50 hover:text-rose-700" aria-label="{{ __('messages.remove_filters') }}" />
                 </span>
             @endforeach
         </div>

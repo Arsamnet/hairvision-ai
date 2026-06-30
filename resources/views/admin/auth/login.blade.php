@@ -5,9 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>ورود به پنل HairVision AI</title>
     <meta name="robots" content="noindex,nofollow">
+    @include('admin.partials.theme-script')
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
-<body class="min-h-screen bg-[linear-gradient(135deg,#f0fdfa_0%,#f8fafc_36%,#eef2ff_100%)] font-sans text-zinc-950 antialiased">
+<body class="admin-auth-shell min-h-screen font-sans antialiased">
     <main class="grid min-h-screen place-items-center px-4 py-10">
         <section class="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl shadow-indigo-100 ring-1 ring-zinc-200">
             <div class="mb-6">
@@ -26,7 +27,7 @@
                     <label for="phone" class="block text-sm font-bold text-zinc-800">شماره موبایل</label>
                     <input id="phone" name="phone" value="{{ old('phone') }}" inputmode="numeric" autocomplete="tel" placeholder="۰۹۱۲۳۴۵۶۷۸۹" class="mt-2 h-12 w-full rounded-lg border border-zinc-200 px-4 text-right outline-none transition focus:border-teal-500 focus:ring-4 focus:ring-teal-100">
                 </div>
-                <button class="h-12 w-full rounded-lg bg-zinc-950 px-4 text-sm font-bold text-white transition hover:bg-teal-700 focus:outline-none focus:ring-4 focus:ring-teal-100">دریافت کد ورود</button>
+                <x-admin.button type="submit" size="lg" block class="focus:ring-4 focus:ring-teal-100">دریافت کد ورود</x-admin.button>
             </form>
 
             <a href="{{ url('/') }}" class="mt-5 block text-center text-sm font-bold text-zinc-500 hover:text-teal-700">بازگشت به سایت</a>

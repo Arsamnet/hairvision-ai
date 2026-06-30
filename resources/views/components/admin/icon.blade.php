@@ -29,7 +29,7 @@
         'chevron-down' => 'angle-small-down',
         'chevron-left' => 'angle-small-left',
         'chevron-right' => 'angle-small-right',
-        'chevrons-up-down' => 'sort-alt',
+        'sort-alt' => 'sort-alt',
         'arrow-up' => 'arrow-up',
         'arrow-down' => 'arrow-down',
         'plus' => 'plus',

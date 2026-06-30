@@ -25,20 +25,18 @@
                         <form method="POST" action="{{ route('admin.ai-models.toggle', $aiModelAccess) }}">
                             @csrf
                             @method('PATCH')
-                            <button class="inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-zinc-200 px-4 text-sm font-bold text-zinc-700 transition hover:border-teal-300 hover:text-teal-700">
-                                <x-admin.icon name="check" class="h-4 w-4" />
+                            <x-admin.button type="submit" variant="secondary" size="sm" icon="check">
                                 <span>{{ __('ai_models.toggle') }}</span>
-                            </button>
+                            </x-admin.button>
                         </form>
                     @endcan
                     @can('delete', $aiModelAccess)
                         <form method="POST" action="{{ route('admin.ai-models.destroy', $aiModelAccess) }}" data-confirm-form data-confirm-message="{{ __('messages.confirm_delete') }}">
                             @csrf
                             @method('DELETE')
-                            <button class="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-rose-600 px-4 text-sm font-bold text-white transition hover:bg-rose-700">
-                                <x-admin.icon name="trash" class="h-4 w-4" />
+                            <x-admin.button type="submit" variant="danger" size="sm" icon="trash">
                                 <span>{{ __('messages.delete') }}</span>
-                            </button>
+                            </x-admin.button>
                         </form>
                     @endcan
                 </div>

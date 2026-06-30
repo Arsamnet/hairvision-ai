@@ -156,6 +156,11 @@ Response:
 Requires a verified lead session. The upload must belong to the current tenant
 and the current session lead.
 
+The backend requires an active base subscription for the current clinic, an
+active `hair_transplant` service entitlement, and enough remaining service credit
+for the three generated periods. Credit is consumed per completed period after
+provider execution succeeds.
+
 The backend also requires an active AI model access record assigned to the
 current clinic for `hair_transplant`. The client does not submit `tenant_id` or
 provider credentials.

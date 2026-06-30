@@ -12,6 +12,8 @@ Reusable dashboard UI belongs in anonymous Blade components under
 Current shared components:
 
 - `x-admin.icon`: local UIcons regular-rounded icon font surface.
+- `x-admin.button`: shared dashboard button/link surface with variants, sizes,
+  optional icons, and a pointer cursor.
 - `x-admin.card`: standard dashboard card surface.
 - `x-admin.modal`: CSS-only modal wrapper for create forms.
 - `x-admin.badge`: compact status/role badges.
@@ -31,6 +33,28 @@ Current shared components:
 Keep components small and specific. Do not hide business rules inside Blade
 components; authorization and scoping must still be enforced by policies,
 middleware, Form Requests, controllers, and services.
+
+## Theme
+
+The dashboard theme defaults to light. Dark mode is enabled only when the
+browser has a persisted user choice in `localStorage` under
+`hairvision.admin.theme`; system color-scheme preferences must not switch the
+dashboard to dark by themselves.
+
+Admin layout pages and admin OTP auth pages include the shared early theme
+script from `resources/views/admin/partials/theme-script.blade.php` before Vite
+assets. The script sets `data-admin-theme` and `color-scheme` on `<html>` to
+avoid a light/dark flash before CSS loads.
+
+Dashboard and admin-auth screens must use the shared theme surfaces:
+
+- `admin-shell` for authenticated dashboard pages.
+- `admin-auth-shell` for admin login and OTP verification pages.
+
+When adding dashboard UI, prefer existing shared components and the theme tokens
+in `resources/css/app.css`. If Tailwind utility colors are needed, keep them in
+the existing supported color families so the central dark-mode overrides cover
+cards, tables, forms, alerts, badges, modals, and action menus consistently.
 
 ## Icons
 

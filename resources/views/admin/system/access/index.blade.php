@@ -41,10 +41,9 @@
                         <tr>
                             <td class="py-3 align-top">
                                 <x-admin.table.action-menu>
-                                    <button type="submit" form="{{ $formId }}" class="flex w-full items-center gap-2 px-3 py-2 text-right text-xs font-bold text-zinc-700 transition hover:bg-teal-50 hover:text-teal-700">
-                                        <x-admin.icon name="settings" class="h-4 w-4" />
+                                    <x-admin.button type="submit" form="{{ $formId }}" variant="unstyled" size="none" icon="settings" class="flex w-full items-center gap-2 px-3 py-2 text-right text-xs font-bold text-zinc-700 transition hover:bg-teal-50 hover:text-teal-700">
                                         <span>{{ __('system.save') }}</span>
-                                    </button>
+                                    </x-admin.button>
                                 </x-admin.table.action-menu>
                             </td>
                             <td class="py-3 font-bold">{{ $dashboardUser->name }}<p class="text-xs text-zinc-500">{{ $dashboardUser->phone_normalized }}</p></td>

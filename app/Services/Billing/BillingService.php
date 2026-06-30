@@ -6,8 +6,10 @@ use App\Models\Invoice;
 use App\Models\Payment;
 use App\Models\Plan;
 use App\Models\Subscription;
+use App\Models\Tenant;
 use App\Models\User;
 use App\Services\Payment\PaymentGatewayService;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
@@ -19,29 +21,23 @@ use Illuminate\Validation\ValidationException;
  */
 class BillingService
 {
-    public function __construct(private readonly PaymentGatewayService $gateways) {}
+    public function __construct(
+        private readonly PaymentGatewayService $gateways,
+        private readonly SubscriptionActivationService $activation,
+        private readonly ServiceEntitlementService $entitlements,
+    ) {}
 
     /**
      * Create or return the latest unpaid invoice for a user's plan purchase.
      */
-    public function invoiceForPlan(User $user, Plan $plan): Invoice
+    public function invoiceForPlan(User $user, Plan $plan, ?Tenant $tenant = null): Invoice
     {
-        if ($plan->status !== 'active') {
-            throw ValidationException::withMessages([
-                'plan' => __('plans.inactive_plan'),
-            ]);
-        }
-
-        $activeSubscription = $this->activeSubscription($user);
-
-        if ($activeSubscription?->plan_id === $plan->id) {
-            throw ValidationException::withMessages([
-                'plan' => __('plans.same_active_plan_blocked'),
-            ]);
-        }
+        $tenant = $this->billingTenantFor($user, $tenant);
+        $this->activation->validatePurchase($user, $plan, $tenant);
 
         return Invoice::query()->firstOrCreate(
             [
+                'tenant_id' => $tenant?->id,
                 'user_id' => $user->id,
                 'plan_id' => $plan->id,
                 'status' => 'pending',
@@ -52,6 +48,10 @@ class BillingService
                 'currency' => $plan->currency,
                 'due_at' => now()->addDays(7),
                 'expires_at' => now()->addDays(7),
+                'metadata_json' => [
+                    'plan_type' => $plan->plan_type->value,
+                    'service_key' => $plan->service_key,
+                ],
             ]
         );
     }
@@ -76,6 +76,7 @@ class BillingService
         }
 
         $payment = Payment::create([
+            'tenant_id' => $invoice->tenant_id,
             'user_id' => $invoice->user_id,
             'invoice_id' => $invoice->id,
             'payment_gateway_id' => $gateway->id,
@@ -96,9 +97,13 @@ class BillingService
     public function verifyPayment(Payment $payment, array $payload = []): Payment
     {
         return DB::transaction(function () use ($payment, $payload): Payment {
-            $payment = Payment::query()->with(['invoice.plan'])->lockForUpdate()->findOrFail($payment->id);
+            $payment = Payment::query()->with(['invoice.plan.serviceEntitlements', 'invoice.tenant', 'invoice.user'])->lockForUpdate()->findOrFail($payment->id);
 
             if ($payment->status === 'paid' && $payment->verified_at) {
+                if ($payment->invoice?->plan && ! $payment->invoice->activated_at) {
+                    $this->activation->activateInvoice($payment->invoice);
+                }
+
                 return $payment;
             }
 
@@ -118,7 +123,7 @@ class BillingService
             ])->save();
 
             if ($invoice->plan) {
-                $this->activatePlan($invoice->user, $invoice->plan, $invoice);
+                $this->activation->activateInvoice($invoice);
             }
 
             return $payment->refresh();
@@ -128,26 +133,20 @@ class BillingService
     /**
      * Replace any active user plan and activate the newly purchased one.
      */
-    public function activatePlan(User $user, Plan $plan, Invoice $invoice): Subscription
+    public function activatePlan(User $user, Plan $plan, Invoice $invoice, ?Tenant $tenant = null): Subscription
     {
-        Subscription::query()
-            ->where('user_id', $user->id)
-            ->where('status', 'active')
-            ->update([
-                'status' => 'replaced',
-                'ends_at' => now(),
-            ]);
-
-        return Subscription::create([
+        $tenant = $this->billingTenantFor($user, $tenant);
+        $invoice->forceFill([
+            'tenant_id' => $tenant?->id ?? $invoice->tenant_id,
             'user_id' => $user->id,
             'plan_id' => $plan->id,
-            'invoice_id' => $invoice->id,
-            'status' => 'active',
-            'starts_at' => now(),
-            'ends_at' => now()->addDays($plan->duration_days),
-            'usage_limit' => $plan->usage_limit,
-            'usage_used' => 0,
-        ]);
+            'status' => $invoice->status === 'pending' ? 'paid' : ($invoice->status ?: 'paid'),
+            'paid_at' => $invoice->paid_at ?? now(),
+        ])->save();
+
+        return $this->activation->activateInvoice($invoice)
+            ?? $this->activeSubscription($user, $tenant)
+            ?? throw ValidationException::withMessages(['plan' => __('subscriptions.errors.activation_failed')]);
     }
 
     /**
@@ -155,21 +154,19 @@ class BillingService
      */
     public function expireEndedSubscriptions(): int
     {
-        return Subscription::query()
-            ->where('status', 'active')
-            ->where(function ($query): void {
-                $query->where('ends_at', '<=', now())
-                    ->orWhereColumn('usage_used', '>=', 'usage_limit');
-            })
-            ->update(['status' => 'expired']);
+        return $this->entitlements->expireEndedSubscriptions();
     }
 
     /**
-     * Consume plan usage and expire the plan once the credit is finished.
+     * Consume legacy aggregate usage without expiring the base subscription.
      */
     public function consumeUsage(User $user, int $amount = 1): ?Subscription
     {
         $subscription = $user->subscriptions()
+            ->where(function (Builder $query): void {
+                $query->whereNull('tenant_id')
+                    ->orWhereHas('plan', fn (Builder $query) => $query->where('plan_type', 'base_subscription'));
+            })
             ->where('status', 'active')
             ->where('ends_at', '>', now())
             ->latest('starts_at')
@@ -180,32 +177,53 @@ class BillingService
         }
 
         $subscription->increment('usage_used', $amount);
-        $subscription->refresh();
 
-        if ($subscription->usage_used >= $subscription->usage_limit) {
-            $subscription->forceFill(['status' => 'expired'])->save();
-        }
-
-        return $subscription;
+        return $subscription->refresh();
     }
 
     /**
      * Return the active subscription for a user, expiring stale rows first.
      */
-    public function activeSubscription(User $user): ?Subscription
+    public function activeSubscription(User $user, ?Tenant $tenant = null): ?Subscription
     {
+        $tenant = $this->billingTenantFor($user, $tenant);
         $this->expireEndedSubscriptions();
 
-        return $user->subscriptions()
+        $query = $user->subscriptions()
             ->with('plan')
             ->where('status', 'active')
             ->where('ends_at', '>', now())
-            ->latest('starts_at')
-            ->first();
+            ->whereHas('plan', fn (Builder $query) => $query->where('plan_type', 'base_subscription'));
+
+        if ($tenant) {
+            $query->where(function (Builder $query) use ($tenant): void {
+                $query->where('tenant_id', $tenant->id)
+                    ->orWhereNull('tenant_id');
+            });
+        }
+
+        return $query->latest('starts_at')->first();
     }
 
     private function nextInvoiceNumber(): string
     {
         return 'HV-'.now()->format('Ymd').'-'.strtoupper(Str::random(6));
+    }
+
+    private function billingTenantFor(User $user, ?Tenant $tenant = null): ?Tenant
+    {
+        if ($tenant) {
+            return $tenant;
+        }
+
+        if ($user->isSuperAdmin()) {
+            return null;
+        }
+
+        return $user->tenants()
+            ->wherePivot('status', 'active')
+            ->where('tenants.status', 'active')
+            ->orderBy('tenants.id')
+            ->first();
     }
 }

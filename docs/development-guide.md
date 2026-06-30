@@ -27,6 +27,9 @@ visitor flow and the local sample-image provider until the MVP is stable.
 - Do not introduce React, Vue, Inertia, Livewire, or Next.js in the MVP.
 - Dashboard Blade should use the shared components documented in
   `docs/frontend-blade-standards.md`.
+- Dashboard theme defaults to light. Use the persisted per-browser admin theme
+  choice only; do not auto-enable dark mode from system color-scheme
+  preferences.
 - Create-capable list pages should use modal create forms and table rows should
   use the shared three-dot action menu.
 
@@ -66,6 +69,8 @@ overlapping metrics.
 14. Lead CRM stage and admin note structure exists.
 15. Feature tests cover public flow, theme fields, CRM structure, visit
     tracking, and tenant isolation.
+16. SaaS billing tests cover base plans, service add-ons, top-ups, service
+    entitlements, ledger consumption, and AI service access blocking.
 
 ## Testing Rule
 
@@ -171,6 +176,17 @@ php artisan test
 - Failed provider responses not consuming credit.
 - Clinic manager user creation scoped to the actor's clinic and clinic-level
   role assignment.
+
+`tests/Feature/SaasBillingEntitlementTest.php` covers:
+
+- Base plans with one or multiple service credits.
+- One active base subscription per clinic.
+- Service add-ons requiring an active base plan and preventing duplicate active
+  services.
+- Credit top-ups adding service credit without extending subscription time.
+- Upgrade replacement without carrying remaining service credit.
+- Atomic credit consumption and ledger rows.
+- Public generation blocking when subscription or service credit is unavailable.
 
 ## Release Checklist
 

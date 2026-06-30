@@ -1,5 +1,6 @@
 const storageKey = 'hairvision.admin.theme';
 const themes = ['dark', 'light'];
+const defaultTheme = 'light';
 
 const readStoredTheme = () => {
     try {
@@ -17,12 +18,8 @@ const writeStoredTheme = (theme) => {
     }
 };
 
-const preferredTheme = () => (
-    window.matchMedia?.('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
-);
-
 const applyTheme = (theme, persist = false) => {
-    const safeTheme = themes.includes(theme) ? theme : preferredTheme();
+    const safeTheme = themes.includes(theme) ? theme : defaultTheme;
     const root = document.documentElement;
 
     root.dataset.adminTheme = safeTheme;
@@ -50,17 +47,9 @@ const applyTheme = (theme, persist = false) => {
 
 export const bootAdminTheme = () => {
     const storedTheme = readStoredTheme();
-    const initialTheme = themes.includes(storedTheme) ? storedTheme : preferredTheme();
+    const initialTheme = themes.includes(storedTheme) ? storedTheme : defaultTheme;
 
     applyTheme(initialTheme);
-
-    window.matchMedia?.('(prefers-color-scheme: dark)').addEventListener('change', (event) => {
-        if (themes.includes(readStoredTheme())) {
-            return;
-        }
-
-        applyTheme(event.matches ? 'dark' : 'light');
-    });
 
     document.querySelectorAll('[data-theme-toggle]').forEach((button) => {
         button.addEventListener('click', () => {
