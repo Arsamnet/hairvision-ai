@@ -97,7 +97,7 @@
             <div class="flex flex-wrap items-center justify-between gap-3">
                 <h3 class="text-base font-bold">{{ __('ai_models.assigned_clinics') }}</h3>
             </div>
-            <div class="mt-4 overflow-visible rounded-lg border border-zinc-100">
+            <div data-admin-table-container class="mt-4 hidden overflow-visible rounded-lg border border-zinc-100 lg:block">
                 <table class="w-full min-w-152 text-right text-sm">
                     <thead class="bg-zinc-50 text-xs text-zinc-500">
                         <tr>
@@ -125,11 +125,29 @@
                     </tbody>
                 </table>
             </div>
+
+            <x-admin.mobile-list>
+                @forelse($aiModelAccess->clinics as $clinic)
+                    <x-admin.mobile-list.card>
+                        <div class="admin-mobile-list-card-header">
+                            <div class="min-w-0">
+                                <a class="admin-mobile-list-card-title hover:text-teal-700" href="{{ route('admin.clinics.ai-models.index', $clinic) }}">{{ $clinic->name }}</a>
+                                <p class="admin-mobile-list-card-subtitle">{{ $clinic->pivot->created_at?->diffForHumans() }}</p>
+                            </div>
+                            <x-admin.badge :tone="$clinic->pivot->is_active ? 'emerald' : 'zinc'">{{ $clinic->pivot->is_active ? __('ai_models.statuses.active') : __('ai_models.statuses.inactive') }}</x-admin.badge>
+                        </div>
+                    </x-admin.mobile-list.card>
+                @empty
+                    <x-admin.mobile-list.card>
+                        <x-admin.empty-state icon="building">{{ __('ai_models.empty.clinics') }}</x-admin.empty-state>
+                    </x-admin.mobile-list.card>
+                @endforelse
+            </x-admin.mobile-list>
         </x-admin.card>
 
         <x-admin.card>
             <h3 class="text-base font-bold">{{ __('ai_models.usage_logs') }}</h3>
-            <div class="mt-4 overflow-visible rounded-lg border border-zinc-100">
+            <div data-admin-table-container class="mt-4 hidden overflow-visible rounded-lg border border-zinc-100 lg:block">
                 <table class="w-full min-w-208 text-right text-sm">
                     <thead class="bg-zinc-50 text-xs text-zinc-500">
                         <tr>
@@ -157,6 +175,28 @@
                     </tbody>
                 </table>
             </div>
+            <x-admin.mobile-list>
+                @forelse($usageLogs as $log)
+                    <x-admin.mobile-list.card>
+                        <div class="admin-mobile-list-card-header">
+                            <div class="min-w-0">
+                                <p class="admin-mobile-list-card-title">{{ $log->clinic?->name }}</p>
+                                <p class="admin-mobile-list-card-subtitle">{{ $log->created_at?->diffForHumans() }}</p>
+                            </div>
+                            <x-admin.badge :tone="$log->status === 'completed' ? 'emerald' : ($log->status === 'failed' ? 'rose' : 'zinc')">{{ __('ai_models.statuses.'.$log->status) }}</x-admin.badge>
+                        </div>
+                        <dl class="admin-mobile-list-fields">
+                            <x-admin.mobile-list.field :label="__('ai_models.credit_used')">
+                                <span dir="ltr">{{ number_format($log->credit_consumed) }}</span>
+                            </x-admin.mobile-list.field>
+                        </dl>
+                    </x-admin.mobile-list.card>
+                @empty
+                    <x-admin.mobile-list.card>
+                        <x-admin.empty-state icon="chart">{{ __('ai_models.empty.usage_logs') }}</x-admin.empty-state>
+                    </x-admin.mobile-list.card>
+                @endforelse
+            </x-admin.mobile-list>
             <x-admin.table.pagination-footer :paginator="$usageLogs" />
         </x-admin.card>
     </div>

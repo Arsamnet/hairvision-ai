@@ -46,7 +46,8 @@ Dashboard features:
 - No global clinic filter in the dashboard header. Clinic-related pages show all
   allowed records by default and expose a `clinic_id` filter inside the page
   filter area when multiple clinics are available.
-- Responsive RTL admin shell.
+- Responsive RTL admin shell with two modes: mobile/tablet below `1024px` and
+  desktop from `1024px` upward.
 - Light is the default dashboard theme. The per-browser theme toggle persists
   `hairvision.admin.theme`, and dark mode is used only after the user chooses it.
   Admin login and OTP verification screens also read the same persisted theme.
@@ -54,6 +55,11 @@ Dashboard features:
   states, permission-hidden items, and plan-locked disabled items. Single items
   render as normal links; groups with multiple visible children render as
   collapsible submenus with active parent and child states.
+- Mobile/tablet navigation uses an off-canvas drawer, overlay, scroll lock,
+  Escape close behavior, and the same permission-aware menu partial as the
+  desktop sidebar.
+- The mobile/tablet header keeps the menu button on the right, the logo centered,
+  and the user/account avatar menu on the left.
 - Important list pages use the shared search/filter component. The compact bar
   keeps only the main filters visible, the filter dialog holds secondary
   filters, active filters can be edited from chips, and individual filters can
@@ -61,6 +67,11 @@ Dashboard features:
 - Sortable table columns use clickable headings with active direction icons and
   a distinct active color. Pagination lives in table footers and renders a
   disabled one-page state when there is nothing to paginate.
+- Important desktop tables switch to mobile/tablet cards below `1024px`; cards
+  keep primary fields, status badges, and the same three-dot row action menus
+  while backend pagination/search/filter/sort behavior remains unchanged.
+- Low-value desktop columns are kept out of crowded management tables when the
+  same information is secondary or already represented elsewhere.
 - Lead search, clinic/status/stage filters, newest-first sorting, pagination,
   and detail page.
 - Lead creation for allowed roles.

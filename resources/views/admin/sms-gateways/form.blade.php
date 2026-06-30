@@ -1,5 +1,6 @@
 @php
     $formKey = $formKey ?? ($gateway ? 'edit_private_sms_gateway' : 'create_private_sms_gateway');
+    $providerOptions = $providerOptions ?? ['local' => __('sms.providers.local'), 'ippanel' => __('sms.providers.ippanel')];
 @endphp
 
 <input type="hidden" name="_form" value="{{ $formKey }}">
@@ -10,33 +11,29 @@
 <x-admin.validation-summary :for="$formKey" class="mb-4" />
 
 <div class="grid gap-4 md:grid-cols-2">
-    <label class="block">
-        <span class="text-sm font-bold text-zinc-600">{{ __('system.name') }}</span>
-        <input name="name" value="{{ old('name', $gateway?->name) }}" class="mt-2 h-11 w-full rounded-lg border border-zinc-200 px-3 text-sm outline-none focus:border-teal-500">
-    </label>
-    <label class="block">
+    <input type="hidden" name="name" value="{{ old('name', $gateway?->name ?? __('sms.dedicated_panel_name')) }}">
+
+    <label class="block md:col-span-2">
         <span class="text-sm font-bold text-zinc-600">{{ __('system.provider') }}</span>
-        <input name="provider_code" value="{{ old('provider_code', $gateway?->provider_code ?? 'local') }}" class="mt-2 h-11 w-full rounded-lg border border-zinc-200 px-3 text-sm outline-none focus:border-teal-500" dir="ltr">
+        <select name="provider_code" class="mt-2 h-11 w-full rounded-lg border border-zinc-200 px-3 text-sm outline-none focus:border-teal-500">
+            @foreach($providerOptions as $providerCode => $providerLabel)
+                <option value="{{ $providerCode }}" @selected(old('provider_code', $gateway?->provider_code ?? array_key_first($providerOptions)) === $providerCode)>{{ $providerLabel }}</option>
+            @endforeach
+        </select>
     </label>
+
     <label class="block">
         <span class="text-sm font-bold text-zinc-600">{{ __('sms.api_key') }}</span>
         <input name="api_key" placeholder="{{ $gateway?->maskedCredential('api_key') ?? __('sms.api_key_placeholder') }}" class="mt-2 h-11 w-full rounded-lg border border-zinc-200 px-3 text-sm outline-none focus:border-teal-500" dir="ltr">
     </label>
     <label class="block">
-        <span class="text-sm font-bold text-zinc-600">{{ __('sms.sender') }}</span>
-        <input name="sender" value="{{ old('sender', data_get($gateway?->settings_json, 'sender')) }}" class="mt-2 h-11 w-full rounded-lg border border-zinc-200 px-3 text-sm outline-none focus:border-teal-500" dir="ltr">
+        <span class="text-sm font-bold text-zinc-600">{{ __('sms.from_number') }}</span>
+        <input name="from_number" value="{{ old('from_number', data_get($gateway?->settings_json, 'from_number', data_get($gateway?->settings_json, 'sender'))) }}" class="mt-2 h-11 w-full rounded-lg border border-zinc-200 px-3 text-sm outline-none focus:border-teal-500" dir="ltr">
     </label>
-    <label class="block">
-        <span class="text-sm font-bold text-zinc-600">{{ __('system.status') }}</span>
-        <select name="status" class="mt-2 h-11 w-full rounded-lg border border-zinc-200 px-3 text-sm outline-none focus:border-teal-500">
-            @foreach(['enabled', 'disabled'] as $status)
-                <option value="{{ $status }}" @selected(old('status', $gateway?->status ?? 'enabled') === $status)>{{ __('system.statuses.'.$status) }}</option>
-            @endforeach
-        </select>
-    </label>
-    <label class="mt-7 flex h-11 items-center gap-2 rounded-lg bg-zinc-50 px-3 text-sm font-bold">
-        <input type="checkbox" name="is_default" value="1" @checked(old('is_default', $gateway?->is_default ?? false))>
-        <span>{{ __('system.default') }}</span>
+    <label class="flex min-h-11 items-center gap-2 rounded-lg bg-zinc-50 px-3 text-sm font-bold md:col-span-2">
+        <input type="hidden" name="is_active" value="0">
+        <input type="checkbox" name="is_active" value="1" @checked(old('is_active', ($gateway?->status ?? 'disabled') === 'enabled'))>
+        <span>{{ __('sms.activate_private_gateway') }}</span>
     </label>
 </div>
 
@@ -44,5 +41,4 @@
     <x-admin.button type="submit" size="md-wide" icon="message">
         <span>{{ __('system.save') }}</span>
     </x-admin.button>
-    <x-admin.button :href="route('admin.sms-gateways.index')" variant="secondary" size="compact-md">{{ __('messages.cancel') }}</x-admin.button>
 </div>

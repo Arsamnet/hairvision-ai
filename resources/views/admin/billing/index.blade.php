@@ -12,7 +12,7 @@
             <h2 class="text-lg font-bold">{{ __('payments.active_subscription') }}</h2>
         </div>
         @if($activeSubscription)
-            <div class="mt-4 grid gap-3 md:grid-cols-4">
+            <div class="mt-4 grid gap-3 lg:grid-cols-4">
                 <p class="rounded-lg bg-zinc-50 p-3"><span class="text-zinc-500">{{ __('payments.plan') }}:</span> <strong>{{ $activeSubscription->plan?->name }}</strong></p>
                 <p class="rounded-lg bg-zinc-50 p-3"><span class="text-zinc-500">{{ __('payments.ends_at') }}:</span> <strong>{{ $activeSubscription->ends_at?->toDateString() }}</strong></p>
                 <p class="rounded-lg bg-zinc-50 p-3"><span class="text-zinc-500">{{ __('payments.credit') }}:</span> <strong>{{ number_format($serviceSummaries->sum('remaining_credit')) }}</strong></p>
@@ -20,7 +20,7 @@
             </div>
             <div class="mt-4">
                 <h3 class="text-sm font-bold text-zinc-700">{{ __('payments.service_balances') }}</h3>
-                <div class="mt-2 grid gap-2 md:grid-cols-2 xl:grid-cols-3">
+                <div class="mt-2 grid gap-2 lg:grid-cols-2 xl:grid-cols-3">
                     @forelse($serviceSummaries as $service)
                         <div class="rounded-lg border border-zinc-100 bg-white p-3">
                             <p class="font-bold text-zinc-950">{{ $service['label'] }}</p>
@@ -53,16 +53,14 @@
             ]"
         />
 
-        <div data-admin-table-container class="overflow-visible rounded-lg border border-zinc-100">
-            <table class="w-full min-w-[50rem] text-right text-sm">
+        <div data-admin-table-container class="hidden overflow-visible rounded-lg border border-zinc-100 lg:block">
+            <table class="w-full min-w-[42rem] text-right text-sm">
                 <thead class="bg-zinc-50 text-xs text-zinc-500">
                     <tr>
                         <th class="w-14 px-4 py-3">{{ __('messages.actions') }}</th>
                         <th class="px-4 py-3"><x-admin.table.sortable-heading sort="number" :label="__('payments.fields.number')" /></th>
                         <th class="px-4 py-3">{{ __('payments.fields.user') }}</th>
-                        <th class="px-4 py-3">{{ __('payments.fields.tenant') }}</th>
                         <th class="px-4 py-3">{{ __('payments.fields.plan') }}</th>
-                        <th class="px-4 py-3">{{ __('payments.fields.plan_type') }}</th>
                         <th class="px-4 py-3"><x-admin.table.sortable-heading sort="amount" :label="__('payments.fields.amount')" /></th>
                         <th class="px-4 py-3"><x-admin.table.sortable-heading sort="status" :label="__('payments.fields.status')" /></th>
                     </tr>
@@ -79,9 +77,7 @@
                             </td>
                             <td class="px-4 py-3 font-bold" dir="ltr">{{ $invoice->number }}</td>
                             <td class="px-4 py-3">{{ $invoice->user?->name }}</td>
-                            <td class="px-4 py-3">{{ $invoice->tenant?->name ?? __('messages.none') }}</td>
                             <td class="px-4 py-3">{{ $invoice->plan?->name ?? __('messages.none') }}</td>
-                            <td class="px-4 py-3">{{ $invoice->plan ? __('plans.types.'.$invoice->plan->plan_type->value) : __('messages.none') }}</td>
                             <td class="px-4 py-3">{{ number_format($invoice->amount) }} {{ $invoice->currency }}</td>
                             <td class="px-4 py-3">
                                 <x-admin.badge :tone="$invoice->status === 'paid' ? 'emerald' : ($invoice->status === 'failed' ? 'rose' : 'zinc')">{{ __('payments.invoice_statuses.'.$invoice->status) }}</x-admin.badge>
@@ -89,7 +85,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="8" class="px-4 py-12">
+                            <td colspan="6" class="px-4 py-12">
                                 <x-admin.empty-state icon="credit-card">{{ __('payments.empty_invoices') }}</x-admin.empty-state>
                             </td>
                         </tr>
@@ -97,6 +93,40 @@
                 </tbody>
             </table>
         </div>
+
+        <x-admin.mobile-list>
+            @forelse($invoices as $invoice)
+                <x-admin.mobile-list.card>
+                    <div class="admin-mobile-list-card-header">
+                        <div class="min-w-0">
+                            <p class="admin-mobile-list-card-title" dir="ltr">{{ $invoice->number }}</p>
+                            <p class="admin-mobile-list-card-subtitle">{{ $invoice->plan?->name ?? __('messages.none') }}</p>
+                        </div>
+                        <x-admin.table.action-menu>
+                            @if(in_array($invoice->status, ['pending', 'failed'], true))
+                                <x-admin.table.action-item :action="route('admin.billing.pay', $invoice)" icon="credit-card">{{ __('payments.pay') }}</x-admin.table.action-item>
+                            @endif
+                        </x-admin.table.action-menu>
+                    </div>
+
+                    <dl class="admin-mobile-list-fields">
+                        <x-admin.mobile-list.field :label="__('payments.fields.amount')">
+                            {{ number_format($invoice->amount) }} {{ $invoice->currency }}
+                        </x-admin.mobile-list.field>
+                        <x-admin.mobile-list.field :label="__('payments.fields.status')">
+                            <x-admin.badge :tone="$invoice->status === 'paid' ? 'emerald' : ($invoice->status === 'failed' ? 'rose' : 'zinc')">{{ __('payments.invoice_statuses.'.$invoice->status) }}</x-admin.badge>
+                        </x-admin.mobile-list.field>
+                        <x-admin.mobile-list.field :label="__('payments.fields.user')">
+                            <span class="truncate">{{ $invoice->user?->name }}</span>
+                        </x-admin.mobile-list.field>
+                    </dl>
+                </x-admin.mobile-list.card>
+            @empty
+                <x-admin.mobile-list.card>
+                    <x-admin.empty-state icon="credit-card">{{ __('payments.empty_invoices') }}</x-admin.empty-state>
+                </x-admin.mobile-list.card>
+            @endforelse
+        </x-admin.mobile-list>
         <x-admin.table.pagination-footer :paginator="$invoices" />
     </x-admin.card>
 @endsection

@@ -44,6 +44,7 @@ return [
     'updated_at' => 'زمان به‌روزرسانی',
     'local_payment_gateway' => 'درگاه پرداخت محلی',
     'local_sms_gateway' => 'درگاه پیامک محلی سیستم',
+    'ippanel_sms_gateway' => 'درگاه پیامک IPPanel سیستم',
     'sample_image_provider' => 'ارائه‌دهنده تصویر نمونه',
     'classic_template' => 'کلاسیک',
     'payment_gateway_created' => 'درگاه پرداخت ساخته شد.',

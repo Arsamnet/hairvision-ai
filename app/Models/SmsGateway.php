@@ -82,6 +82,10 @@ class SmsGateway extends Model
             return null;
         }
 
-        return Str::mask($value, '*', 4, -4);
+        if (Str::length($value) <= 8) {
+            return Str::mask($value, '*', 1);
+        }
+
+        return Str::substr($value, 0, 4).'...'.Str::substr($value, -4);
     }
 }

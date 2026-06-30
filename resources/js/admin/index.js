@@ -1,7 +1,10 @@
 import { bootActionMenus, closeActionMenus } from './action-menus.js';
-import { bootAdminModals } from './modals.js';
+import { bootAdminModals, closeOpenModals } from './modals.js';
 import { bootConfirmationModal, closeConfirmationModal } from './confirmation-modal.js';
 import { bootAdminTheme } from './theme.js';
+import { bootMobileMenu, closeMobileMenu } from './mobile-menu.js';
+import { bootResponsiveControls } from './responsive-controls.js';
+import { bootSearchControls } from './search-controls.js';
 
 const closeUserMenus = () => {
     document.querySelectorAll('[data-admin-user-menu][open]').forEach((menu) => {
@@ -25,6 +28,9 @@ export const bootAdmin = () => {
     bootAdminModals();
     bootActionMenus();
     bootConfirmationModal();
+    bootMobileMenu();
+    bootResponsiveControls();
+    bootSearchControls();
 
     document.addEventListener('keydown', (event) => {
         if (event.key !== 'Escape') {
@@ -33,6 +39,8 @@ export const bootAdmin = () => {
 
         closeActionMenus();
         closeConfirmationModal();
+        closeOpenModals();
         closeUserMenus();
+        closeMobileMenu();
     });
 };

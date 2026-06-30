@@ -8,6 +8,8 @@
 
 @php
     $modalId = 'list-filters-'.substr(md5($resolvedPresetKey), 0, 10);
+    $quickFormId = $modalId.'-quick-form';
+    $searchInputId = $modalId.'-search';
     $query = request()->query();
     $searchValue = request($searchName, request('q'));
     $filterCollection = collect($filters)
@@ -78,24 +80,38 @@
 @endphp
 
 <div {{ $attributes->merge(['class' => 'mt-5 space-y-3']) }}>
-    <div class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-        <form method="GET" action="{{ $filterAction }}" class="flex min-w-0 flex-1 flex-col gap-2 sm:flex-row">
+    <div class="admin-list-filters-bar">
+        <form id="{{ $quickFormId }}" method="GET" action="{{ $filterAction }}" class="admin-list-filters-form">
             @foreach($quickHidden as $name => $value)
                 <input type="hidden" name="{{ $name }}" value="{{ $value }}">
             @endforeach
 
             @if($canSearch)
-                <label class="relative min-w-0 flex-1">
-                    <span class="sr-only">{{ __('messages.quick_search') }}</span>
+                <div class="admin-list-search relative min-w-0">
+                    <label for="{{ $searchInputId }}" class="sr-only">{{ __('messages.quick_search') }}</label>
                     <x-admin.icon name="search" class="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
                     <input
+                        id="{{ $searchInputId }}"
                         name="{{ $searchName }}"
                         value="{{ $searchValue }}"
                         placeholder="{{ $searchPlaceholder ?? __('messages.search_placeholder') }}"
                         autocomplete="off"
-                        class="h-11 w-full rounded-lg border border-zinc-200 pr-10 pl-3 text-sm outline-none transition focus:border-teal-500"
+                        class="h-11 w-full rounded-lg border border-zinc-200 pr-10 pl-11 text-sm outline-none transition focus:border-teal-500"
+                        data-admin-search-input="{{ $modalId }}"
                     >
-                </label>
+
+                    <x-admin.button
+                        :href="$queryUrl($clearSearchQuery)"
+                        variant="unstyled"
+                        size="none"
+                        icon="x"
+                        class="absolute left-0.5 top-1/2 grid h-10 w-10 -translate-y-1/2 place-items-center rounded-lg text-zinc-400 transition hover:bg-zinc-100 hover:text-rose-700 {{ filled($searchValue) ? '' : 'hidden' }}"
+                        aria-label="{{ __('messages.clear_search') }}"
+                        title="{{ __('messages.clear_search') }}"
+                        data-admin-search-clear="{{ $modalId }}"
+                        data-admin-search-has-query="{{ filled($searchValue) ? 'true' : 'false' }}"
+                    />
+                </div>
             @endif
 
             @foreach($primaryFilters as $filter)
@@ -109,7 +125,7 @@
                 @endphp
 
                 @if($type === 'select')
-                    <label class="min-w-0 sm:w-48">
+                    <label class="admin-list-primary-filter min-w-0">
                         <span class="sr-only">{{ $label }}</span>
                         <select name="{{ $name }}" class="h-11 w-full rounded-lg border border-zinc-200 bg-white px-3 text-sm outline-none transition focus:border-teal-500">
                             <option value="">{{ $placeholder }}</option>
@@ -119,7 +135,7 @@
                         </select>
                     </label>
                 @else
-                    <label class="min-w-0 sm:w-48">
+                    <label class="admin-list-primary-filter min-w-0">
                         <span class="sr-only">{{ $label }}</span>
                         <input
                             type="{{ in_array($type, ['date', 'number'], true) ? $type : 'text' }}"
@@ -133,20 +149,13 @@
                 @endif
             @endforeach
 
-            <div class="flex gap-2">
-                <x-admin.button type="submit" icon="search">
-                    <span>{{ __('messages.search') }}</span>
-                </x-admin.button>
-
-                @if(filled($searchValue))
-                    <x-admin.button :href="$queryUrl($clearSearchQuery)" variant="secondary-muted" icon="x" class="px-3">
-                        <span>{{ __('messages.clear_search') }}</span>
-                    </x-admin.button>
-                @endif
-            </div>
         </form>
 
-        <div class="flex flex-wrap items-center gap-2">
+        <div class="admin-list-filter-actions">
+            <x-admin.button type="submit" form="{{ $quickFormId }}" icon="search">
+                <span>{{ __('messages.search') }}</span>
+            </x-admin.button>
+
             <x-admin.modal
                 :id="$modalId"
                 :label="$advancedButtonLabel"

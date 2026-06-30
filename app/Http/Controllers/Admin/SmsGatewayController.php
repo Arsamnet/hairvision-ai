@@ -25,18 +25,18 @@ class SmsGatewayController extends Controller
     {
         Gate::authorize('viewAny', SmsGateway::class);
 
-        return view('admin.system.sms-gateways.index', $this->formData($request) + [
+        return view('admin.system.sms-gateways.index', $this->formData($request, $manager) + [
             'tenant' => $request->attributes->get('adminTenant'),
             'availableTenants' => $request->attributes->get('adminTenants'),
             'gateways' => $manager->paginateSystem($request),
         ]);
     }
 
-    public function create(Request $request): View
+    public function create(Request $request, SmsGatewayManagementService $manager): View
     {
         Gate::authorize('create', SmsGateway::class);
 
-        return view('admin.system.sms-gateways.create', $this->formData($request));
+        return view('admin.system.sms-gateways.create', $this->formData($request, $manager));
     }
 
     public function store(StoreSmsGatewayRequest $request, SmsGatewayManagementService $manager, SmsGatewayService $gateways): RedirectResponse
@@ -61,11 +61,11 @@ class SmsGatewayController extends Controller
         ]);
     }
 
-    public function edit(Request $request, SmsGateway $smsGateway): View
+    public function edit(Request $request, SmsGateway $smsGateway, SmsGatewayManagementService $manager): View
     {
         Gate::authorize('update', $smsGateway);
 
-        return view('admin.system.sms-gateways.edit', $this->formData($request) + [
+        return view('admin.system.sms-gateways.edit', $this->formData($request, $manager, $smsGateway) + [
             'gateway' => $smsGateway->load('user'),
         ]);
     }
@@ -89,12 +89,15 @@ class SmsGatewayController extends Controller
     /**
      * @return array<string, mixed>
      */
-    private function formData(Request $request): array
+    private function formData(Request $request, ?SmsGatewayManagementService $manager = null, ?SmsGateway $gateway = null): array
     {
+        $manager ??= app(SmsGatewayManagementService::class);
+
         return [
             'tenant' => $request->attributes->get('adminTenant'),
             'availableTenants' => $request->attributes->get('adminTenants'),
             'users' => User::query()->orderBy('name')->get(),
+            'providerOptions' => $manager->providerOptionsForSystem($gateway),
         ];
     }
 }

@@ -68,7 +68,7 @@
         </div>
     </section>
 
-    <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+    <div class="grid gap-4 lg:grid-cols-2 xl:grid-cols-4">
         @foreach([
             ['label' => __('dashboard.cards.total_leads'), 'value' => $leadCount, 'icon' => 'contact', 'tone' => 'bg-zinc-950 text-white ring-zinc-950'],
             ['label' => __('dashboard.cards.new_leads'), 'value' => $newLeadCount, 'icon' => 'sparkles', 'tone' => 'bg-white text-zinc-950 ring-zinc-200'],
@@ -96,7 +96,7 @@
             @endcan
         </div>
 
-        <div data-admin-table-container class="mt-5 overflow-visible">
+        <div data-admin-table-container class="mt-5 hidden overflow-visible lg:block">
             <table class="w-full min-w-[42rem] text-right text-sm">
                 <thead class="border-b border-zinc-200 text-xs text-zinc-500">
                     <tr>
@@ -134,5 +134,39 @@
                 </tbody>
             </table>
         </div>
+
+        <x-admin.mobile-list>
+            @forelse($recentLeads as $lead)
+                <x-admin.mobile-list.card>
+                    <div class="admin-mobile-list-card-header">
+                        <div class="min-w-0">
+                            <a class="admin-mobile-list-card-title hover:text-teal-700" href="{{ route('admin.leads.show', $lead) }}">{{ $lead->full_name ?: __('dashboard.no_name') }}</a>
+                            <p class="admin-mobile-list-card-subtitle" dir="ltr">{{ $lead->phone_normalized }}</p>
+                        </div>
+                        <x-admin.table.action-menu>
+                            @can('view', $lead)
+                                <x-admin.table.action-item :href="route('admin.leads.show', $lead)" icon="eye">{{ __('leads.details') }}</x-admin.table.action-item>
+                            @endcan
+                        </x-admin.table.action-menu>
+                    </div>
+
+                    <dl class="admin-mobile-list-fields">
+                        <x-admin.mobile-list.field :label="__('leads.fields.crm_stage')">
+                            <x-admin.badge tone="teal">{{ __('leads.crm_stages.'.$lead->crm_stage) }}</x-admin.badge>
+                        </x-admin.mobile-list.field>
+                        <x-admin.mobile-list.field :label="__('leads.fields.tenant')">
+                            <span class="truncate">{{ $lead->tenant?->name }}</span>
+                        </x-admin.mobile-list.field>
+                        <x-admin.mobile-list.field :label="__('leads.fields.registered_at')">
+                            {{ $lead->created_at?->diffForHumans() }}
+                        </x-admin.mobile-list.field>
+                    </dl>
+                </x-admin.mobile-list.card>
+            @empty
+                <x-admin.mobile-list.card>
+                    <x-admin.empty-state icon="contact">{{ __('dashboard.empty_recent_leads') }}</x-admin.empty-state>
+                </x-admin.mobile-list.card>
+            @endforelse
+        </x-admin.mobile-list>
     </section>
 @endsection

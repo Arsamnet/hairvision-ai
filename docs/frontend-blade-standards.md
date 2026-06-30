@@ -29,10 +29,31 @@ Current shared components:
 - `x-admin.table.action-item`: link or simple form action inside row menus.
   Form actions may pass hidden scalar fields through the component `inputs`
   prop for compact status-toggle operations.
+- `x-admin.mobile-list`, `x-admin.mobile-list.card`, and
+  `x-admin.mobile-list.field`: mobile/tablet card summaries for list and
+  supporting detail tables.
 
 Keep components small and specific. Do not hide business rules inside Blade
 components; authorization and scoping must still be enforced by policies,
 middleware, Form Requests, controllers, and services.
+
+## Responsive Layout
+
+HairVision uses two responsive modes:
+
+- Mobile mode is the default for phones, tablets, and every viewport below
+  `1024px`.
+- Desktop mode starts at the Tailwind `lg` breakpoint, `1024px`.
+
+Tablet devices must follow the mobile layout. Avoid adding `sm:` or `md:`
+layout behavior for dashboard grids, forms, navigation, or table presentation
+unless a mobile/tablet override in the shared CSS keeps it single-column below
+`lg`.
+
+The Vite CSS entry remains `resources/css/app.css`. It imports focused
+responsive files from `resources/css/base`, `resources/css/layouts`, and
+`resources/css/components`, while the existing theme tokens and local font/icon
+definitions remain available from the main entry.
 
 ## Theme
 
@@ -104,6 +125,14 @@ Management tables must:
 - Plan definitions are a management table for users with plan-management
   permissions. Clinic users should not see plan tables; their dashboard should
   show the active plan and link to the purchase/upgrade flow instead.
+- Important list tables should render a desktop table only from `lg` upward and
+  a mobile/tablet `x-admin.mobile-list` card summary below `lg`.
+- Mobile cards should show primary identity, the most important status/metadata
+  fields, and the same permission-aware `x-admin.table.action-menu` actions.
+- In RTL tables and mobile cards, action menus open from the inline end/left
+  side of the trigger to avoid clipping against the right edge.
+- Backend search, filters, sorting, and pagination remain unchanged; the mobile
+  list is presentation only.
 
 Dangerous actions must use confirmation and must be protected by backend
 authorization. Hidden or absent buttons are not a security control.
@@ -152,3 +181,19 @@ Sidebar groups should be few and meaningful. Single visible items render as
 plain links. Groups with multiple visible items render as collapsible submenus
 with clear parent and child active states. Menu visibility must remain
 permission-aware, and route access must remain protected server-side.
+
+The desktop sidebar is used only from `lg` upward. Below `1024px`, the dashboard
+uses an off-canvas drawer with an overlay, scroll lock, Escape close behavior,
+and the same permission-aware navigation partial as desktop.
+
+The mobile header is a dedicated compact surface: menu button on the right,
+centered HairVision logo, and a user avatar trigger on the left for account,
+theme, and logout actions.
+
+## Accessibility
+
+Dashboard modals must expose `role="dialog"`, `aria-modal`, an accessible title,
+keyboard-operable open/close controls, and an easy close target. Mobile drawer
+open buttons must keep `aria-expanded` in sync with drawer state. Touch targets
+for drawer buttons, action menus, inputs, selects, and primary form controls
+should be at least `44px` high in mobile mode.

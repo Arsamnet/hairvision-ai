@@ -24,7 +24,7 @@ return [
         'plans' => 'پلن‌ها',
         'billing' => 'پرداخت‌ها و فاکتورها',
         'ai_models' => 'مدل‌های هوش مصنوعی',
-        'my_sms_gateways' => 'درگاه پیامک من',
+        'my_sms_gateways' => 'پنل پیامک اختصاصی',
         'system_sms_gateways' => 'درگاه‌های پیامک',
         'payment_gateways' => 'درگاه‌های پرداخت',
         'user_reports' => 'گزارش‌های من',

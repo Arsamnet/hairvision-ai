@@ -46,7 +46,7 @@
             ]"
         />
 
-        <div data-admin-table-container class="mt-5 overflow-visible rounded-lg border border-zinc-100">
+        <div data-admin-table-container class="mt-5 hidden overflow-visible rounded-lg border border-zinc-100 lg:block">
             <table class="w-full min-w-[50rem] text-right text-sm">
                 <thead class="bg-zinc-50 text-xs text-zinc-500">
                     <tr>
@@ -103,6 +103,49 @@
                 </tbody>
             </table>
         </div>
+
+        <x-admin.mobile-list>
+            @forelse($users as $dashboardUser)
+                <x-admin.mobile-list.card>
+                    <div class="admin-mobile-list-card-header">
+                        <div class="min-w-0">
+                            <p class="admin-mobile-list-card-title">{{ $dashboardUser->name }}</p>
+                            <p class="admin-mobile-list-card-subtitle" dir="ltr">{{ $dashboardUser->email }}</p>
+                        </div>
+                        <x-admin.table.action-menu>
+                            @can('view', $dashboardUser)
+                                <x-admin.table.action-item :href="route('admin.users.show', $dashboardUser)" icon="eye">{{ __('system.users.details') }}</x-admin.table.action-item>
+                            @endcan
+                            @can('update', $dashboardUser)
+                                <x-admin.table.action-item :href="route('admin.users.edit', $dashboardUser)" icon="edit">{{ __('system.edit') }}</x-admin.table.action-item>
+                            @endcan
+                            @can('delete', $dashboardUser)
+                                <x-admin.table.action-item :action="route('admin.users.destroy', $dashboardUser)" method="DELETE" icon="trash" danger :confirm="__('messages.confirm_delete')">{{ __('system.users.delete') }}</x-admin.table.action-item>
+                            @endcan
+                        </x-admin.table.action-menu>
+                    </div>
+
+                    <dl class="admin-mobile-list-fields">
+                        <x-admin.mobile-list.field :label="__('system.mobile')">
+                            <span dir="ltr">{{ $dashboardUser->phone_normalized ?? __('messages.none') }}</span>
+                        </x-admin.mobile-list.field>
+                        <x-admin.mobile-list.field :label="__('system.role')">
+                            <x-admin.badge tone="teal">{{ __('system.roles.'.$dashboardUser->role) }}</x-admin.badge>
+                        </x-admin.mobile-list.field>
+                        <x-admin.mobile-list.field :label="__('system.status')">
+                            <x-admin.badge :tone="$dashboardUser->status === 'active' ? 'emerald' : 'zinc'">{{ __('system.statuses.'.$dashboardUser->status) }}</x-admin.badge>
+                        </x-admin.mobile-list.field>
+                        <x-admin.mobile-list.field :label="__('system.clinic')">
+                            <span class="truncate">{{ $dashboardUser->tenants->pluck('name')->join('، ') ?: __('messages.none') }}</span>
+                        </x-admin.mobile-list.field>
+                    </dl>
+                </x-admin.mobile-list.card>
+            @empty
+                <x-admin.mobile-list.card>
+                    <x-admin.empty-state icon="users">{{ __('system.empty_users') }}</x-admin.empty-state>
+                </x-admin.mobile-list.card>
+            @endforelse
+        </x-admin.mobile-list>
 
         <x-admin.table.pagination-footer :paginator="$users" />
     </x-admin.card>

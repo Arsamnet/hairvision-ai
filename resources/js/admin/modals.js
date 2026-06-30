@@ -1,8 +1,16 @@
 const modalToggleSelector = '[data-admin-modal-toggle]';
 const modalCloseSelector = '[data-admin-modal-close]';
 const modalBackdropSelector = '[data-admin-modal-backdrop]';
+const modalLabelControlSelector = '[data-admin-modal-trigger], [data-admin-modal-label-close]';
 
 const modalToggle = (modalId) => document.querySelector(`${modalToggleSelector}[data-admin-modal-toggle="${modalId}"]`);
+
+const syncModalScrollLock = () => {
+    document.documentElement.classList.toggle(
+        'admin-modal-open',
+        Boolean(document.querySelector(`${modalToggleSelector}:checked`)),
+    );
+};
 
 const preserveScrollPosition = (callback) => {
     const scrollX = window.scrollX;
@@ -18,6 +26,7 @@ export const openModal = (modalId) => {
 
     if (toggle) {
         toggle.checked = true;
+        syncModalScrollLock();
     }
 };
 
@@ -31,6 +40,13 @@ export const closeModal = (modalId) => {
     preserveScrollPosition(() => {
         toggle.checked = false;
         toggle.dispatchEvent(new Event('change', { bubbles: true }));
+        syncModalScrollLock();
+    });
+};
+
+export const closeOpenModals = () => {
+    document.querySelectorAll(`${modalToggleSelector}:checked`).forEach((toggle) => {
+        closeModal(toggle.dataset.adminModalToggle);
     });
 };
 
@@ -45,4 +61,27 @@ export const bootAdminModals = () => {
         event.preventDefault();
         closeModal(closeControl.dataset.adminModalClose || closeControl.dataset.adminModalBackdrop);
     });
+
+    document.addEventListener('keydown', (event) => {
+        if (! ['Enter', ' '].includes(event.key)) {
+            return;
+        }
+
+        const labelControl = event.target.closest(modalLabelControlSelector);
+
+        if (! labelControl) {
+            return;
+        }
+
+        event.preventDefault();
+        labelControl.click();
+    });
+
+    document.addEventListener('change', (event) => {
+        if (event.target.matches(modalToggleSelector)) {
+            syncModalScrollLock();
+        }
+    });
+
+    syncModalScrollLock();
 };

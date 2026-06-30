@@ -202,7 +202,7 @@
                                 <div class="h-2 overflow-hidden rounded-full bg-zinc-200/80">
                                     <div id="stepProgress" class="h-full w-1/4 rounded-full bg-linear-to-l from-emerald-500 via-indigo-500 to-fuchsia-500 transition-all duration-500"></div>
                                 </div>
-                                <div class="grid gap-2 sm:grid-cols-4" aria-label="مراحل">
+                                <div class="grid gap-2 lg:grid-cols-4" aria-label="مراحل">
                                 <button type="button" data-step-indicator="1" class="step-indicator hv-step hv-step-active rounded-2xl px-3 py-3 text-right text-sm transition">
                                     <span class="step-marker mb-2 grid h-7 w-7 place-items-center rounded-xl bg-white/15 text-xs font-bold">۱</span>
                                     <span class="block font-bold">موبایل</span>
@@ -250,7 +250,7 @@
                                     <input id="otp" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="6" pattern="[0-9۰-۹٠-٩]*" placeholder="۱۲۳۴۵۶" class="hv-ai-input mt-2 w-full rounded-2xl px-4 py-3 text-right text-base outline-none transition" />
                                     <p id="otpError" class="mt-2 hidden text-sm text-rose-600"></p>
                                 </div>
-                                <div class="grid gap-3 sm:grid-cols-2">
+                                <div class="grid gap-3 lg:grid-cols-2">
                                     <button id="verifyOtp" class="hv-primary-action w-full rounded-2xl px-5 py-3 text-sm font-bold text-white transition hover:-translate-y-0.5">تایید و ادامه</button>
                                     <button id="backToPhone" class="hv-lift w-full rounded-2xl bg-white px-5 py-3 text-sm font-bold text-zinc-700 ring-1 ring-zinc-200">تغییر شماره</button>
                                 </div>
@@ -262,7 +262,7 @@
                                     <h2 class="mt-2 text-xl font-bold text-zinc-950">تصویر خود را انتخاب کنید</h2>
                                 </div>
 
-                                <div class="grid gap-4 md:grid-cols-[.9fr_1.1fr]">
+                                <div class="grid gap-4 lg:grid-cols-[.9fr_1.1fr]">
                                     <label for="image" class="hv-upload-zone group relative flex min-h-56 cursor-pointer flex-col items-center justify-center overflow-hidden rounded-3xl bg-white p-4 text-center ring-1 ring-zinc-200 transition hover:bg-indigo-50/60 hover:ring-indigo-200">
                                         <input id="image" type="file" accept="image/*" class="sr-only" />
                                         <img id="imagePreview" alt="پیش نمایش تصویر" class="hidden h-full max-h-72 w-full rounded-2xl object-cover" />
@@ -290,7 +290,7 @@
                                                 <p id="castMessage" class="mt-3 min-h-14 text-sm leading-7 text-zinc-700"></p>
                                             </div>
                                         </div>
-                                        <div class="grid gap-3 sm:grid-cols-2">
+                                        <div class="grid gap-3 lg:grid-cols-2">
                                             <button id="upload" class="hv-primary-action w-full rounded-2xl px-5 py-3 text-sm font-bold text-white transition hover:-translate-y-0.5">دریافت پیش نمایش</button>
                                             <button id="backToVerify" class="hv-lift w-full rounded-2xl bg-white px-5 py-3 text-sm font-bold text-zinc-700 ring-1 ring-zinc-200">بازگشت</button>
                                         </div>
@@ -307,7 +307,7 @@
                                     </div>
                                     <button id="newSession" class="hv-lift rounded-2xl bg-white px-4 py-2 text-sm font-bold text-zinc-700 ring-1 ring-zinc-200">ثبت تصویر جدید</button>
                                 </div>
-                                <div id="resultsContainer" class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4"></div>
+                                <div id="resultsContainer" class="grid gap-4 lg:grid-cols-2 xl:grid-cols-4"></div>
                             </section>
                         </div>
                     </section>

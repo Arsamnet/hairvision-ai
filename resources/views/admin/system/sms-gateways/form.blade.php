@@ -1,5 +1,6 @@
 @php
     $formKey = $formKey ?? ($gateway ? 'edit_system_sms_gateway' : 'create_system_sms_gateway');
+    $providerOptions = $providerOptions ?? ['local' => __('sms.providers.local'), 'ippanel' => __('sms.providers.ippanel')];
 @endphp
 
 <input type="hidden" name="_form" value="{{ $formKey }}">
@@ -16,7 +17,11 @@
     </label>
     <label class="block">
         <span class="text-sm font-bold text-zinc-600">{{ __('system.provider') }}</span>
-        <input name="provider_code" value="{{ old('provider_code', $gateway?->provider_code ?? 'local') }}" class="mt-2 h-11 w-full rounded-lg border border-zinc-200 px-3 text-sm outline-none focus:border-teal-500" dir="ltr">
+        <select name="provider_code" class="mt-2 h-11 w-full rounded-lg border border-zinc-200 px-3 text-sm outline-none focus:border-teal-500">
+            @foreach($providerOptions as $providerCode => $providerLabel)
+                <option value="{{ $providerCode }}" @selected(old('provider_code', $gateway?->provider_code ?? 'ippanel') === $providerCode)>{{ $providerLabel }}</option>
+            @endforeach
+        </select>
     </label>
     <label class="block">
         <span class="text-sm font-bold text-zinc-600">{{ __('system.owner') }}</span>
@@ -40,8 +45,16 @@
         <input name="api_key" placeholder="{{ $gateway?->maskedCredential('api_key') ?? __('sms.api_key_placeholder') }}" class="mt-2 h-11 w-full rounded-lg border border-zinc-200 px-3 text-sm outline-none focus:border-teal-500" dir="ltr">
     </label>
     <label class="block">
-        <span class="text-sm font-bold text-zinc-600">{{ __('sms.sender') }}</span>
-        <input name="sender" value="{{ old('sender', data_get($gateway?->settings_json, 'sender')) }}" class="mt-2 h-11 w-full rounded-lg border border-zinc-200 px-3 text-sm outline-none focus:border-teal-500" dir="ltr">
+        <span class="text-sm font-bold text-zinc-600">{{ __('sms.from_number') }}</span>
+        <input name="from_number" value="{{ old('from_number', data_get($gateway?->settings_json, 'from_number', data_get($gateway?->settings_json, 'sender'))) }}" class="mt-2 h-11 w-full rounded-lg border border-zinc-200 px-3 text-sm outline-none focus:border-teal-500" dir="ltr">
+    </label>
+    <label class="block">
+        <span class="text-sm font-bold text-zinc-600">{{ __('sms.otp_pattern_code') }}</span>
+        <input name="otp_pattern_code" value="{{ old('otp_pattern_code', data_get($gateway?->settings_json, 'otp_pattern_code')) }}" class="mt-2 h-11 w-full rounded-lg border border-zinc-200 px-3 text-sm outline-none focus:border-teal-500" dir="ltr">
+    </label>
+    <label class="block">
+        <span class="text-sm font-bold text-zinc-600">{{ __('sms.endpoint_url') }}</span>
+        <input name="endpoint_url" value="{{ old('endpoint_url', data_get($gateway?->settings_json, 'endpoint_url')) }}" placeholder="https://edge.ippanel.com/v1/api/send" class="mt-2 h-11 w-full rounded-lg border border-zinc-200 px-3 text-sm outline-none focus:border-teal-500" dir="ltr">
     </label>
     <label class="block">
         <span class="text-sm font-bold text-zinc-600">{{ __('system.status') }}</span>

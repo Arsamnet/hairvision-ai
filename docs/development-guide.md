@@ -32,6 +32,14 @@ visitor flow and the local sample-image provider until the MVP is stable.
   preferences.
 - Create-capable list pages should use modal create forms and table rows should
   use the shared three-dot action menu.
+- Use two frontend layout modes. Mobile mode applies below `1024px`, including
+  tablets; desktop mode starts at the Tailwind `lg` breakpoint.
+- Keep `resources/css/app.css` as the Vite entry and place new focused
+  responsive CSS in `resources/css/base`, `resources/css/layouts`, or
+  `resources/css/components` when it is shared.
+- Dashboard list pages should pair desktop tables with mobile/tablet
+  `x-admin.mobile-list` cards for the important fields and existing row
+  actions.
 
 ## Shared Backend Utilities
 
@@ -152,6 +160,8 @@ php artisan test
   without active plans.
 - Shared dashboard list filter/search components, sortable table headings, and
   RTL pagination footer behavior.
+- Mobile/tablet drawer navigation, mobile list cards, modal keyboard controls,
+  responsive-control JavaScript, and localization keys for new UI labels.
 - Backend route blocking for inactive-plan users while plans, billing, and
   settings remain accessible.
 - Super Admin plan-definition management and normal-user denial.

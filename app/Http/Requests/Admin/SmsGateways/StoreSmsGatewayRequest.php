@@ -25,13 +25,27 @@ class StoreSmsGatewayRequest extends FormRequest
     {
         return [
             'name' => ['required', 'string', 'max:120'],
-            'provider_code' => ['required', 'alpha_dash', 'max:80'],
+            'provider_code' => ['required', 'alpha_dash', 'max:80', Rule::in($this->providerCodes())],
             'owner_scope' => ['required', Rule::in(['system', 'user'])],
             'user_id' => ['nullable', 'required_if:owner_scope,user', Rule::exists('users', 'id')],
             'status' => ['required', Rule::in(['enabled', 'disabled'])],
             'is_default' => ['nullable', 'boolean'],
             'api_key' => ['nullable', 'string', 'max:500'],
             'sender' => ['nullable', 'string', 'max:120'],
+            'from_number' => ['nullable', 'string', 'max:120'],
+            'otp_pattern_code' => ['nullable', 'string', 'max:120'],
+            'endpoint_url' => ['nullable', 'url', 'max:500'],
         ];
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private function providerCodes(): array
+    {
+        return array_values(array_unique(array_merge(
+            ['local', 'ippanel'],
+            SmsGateway::query()->system()->enabled()->pluck('provider_code')->all()
+        )));
     }
 }

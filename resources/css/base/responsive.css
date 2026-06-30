@@ -1,0 +1,51 @@
+:root {
+    --admin-desktop-breakpoint: 1024px;
+    --admin-touch-target: 2.75rem;
+}
+
+@media (max-width: 1023px) {
+    .admin-content [class*="sm:grid-cols"],
+    .admin-content [class*="md:grid-cols"] {
+        grid-template-columns: minmax(0, 1fr) !important;
+    }
+
+    .admin-content [class*="sm:col-span"],
+    .admin-content [class*="md:col-span"] {
+        grid-column: auto !important;
+    }
+
+    .admin-content [class*="sm:flex-row"] {
+        flex-direction: column !important;
+        align-items: stretch !important;
+    }
+
+    .admin-content [class*="sm:items-center"],
+    .admin-content [class*="md:items-center"] {
+        align-items: stretch !important;
+    }
+
+    .admin-content [class*="sm:justify-between"],
+    .admin-content [class*="md:justify-between"] {
+        justify-content: flex-start !important;
+    }
+
+    .admin-content input,
+    .admin-content select,
+    .admin-content textarea,
+    .admin-content [data-admin-button] {
+        min-height: var(--admin-touch-target);
+    }
+
+    [data-admin-modal] {
+        align-items: stretch !important;
+        justify-content: center;
+        padding: 0.75rem !important;
+    }
+
+    [data-admin-modal] > section {
+        max-height: calc(100svh - 1.5rem) !important;
+        max-width: 100% !important;
+        border-radius: 0.5rem !important;
+        padding: 1rem !important;
+    }
+}

@@ -22,62 +22,50 @@ class MySmsGatewayController extends Controller
 {
     public function index(Request $request, SmsGatewayManagementService $manager): View
     {
+        $gateway = $manager->privateSettings($request->user());
+
         return view('admin.sms-gateways.index', [
             'tenant' => $request->attributes->get('adminTenant'),
             'availableTenants' => $request->attributes->get('adminTenants'),
-            'gateways' => $manager->paginatePrivate($request, $request->user()),
+            'gateway' => $gateway,
+            'providerOptions' => $manager->providerOptionsForPrivate($gateway),
         ]);
     }
 
-    public function create(Request $request): View
+    public function create(Request $request): RedirectResponse
     {
-        return view('admin.sms-gateways.create', [
-            'tenant' => $request->attributes->get('adminTenant'),
-            'availableTenants' => $request->attributes->get('adminTenants'),
-        ]);
+        return redirect()->route('admin.sms-gateways.index');
     }
 
     public function store(StorePrivateSmsGatewayRequest $request, SmsGatewayManagementService $manager, SmsGatewayService $gateways): RedirectResponse
     {
-        $gateway = $manager->createPrivate($request->user(), $request->validated(), $gateways);
+        $manager->savePrivateSettings($request->user(), $request->validated(), $gateways);
 
-        if ($request->boolean('return_to_index')) {
-            return redirect()->route('admin.sms-gateways.index')->with('status', __('sms.private_created'));
-        }
-
-        return redirect()->route('admin.sms-gateways.show', $gateway)->with('status', __('sms.private_created'));
+        return redirect()->route('admin.sms-gateways.index')->with('status', __('sms.private_updated'));
     }
 
-    public function show(Request $request, SmsGateway $smsGateway): View
+    public function show(Request $request, SmsGateway $smsGateway): RedirectResponse
     {
         $this->authorizeOwner($request, $smsGateway);
         Gate::authorize('view', $smsGateway);
 
-        return view('admin.sms-gateways.show', [
-            'tenant' => $request->attributes->get('adminTenant'),
-            'availableTenants' => $request->attributes->get('adminTenants'),
-            'gateway' => $smsGateway,
-        ]);
+        return redirect()->route('admin.sms-gateways.index');
     }
 
-    public function edit(Request $request, SmsGateway $smsGateway): View
+    public function edit(Request $request, SmsGateway $smsGateway): RedirectResponse
     {
         $this->authorizeOwner($request, $smsGateway);
         Gate::authorize('update', $smsGateway);
 
-        return view('admin.sms-gateways.edit', [
-            'tenant' => $request->attributes->get('adminTenant'),
-            'availableTenants' => $request->attributes->get('adminTenants'),
-            'gateway' => $smsGateway,
-        ]);
+        return redirect()->route('admin.sms-gateways.index');
     }
 
     public function update(UpdatePrivateSmsGatewayRequest $request, SmsGateway $smsGateway, SmsGatewayManagementService $manager, SmsGatewayService $gateways): RedirectResponse
     {
         $this->authorizeOwner($request, $smsGateway);
-        $manager->updatePrivate($smsGateway, $request->validated(), $gateways);
+        $manager->savePrivateSettings($request->user(), $request->validated(), $gateways);
 
-        return redirect()->route('admin.sms-gateways.show', $smsGateway)->with('status', __('sms.private_updated'));
+        return redirect()->route('admin.sms-gateways.index')->with('status', __('sms.private_updated'));
     }
 
     public function destroy(Request $request, SmsGateway $smsGateway): RedirectResponse
@@ -85,9 +73,9 @@ class MySmsGatewayController extends Controller
         $this->authorizeOwner($request, $smsGateway);
         Gate::authorize('delete', $smsGateway);
 
-        $smsGateway->delete();
+        $smsGateway->forceFill(['status' => 'disabled'])->save();
 
-        return redirect()->route('admin.sms-gateways.index')->with('status', __('sms.private_deleted'));
+        return redirect()->route('admin.sms-gateways.index')->with('status', __('sms.private_disabled'));
     }
 
     private function authorizeOwner(Request $request, SmsGateway $smsGateway): void

@@ -46,7 +46,7 @@
             ]"
         />
 
-        <div data-admin-table-container class="mt-5 overflow-visible rounded-lg border border-zinc-100">
+        <div data-admin-table-container class="mt-5 hidden overflow-visible rounded-lg border border-zinc-100 lg:block">
             <table class="w-full min-w-[46rem] text-right text-sm">
                 <thead class="bg-zinc-50 text-xs text-zinc-500">
                     <tr>
@@ -91,6 +91,43 @@
                 </tbody>
             </table>
         </div>
+
+        <x-admin.mobile-list>
+            @forelse($leads as $lead)
+                <x-admin.mobile-list.card>
+                    <div class="admin-mobile-list-card-header">
+                        <div class="min-w-0">
+                            <p class="admin-mobile-list-card-title">{{ $lead->full_name ?: __('leads.no_name') }}</p>
+                            <p class="admin-mobile-list-card-subtitle" dir="ltr">{{ $lead->phone_normalized }}</p>
+                        </div>
+                        <x-admin.table.action-menu>
+                            @can('view', $lead)
+                                <x-admin.table.action-item :href="route('admin.leads.show', $lead)" icon="eye">{{ __('leads.details') }}</x-admin.table.action-item>
+                            @endcan
+                            @can('update', $lead)
+                                <x-admin.table.action-item :href="route('admin.leads.edit', $lead)" icon="edit">{{ __('leads.edit') }}</x-admin.table.action-item>
+                            @endcan
+                        </x-admin.table.action-menu>
+                    </div>
+
+                    <dl class="admin-mobile-list-fields">
+                        <x-admin.mobile-list.field :label="__('leads.fields.status')">
+                            <x-admin.badge>{{ __('leads.statuses.'.$lead->status) }}</x-admin.badge>
+                        </x-admin.mobile-list.field>
+                        <x-admin.mobile-list.field :label="__('leads.fields.crm_stage')">
+                            <x-admin.badge tone="teal">{{ __('leads.crm_stages.'.$lead->crm_stage) }}</x-admin.badge>
+                        </x-admin.mobile-list.field>
+                        <x-admin.mobile-list.field :label="__('leads.fields.created_at')">
+                            {{ $lead->created_at?->diffForHumans() }}
+                        </x-admin.mobile-list.field>
+                    </dl>
+                </x-admin.mobile-list.card>
+            @empty
+                <x-admin.mobile-list.card>
+                    <x-admin.empty-state icon="contact">{{ __('leads.empty_filtered') }}</x-admin.empty-state>
+                </x-admin.mobile-list.card>
+            @endforelse
+        </x-admin.mobile-list>
 
         <x-admin.table.pagination-footer :paginator="$leads" />
     </x-admin.card>

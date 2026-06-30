@@ -63,6 +63,21 @@ class SmsGatewayManagementService
             ->orderBy($pagination->sort, $pagination->direction);
     }
 
+    public function privateSettings(User $user): ?SmsGateway
+    {
+        return SmsGateway::query()
+            ->where('owner_scope', 'user')
+            ->where('user_id', $user->id)
+            ->where('is_default', true)
+            ->orderBy('id')
+            ->first()
+            ?? SmsGateway::query()
+                ->where('owner_scope', 'user')
+                ->where('user_id', $user->id)
+                ->orderBy('id')
+                ->first();
+    }
+
     public function privateQuery(Request $request, User $user, PaginationParameters $pagination): Builder
     {
         $query = SmsGateway::query()
@@ -78,6 +93,62 @@ class SmsGatewayManagementService
 
         return $query
             ->orderBy($pagination->sort, $pagination->direction);
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    public function providerOptionsForSystem(?SmsGateway $gateway = null): array
+    {
+        $options = $this->knownProviderOptions();
+
+        SmsGateway::query()
+            ->system()
+            ->enabled()
+            ->orderBy('provider_code')
+            ->get(['provider_code', 'name'])
+            ->each(function (SmsGateway $systemGateway) use (&$options): void {
+                $options[$systemGateway->provider_code] = $this->providerLabel(
+                    $systemGateway->provider_code,
+                    $systemGateway->name
+                );
+            });
+
+        if ($gateway && ! array_key_exists($gateway->provider_code, $options)) {
+            $options[$gateway->provider_code] = $this->providerLabel($gateway->provider_code, $gateway->name);
+        }
+
+        return $options;
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    public function providerOptionsForPrivate(?SmsGateway $gateway = null): array
+    {
+        $options = [];
+
+        SmsGateway::query()
+            ->system()
+            ->enabled()
+            ->orderBy('provider_code')
+            ->get(['provider_code', 'name'])
+            ->each(function (SmsGateway $systemGateway) use (&$options): void {
+                $options[$systemGateway->provider_code] = $this->providerLabel(
+                    $systemGateway->provider_code,
+                    $systemGateway->name
+                );
+            });
+
+        if ($options === []) {
+            $options = $this->knownProviderOptions();
+        }
+
+        if ($gateway && ! array_key_exists($gateway->provider_code, $options)) {
+            $options[$gateway->provider_code] = $this->providerLabel($gateway->provider_code, $gateway->name);
+        }
+
+        return $options;
     }
 
     /**
@@ -144,6 +215,31 @@ class SmsGatewayManagementService
 
     /**
      * @param  array<string, mixed>  $data
+     */
+    public function savePrivateSettings(User $user, array $data, SmsGatewayService $gateways): SmsGateway
+    {
+        $gateway = $this->privateSettings($user);
+
+        $attributes = $this->attributes($data + [
+            'name' => $data['name'] ?? __('sms.dedicated_panel_name'),
+            'provider_code' => $data['provider_code'] ?? 'ippanel',
+            'status' => $data['status'] ?? 'disabled',
+            'is_default' => true,
+            'owner_scope' => 'user',
+            'user_id' => $user->id,
+        ], $gateway, true);
+
+        if ($gateway) {
+            $gateway->update($attributes);
+        } else {
+            $gateway = SmsGateway::create($attributes);
+        }
+
+        return $gateways->markDefault($gateway);
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
      * @return array<string, mixed>
      */
     private function attributes(array $data, ?SmsGateway $gateway, bool $includeOwner): array
@@ -155,8 +251,22 @@ class SmsGatewayManagementService
             $credentials['api_key'] = $data['api_key'];
         }
 
+        if (array_key_exists('from_number', $data)) {
+            $settings['from_number'] = $data['from_number'] ?: null;
+            $settings['sender'] = $data['from_number'] ?: null;
+        }
+
         if (array_key_exists('sender', $data)) {
             $settings['sender'] = $data['sender'] ?: null;
+            $settings['from_number'] = $data['sender'] ?: null;
+        }
+
+        if (array_key_exists('otp_pattern_code', $data)) {
+            $settings['otp_pattern_code'] = $data['otp_pattern_code'] ?: null;
+        }
+
+        if (array_key_exists('endpoint_url', $data)) {
+            $settings['endpoint_url'] = $data['endpoint_url'] ?: null;
         }
 
         $attributes = [
@@ -174,5 +284,23 @@ class SmsGatewayManagementService
         }
 
         return $attributes;
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    private function knownProviderOptions(): array
+    {
+        return [
+            'local' => __('sms.providers.local'),
+            'ippanel' => __('sms.providers.ippanel'),
+        ];
+    }
+
+    private function providerLabel(string $providerCode, ?string $gatewayName = null): string
+    {
+        $known = $this->knownProviderOptions();
+
+        return $known[$providerCode] ?? $gatewayName ?? $providerCode;
     }
 }

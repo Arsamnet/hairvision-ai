@@ -1,0 +1,85 @@
+.admin-mobile-list {
+    display: grid;
+    gap: 0.75rem;
+    margin-top: 1rem;
+}
+
+.admin-mobile-list-card {
+    display: grid;
+    gap: 0.875rem;
+    border: 1px solid var(--admin-border);
+    border-radius: 0.5rem;
+    background: var(--admin-surface);
+    padding: 1rem;
+    box-shadow: 0 10px 24px rgba(15, 23, 42, 0.06);
+}
+
+.admin-mobile-list-card-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 0.75rem;
+}
+
+.admin-mobile-list-card-title {
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: var(--admin-text);
+}
+
+.admin-mobile-list-card-subtitle {
+    margin-top: 0.25rem;
+    font-size: 0.75rem;
+    line-height: 1.6;
+    color: var(--admin-muted);
+}
+
+.admin-mobile-list-fields {
+    display: grid;
+    gap: 0.5rem;
+}
+
+.admin-mobile-list-field {
+    display: flex;
+    min-width: 0;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    border-radius: 0.5rem;
+    background: var(--admin-elevated);
+    padding: 0.625rem 0.75rem;
+    font-size: 0.8125rem;
+}
+
+.admin-mobile-list-field dt {
+    flex-shrink: 0;
+    font-weight: 700;
+    color: var(--admin-muted);
+}
+
+.admin-mobile-list-field dd {
+    min-width: 0;
+    text-align: left;
+    font-weight: 700;
+    color: var(--admin-text);
+}
+
+.admin-mobile-list-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+@media (min-width: 1024px) {
+    .admin-mobile-list {
+        display: none;
+    }
+}
+
+@media (max-width: 1023px) {
+    [data-table-action-menu] > summary {
+        min-height: var(--admin-touch-target);
+        min-width: var(--admin-touch-target);
+    }
+}

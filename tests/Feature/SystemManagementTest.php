@@ -22,6 +22,7 @@ use App\Services\Payment\PaymentGatewayService;
 use App\Services\Sms\SmsGatewayService;
 use Database\Seeders\DatabaseSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
@@ -40,6 +41,12 @@ class SystemManagementTest extends TestCase
         $this->assertTrue($superAdmin->hasPermission('payment_gateways.manage'));
         $this->assertSame(Permission::query()->count(), Role::query()->where('code', 'super_admin')->firstOrFail()->permissions()->count());
         $this->assertSame(1, SmsGateway::query()->system()->where('is_default', true)->count());
+        $this->assertDatabaseHas('sms_gateways', [
+            'owner_scope' => 'system',
+            'provider_code' => 'ippanel',
+            'status' => 'enabled',
+            'is_default' => false,
+        ]);
         $this->assertSame(1, PaymentGateway::query()->where('is_default', true)->count());
         $this->assertGreaterThan(0, SystemSetting::query()->count());
         $this->assertGreaterThan(0, Plan::query()->count());
@@ -70,6 +77,13 @@ class SystemManagementTest extends TestCase
             ->assertOk()
             ->assertSee('مدیریت سیستم')
             ->assertSee('درگاه‌های پرداخت');
+
+        $this->actingAs($superAdmin)
+            ->withSession(['admin_all_tenants' => true])
+            ->forHost('hairvision-ai.test')
+            ->get('/admin/dashboard')
+            ->assertOk()
+            ->assertDontSee('پنل پیامک اختصاصی');
     }
 
     public function test_role_permission_assignment_changes_backend_access(): void
@@ -276,7 +290,55 @@ class SystemManagementTest extends TestCase
         $this->assertTrue($service->userDefault($user)->is($privateGateway));
         $this->assertTrue($service->sendSystemMessage('09120000000', 'system')->is($systemGateway));
         $this->assertTrue($service->sendUserCustomerMessage($user, '09125550000', 'customer')->is($privateGateway));
+
+        $privateGateway->update(['status' => 'disabled']);
+
+        $this->assertTrue($service->sendUserCustomerMessage($user, '09125550000', 'customer')->is($systemGateway));
         $this->assertArrayNotHasKey('encrypted_credentials', $privateGateway->toArray());
+    }
+
+    public function test_ippanel_gateway_sends_otp_patterns_and_regular_messages(): void
+    {
+        Http::fake([
+            'https://edge.ippanel.com/v1/api/send' => Http::response(['ok' => true]),
+        ]);
+
+        $gateway = SmsGateway::create([
+            'name' => 'IPPanel System',
+            'provider_code' => 'ippanel',
+            'owner_scope' => 'system',
+            'status' => 'enabled',
+            'is_default' => true,
+            'encrypted_credentials' => ['api_key' => 'system-token'],
+            'settings_json' => [
+                'from_number' => '+983000505',
+                'otp_pattern_code' => 's5jh64gwzlk0jf3',
+            ],
+        ]);
+
+        $service = app(SmsGatewayService::class);
+
+        $this->assertTrue($service->sendSystemOtp('09124248164', '385107')->is($gateway));
+        $this->assertTrue($service->sendSystemMessage('09124248164', 'متن پیام')->is($gateway));
+
+        Http::assertSent(function ($request): bool {
+            return $request->url() === 'https://edge.ippanel.com/v1/api/send'
+                && $request->header('Authorization') === ['system-token']
+                && $request['sending_type'] === 'pattern'
+                && $request['from_number'] === '+983000505'
+                && $request['code'] === 's5jh64gwzlk0jf3'
+                && $request['recipients'] === ['+989124248164']
+                && $request['params']['verification-code'] === '385107';
+        });
+
+        Http::assertSent(function ($request): bool {
+            return $request->url() === 'https://edge.ippanel.com/v1/api/send'
+                && $request->header('Authorization') === ['system-token']
+                && $request['sending_type'] === 'webservice'
+                && $request['from_number'] === '+983000505'
+                && $request['message'] === 'متن پیام'
+                && $request['params']['recipients'] === ['+989124248164'];
+        });
     }
 
     public function test_sms_gateway_crud_masks_credentials_and_enforces_authorization(): void
@@ -286,32 +348,36 @@ class SystemManagementTest extends TestCase
         $superAdmin = User::query()->where('role', 'super_admin')->firstOrFail();
         $viewer = User::query()->where('role', 'viewer')->firstOrFail();
         $this->activateSubscription($viewer);
+        $longToken = 'super-secret-api-key-'.str_repeat('x', 80);
 
         $this->actingAs($superAdmin)
             ->forHost('hairvision-ai.test')
             ->post('/admin/system/sms-gateways', [
-                'name' => 'درگاه تست کاوه',
-                'provider_code' => 'kavenegar',
+                'name' => 'درگاه تست IPPanel',
+                'provider_code' => 'ippanel',
                 'owner_scope' => 'system',
                 'status' => 'enabled',
                 'is_default' => '1',
-                'api_key' => 'super-secret-api-key',
-                'sender' => 'HV',
+                'api_key' => $longToken,
+                'from_number' => '+983000505',
+                'otp_pattern_code' => 's5jh64gwzlk0jf3',
             ])
             ->assertRedirect();
 
-        $gateway = SmsGateway::query()->where('provider_code', 'kavenegar')->firstOrFail();
+        $gateway = SmsGateway::query()->where('name', 'درگاه تست IPPanel')->firstOrFail();
+        $this->assertSame('supe...xxxx', $gateway->maskedCredential('api_key'));
 
         $this->actingAs($superAdmin)
             ->forHost('hairvision-ai.test')
-            ->get('/admin/system/sms-gateways?search=kavenegar')
+            ->get('/admin/system/sms-gateways?search=IPPanel')
             ->assertOk()
-            ->assertSee('درگاه تست کاوه')
+            ->assertSee('درگاه تست IPPanel')
+            ->assertSee('درگاه پیامک IPPanel')
             ->assertSee('create-system-sms-gateway-modal-toggle', false)
             ->assertSee('data-table-action-menu', false)
             ->assertSee('data-confirm-form', false)
             ->assertDontSee('confirm(', false)
-            ->assertDontSee('super-secret-api-key');
+            ->assertDontSee($longToken);
 
         $this->actingAs($superAdmin)
             ->forHost('hairvision-ai.test')
@@ -320,22 +386,42 @@ class SystemManagementTest extends TestCase
             ->assertSee($gateway->maskedCredential('api_key'))
             ->assertSee('data-confirm-form', false)
             ->assertDontSee('confirm(', false)
-            ->assertDontSee('super-secret-api-key');
+            ->assertDontSee($longToken);
 
         $this->actingAs($superAdmin)
             ->forHost('hairvision-ai.test')
             ->put('/admin/system/sms-gateways/'.$gateway->id, [
-                'name' => 'درگاه تست کاوه ویرایش',
-                'provider_code' => 'kavenegar',
+                'name' => 'درگاه تست IPPanel ویرایش',
+                'provider_code' => 'ippanel',
                 'owner_scope' => 'system',
                 'status' => 'disabled',
-                'sender' => 'HV2',
+                'from_number' => '+983000506',
+                'otp_pattern_code' => 's5jh64gwzlk0jf3',
             ])
             ->assertRedirect();
 
         $gateway->refresh();
         $this->assertSame('disabled', $gateway->status);
-        $this->assertSame('super-secret-api-key', $gateway->encrypted_credentials['api_key']);
+        $this->assertSame($longToken, $gateway->encrypted_credentials['api_key']);
+
+        SmsGateway::create([
+            'user_id' => $viewer->id,
+            'name' => 'پنل اختصاصی Viewer',
+            'provider_code' => 'ippanel',
+            'owner_scope' => 'user',
+            'status' => 'enabled',
+            'is_default' => true,
+            'encrypted_credentials' => ['api_key' => 'viewer-secret-token'],
+            'settings_json' => ['from_number' => '+983000505'],
+        ]);
+
+        $this->actingAs($superAdmin)
+            ->forHost('hairvision-ai.test')
+            ->get('/admin/system/sms-gateways?owner_scope=user')
+            ->assertOk()
+            ->assertSee('پنل اختصاصی Viewer')
+            ->assertSee($viewer->name)
+            ->assertDontSee('viewer-secret-token');
 
         $this->actingAs($viewer)
             ->forHost('hairvision-ai.test')
@@ -350,7 +436,7 @@ class SystemManagementTest extends TestCase
         $this->assertDatabaseMissing('sms_gateways', ['id' => $gateway->id]);
     }
 
-    public function test_private_sms_gateway_crud_is_scoped_to_owner(): void
+    public function test_private_sms_gateway_settings_are_single_panel_and_scoped_to_owner(): void
     {
         $tenant = $this->createTenant('Clinic One', 'clinic1', 'clinic1.hairvision-ai.test');
         $owner = $this->createUserForTenant($tenant, 'clinic_admin', '09121111111');
@@ -361,25 +447,45 @@ class SystemManagementTest extends TestCase
         $this->actingAs($owner)
             ->withSession(['admin_active_tenant_id' => $tenant->id])
             ->forHost('hairvision-ai.test')
-            ->post('/admin/my-sms-gateways', [
-                'name' => 'درگاه خصوصی',
-                'provider_code' => 'melipayamak',
-                'status' => 'enabled',
-                'is_default' => '1',
-                'api_key' => 'private-secret-key',
-                'sender' => 'HV',
-            ])
-            ->assertRedirect();
-
-        $gateway = SmsGateway::query()->where('user_id', $owner->id)->where('provider_code', 'melipayamak')->firstOrFail();
+            ->get('/admin/dashboard')
+            ->assertOk()
+            ->assertSee('پنل پیامک اختصاصی');
 
         $this->actingAs($owner)
             ->withSession(['admin_active_tenant_id' => $tenant->id])
             ->forHost('hairvision-ai.test')
-            ->get('/admin/my-sms-gateways/'.$gateway->id)
+            ->get('/admin/my-sms-gateways')
             ->assertOk()
-            ->assertSee('data-confirm-form', false)
-            ->assertDontSee('confirm(', false)
+            ->assertSee('پنل پیامک اختصاصی')
+            ->assertSee('درگاه پیامک IPPanel')
+            ->assertDontSee('create-private-sms-gateway-modal-toggle', false)
+            ->assertDontSee('data-table-action-menu', false);
+
+        $this->actingAs($owner)
+            ->withSession(['admin_active_tenant_id' => $tenant->id])
+            ->forHost('hairvision-ai.test')
+            ->post('/admin/my-sms-gateways', [
+                'provider_code' => 'ippanel',
+                'api_key' => 'private-secret-key',
+                'from_number' => '+983000505',
+                'is_active' => '1',
+            ])
+            ->assertRedirect(route('admin.sms-gateways.index'));
+
+        $gateway = SmsGateway::query()->where('user_id', $owner->id)->firstOrFail();
+
+        $this->assertSame('پنل پیامک اختصاصی', $gateway->name);
+        $this->assertSame('ippanel', $gateway->provider_code);
+        $this->assertSame('enabled', $gateway->status);
+        $this->assertTrue($gateway->is_default);
+        $this->assertSame('+983000505', $gateway->settings_json['from_number']);
+
+        $this->actingAs($owner)
+            ->withSession(['admin_active_tenant_id' => $tenant->id])
+            ->forHost('hairvision-ai.test')
+            ->get('/admin/my-sms-gateways')
+            ->assertOk()
+            ->assertSee($gateway->maskedCredential('api_key'))
             ->assertDontSee('private-secret-key');
 
         $this->actingAs($other)
@@ -392,24 +498,15 @@ class SystemManagementTest extends TestCase
             ->withSession(['admin_active_tenant_id' => $tenant->id])
             ->forHost('hairvision-ai.test')
             ->put('/admin/my-sms-gateways/'.$gateway->id, [
-                'name' => 'درگاه خصوصی ویرایش',
-                'provider_code' => 'melipayamak',
-                'status' => 'disabled',
-                'sender' => 'HV2',
+                'from_number' => '+983000506',
             ])
-            ->assertRedirect(route('admin.sms-gateways.show', $gateway));
+            ->assertRedirect(route('admin.sms-gateways.index'));
 
         $gateway->refresh();
         $this->assertSame('disabled', $gateway->status);
         $this->assertSame('private-secret-key', $gateway->encrypted_credentials['api_key']);
-
-        $this->actingAs($owner)
-            ->withSession(['admin_active_tenant_id' => $tenant->id])
-            ->forHost('hairvision-ai.test')
-            ->delete('/admin/my-sms-gateways/'.$gateway->id)
-            ->assertRedirect(route('admin.sms-gateways.index'));
-
-        $this->assertDatabaseMissing('sms_gateways', ['id' => $gateway->id]);
+        $this->assertSame('+983000506', $gateway->settings_json['from_number']);
+        $this->assertSame(1, SmsGateway::query()->where('user_id', $owner->id)->count());
     }
 
     public function test_payment_default_gateway_invoice_payment_and_plan_upgrade_are_idempotent(): void
@@ -439,7 +536,8 @@ class SystemManagementTest extends TestCase
             ->assertSee('local')
             ->assertSee('create-payment-gateway-modal-toggle', false)
             ->assertSee('data-admin-table-container', false)
-            ->assertSee('mt-5 overflow-visible rounded-lg border border-zinc-100', false)
+            ->assertSee('mt-5 hidden overflow-visible rounded-lg border border-zinc-100 lg:block', false)
+            ->assertSee('admin-mobile-list', false)
             ->assertDontSee('mt-5 overflow-x-auto rounded-lg border border-zinc-100', false)
             ->assertSee('data-table-action-menu', false)
             ->assertSee('open:z-[80]', false)
@@ -536,6 +634,12 @@ class SystemManagementTest extends TestCase
             ->assertSee('admin-main-panel flex h-screen min-h-0 min-w-0 flex-col', false)
             ->assertSee('admin-content min-h-0 flex-1 overflow-y-auto', false)
             ->assertSee('data-admin-menu-scroll', false)
+            ->assertSee('data-admin-mobile-menu-open', false)
+            ->assertSee('data-admin-mobile-drawer', false)
+            ->assertSee('data-admin-mobile-menu-close', false)
+            ->assertSee('admin-mobile-brand-center', false)
+            ->assertSee('admin-user-menu-avatar-trigger', false)
+            ->assertSee(__('dashboard.mobile_menu.open'))
             ->assertSee('data-admin-user-menu', false)
             ->assertSee('data-theme-toggle', false)
             ->assertSee('data-admin-theme-script', false)
@@ -928,6 +1032,7 @@ class SystemManagementTest extends TestCase
         $this->assertSame('داشبورد', __('menu.groups.dashboard'));
         $this->assertSame('پیشخوان', __('menu.items.dashboard'));
         $this->assertSame('حالت شب', __('dashboard.theme.menu_item'));
+        $this->assertSame('باز کردن منوی پنل', __('dashboard.mobile_menu.open'));
         $this->assertSame('پلن‌ها و پرداخت‌ها', __('menu.groups.plans_payments'));
         $this->assertSame('نیاز به پیگیری', __('leads.crm_stages.needs_follow_up'));
         $this->assertSame('تماس تلفنی', __('crm.channels.phone'));
@@ -955,19 +1060,25 @@ class SystemManagementTest extends TestCase
         $actionMenus = resource_path('js/admin/action-menus.js');
         $modals = resource_path('js/admin/modals.js');
         $confirmationModal = resource_path('js/admin/confirmation-modal.js');
+        $mobileMenu = resource_path('js/admin/mobile-menu.js');
+        $responsiveControls = resource_path('js/admin/responsive-controls.js');
         $theme = resource_path('js/admin/theme.js');
 
-        foreach ([$entrypoint, $adminIndex, $actionMenus, $modals, $confirmationModal, $theme] as $path) {
+        foreach ([$entrypoint, $adminIndex, $actionMenus, $modals, $confirmationModal, $mobileMenu, $responsiveControls, $theme] as $path) {
             $this->assertFileExists($path);
         }
 
         $this->assertStringContainsString("import { bootAdmin } from './admin/index.js';", file_get_contents($entrypoint));
         $this->assertStringContainsString("import { bootActionMenus, closeActionMenus } from './action-menus.js';", file_get_contents($adminIndex));
         $this->assertStringContainsString("import { bootAdminTheme } from './theme.js';", file_get_contents($adminIndex));
+        $this->assertStringContainsString("import { bootMobileMenu, closeMobileMenu } from './mobile-menu.js';", file_get_contents($adminIndex));
+        $this->assertStringContainsString("import { bootResponsiveControls } from './responsive-controls.js';", file_get_contents($adminIndex));
         $this->assertStringContainsString('export const closeActionMenus', file_get_contents($actionMenus));
         $this->assertStringContainsString('export const closeModal', file_get_contents($modals));
         $this->assertStringContainsString('preserveScrollPosition', file_get_contents($modals));
         $this->assertStringContainsString('export const bootConfirmationModal', file_get_contents($confirmationModal));
+        $this->assertStringContainsString('export const bootMobileMenu', file_get_contents($mobileMenu));
+        $this->assertStringContainsString('export const bootResponsiveControls', file_get_contents($responsiveControls));
         $this->assertStringContainsString('localStorage.setItem', file_get_contents($theme));
     }
 
@@ -982,6 +1093,8 @@ class SystemManagementTest extends TestCase
             ->get('/admin/users?status=active&sort=name&direction=asc&per_page=100')
             ->assertOk()
             ->assertSee(__('messages.search'))
+            ->assertSee('admin-list-filters-bar', false)
+            ->assertSee('admin-list-primary-filter', false)
             ->assertSee('data-menu-icon="search"', false)
             ->assertSee('data-menu-icon="filter"', false)
             ->assertSee(__('messages.edit_filters'))
@@ -992,7 +1105,10 @@ class SystemManagementTest extends TestCase
             ->assertSee('data-menu-icon="chevron-right"', false)
             ->assertSee('data-menu-icon="chevron-left"', false)
             ->assertSee(__('messages.pagination_summary', ['from' => '1', 'to' => '4', 'total' => '4']))
-            ->assertSee('aria-disabled="true"', false);
+            ->assertSee('aria-disabled="true"', false)
+            ->assertSee('admin-mobile-list', false)
+            ->assertSee('admin-mobile-list-card', false)
+            ->assertSee('left-0 z-[90]', false);
 
         $this->actingAs($superAdmin)
             ->forHost('hairvision-ai.test')

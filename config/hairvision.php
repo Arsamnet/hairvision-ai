@@ -59,6 +59,15 @@ return [
         'max_attempts' => (int) env('HAIRVISION_ADMIN_OTP_MAX_ATTEMPTS', 5),
     ],
 
+    'sms' => [
+        'ippanel' => [
+            'authorization_token' => env('HAIRVISION_IPPANEL_AUTHORIZATION_TOKEN'),
+            'from_number' => env('HAIRVISION_IPPANEL_FROM_NUMBER', '+983000505'),
+            'otp_pattern_code' => env('HAIRVISION_IPPANEL_OTP_PATTERN_CODE', 's5jh64gwzlk0jf3'),
+            'endpoint_url' => env('HAIRVISION_IPPANEL_ENDPOINT_URL', 'https://edge.ippanel.com/v1/api/send'),
+        ],
+    ],
+
     // Runs sample image jobs synchronously for local/debug UX.
     'debug_fast_samples' => env('HAIRVISION_DEBUG_FAST_SAMPLES', env('APP_DEBUG', false)),
 ];

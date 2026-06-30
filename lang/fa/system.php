@@ -15,7 +15,7 @@ return [
     'payment_gateways_title' => 'درگاه‌های پرداخت',
     'new_gateway' => 'درگاه جدید',
     'new_private_gateway' => 'درگاه خصوصی جدید',
-    'sms_gateways_title' => 'درگاه‌های پیامک سیستم',
+    'sms_gateways_title' => 'همه درگاه‌های پیامک',
     'owner' => 'مالک',
     'no_private_user' => 'کاربر خصوصی ندارد',
     'name' => 'نام',

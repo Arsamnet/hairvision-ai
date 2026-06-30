@@ -56,7 +56,7 @@ class AdminOtpService
         ]);
 
         if ($this->smsGateways->systemDefault()) {
-            $this->smsGateways->sendSystemMessage($phoneNormalized, __('auth.login_sms', ['code' => $code]));
+            $this->smsGateways->sendSystemOtp($phoneNormalized, $code);
         } else {
             $this->otpSender->send($phoneNormalized, $code);
         }

@@ -1,4 +1,8 @@
 @import 'tailwindcss';
+@import './base/responsive.css';
+@import './layouts/admin-mobile.css';
+@import './components/list-filters.css';
+@import './components/mobile-lists.css';
 
 @source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
 @source '../../storage/framework/views/*.php';
@@ -424,7 +428,6 @@ html[data-admin-theme='dark'] .admin-logo-dark {
 .admin-icon-button:focus-visible,
 .admin-user-menu-trigger:focus-visible,
 .admin-user-menu-item:focus-visible,
-.admin-mobile-menu-link:focus-visible,
 .admin-logout-button:focus-visible {
     box-shadow: 0 0 0 3px color-mix(in srgb, var(--admin-focus) 32%, transparent);
 }
@@ -495,8 +498,7 @@ html[data-admin-theme='dark'] .admin-logo-dark {
     opacity: 0.8;
 }
 
-.admin-icon-button,
-.admin-mobile-menu-link {
+.admin-icon-button {
     display: grid;
     height: 2.5rem;
     width: 2.5rem;
@@ -508,8 +510,7 @@ html[data-admin-theme='dark'] .admin-logo-dark {
     transition: background-color 160ms ease, color 160ms ease, box-shadow 160ms ease;
 }
 
-.admin-icon-button:hover,
-.admin-mobile-menu-link:hover {
+.admin-icon-button:hover {
     background: var(--admin-menu-hover);
     color: var(--admin-menu-text);
 }

@@ -1,0 +1,169 @@
+.admin-mobile-menu-layer {
+    pointer-events: none;
+    position: fixed;
+    inset: 0;
+    z-index: 60;
+}
+
+.admin-mobile-menu-backdrop {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    background: rgba(15, 23, 42, 0.55);
+    transition: opacity 180ms ease;
+}
+
+.admin-mobile-drawer {
+    position: absolute;
+    inset-block: 0;
+    inset-inline-start: 0;
+    display: flex;
+    width: min(22rem, calc(100vw - 2rem));
+    max-width: 100%;
+    min-height: 100%;
+    transform: translateX(105%);
+    flex-direction: column;
+    border-inline-end: 1px solid var(--admin-border);
+    background: var(--admin-sidebar);
+    color: var(--admin-text);
+    box-shadow: -24px 0 48px rgba(15, 23, 42, 0.18);
+    transition: transform 200ms ease;
+}
+
+.admin-mobile-drawer-header {
+    display: flex;
+    min-height: 4.5rem;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    border-bottom: 1px solid var(--admin-border);
+    padding: 0.875rem 1rem;
+    background: var(--admin-logo-header);
+}
+
+.admin-mobile-menu-button {
+    display: grid;
+    height: 2.75rem;
+    width: 2.75rem;
+    place-items: center;
+    border: 1px solid var(--admin-user-menu-border);
+    border-radius: 0.5rem;
+    background: var(--admin-user-menu-bg);
+    color: var(--admin-user-menu-muted);
+    outline: none;
+    transition: background-color 160ms ease, color 160ms ease, box-shadow 160ms ease;
+}
+
+.admin-mobile-menu-button:hover,
+.admin-mobile-menu-button:focus-visible {
+    background: var(--admin-user-menu-hover);
+    color: var(--admin-user-menu-text);
+}
+
+.admin-mobile-topbar {
+    position: relative;
+    display: flex;
+    min-height: 4.25rem;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 1px solid var(--admin-border);
+    background: var(--admin-header);
+    padding: 0.75rem 1rem;
+}
+
+.admin-mobile-topbar-side {
+    position: relative;
+    z-index: 2;
+    display: flex;
+    min-width: 2.75rem;
+    align-items: center;
+}
+
+.admin-mobile-topbar-user {
+    justify-content: flex-end;
+}
+
+.admin-mobile-brand-center {
+    pointer-events: none;
+    position: absolute;
+    inset-inline: 4rem;
+    inset-block: 0;
+    z-index: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.admin-mobile-brand-center .admin-brand-logo {
+    pointer-events: auto;
+    width: auto;
+    max-width: min(13rem, 100%);
+}
+
+.admin-mobile-brand-center .admin-logo {
+    max-height: 2.35rem;
+    max-width: 100%;
+}
+
+.admin-user-menu-avatar-trigger {
+    border-radius: 999px;
+}
+
+.admin-mobile-menu-open,
+.admin-mobile-menu-open body,
+.admin-modal-open,
+.admin-modal-open body {
+    overflow: hidden;
+}
+
+.admin-mobile-menu-open .admin-mobile-menu-layer {
+    pointer-events: auto;
+}
+
+.admin-mobile-menu-open .admin-mobile-menu-backdrop {
+    opacity: 1;
+}
+
+.admin-mobile-menu-open .admin-mobile-drawer {
+    transform: translateX(0);
+}
+
+@media (min-width: 1024px) {
+    .admin-mobile-menu-layer,
+    .admin-mobile-topbar {
+        display: none;
+    }
+}
+
+@media (max-width: 1023px) {
+    .admin-app-shell,
+    .admin-main-panel {
+        width: 100%;
+    }
+
+    .admin-content {
+        padding: 0 !important;
+    }
+
+    .admin-content > :is(section, form),
+    .admin-content > :is(div, article) > :is(section, form),
+    .admin-content > :is(div, article) > :is(div, aside, main) > :is(section, form) {
+        border-width: 0 !important;
+        border-radius: 0 !important;
+        box-shadow: none !important;
+        --tw-ring-shadow: 0 0 #0000 !important;
+        --tw-ring-offset-shadow: 0 0 #0000 !important;
+        --tw-shadow: 0 0 #0000 !important;
+        --tw-shadow-colored: 0 0 #0000 !important;
+    }
+
+    .admin-content > :is(section, form):only-child,
+    .admin-content > :is(div, article):only-child > :is(section, form):only-child {
+        min-height: 100%;
+    }
+
+    .admin-user-menu-panel {
+        left: 0;
+        right: auto;
+    }
+}

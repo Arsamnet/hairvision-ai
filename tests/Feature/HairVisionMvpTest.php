@@ -13,6 +13,7 @@ use App\Models\CreditTransaction;
 use App\Models\Plan;
 use App\Models\Subscription;
 use App\Models\SubscriptionServiceEntitlement;
+use App\Models\SmsGateway;
 use App\Models\Template;
 use App\Models\Tenant;
 use App\Models\TenantAiSetting;
@@ -154,6 +155,46 @@ class HairVisionMvpTest extends TestCase
         $this->forHost('clinic1.hairvision-ai.test')
             ->postJson('/api/v1/auth/otp/request', ['phone' => '09123456789'])
             ->assertStatus(429);
+    }
+
+    public function test_otp_request_sends_system_ippanel_pattern_when_configured(): void
+    {
+        $this->createTenant('Clinic One', 'clinic1', 'clinic1.hairvision-ai.test');
+
+        SmsGateway::create([
+            'name' => 'IPPanel System',
+            'provider_code' => 'ippanel',
+            'owner_scope' => 'system',
+            'status' => 'enabled',
+            'is_default' => true,
+            'encrypted_credentials' => ['api_key' => 'system-token'],
+            'settings_json' => [
+                'from_number' => '+983000505',
+                'otp_pattern_code' => 's5jh64gwzlk0jf3',
+            ],
+        ]);
+
+        Http::fake([
+            'https://edge.ippanel.com/v1/api/send' => Http::response(['ok' => true]),
+        ]);
+
+        $payload = $this->forHost('clinic1.hairvision-ai.test')
+            ->postJson('/api/v1/auth/otp/request', ['phone' => '09124248164'])
+            ->assertOk()
+            ->json();
+
+        $code = $this->extractDebugCode($payload['debug_sms']);
+
+        Http::assertSentCount(1);
+        Http::assertSent(function ($request) use ($code): bool {
+            return $request->url() === 'https://edge.ippanel.com/v1/api/send'
+                && $request->header('Authorization') === ['system-token']
+                && $request['sending_type'] === 'pattern'
+                && $request['from_number'] === '+983000505'
+                && $request['code'] === 's5jh64gwzlk0jf3'
+                && $request['recipients'] === ['+989124248164']
+                && $request['params']['verification-code'] === $code;
+        });
     }
 
     public function test_otp_verify_creates_verified_lead_for_current_tenant(): void

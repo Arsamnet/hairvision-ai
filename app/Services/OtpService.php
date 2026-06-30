@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Lead;
 use App\Models\OtpCode;
+use App\Services\Sms\SmsGatewayService;
 use App\Support\NumberNormalizer;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Hash;
@@ -19,6 +20,8 @@ use Random\RandomException;
  */
 class OtpService
 {
+    public function __construct(private readonly SmsGatewayService $smsGateways) {}
+
     /**
      * Create a hashed OTP record for a normalized visitor phone number.
      *
@@ -47,6 +50,10 @@ class OtpService
 
         if (app()->hasDebugModeEnabled()) {
             $otp->debug_code = $code;
+        }
+
+        if ($this->smsGateways->systemDefault()) {
+            $this->smsGateways->sendSystemOtp($phoneNormalized, $code);
         }
 
         return $otp;

@@ -88,6 +88,8 @@ Before editing code, read:
   credit top-ups; service credit is tracked through subscription entitlements
   and credit ledger rows, not only a mutable aggregate counter.
 - Dashboard copy is localized through Persian language files in `lang/fa`.
+- Dashboard responsive behavior uses two modes: mobile/tablet below `1024px`
+  and desktop from `1024px`; important tables expose mobile card summaries.
 - Normal users without an active plan can access only dashboard overview, plans,
   billing/invoices, tenant switch/logout, and account settings; operational
   routes are locked in the UI and blocked by middleware.

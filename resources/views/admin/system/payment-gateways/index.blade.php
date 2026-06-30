@@ -12,10 +12,10 @@
             </div>
             @can('permission', 'payment_gateways.create')
                 <x-admin.modal id="create-payment-gateway-modal" :label="__('system.new_gateway')" :title="__('system.new_gateway')" icon="credit-card" :open="$errors->any() && old('_form') === 'create_payment_gateway'">
-                    <form method="POST" action="{{ route('admin.system.payment-gateways.store') }}" class="grid gap-3 md:grid-cols-2">
+                    <form method="POST" action="{{ route('admin.system.payment-gateways.store') }}" class="grid gap-3 lg:grid-cols-2">
                         @csrf
                         <input type="hidden" name="_form" value="create_payment_gateway">
-                        <x-admin.validation-summary for="create_payment_gateway" class="md:col-span-2" />
+                        <x-admin.validation-summary for="create_payment_gateway" class="lg:col-span-2" />
                         <input name="name" class="h-11 rounded-lg border border-zinc-200 px-3 text-sm outline-none focus:border-teal-500" placeholder="{{ __('system.name') }}">
                         <input name="provider_code" value="local" class="h-11 rounded-lg border border-zinc-200 px-3 text-sm outline-none focus:border-teal-500" dir="ltr" placeholder="{{ __('system.provider') }}">
                         <input name="merchant_id" class="h-11 rounded-lg border border-zinc-200 px-3 text-sm outline-none focus:border-teal-500" placeholder="{{ __('payments.merchant_id') }}" dir="ltr">
@@ -29,7 +29,7 @@
                             <input type="checkbox" name="is_default" value="1">
                             <span>{{ __('system.default') }}</span>
                         </label>
-                        <x-admin.button type="submit" icon="credit-card" class="md:col-span-2">
+                        <x-admin.button type="submit" icon="credit-card" class="lg:col-span-2">
                             <span>{{ __('system.submit') }}</span>
                         </x-admin.button>
                     </form>
@@ -52,7 +52,7 @@
             ]"
         />
 
-        <div data-admin-table-container class="mt-5 overflow-visible rounded-lg border border-zinc-100">
+        <div data-admin-table-container class="mt-5 hidden overflow-visible rounded-lg border border-zinc-100 lg:block">
             <table class="w-full min-w-[42rem] text-right text-sm">
                 <thead class="bg-zinc-50 text-xs text-zinc-500">
                     <tr>
@@ -100,6 +100,49 @@
                 </tbody>
             </table>
         </div>
+
+        <x-admin.mobile-list>
+            @forelse($gateways as $gateway)
+                <x-admin.mobile-list.card>
+                    <div class="admin-mobile-list-card-header">
+                        <div class="min-w-0">
+                            <p class="admin-mobile-list-card-title">{{ $gateway->name }}</p>
+                            <p class="admin-mobile-list-card-subtitle" dir="ltr">{{ $gateway->provider_code }}</p>
+                        </div>
+                        <x-admin.table.action-menu>
+                            @can('permission', 'payment_gateways.edit')
+                                <x-admin.table.action-item
+                                    :action="route('admin.system.payment-gateways.update', $gateway)"
+                                    method="PUT"
+                                    icon="edit"
+                                    :inputs="array_filter([
+                                        'name' => $gateway->name,
+                                        'provider_code' => $gateway->provider_code,
+                                        'status' => $gateway->status === 'enabled' ? 'disabled' : 'enabled',
+                                        'is_default' => $gateway->is_default ? 1 : null,
+                                    ], fn ($value) => $value !== null)"
+                                >
+                                    {{ $gateway->status === 'enabled' ? __('system.statuses.disabled') : __('system.statuses.enabled') }}
+                                </x-admin.table.action-item>
+                            @endcan
+                        </x-admin.table.action-menu>
+                    </div>
+
+                    <dl class="admin-mobile-list-fields">
+                        <x-admin.mobile-list.field :label="__('system.status')">
+                            <x-admin.badge :tone="$gateway->status === 'enabled' ? 'emerald' : 'zinc'">{{ __('system.statuses.'.$gateway->status) }}</x-admin.badge>
+                        </x-admin.mobile-list.field>
+                        <x-admin.mobile-list.field :label="__('system.default')">
+                            {{ $gateway->is_default ? __('messages.yes') : __('messages.no') }}
+                        </x-admin.mobile-list.field>
+                    </dl>
+                </x-admin.mobile-list.card>
+            @empty
+                <x-admin.mobile-list.card>
+                    <x-admin.empty-state icon="credit-card">{{ __('payments.empty_gateways') }}</x-admin.empty-state>
+                </x-admin.mobile-list.card>
+            @endforelse
+        </x-admin.mobile-list>
         <x-admin.table.pagination-footer :paginator="$gateways" />
     </x-admin.card>
 @endsection

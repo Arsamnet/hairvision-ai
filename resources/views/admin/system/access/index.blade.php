@@ -23,7 +23,7 @@
             ]"
         />
 
-        <div data-admin-table-container class="overflow-visible">
+        <div data-admin-table-container data-responsive-desktop-controls class="hidden overflow-visible lg:block">
             <table class="w-full min-w-[60rem] text-right text-sm">
                 <thead class="border-b border-zinc-200 text-xs text-zinc-500">
                     <tr>
@@ -88,6 +88,64 @@
                 </tbody>
             </table>
         </div>
+
+        <x-admin.mobile-list data-responsive-mobile-controls>
+            @forelse($users as $dashboardUser)
+                @php($formId = 'access-form-'.$dashboardUser->id)
+                <x-admin.mobile-list.card>
+                    <div class="admin-mobile-list-card-header">
+                        <div class="min-w-0">
+                            <p class="admin-mobile-list-card-title">{{ $dashboardUser->name }}</p>
+                            <p class="admin-mobile-list-card-subtitle" dir="ltr">{{ $dashboardUser->phone_normalized }}</p>
+                        </div>
+                        <x-admin.button type="submit" form="{{ $formId }}" variant="secondary" size="xs" icon="settings">
+                            <span>{{ __('system.save') }}</span>
+                        </x-admin.button>
+                    </div>
+
+                    <div class="grid gap-3">
+                        <label class="space-y-1 text-sm font-bold text-zinc-700">
+                            <span>{{ __('system.global_role') }}</span>
+                            <select form="{{ $formId }}" name="role" class="h-11 w-full rounded-lg border border-zinc-200 px-3 text-sm">
+                                @foreach($roles as $role)
+                                    <option value="{{ $role->code }}" @selected($dashboardUser->role === $role->code)>{{ $role->name }}</option>
+                                @endforeach
+                            </select>
+                        </label>
+                        <label class="space-y-1 text-sm font-bold text-zinc-700">
+                            <span>{{ __('system.clinic') }}</span>
+                            <select form="{{ $formId }}" name="tenant_id" class="h-11 w-full rounded-lg border border-zinc-200 px-3 text-sm">
+                                <option value="">{{ __('messages.none') }}</option>
+                                @foreach($tenants as $tenantOption)
+                                    <option value="{{ $tenantOption->id }}">{{ $tenantOption->name }}</option>
+                                @endforeach
+                            </select>
+                        </label>
+                        <label class="space-y-1 text-sm font-bold text-zinc-700">
+                            <span>{{ __('system.clinic_role') }}</span>
+                            <select form="{{ $formId }}" name="tenant_role" class="h-11 w-full rounded-lg border border-zinc-200 px-3 text-sm">
+                                <option value="">{{ __('messages.none') }}</option>
+                                @foreach($roles as $role)
+                                    <option value="{{ $role->code }}">{{ $role->name }}</option>
+                                @endforeach
+                            </select>
+                        </label>
+                        <label class="space-y-1 text-sm font-bold text-zinc-700">
+                            <span>{{ __('system.status') }}</span>
+                            <select form="{{ $formId }}" name="status" class="h-11 w-full rounded-lg border border-zinc-200 px-3 text-sm">
+                                @foreach(['active', 'suspended', 'disabled'] as $status)
+                                    <option value="{{ $status }}" @selected($dashboardUser->status === $status)>{{ __('system.statuses.'.$status) }}</option>
+                                @endforeach
+                            </select>
+                        </label>
+                    </div>
+                </x-admin.mobile-list.card>
+            @empty
+                <x-admin.mobile-list.card>
+                    <x-admin.empty-state icon="users">{{ __('system.empty_users') }}</x-admin.empty-state>
+                </x-admin.mobile-list.card>
+            @endforelse
+        </x-admin.mobile-list>
         <x-admin.table.pagination-footer :paginator="$users" />
 
         @foreach($users as $dashboardUser)

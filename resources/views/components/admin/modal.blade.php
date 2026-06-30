@@ -15,7 +15,7 @@
 <div class="inline-block">
     <input id="{{ $toggleId }}" type="checkbox" class="peer sr-only" data-admin-modal-toggle="{{ $id }}" @checked($open)>
     @if($trigger)
-        <label for="{{ $toggleId }}" class="{{ $triggerClass }}" data-admin-modal-trigger="{{ $id }}">
+        <label for="{{ $toggleId }}" class="{{ $triggerClass }}" role="button" tabindex="0" data-admin-modal-trigger="{{ $id }}">
             <x-admin.icon :name="$icon" class="h-4 w-4" />
             <span>{{ $label }}</span>
         </label>
@@ -23,20 +23,20 @@
 
     <div class="fixed inset-0 z-50 hidden items-center justify-center p-4 peer-checked:flex" data-admin-modal="{{ $id }}">
         @if($trigger)
-            <label for="{{ $toggleId }}" class="absolute inset-0 cursor-pointer bg-zinc-950/45" aria-label="{{ __('messages.close') }}"></label>
+            <label for="{{ $toggleId }}" class="absolute inset-0 cursor-pointer bg-zinc-950/45" aria-label="{{ __('messages.close') }}" data-admin-modal-backdrop="{{ $id }}"></label>
         @else
             <x-admin.button type="button" variant="unstyled" size="none" class="absolute inset-0 bg-zinc-950/45" aria-label="{{ __('messages.close') }}" data-admin-modal-backdrop="{{ $id }}" />
         @endif
-        <section class="relative z-10 max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-lg bg-white p-5 shadow-2xl ring-1 ring-zinc-200">
+        <section class="relative z-10 max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-lg bg-white p-5 shadow-2xl ring-1 ring-zinc-200" role="dialog" aria-modal="true" aria-labelledby="{{ $id }}-title">
             <div class="flex items-center justify-between gap-3 border-b border-zinc-100 pb-3">
                 <div class="flex items-center gap-2">
                     <span class="grid h-9 w-9 place-items-center rounded-lg bg-teal-50 text-teal-700">
                         <x-admin.icon :name="$icon" class="h-4 w-4" />
                     </span>
-                    <h2 class="text-base font-bold">{{ $title ?? $label }}</h2>
+                    <h2 id="{{ $id }}-title" class="text-base font-bold">{{ $title ?? $label }}</h2>
                 </div>
                 @if($trigger)
-                    <label for="{{ $toggleId }}" class="grid h-9 w-9 cursor-pointer place-items-center rounded-lg text-zinc-500 transition hover:bg-zinc-100 hover:text-zinc-950" aria-label="{{ __('messages.close') }}">
+                    <label for="{{ $toggleId }}" class="grid h-9 w-9 cursor-pointer place-items-center rounded-lg text-zinc-500 transition hover:bg-zinc-100 hover:text-zinc-950" role="button" tabindex="0" aria-label="{{ __('messages.close') }}" data-admin-modal-close="{{ $id }}" data-admin-modal-label-close>
                         <x-admin.icon name="x" class="h-4 w-4" />
                     </label>
                 @else

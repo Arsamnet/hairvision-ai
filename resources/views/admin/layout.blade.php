@@ -57,7 +57,6 @@
                 'label' => __('menu.groups.sms'),
                 'icon' => 'message',
                 'items' => [
-                    ['label' => __('menu.items.my_sms_gateways'), 'route' => 'admin.sms-gateways.index', 'active' => ['admin.sms-gateways.*'], 'icon' => 'message', 'planRestricted' => true],
                     ['label' => __('menu.items.system_sms_gateways'), 'route' => 'admin.system.sms-gateways.index', 'active' => ['admin.system.sms-gateways.*'], 'icon' => 'message', 'permissions' => ['sms_gateways.list']],
                 ],
             ],
@@ -81,12 +80,17 @@
                 'icon' => 'settings',
                 'items' => [
                     ['label' => __('menu.items.settings'), 'route' => 'admin.settings', 'active' => ['admin.settings'], 'icon' => 'settings', 'permissions' => ['settings.view']],
+                    ['label' => __('menu.items.my_sms_gateways'), 'route' => 'admin.sms-gateways.index', 'active' => ['admin.sms-gateways.*'], 'icon' => 'message', 'planRestricted' => true, 'clinicOnly' => true],
                     ['label' => __('menu.items.system_settings'), 'route' => 'admin.system.settings.edit', 'active' => ['admin.system.settings.*'], 'icon' => 'settings', 'permissions' => ['settings.manage']],
                 ],
             ],
         ];
 
         $canSeeItem = function (array $item) use ($user, $tenant): bool {
+            if (($item['clinicOnly'] ?? false) && ($user?->isSuperAdmin() ?? false)) {
+                return false;
+            }
+
             $permissions = $item['permissions'] ?? [];
 
             return empty($permissions) || ($user?->hasAnyPermission($permissions, $tenant?->id) ?? false);
@@ -122,84 +126,64 @@
                     </a>
                 </div>
 
-                <nav data-admin-menu-scroll class="admin-menu-scroll min-h-0 flex-1 space-y-1 overflow-y-auto p-3 text-sm font-bold">
-                    @foreach($menuGroups as $group)
-                        @php
-                            $visibleItems = $visibleItemsForGroup($group);
-                        @endphp
-                        @continue($visibleItems->isEmpty())
-
-                        @if($visibleItems->count() === 1)
-                            @php
-                                $item = $visibleItems->first();
-                                $locked = $itemIsLocked($item);
-                                $active = $itemIsActive($item);
-                            @endphp
-
-                            @if($locked)
-                                <span data-menu-item="{{ $item['route'] }}" class="{{ $menuItemClass($active, true) }}" aria-disabled="true" title="{{ __('permissions.plan_required') }}">
-                                    <span class="admin-menu-label">
-                                        <x-admin.icon :name="$item['icon']" />
-                                        <span>{{ $item['label'] }}</span>
-                                    </span>
-                                    <x-admin.icon name="lock" class="admin-menu-lock h-4 w-4" />
-                                </span>
-                            @else
-                                <a data-menu-item="{{ $item['route'] }}" href="{{ route($item['route']) }}" class="{{ $menuItemClass($active) }}" @if($active) aria-current="page" @endif>
-                                    <span class="admin-menu-label">
-                                        <x-admin.icon :name="$item['icon']" />
-                                        <span>{{ $item['label'] }}</span>
-                                    </span>
-                                </a>
-                            @endif
-                        @else
-                            <details data-menu-group="{{ $group['label'] }}" class="admin-menu-details" @if($groupIsActive($group)) open @endif>
-                                <summary class="{{ $menuItemClass(false) }} admin-menu-summary">
-                                    <span class="admin-menu-label">
-                                        <x-admin.icon :name="$group['icon']" />
-                                        <span>{{ $group['label'] }}</span>
-                                    </span>
-                                    <x-admin.icon name="chevron-down" class="admin-menu-caret h-4 w-4" />
-                                </summary>
-                                <div class="admin-submenu">
-                                    @foreach($visibleItems as $item)
-                                        @php
-                                            $locked = $itemIsLocked($item);
-                                            $active = $itemIsActive($item);
-                                        @endphp
-
-                                        @if($locked)
-                                            <span data-menu-item="{{ $item['route'] }}" class="{{ $menuItemClass($active, true) }}" aria-disabled="true" title="{{ __('permissions.plan_required') }}">
-                                                <span class="admin-menu-label">
-                                                    <x-admin.icon :name="$item['icon']" />
-                                                    <span>{{ $item['label'] }}</span>
-                                                </span>
-                                                <x-admin.icon name="lock" class="admin-menu-lock h-4 w-4" />
-                                            </span>
-                                        @else
-                                            <a data-menu-item="{{ $item['route'] }}" href="{{ route($item['route']) }}" class="{{ $menuItemClass($active) }}" @if($active) aria-current="page" @endif>
-                                                <span class="admin-menu-label">
-                                                    <x-admin.icon :name="$item['icon']" />
-                                                    <span>{{ $item['label'] }}</span>
-                                                </span>
-                                            </a>
-                                        @endif
-                                    @endforeach
-                                </div>
-                            </details>
-                        @endif
-                    @endforeach
-                </nav>
+                @include('admin.partials.navigation-menu')
 
             </div>
         </aside>
 
+        <div class="admin-mobile-menu-layer lg:hidden" data-admin-mobile-menu>
+            <x-admin.button type="button" variant="unstyled" size="none" class="admin-mobile-menu-backdrop" aria-label="{{ __('dashboard.mobile_menu.close') }}" data-admin-mobile-menu-close />
+
+            <aside id="admin-mobile-drawer" class="admin-mobile-drawer" role="dialog" aria-modal="true" aria-labelledby="admin-mobile-menu-title" aria-hidden="true" data-admin-mobile-drawer>
+                <div class="admin-mobile-drawer-header">
+                    <a href="{{ route('admin.dashboard') }}" class="admin-brand-logo" aria-label="{{ __('dashboard.product_name') }}" data-admin-mobile-menu-close>
+                        <img src="/theme/admin-logo-light.svg" alt="{{ __('dashboard.product_name') }}" class="admin-logo admin-logo-light">
+                        <img src="/theme/admin-logo-dark.svg" alt="{{ __('dashboard.product_name') }}" class="admin-logo admin-logo-dark">
+                    </a>
+                    <x-admin.button type="button" variant="unstyled" size="none" class="admin-mobile-menu-button" aria-label="{{ __('dashboard.mobile_menu.close') }}" title="{{ __('dashboard.mobile_menu.close') }}" data-admin-mobile-menu-close data-admin-mobile-menu-autofocus>
+                        <x-admin.icon name="x" class="h-5 w-5" />
+                    </x-admin.button>
+                </div>
+
+                <p id="admin-mobile-menu-title" class="sr-only">{{ __('dashboard.mobile_menu.title') }}</p>
+                @include('admin.partials.navigation-menu', [
+                    'navigationClass' => 'admin-menu-scroll min-h-0 flex-1 space-y-1 overflow-y-auto p-3 text-sm font-bold',
+                    'closeOnNavigate' => true,
+                ])
+            </aside>
+        </div>
+
         <div class="admin-main-panel flex h-screen min-h-0 min-w-0 flex-col">
             <header class="admin-topbar z-20 shrink-0 backdrop-blur">
-                <div class="admin-topbar-wrapper flex min-h-18.25 flex-wrap items-center justify-between gap-3 px-4 py-3 sm:px-6">
-                    <div>
-                        <p class="text-xs font-bold text-teal-600">{{ __('dashboard.management_panel') }}</p>
-                        <h1 class="mt-1 text-lg font-bold">@yield('page_title', __('dashboard.dashboard'))</h1>
+                <div class="admin-mobile-topbar lg:hidden">
+                    <div class="admin-mobile-topbar-side admin-mobile-topbar-menu">
+                        <x-admin.button type="button" variant="unstyled" size="none" class="admin-mobile-menu-button" aria-controls="admin-mobile-drawer" aria-expanded="false" aria-label="{{ __('dashboard.mobile_menu.open') }}" title="{{ __('dashboard.mobile_menu.open') }}" data-admin-mobile-menu-open>
+                            <x-admin.icon name="menu-dots-vertical" class="h-5 w-5" />
+                        </x-admin.button>
+                    </div>
+
+                    <div class="admin-mobile-brand-center">
+                        <a href="{{ route('admin.dashboard') }}" class="admin-brand-logo" aria-label="{{ __('dashboard.product_name') }}">
+                            <img src="/theme/admin-logo-light.svg" alt="{{ __('dashboard.product_name') }}" class="admin-logo admin-logo-light">
+                            <img src="/theme/admin-logo-dark.svg" alt="{{ __('dashboard.product_name') }}" class="admin-logo admin-logo-dark">
+                        </a>
+                    </div>
+
+                    <div class="admin-mobile-topbar-side admin-mobile-topbar-user">
+                        @include('admin.partials.user-menu', [
+                            'menuClass' => 'admin-user-menu admin-mobile-user-menu',
+                            'triggerClass' => 'admin-user-menu-trigger admin-user-menu-avatar-trigger',
+                            'triggerIcon' => 'users',
+                        ])
+                    </div>
+                </div>
+
+                <div class="admin-topbar-wrapper hidden min-h-18.25 flex-wrap items-center justify-between gap-3 px-4 py-3 sm:px-6 lg:flex">
+                    <div class="admin-topbar-heading flex min-w-0 items-center gap-3">
+                        <div class="min-w-0">
+                            <p class="text-xs font-bold text-teal-600">{{ __('dashboard.management_panel') }}</p>
+                            <h1 class="mt-1 truncate text-lg font-bold">@yield('page_title', __('dashboard.dashboard'))</h1>
+                        </div>
                     </div>
                     <div class="admin-topbar-actions flex flex-wrap items-center gap-2">
                         @if($activeSubscription)
@@ -210,51 +194,8 @@
                             <span class="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-bold text-amber-800">{{ __('dashboard.plan.'.($planAccess['status']->value ?? 'inactive')) }}</span>
                         @endif
 
-                        <details class="admin-user-menu" data-admin-user-menu>
-                            <summary class="admin-user-menu-trigger" aria-label="{{ __('dashboard.user_menu.open') }}" title="{{ __('dashboard.user_menu.open') }}">
-                                <x-admin.icon name="menu-dots-vertical" class="h-5 w-5" />
-                            </summary>
-                            <div class="admin-user-menu-panel">
-                                <div class="admin-user-menu-header">
-                                    <span class="admin-user-avatar">
-                                        <x-admin.icon name="users" class="h-4 w-4" />
-                                    </span>
-                                    <div class="min-w-0">
-                                        <p class="truncate text-sm font-bold">{{ $user?->name ?? __('dashboard.user_menu.account') }}</p>
-                                        <p class="mt-1 truncate text-xs">{{ $user?->role ? __('system.roles.'.$user->role) : __('dashboard.user_menu.account') }}</p>
-                                    </div>
-                                </div>
+                        @include('admin.partials.user-menu')
 
-                                <x-admin.button type="button" variant="unstyled" size="none" class="admin-user-menu-item" data-theme-toggle data-light-label="{{ __('dashboard.theme.light') }}" data-dark-label="{{ __('dashboard.theme.dark') }}" aria-label="{{ __('dashboard.theme.toggle') }}" title="{{ __('dashboard.theme.toggle') }}">
-                                    <span class="admin-user-menu-item-label">
-                                        <x-admin.icon name="moon" class="theme-icon-moon h-4 w-4" />
-                                        <x-admin.icon name="sun" class="theme-icon-sun h-4 w-4" />
-                                        <span>{{ __('dashboard.theme.menu_item') }}</span>
-                                    </span>
-                                </x-admin.button>
-
-                                <form method="POST" action="{{ route('admin.logout') }}">
-                                    @csrf
-                                    <x-admin.button type="submit" variant="unstyled" size="none" class="admin-user-menu-item is-danger">
-                                        <span class="admin-user-menu-item-label">
-                                            <x-admin.icon name="lock" class="h-4 w-4" />
-                                            <span>{{ __('dashboard.logout') }}</span>
-                                        </span>
-                                    </x-admin.button>
-                                </form>
-                            </div>
-                        </details>
-
-                        <nav class="flex max-w-full items-center gap-1 overflow-x-auto lg:hidden">
-                            @foreach($menuGroups as $group)
-                                @foreach($group['items'] as $item)
-                                    @continue(! $canSeeItem($item) || $itemIsLocked($item))
-                                    <a href="{{ route($item['route']) }}" class="admin-mobile-menu-link" title="{{ $item['label'] }}">
-                                        <x-admin.icon :name="$item['icon']" />
-                                    </a>
-                                @endforeach
-                            @endforeach
-                        </nav>
                     </div>
                 </div>
             </header>

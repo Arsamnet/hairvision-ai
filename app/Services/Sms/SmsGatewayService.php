@@ -4,6 +4,7 @@ namespace App\Services\Sms;
 
 use App\Models\SmsGateway;
 use App\Models\User;
+use App\Services\Sms\Adapters\IppanelSmsGatewayAdapter;
 use App\Services\Sms\Adapters\LocalSmsGatewayAdapter;
 use App\Services\Sms\Contracts\SmsGatewayAdapter;
 use Illuminate\Validation\ValidationException;
@@ -68,17 +69,38 @@ class SmsGatewayService
     }
 
     /**
-     * Send a user's customer message through the user's private gateway.
+     * Send a platform/system OTP through the system default gateway.
+     *
+     * @throws ValidationException
+     */
+    public function sendSystemOtp(string $phoneNormalized, string $code): SmsGateway
+    {
+        $gateway = $this->systemDefault();
+
+        if (! $gateway) {
+            throw ValidationException::withMessages([
+                'sms_gateway' => __('sms.no_system_gateway'),
+            ]);
+        }
+
+        $this->adapterFor($gateway)->sendOtp($gateway, $phoneNormalized, $code);
+
+        return $gateway;
+    }
+
+    /**
+     * Send a user's customer message through their private gateway when active,
+     * otherwise fall back to the system gateway.
      *
      * @throws ValidationException
      */
     public function sendUserCustomerMessage(User $user, string $phoneNormalized, string $message): SmsGateway
     {
-        $gateway = $this->userDefault($user);
+        $gateway = $this->userDefault($user) ?? $this->systemDefault();
 
         if (! $gateway) {
             throw ValidationException::withMessages([
-                'sms_gateway' => __('sms.no_private_gateway'),
+                'sms_gateway' => __('sms.no_available_gateway'),
             ]);
         }
 
@@ -110,6 +132,7 @@ class SmsGatewayService
     private function adapterFor(SmsGateway $gateway): SmsGatewayAdapter
     {
         return match ($gateway->provider_code) {
+            'ippanel' => app(IppanelSmsGatewayAdapter::class),
             'local', 'kavenegar', 'melipayamak' => app(LocalSmsGatewayAdapter::class),
             default => app(LocalSmsGatewayAdapter::class),
         };

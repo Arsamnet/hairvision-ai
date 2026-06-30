@@ -17,4 +17,12 @@ interface SmsGatewayAdapter
      * Implementations must not log credentials or message-sensitive metadata.
      */
     public function send(SmsGateway $gateway, string $phoneNormalized, string $message): void;
+
+    /**
+     * Send a one-time password through the configured gateway.
+     *
+     * Implementations must keep the plain OTP out of logs and persisted
+     * metadata.
+     */
+    public function sendOtp(SmsGateway $gateway, string $phoneNormalized, string $code): void;
 }

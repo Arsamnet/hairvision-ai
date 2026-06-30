@@ -38,6 +38,12 @@ Add focused tests for changed behavior. Examples:
   exhausted service credit.
 - Shared table filter behavior, active filter chips, sortable heading state,
   and disabled pagination-footer state for one-page results.
+- Mobile/tablet drawer markup, permission-aware drawer links, and drawer
+  localization keys when navigation changes.
+- Mobile list/card markup for important dashboard tables when responsive table
+  behavior changes.
+- Responsive JavaScript modules that disable duplicate mobile/desktop form
+  controls or synchronize drawer/modal state.
 
 Tests should assert backend behavior, not just hidden UI. Unauthorized actions
 must be blocked by policies, middleware, scoped services, or route checks.

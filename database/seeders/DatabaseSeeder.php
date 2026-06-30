@@ -325,6 +325,26 @@ class DatabaseSeeder extends Seeder
             ]
         );
 
+        $ippanelToken = config('hairvision.sms.ippanel.authorization_token');
+        $ippanelFromNumber = config('hairvision.sms.ippanel.from_number');
+
+        SmsGateway::query()->updateOrCreate(
+            ['owner_scope' => 'system', 'provider_code' => 'ippanel', 'user_id' => null],
+            [
+                'name' => __('messages.ippanel_sms_gateway'),
+                'status' => 'enabled',
+                'is_default' => false,
+                'encrypted_credentials' => filled($ippanelToken) ? ['api_key' => $ippanelToken] : [],
+                'settings_json' => array_filter([
+                    'purpose' => 'system_messages',
+                    'from_number' => $ippanelFromNumber,
+                    'sender' => $ippanelFromNumber,
+                    'otp_pattern_code' => config('hairvision.sms.ippanel.otp_pattern_code'),
+                    'endpoint_url' => config('hairvision.sms.ippanel.endpoint_url'),
+                ]),
+            ]
+        );
+
         PaymentGateway::query()->updateOrCreate(
             ['provider_code' => 'local'],
             [

@@ -60,6 +60,11 @@
 - Persian localization files for services, subscriptions, and credits.
 - Tests for service-level entitlements, top-ups, add-ons, upgrade replacement,
   ledger consumption, and subscription/credit generation blocking.
+- Mobile/tablet admin drawer navigation below `1024px` using the same
+  permission-aware menu partial as desktop.
+- Shared mobile list Blade components for dashboard table/card summaries.
+- Focused responsive JavaScript modules for drawer state and duplicate
+  mobile/desktop form-control disabling.
 
 ### Changed
 
@@ -79,6 +84,20 @@
   response compatibility was removed from dashboard lists.
 - Dashboard cards, plan notices, lists, tables, badges, empty states, lead
   detail, plans, and billing views were visually refined for RTL use.
+- Dashboard responsive strategy now uses two modes: mobile/tablet below
+  `1024px` and desktop from `1024px`; tablet no longer receives separate
+  `sm`/`md` dashboard layouts.
+- Mobile dashboard header now uses a dedicated layout with menu on the right,
+  centered logo, and a user avatar menu on the left.
+- Shared list filters now align search and filter actions together on mobile,
+  with primary filters arranged two per row when space allows.
+- Important admin tables now render desktop tables from `lg` upward and
+  touch-friendly mobile cards below `lg`, preserving backend pagination,
+  filters, sorting, and row action menus.
+- RTL table action menus now open from the left side of the trigger, and crowded
+  management tables shed low-value columns.
+- Dashboard modals now include dialog ARIA attributes, keyboard-operable label
+  triggers, mobile full-screen sizing, and modal scroll lock.
 - Dashboard list pages now use the shared filter/search surface instead of
   hand-written GET filter forms, and table pagination is rendered in a common
   footer component.
@@ -136,6 +155,9 @@
   access management and SaaS service-credit billing.
 - Documented the admin theme contract, including the default-light behavior,
   persisted user override, and shared dashboard/auth theme surfaces.
+- Documented the two-mode responsive strategy, `1024px` breakpoint, mobile
+  drawer behavior, mobile table cards, CSS import organization, accessibility
+  rules, and testing expectations.
 
 ## 1.2.0
 

@@ -37,8 +37,8 @@
             ]"
         />
 
-        <div data-admin-table-container class="mt-5 overflow-visible rounded-lg border border-zinc-100">
-            <table class="w-full min-w-[52rem] text-right text-sm">
+        <div data-admin-table-container class="mt-5 hidden overflow-visible rounded-lg border border-zinc-100 lg:block">
+            <table class="w-full min-w-[46rem] text-right text-sm">
                 <thead class="bg-zinc-50 text-xs text-zinc-500">
                     <tr>
                         <th class="w-14 px-4 py-3">{{ __('messages.actions') }}</th>
@@ -47,7 +47,6 @@
                         <th class="px-4 py-3"><x-admin.table.sortable-heading sort="owner_scope" :label="__('system.owner')" /></th>
                         <th class="px-4 py-3"><x-admin.table.sortable-heading sort="status" :label="__('system.status')" /></th>
                         <th class="px-4 py-3">{{ __('system.default') }}</th>
-                        <th class="px-4 py-3"><x-admin.table.sortable-heading sort="created_at" :label="__('messages.created_at')" /></th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-zinc-100">
@@ -71,11 +70,10 @@
                             <td class="px-4 py-3">{{ $gateway->owner_scope === 'user' ? $gateway->user?->name : __('system.owners.system') }}</td>
                             <td class="px-4 py-3"><x-admin.badge :tone="$gateway->status === 'enabled' ? 'emerald' : 'zinc'">{{ __('system.statuses.'.$gateway->status) }}</x-admin.badge></td>
                             <td class="px-4 py-3">{{ $gateway->is_default ? __('messages.yes') : __('messages.no') }}</td>
-                            <td class="px-4 py-3 text-zinc-500">{{ $gateway->created_at?->diffForHumans() }}</td>
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="7" class="px-4 py-12">
+                            <td colspan="6" class="px-4 py-12">
                                 <x-admin.empty-state icon="message">{{ __('sms.empty_gateways') }}</x-admin.empty-state>
                             </td>
                         </tr>
@@ -83,6 +81,46 @@
                 </tbody>
             </table>
         </div>
+
+        <x-admin.mobile-list>
+            @forelse($gateways as $gateway)
+                <x-admin.mobile-list.card>
+                    <div class="admin-mobile-list-card-header">
+                        <div class="min-w-0">
+                            <p class="admin-mobile-list-card-title">{{ $gateway->name }}</p>
+                            <p class="admin-mobile-list-card-subtitle" dir="ltr">{{ $gateway->provider_code }}</p>
+                        </div>
+                        <x-admin.table.action-menu>
+                            @can('view', $gateway)
+                                <x-admin.table.action-item :href="route('admin.system.sms-gateways.show', $gateway)" icon="eye">{{ __('sms.details') }}</x-admin.table.action-item>
+                            @endcan
+                            @can('update', $gateway)
+                                <x-admin.table.action-item :href="route('admin.system.sms-gateways.edit', $gateway)" icon="edit">{{ __('system.edit') }}</x-admin.table.action-item>
+                            @endcan
+                            @can('delete', $gateway)
+                                <x-admin.table.action-item :action="route('admin.system.sms-gateways.destroy', $gateway)" method="DELETE" icon="trash" danger :confirm="__('messages.confirm_delete')">{{ __('sms.delete') }}</x-admin.table.action-item>
+                            @endcan
+                        </x-admin.table.action-menu>
+                    </div>
+
+                    <dl class="admin-mobile-list-fields">
+                        <x-admin.mobile-list.field :label="__('system.owner')">
+                            <span class="truncate">{{ $gateway->owner_scope === 'user' ? $gateway->user?->name : __('system.owners.system') }}</span>
+                        </x-admin.mobile-list.field>
+                        <x-admin.mobile-list.field :label="__('system.status')">
+                            <x-admin.badge :tone="$gateway->status === 'enabled' ? 'emerald' : 'zinc'">{{ __('system.statuses.'.$gateway->status) }}</x-admin.badge>
+                        </x-admin.mobile-list.field>
+                        <x-admin.mobile-list.field :label="__('system.default')">
+                            {{ $gateway->is_default ? __('messages.yes') : __('messages.no') }}
+                        </x-admin.mobile-list.field>
+                    </dl>
+                </x-admin.mobile-list.card>
+            @empty
+                <x-admin.mobile-list.card>
+                    <x-admin.empty-state icon="message">{{ __('sms.empty_gateways') }}</x-admin.empty-state>
+                </x-admin.mobile-list.card>
+            @endforelse
+        </x-admin.mobile-list>
         <x-admin.table.pagination-footer :paginator="$gateways" />
     </x-admin.card>
 @endsection

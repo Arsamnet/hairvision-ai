@@ -48,7 +48,7 @@
             ]"
         />
 
-        <div data-admin-table-container class="mt-5 overflow-visible rounded-lg border border-zinc-100">
+        <div data-admin-table-container class="mt-5 hidden overflow-visible rounded-lg border border-zinc-100 lg:block">
             <table class="w-full min-w-216 text-right text-sm">
                 <thead class="bg-zinc-50 text-xs text-zinc-500">
                     <tr>
@@ -108,6 +108,55 @@
                 </tbody>
             </table>
         </div>
+
+        <x-admin.mobile-list>
+            @forelse($aiModelAccesses as $access)
+                <x-admin.mobile-list.card>
+                    <div class="admin-mobile-list-card-header">
+                        <div class="min-w-0">
+                            <p class="admin-mobile-list-card-title">{{ $access->name }}</p>
+                            <p class="admin-mobile-list-card-subtitle">{{ $resolver->modelLabel($access->model_key) }} - {{ $resolver->usageCategoryLabel($access->usage_category_key) }}</p>
+                        </div>
+                        <x-admin.table.action-menu>
+                            @can('view', $access)
+                                <x-admin.table.action-item :href="route('admin.ai-models.show', $access)" icon="eye">{{ __('ai_models.details') }}</x-admin.table.action-item>
+                            @endcan
+                            @can('toggle', $access)
+                                <x-admin.table.action-item :action="route('admin.ai-models.toggle', $access)" method="PATCH" icon="check">{{ __('ai_models.toggle') }}</x-admin.table.action-item>
+                            @endcan
+                            @can('delete', $access)
+                                <x-admin.table.action-item :action="route('admin.ai-models.destroy', $access)" method="DELETE" icon="trash" danger :confirm="__('messages.confirm_delete')">{{ __('messages.delete') }}</x-admin.table.action-item>
+                            @endcan
+                        </x-admin.table.action-menu>
+                    </div>
+
+                    <div class="flex flex-wrap gap-1">
+                        @if($access->is_demo)
+                            <x-admin.badge tone="teal">{{ __('ai_models.flags.demo') }}</x-admin.badge>
+                        @endif
+                        @if($access->is_protected)
+                            <x-admin.badge tone="amber">{{ __('ai_models.flags.protected') }}</x-admin.badge>
+                        @endif
+                    </div>
+
+                    <dl class="admin-mobile-list-fields">
+                        <x-admin.mobile-list.field :label="__('ai_models.status')">
+                            <x-admin.badge :tone="$access->is_active ? 'emerald' : 'zinc'">{{ $access->is_active ? __('ai_models.statuses.active') : __('ai_models.statuses.inactive') }}</x-admin.badge>
+                        </x-admin.mobile-list.field>
+                        <x-admin.mobile-list.field :label="__('ai_models.credit_used')">
+                            <span dir="ltr">{{ number_format($access->credit_used) }} / {{ $access->remainingCredit() === null ? __('ai_models.unlimited_credit') : number_format($access->remainingCredit()) }}</span>
+                        </x-admin.mobile-list.field>
+                        <x-admin.mobile-list.field :label="__('ai_models.last_used_at')">
+                            {{ $access->last_used_at?->diffForHumans() ?? __('messages.none') }}
+                        </x-admin.mobile-list.field>
+                    </dl>
+                </x-admin.mobile-list.card>
+            @empty
+                <x-admin.mobile-list.card>
+                    <x-admin.empty-state icon="sparkles">{{ __('ai_models.empty.accesses') }}</x-admin.empty-state>
+                </x-admin.mobile-list.card>
+            @endforelse
+        </x-admin.mobile-list>
         <x-admin.table.pagination-footer :paginator="$aiModelAccesses" />
     </x-admin.card>
 @endsection

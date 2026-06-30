@@ -29,6 +29,8 @@
             <div class="rounded-lg bg-zinc-50 p-3"><dt class="text-sm text-zinc-500">{{ __('system.status') }}</dt><dd class="mt-1 font-bold">{{ __('system.statuses.'.$gateway->status) }}</dd></div>
             <div class="rounded-lg bg-zinc-50 p-3"><dt class="text-sm text-zinc-500">{{ __('system.default') }}</dt><dd class="mt-1 font-bold">{{ $gateway->is_default ? __('messages.yes') : __('messages.no') }}</dd></div>
             <div class="rounded-lg bg-zinc-50 p-3"><dt class="text-sm text-zinc-500">{{ __('sms.api_key') }}</dt><dd class="mt-1 font-bold" dir="ltr">{{ $gateway->maskedCredential('api_key') ?? __('messages.none') }}</dd></div>
+            <div class="rounded-lg bg-zinc-50 p-3"><dt class="text-sm text-zinc-500">{{ __('sms.from_number') }}</dt><dd class="mt-1 font-bold" dir="ltr">{{ data_get($gateway->settings_json, 'from_number', data_get($gateway->settings_json, 'sender')) ?? __('messages.none') }}</dd></div>
+            <div class="rounded-lg bg-zinc-50 p-3"><dt class="text-sm text-zinc-500">{{ __('sms.otp_pattern_code') }}</dt><dd class="mt-1 font-bold" dir="ltr">{{ data_get($gateway->settings_json, 'otp_pattern_code') ?? __('messages.none') }}</dd></div>
         </dl>
     </section>
 @endsection

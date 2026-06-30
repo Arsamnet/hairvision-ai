@@ -34,7 +34,7 @@
 
     <section class="mt-5 rounded-lg bg-white p-5 shadow-sm ring-1 ring-zinc-200">
         <h2 class="text-lg font-bold">{{ __('system.users.clinic_access') }}</h2>
-        <div class="mt-4 overflow-x-auto rounded-lg border border-zinc-100">
+        <div data-admin-table-container class="mt-4 hidden overflow-visible rounded-lg border border-zinc-100 lg:block">
             <table class="w-full min-w-[36rem] text-right text-sm">
                 <thead class="bg-zinc-50 text-xs text-zinc-500">
                     <tr>
@@ -56,5 +56,23 @@
                 </tbody>
             </table>
         </div>
+
+        <x-admin.mobile-list>
+            @forelse($dashboardUser->tenants as $userTenant)
+                <x-admin.mobile-list.card>
+                    <div class="admin-mobile-list-card-header">
+                        <div class="min-w-0">
+                            <p class="admin-mobile-list-card-title">{{ $userTenant->name }}</p>
+                            <p class="admin-mobile-list-card-subtitle">{{ __('system.roles.'.$userTenant->pivot->role) }}</p>
+                        </div>
+                        <x-admin.badge :tone="$userTenant->pivot->status === 'active' ? 'emerald' : 'zinc'">{{ __('system.statuses.'.$userTenant->pivot->status) }}</x-admin.badge>
+                    </div>
+                </x-admin.mobile-list.card>
+            @empty
+                <x-admin.mobile-list.card>
+                    <x-admin.empty-state icon="users">{{ __('system.users.no_clinics') }}</x-admin.empty-state>
+                </x-admin.mobile-list.card>
+            @endforelse
+        </x-admin.mobile-list>
     </section>
 @endsection

@@ -16,4 +16,9 @@ class LocalSmsGatewayAdapter implements SmsGatewayAdapter
     {
         // Intentionally no-op. Do not log plain OTP codes or customer messages.
     }
+
+    public function sendOtp(SmsGateway $gateway, string $phoneNormalized, string $code): void
+    {
+        // Intentionally no-op. Do not log plain OTP codes or customer messages.
+    }
 }
