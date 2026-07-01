@@ -5,7 +5,6 @@ namespace App\Services\Auth;
 use App\Models\OtpCode;
 use App\Models\Tenant;
 use App\Models\User;
-use App\Services\Otp\OtpSenderInterface;
 use App\Services\Sms\SmsGatewayService;
 use App\Support\NumberNormalizer;
 use Illuminate\Support\Carbon;
@@ -21,7 +20,6 @@ use Random\RandomException;
 class AdminOtpService
 {
     public function __construct(
-        private readonly OtpSenderInterface $otpSender,
         private readonly SmsGatewayService $smsGateways,
     ) {}
 
@@ -55,15 +53,7 @@ class AdminOtpService
             'attempts' => 0,
         ]);
 
-        if ($this->smsGateways->systemDefault()) {
-            $this->smsGateways->sendSystemOtp($phoneNormalized, $code);
-        } else {
-            $this->otpSender->send($phoneNormalized, $code);
-        }
-
-        if (app()->hasDebugModeEnabled()) {
-            $otp->debug_code = $code;
-        }
+        $this->smsGateways->sendSystemOtp($phoneNormalized, $code);
 
         return $otp;
     }

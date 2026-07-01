@@ -5,15 +5,16 @@ namespace Tests\Feature;
 use App\Models\Lead;
 use App\Models\OtpCode;
 use App\Models\Plan;
+use App\Models\SmsGateway;
 use App\Models\Subscription;
 use App\Models\Tenant;
 use App\Models\TenantDomain;
 use App\Models\User;
-use App\Support\NumberNormalizer;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Blade;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Http;
 use Tests\TestCase;
 
 class AdminDashboardTest extends TestCase
@@ -46,14 +47,21 @@ class AdminDashboardTest extends TestCase
     public function test_admin_otp_login_stores_hash_and_authenticates_user(): void
     {
         $tenant = $this->createTenant('Clinic One', 'clinic1', 'clinic1.hairvision-ai.test');
-        $user = $this->createUserForTenant($tenant, 'clinic_admin', '09120000000');
+        $user = $this->createUserForTenant($tenant, 'clinic_admin', '09217359491');
+        $this->enableIppanelOtpGateway();
 
         $response = $this->forHost('hairvision-ai.test')
-            ->post('/admin/otp/request', ['phone' => '09120000000'])
+            ->post('/admin/otp/request', ['phone' => '09217359491'])
             ->assertRedirect(route('admin.otp.form'));
 
-        $debugSms = $response->getSession()->get('debug_sms');
-        $code = $this->extractDebugCode($debugSms);
+        $this->assertFalse($response->getSession()->has('debug_sms'));
+
+        $this->forHost('hairvision-ai.test')
+            ->get('/admin/otp')
+            ->assertOk()
+            ->assertDontSee('کد ورود آزمایشی');
+
+        $code = $this->latestSentOtpCode();
 
         $otp = OtpCode::query()->where('purpose', 'admin_login')->firstOrFail();
         $this->assertSame($tenant->id, $otp->tenant_id);
@@ -62,7 +70,7 @@ class AdminDashboardTest extends TestCase
 
         $this->forHost('hairvision-ai.test')
             ->post('/admin/otp/verify', [
-                'phone' => '09120000000',
+                'phone' => '09217359491',
                 'code' => $code,
             ])
             ->assertRedirect(route('admin.dashboard'));
@@ -99,7 +107,7 @@ class AdminDashboardTest extends TestCase
             ->assertSee('hairvision.admin.theme', false)
             ->assertSee('admin-auth-shell', false);
 
-        $this->withSession(['admin_pending_phone' => '09120000000'])
+        $this->withSession(['admin_pending_phone' => '09217359491'])
             ->forHost('hairvision-ai.test')
             ->get('/admin/otp')
             ->assertOk()
@@ -141,6 +149,8 @@ class AdminDashboardTest extends TestCase
 
     public function test_database_seeder_creates_super_admin_and_clinic_demo_data(): void
     {
+        config(['hairvision.super_admin.phone' => '09129999999']);
+
         $this->seed(\Database\Seeders\DatabaseSeeder::class);
 
         $tenant = Tenant::query()->where('slug', 'clinic1')->firstOrFail();
@@ -309,10 +319,36 @@ class AdminDashboardTest extends TestCase
         ]);
     }
 
-    private function extractDebugCode(string $debugSms): string
+    private function enableIppanelOtpGateway(): SmsGateway
     {
-        preg_match('/([0-9۰-۹٠-٩]{6})/u', $debugSms, $matches);
+        Http::fake([
+            'https://edge.ippanel.com/v1/api/send' => Http::response(['ok' => true]),
+        ]);
 
-        return NumberNormalizer::toLatinDigits($matches[1]);
+        return SmsGateway::create([
+            'name' => 'IPPanel System',
+            'provider_code' => 'ippanel',
+            'owner_scope' => 'system',
+            'status' => 'enabled',
+            'is_default' => false,
+            'encrypted_credentials' => ['api_key' => 'system-token'],
+            'settings_json' => [
+                'from_number' => '+983000505',
+                'otp_pattern_code' => 's5jh64gwzlk0jf3',
+            ],
+        ]);
+    }
+
+    private function latestSentOtpCode(): string
+    {
+        $record = Http::recorded()->last();
+        $request = $record[0] ?? null;
+
+        $code = $request['params']['verification-code'] ?? null;
+
+        $this->assertIsString($code);
+        $this->assertMatchesRegularExpression('/^[0-9]{6}$/', $code);
+
+        return $code;
     }
 }

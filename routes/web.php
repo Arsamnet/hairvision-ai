@@ -95,8 +95,8 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
         Route::get('/plans', [PlanController::class, 'index'])->middleware('permission:plans.list')->name('plans.index');
         Route::post('/plans/{plan}/purchase', [PlanController::class, 'purchase'])->middleware('permission:billing.pay')->name('plans.purchase');
         Route::get('/billing', [BillingController::class, 'index'])->middleware('permission:billing.list')->name('billing.index');
-        Route::post('/billing/invoices/{invoice}/pay', [BillingController::class, 'pay'])->middleware('permission:billing.pay')->name('billing.pay');
-        Route::post('/billing/payments/{payment}/verify', [BillingController::class, 'verify'])->middleware('permission:billing.pay')->name('billing.verify');
+        Route::match(['get', 'post'], '/billing/invoices/{invoice}/pay', [BillingController::class, 'pay'])->middleware('permission:billing.pay')->name('billing.pay');
+        Route::match(['get', 'post'], '/billing/payments/{payment}/verify', [BillingController::class, 'verify'])->middleware('permission:billing.pay')->name('billing.verify');
         Route::get('/my-sms-gateways', [MySmsGatewayController::class, 'index'])->name('sms-gateways.index');
         Route::get('/my-sms-gateways/create', [MySmsGatewayController::class, 'create'])->name('sms-gateways.create');
         Route::post('/my-sms-gateways', [MySmsGatewayController::class, 'store'])->name('sms-gateways.store');

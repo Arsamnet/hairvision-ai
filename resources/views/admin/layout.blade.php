@@ -173,7 +173,6 @@
                         @include('admin.partials.user-menu', [
                             'menuClass' => 'admin-user-menu admin-mobile-user-menu',
                             'triggerClass' => 'admin-user-menu-trigger admin-user-menu-avatar-trigger',
-                            'triggerIcon' => 'users',
                         ])
                     </div>
                 </div>

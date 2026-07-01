@@ -13,8 +13,8 @@ use Random\RandomException;
 /**
  * Manages tenant-scoped OTP creation, normalization, and verification.
  *
- * OTP codes are stored only as hashes. Debug codes are attached to the returned
- * model instance only when Laravel debug mode is enabled.
+ * OTP codes are stored only as hashes and sent through the system IPPanel
+ * gateway.
  *
  * @since 1.0.0
  */
@@ -28,7 +28,7 @@ class OtpService
      * @param  string  $phone  Visitor phone number in a supported digit script.
      * @param  string  $ipAddress  Request IP address stored for abuse review.
      * @param  int  $tenantId  Tenant id resolved from the request host.
-     * @return OtpCode Created OTP model; debug mode may add a transient `debug_code` attribute.
+     * @return OtpCode Created OTP model.
      *
      * @throws RandomException When secure OTP generation fails.
      */
@@ -48,13 +48,7 @@ class OtpService
             'attempts' => 0,
         ]);
 
-        if (app()->hasDebugModeEnabled()) {
-            $otp->debug_code = $code;
-        }
-
-        if ($this->smsGateways->systemDefault()) {
-            $this->smsGateways->sendSystemOtp($phoneNormalized, $code);
-        }
+        $this->smsGateways->sendSystemOtp($phoneNormalized, $code);
 
         return $otp;
     }

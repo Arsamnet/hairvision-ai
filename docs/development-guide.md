@@ -96,6 +96,15 @@ Required command:
 php artisan test
 ```
 
+## Error Handling Rule
+
+Every user-facing failure path must be wrapped at the nearest controller,
+service, job, or adapter boundary where it can be handled safely. Log the real
+exception through Laravel logs with non-sensitive context, and return only a
+generic localized message to the user. Never expose raw exception text, gateway
+or provider diagnostics, credentials, OTP codes, private storage paths, or stack
+traces in Blade or JSON responses.
+
 Additional testing expectations are documented in `docs/testing.md`.
 
 Run when CSS, JavaScript, Blade, fonts, or Vite inputs change:

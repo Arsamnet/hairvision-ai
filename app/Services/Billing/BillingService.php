@@ -75,6 +75,20 @@ class BillingService
             ]);
         }
 
+        $pendingPayment = $invoice->payments()
+            ->where('payment_gateway_id', $gateway->id)
+            ->where('status', 'pending')
+            ->latest('id')
+            ->first();
+
+        if (
+            $pendingPayment
+            && filled($pendingPayment->authority)
+            && filled(data_get($pendingPayment->gateway_response_json, 'redirect_url'))
+        ) {
+            return $pendingPayment;
+        }
+
         $payment = Payment::create([
             'tenant_id' => $invoice->tenant_id,
             'user_id' => $invoice->user_id,
@@ -124,6 +138,41 @@ class BillingService
 
             if ($invoice->plan) {
                 $this->activation->activateInvoice($invoice);
+            }
+
+            return $payment->refresh();
+        });
+    }
+
+    /**
+     * Mark a gateway attempt as failed without exposing gateway payloads to users.
+     *
+     * @param  array<string, mixed>  $payload
+     */
+    public function markPaymentFailed(Payment $payment, array $payload = []): Payment
+    {
+        return DB::transaction(function () use ($payment, $payload): Payment {
+            $payment = Payment::query()
+                ->with('invoice')
+                ->lockForUpdate()
+                ->findOrFail($payment->id);
+
+            if ($payment->status === 'paid') {
+                return $payment;
+            }
+
+            $payment->forceFill([
+                'status' => 'failed',
+                'gateway_response_json' => array_filter([
+                    'provider' => data_get($payment->gateway_response_json, 'provider'),
+                    'status' => 'failed',
+                    'authority_hash' => filled($payment->authority) ? hash('sha256', (string) $payment->authority) : null,
+                    'callback_status' => $payload['Status'] ?? $payload['status'] ?? null,
+                ]),
+            ])->save();
+
+            if ($payment->invoice && $payment->invoice->status !== 'paid') {
+                $payment->invoice->forceFill(['status' => 'failed'])->save();
             }
 
             return $payment->refresh();

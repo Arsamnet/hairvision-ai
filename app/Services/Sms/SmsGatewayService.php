@@ -30,6 +30,20 @@ class SmsGatewayService
     }
 
     /**
+     * Return the enabled system IPPanel gateway used for all OTP messages.
+     */
+    public function systemIppanel(): ?SmsGateway
+    {
+        return SmsGateway::query()
+            ->system()
+            ->enabled()
+            ->where('provider_code', 'ippanel')
+            ->orderByDesc('is_default')
+            ->orderBy('id')
+            ->first();
+    }
+
+    /**
      * Return the user's private default gateway for their own customer messages.
      */
     public function userDefault(User $user): ?SmsGateway
@@ -69,17 +83,17 @@ class SmsGatewayService
     }
 
     /**
-     * Send a platform/system OTP through the system default gateway.
+     * Send a platform/system OTP through the system IPPanel gateway.
      *
      * @throws ValidationException
      */
     public function sendSystemOtp(string $phoneNormalized, string $code): SmsGateway
     {
-        $gateway = $this->systemDefault();
+        $gateway = $this->systemIppanel();
 
         if (! $gateway) {
             throw ValidationException::withMessages([
-                'sms_gateway' => __('sms.no_system_gateway'),
+                'sms_gateway' => __('sms.no_ippanel_gateway'),
             ]);
         }
 

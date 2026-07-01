@@ -32,16 +32,16 @@ Routes:
 The admin flow uses Laravel session authentication. The public verified-lead
 session and authenticated dashboard user session are intentionally separate.
 
-Admin OTP values use `otp_codes.purpose = admin_login`. A local
-`OtpSenderInterface` implementation is bound for development and tests; it does
-not log plain OTP values. A real SMS provider can be connected by binding a new
-implementation of `App\Services\Otp\OtpSenderInterface`.
+Admin OTP values use `otp_codes.purpose = admin_login`. Dashboard login OTPs
+are sent through the enabled system IPPanel SMS gateway and the verification
+screen never displays the plain code, including in local debug mode.
 
 Demo users after `php artisan migrate:fresh --seed`:
 
 - Super admin: `09129999999`
-- Clinic admin: `09120000000`
+- Clinic admin: `09217359491`
 - Editor: `09120000001`
 - Viewer: `09120000002`
 
-In local debug mode, the verification screen displays a temporary test code.
+The public visitor OTP flow also sends codes through the system IPPanel gateway
+and never includes the plain OTP in API responses.

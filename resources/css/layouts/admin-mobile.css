@@ -46,10 +46,10 @@
     height: 2.75rem;
     width: 2.75rem;
     place-items: center;
-    border: 1px solid var(--admin-user-menu-border);
+    border: 0;
     border-radius: 0.5rem;
-    background: var(--admin-user-menu-bg);
-    color: var(--admin-user-menu-muted);
+    background: transparent;
+    color: var(--admin-bar-muted);
     outline: none;
     transition: background-color 160ms ease, color 160ms ease, box-shadow 160ms ease;
 }
@@ -103,10 +103,6 @@
 .admin-mobile-brand-center .admin-logo {
     max-height: 2.35rem;
     max-width: 100%;
-}
-
-.admin-user-menu-avatar-trigger {
-    border-radius: 999px;
 }
 
 .admin-mobile-menu-open,

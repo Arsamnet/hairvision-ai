@@ -17,10 +17,6 @@
                 <p class="mt-3 text-sm leading-7 text-zinc-500">کد یکبارمصرف برای شماره {{ $phone }} آماده شد.</p>
             </div>
 
-            @if(session('debug_sms'))
-                <div class="mb-4 rounded-lg border border-cyan-200 bg-cyan-50 px-4 py-3 text-sm font-bold text-cyan-800">{{ session('debug_sms') }}</div>
-            @endif
-
             @if($errors->any())
                 <div class="mb-4 rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-bold text-rose-700">{{ $errors->first() }}</div>
             @endif

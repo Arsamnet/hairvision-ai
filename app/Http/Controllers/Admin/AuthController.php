@@ -7,7 +7,6 @@ use App\Http\Requests\Admin\Auth\RequestAdminOtpRequest;
 use App\Http\Requests\Admin\Auth\VerifyAdminOtpRequest;
 use App\Services\Admin\AdminTenantContext;
 use App\Services\Auth\AdminOtpService;
-use App\Support\NumberNormalizer;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
@@ -44,7 +43,7 @@ class AuthController extends Controller
 
         RateLimiter::hit($rateLimitKey, config('hairvision.admin_otp.decay_seconds'));
 
-        $otp = $otpService->requestCode($phone, $request->ip());
+        $otpService->requestCode($phone, $request->ip());
         $request->session()->put('admin_pending_phone', $normalized);
 
         Log::info('Admin OTP requested.', [
@@ -52,11 +51,7 @@ class AuthController extends Controller
             'ip' => $request->ip(),
         ]);
 
-        return redirect()
-            ->route('admin.otp.form')
-            ->with('debug_sms', app()->hasDebugModeEnabled() && isset($otp->debug_code)
-                ? __('auth.debug_login_code', ['code' => NumberNormalizer::toPersianDigits($otp->debug_code)])
-                : null);
+        return redirect()->route('admin.otp.form');
     }
 
     public function showVerify(): View|RedirectResponse

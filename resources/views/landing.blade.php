@@ -545,7 +545,6 @@
             const result = await API.requestOtp(phone);
             btn.disabled = false;
             btn.textContent = 'ارسال کد تایید';
-            if (result.debug_sms) console.debug('Mock SMS:', result.debug_sms);
             if (result.success) {
                 STATE.phone = phone;
                 sessionStorage.setItem('hairvisionPhone', phone);

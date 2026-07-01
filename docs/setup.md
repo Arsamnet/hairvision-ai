@@ -54,7 +54,7 @@ http://hairvision-ai.test:8000/admin
 Demo mobile numbers after `php artisan migrate:fresh --seed`:
 
 - Super admin: `09129999999`
-- Clinic admin: `09120000000`
+- Clinic admin: `09217359491`
 - Editor: `09120000001`
 - Viewer: `09120000002`
 
@@ -82,6 +82,8 @@ HAIRVISION_ADMIN_OTP_DECAY_SECONDS=600
 HAIRVISION_ADMIN_OTP_MAX_VERIFY_ATTEMPTS=5
 HAIRVISION_ADMIN_OTP_VERIFY_DECAY_SECONDS=600
 HAIRVISION_ADMIN_OTP_MAX_ATTEMPTS=5
+HAIRVISION_IPPANEL_TIMEOUT_SECONDS=8
+HAIRVISION_IPPANEL_CONNECT_TIMEOUT_SECONDS=3
 ```
 
 Tests may override queues and sessions to `sync` and `array` through

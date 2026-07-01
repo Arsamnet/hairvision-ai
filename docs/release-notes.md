@@ -57,6 +57,8 @@
 - `PlanCatalogService`, `SubscriptionActivationService`,
   `ServiceEntitlementService`, `CreditLedgerService`, and `ServiceCatalog` for
   billing and service-access rules.
+- Zarinpal sandbox payment adapter for plan invoice payment handoff, callback
+  verification, and safe gateway error logging.
 - Persian localization files for services, subscriptions, and credits.
 - Tests for service-level entitlements, top-ups, add-ons, upgrade replacement,
   ledger consumption, and subscription/credit generation blocking.
@@ -114,6 +116,10 @@
 - Dashboard recent leads now expose the standard row action menu.
 - Public OTP validation moved from controllers into Form Requests backed by the
   shared digit normalizer and validation rule.
+- Public and admin OTP delivery now always uses the enabled system IPPanel SMS
+  gateway instead of the generic system default gateway.
+- IPPanel SMS requests now use configurable connection/request timeouts and
+  return localized validation errors for gateway timeout or failed responses.
 - Create-capable dashboard lists now open create forms from modal triggers while
   preserving the standard Laravel form/redirect flow.
 - Dashboard and admin OTP auth screens now default to light mode unless the
@@ -121,6 +127,8 @@
 - Billing and plan purchase activation are clinic-aware and use service-level
   credit balances instead of expiring the whole base subscription when one
   service credit is exhausted.
+- Invoice payment now redirects clinics to the configured gateway and activates
+  the plan only after the verified callback returns.
 - Public generation now checks active base subscription, service entitlement,
   remaining service credit, and AI model assignment before creating period jobs.
 
@@ -130,6 +138,8 @@
   credit-finished normal users.
 - Same active plan repurchase is blocked server-side until the active
   subscription expires by time, expires by usage, or is no longer active.
+- Plain OTP codes are no longer returned in public API debug responses or shown
+  on the admin verification screen in local debug mode.
 - SMS gateway credentials remain encrypted and are shown in Blade only as masked
   summaries.
 - AI model credentials remain encrypted, hidden from serialization, masked in
@@ -143,6 +153,8 @@
   exposing private storage paths.
 - CRM follow-up writes are tenant- and lead-scoped and use policy/Form Request
   authorization.
+- Payment gateway failures are logged through Laravel logs and shown to users
+  only as generic localized messages.
 
 ### Documentation
 
@@ -158,6 +170,8 @@
 - Documented the two-mode responsive strategy, `1024px` breakpoint, mobile
   drawer behavior, mobile table cards, CSS import organization, accessibility
   rules, and testing expectations.
+- Documented the user-facing error-handling rule: catch operational failures,
+  log safe context, and avoid exposing raw errors to users.
 
 ## 1.2.0
 

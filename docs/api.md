@@ -86,8 +86,8 @@ Response:
 }
 ```
 
-Development/debug responses may include `debug_sms`; production responses must
-not expose OTP codes. Rate limit failures return `429`.
+OTP responses never include the plain OTP code. Codes are sent through the
+configured system IPPanel gateway. Rate limit failures return `429`.
 
 ## OTP Verify
 

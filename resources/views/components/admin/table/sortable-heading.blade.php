@@ -27,5 +27,5 @@
     aria-sort="{{ $active ? ($currentDirection === 'asc' ? 'ascending' : 'descending') : 'none' }}"
 >
     <span>{{ $label }}</span>
-    <x-admin.icon :name="$icon" class="{{ $active ? 'text-teal-700' : 'text-zinc-400' }}" />
+    <x-admin.icon :name="$icon" class="h-3.5 w-3.5 {{ $active ? 'text-teal-700' : 'text-zinc-400' }}" />
 </a>

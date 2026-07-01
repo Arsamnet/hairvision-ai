@@ -6,7 +6,6 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\RequestOtpRequest;
 use App\Http\Requests\Api\VerifyOtpRequest;
 use App\Services\OtpService;
-use App\Support\NumberNormalizer;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\RateLimiter;
 
@@ -42,19 +41,13 @@ class OtpController extends Controller
 
         RateLimiter::hit($rateLimitKey, config('hairvision.otp.decay_seconds'));
 
-        $otp = $otpService->requestCode($phone, $request->ip(), $tenant->id);
+        $otpService->requestCode($phone, $request->ip(), $tenant->id);
 
-        $payload = [
+        return response()->json([
             'success' => true,
             'message' => __('auth.otp_sent'),
             'expires_in' => 120,
-        ];
-
-        if (app()->hasDebugModeEnabled() && isset($otp->debug_code)) {
-            $payload['debug_sms'] = __('auth.lead_otp_sms', ['code' => NumberNormalizer::toPersianDigits($otp->debug_code)]);
-        }
-
-        return response()->json($payload);
+        ]);
     }
 
     /**

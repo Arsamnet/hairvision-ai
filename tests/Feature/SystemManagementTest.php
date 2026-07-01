@@ -3,7 +3,9 @@
 namespace Tests\Feature;
 
 use App\Models\CreditTransaction;
+use App\Models\Invoice;
 use App\Models\Lead;
+use App\Models\Payment;
 use App\Models\PaymentGateway;
 use App\Models\Permission;
 use App\Models\Plan;
@@ -22,8 +24,10 @@ use App\Services\Payment\PaymentGatewayService;
 use App\Services\Sms\SmsGatewayService;
 use Database\Seeders\DatabaseSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\ValidationException;
 use Tests\TestCase;
 
 class SystemManagementTest extends TestCase
@@ -32,10 +36,14 @@ class SystemManagementTest extends TestCase
 
     public function test_seeder_is_idempotent_and_super_admin_has_all_permissions(): void
     {
+        config(['hairvision.sms.ippanel.authorization_token' => null]);
+
         $this->seed(DatabaseSeeder::class);
         $this->seed(DatabaseSeeder::class);
 
         $superAdmin = User::query()->where('role', 'super_admin')->firstOrFail();
+        $ippanelGateway = SmsGateway::query()->system()->where('provider_code', 'ippanel')->firstOrFail();
+        $zarinpalGateway = PaymentGateway::query()->where('provider_code', 'zarinpal')->firstOrFail();
 
         $this->assertSame(1, User::query()->where('role', 'super_admin')->count());
         $this->assertTrue($superAdmin->hasPermission('payment_gateways.manage'));
@@ -47,7 +55,16 @@ class SystemManagementTest extends TestCase
             'status' => 'enabled',
             'is_default' => false,
         ]);
+        $this->assertSame(
+            'YTIxMzVhYmMtZGRkYS00OWJhLWE2ZTItNjUzYjhkYTg5M2U0OGRiZjZjMzZiNjBkNjgxYmUwZTAwM2IwZDc1MzczMTU=',
+            $ippanelGateway->encrypted_credentials['api_key'] ?? null
+        );
         $this->assertSame(1, PaymentGateway::query()->where('is_default', true)->count());
+        $this->assertTrue($zarinpalGateway->is_default);
+        $this->assertSame('enabled', $zarinpalGateway->status);
+        $this->assertSame('sandbox', $zarinpalGateway->settings_json['mode'] ?? null);
+        $this->assertSame('https://sandbox.zarinpal.com', $zarinpalGateway->settings_json['sandbox_base_url'] ?? null);
+        $this->assertSame('11111111-1111-4111-8111-111111111111', $zarinpalGateway->encrypted_credentials['merchant_id'] ?? null);
         $this->assertGreaterThan(0, SystemSetting::query()->count());
         $this->assertGreaterThan(0, Plan::query()->count());
     }
@@ -288,7 +305,7 @@ class SystemManagementTest extends TestCase
 
         $this->assertTrue($service->systemDefault()->is($systemGateway));
         $this->assertTrue($service->userDefault($user)->is($privateGateway));
-        $this->assertTrue($service->sendSystemMessage('09120000000', 'system')->is($systemGateway));
+        $this->assertTrue($service->sendSystemMessage('09217359491', 'system')->is($systemGateway));
         $this->assertTrue($service->sendUserCustomerMessage($user, '09125550000', 'customer')->is($privateGateway));
 
         $privateGateway->update(['status' => 'disabled']);
@@ -339,6 +356,29 @@ class SystemManagementTest extends TestCase
                 && $request['message'] === 'متن پیام'
                 && $request['params']['recipients'] === ['+989124248164'];
         });
+    }
+
+    public function test_ippanel_gateway_timeout_returns_localized_validation_error(): void
+    {
+        Http::fake(fn () => throw new ConnectionException('Operation timed out.'));
+
+        SmsGateway::create([
+            'name' => 'IPPanel System',
+            'provider_code' => 'ippanel',
+            'owner_scope' => 'system',
+            'status' => 'enabled',
+            'is_default' => true,
+            'encrypted_credentials' => ['api_key' => 'system-token'],
+            'settings_json' => [
+                'from_number' => '+983000505',
+                'otp_pattern_code' => 's5jh64gwzlk0jf3',
+            ],
+        ]);
+
+        $this->expectException(ValidationException::class);
+        $this->expectExceptionMessage(__('sms.ippanel_timeout'));
+
+        app(SmsGatewayService::class)->sendSystemOtp('09124248164', '385107');
     }
 
     public function test_sms_gateway_crud_masks_credentials_and_enforces_authorization(): void
@@ -526,14 +566,16 @@ class SystemManagementTest extends TestCase
         ]);
 
         $gatewayService = app(PaymentGatewayService::class);
-        $this->assertSame('local', $gatewayService->default()?->provider_code);
+        $this->assertSame('zarinpal', $gatewayService->default()?->provider_code);
+        $this->fakeZarinpalPayments('A000000000000000000000000000000000001', 'A000000000000000000000000000000000002');
 
         $superAdmin = User::query()->where('role', 'super_admin')->firstOrFail();
         $this->actingAs($superAdmin)
             ->forHost('hairvision-ai.test')
-            ->get('/admin/system/payment-gateways?search=local')
+            ->get('/admin/system/payment-gateways?search=zarinpal')
             ->assertOk()
-            ->assertSee('local')
+            ->assertSee('zarinpal')
+            ->assertSee(__('messages.zarinpal_test_payment_gateway'))
             ->assertSee('create-payment-gateway-modal-toggle', false)
             ->assertSee('data-admin-table-container', false)
             ->assertSee('mt-5 hidden overflow-visible rounded-lg border border-zinc-100 lg:block', false)
@@ -548,6 +590,9 @@ class SystemManagementTest extends TestCase
         $billing = app(BillingService::class);
         $invoice = $billing->invoiceForPlan($user, $starter);
         $payment = $billing->initiatePayment($invoice);
+        $this->assertSame('zarinpal', $payment->gateway->provider_code);
+        $this->assertSame('A000000000000000000000000000000000001', $payment->authority);
+        $this->assertSame('https://sandbox.zarinpal.com/pg/StartPay/A000000000000000000000000000000000001', data_get($payment->gateway_response_json, 'redirect_url'));
         $billing->verifyPayment($payment);
         $billing->verifyPayment($payment->refresh());
 
@@ -559,6 +604,7 @@ class SystemManagementTest extends TestCase
 
         $upgradeInvoice = $billing->invoiceForPlan($user, $upgrade);
         $upgradePayment = $billing->initiatePayment($upgradeInvoice);
+        $this->assertSame('A000000000000000000000000000000000002', $upgradePayment->authority);
         $billing->verifyPayment($upgradePayment);
 
         $this->assertSame('replaced', $active->refresh()->status);
@@ -639,6 +685,8 @@ class SystemManagementTest extends TestCase
             ->assertSee('data-admin-mobile-menu-close', false)
             ->assertSee('admin-mobile-brand-center', false)
             ->assertSee('admin-user-menu-avatar-trigger', false)
+            ->assertSee('admin-user-menu-trigger-avatar', false)
+            ->assertSee('admin-user-avatar-image', false)
             ->assertSee(__('dashboard.mobile_menu.open'))
             ->assertSee('data-admin-user-menu', false)
             ->assertSee('data-theme-toggle', false)
@@ -647,6 +695,7 @@ class SystemManagementTest extends TestCase
             ->assertSee('admin-logo-dark', false)
             ->assertSee('/theme/admin-logo-light.svg', false)
             ->assertSee('/theme/admin-logo-dark.svg', false)
+            ->assertSee('/theme/admin-user-avatar-neutral.svg', false)
             ->assertSee($user->name)
             ->assertSee(__('system.roles.'.$user->role))
             ->assertDontSee($user->phone_normalized)
@@ -774,6 +823,7 @@ class SystemManagementTest extends TestCase
     public function test_user_can_purchase_pay_and_upgrade_active_plan_without_carrying_credit(): void
     {
         $this->seed(DatabaseSeeder::class);
+        $this->fakeZarinpalPayments('A000000000000000000000000000000000101', 'A000000000000000000000000000000000102');
 
         $user = User::query()->where('role', 'clinic_admin')->firstOrFail();
         $starter = Plan::query()->where('status', 'active')->firstOrFail();
@@ -793,11 +843,8 @@ class SystemManagementTest extends TestCase
             ->assertRedirect(route('admin.billing.index'));
 
         $invoice = $user->invoices()->where('plan_id', $starter->id)->firstOrFail();
-
-        $this->actingAs($user)
-            ->forHost('hairvision-ai.test')
-            ->post('/admin/billing/invoices/'.$invoice->id.'/pay')
-            ->assertRedirect();
+        $payment = $this->completeInvoicePayment($user, $invoice, 'A000000000000000000000000000000000101', 'get');
+        $this->assertSame('paid', $payment->refresh()->status);
 
         $active = $user->subscriptions()->where('status', 'active')->firstOrFail();
         $active->forceFill(['usage_used' => 80])->save();
@@ -808,11 +855,7 @@ class SystemManagementTest extends TestCase
             ->assertRedirect(route('admin.billing.index'));
 
         $upgradeInvoice = $user->invoices()->where('plan_id', $upgrade->id)->firstOrFail();
-
-        $this->actingAs($user)
-            ->forHost('hairvision-ai.test')
-            ->post('/admin/billing/invoices/'.$upgradeInvoice->id.'/pay')
-            ->assertRedirect();
+        $this->completeInvoicePayment($user, $upgradeInvoice, 'A000000000000000000000000000000000102');
 
         $newActive = $user->subscriptions()->where('status', 'active')->firstOrFail();
         $this->assertSame('replaced', $active->refresh()->status);
@@ -824,6 +867,7 @@ class SystemManagementTest extends TestCase
     public function test_same_active_base_plan_cannot_be_purchased_until_expired(): void
     {
         $this->seed(DatabaseSeeder::class);
+        $this->fakeZarinpalPayments('A000000000000000000000000000000000201', 'A000000000000000000000000000000000202');
 
         $user = User::query()->where('role', 'clinic_admin')->firstOrFail();
         $plan = Plan::query()->where('status', 'active')->firstOrFail();
@@ -834,11 +878,7 @@ class SystemManagementTest extends TestCase
             ->assertRedirect(route('admin.billing.index'));
 
         $invoice = $user->invoices()->where('plan_id', $plan->id)->firstOrFail();
-
-        $this->actingAs($user)
-            ->forHost('hairvision-ai.test')
-            ->post('/admin/billing/invoices/'.$invoice->id.'/pay')
-            ->assertRedirect();
+        $this->completeInvoicePayment($user, $invoice, 'A000000000000000000000000000000000201');
 
         $active = $user->subscriptions()->where('status', 'active')->firstOrFail();
 
@@ -861,10 +901,7 @@ class SystemManagementTest extends TestCase
             ->assertRedirect(route('admin.billing.index'));
 
         $renewedInvoice = $user->invoices()->where('plan_id', $plan->id)->where('status', 'pending')->latest('id')->firstOrFail();
-        $this->actingAs($user)
-            ->forHost('hairvision-ai.test')
-            ->post('/admin/billing/invoices/'.$renewedInvoice->id.'/pay')
-            ->assertRedirect();
+        $this->completeInvoicePayment($user, $renewedInvoice, 'A000000000000000000000000000000000202');
 
         $renewed = $user->subscriptions()->where('status', 'active')->firstOrFail();
         $renewed->serviceEntitlements()->firstOrFail()->forceFill(['used_credit' => $renewed->serviceEntitlements()->firstOrFail()->totalCredit()])->save();
@@ -1102,6 +1139,7 @@ class SystemManagementTest extends TestCase
             ->assertSee(__('messages.remove_filters'))
             ->assertSee('aria-sort="ascending"', false)
             ->assertSee('data-menu-icon="arrow-up"', false)
+            ->assertSee('h-3.5 w-3.5', false)
             ->assertSee('data-menu-icon="chevron-right"', false)
             ->assertSee('data-menu-icon="chevron-left"', false)
             ->assertSee(__('messages.pagination_summary', ['from' => '1', 'to' => '4', 'total' => '4']))
@@ -1123,17 +1161,32 @@ class SystemManagementTest extends TestCase
     {
         $lightLogo = public_path('theme/admin-logo-light.svg');
         $darkLogo = public_path('theme/admin-logo-dark.svg');
+        $neutralAvatar = public_path('theme/admin-user-avatar-neutral.svg');
 
         $this->assertFileExists($lightLogo);
         $this->assertFileExists($darkLogo);
+        $this->assertFileExists($neutralAvatar);
         $this->assertStringContainsString('#132232', file_get_contents($lightLogo));
         $this->assertStringContainsString('#FFFFFF', file_get_contents($darkLogo));
         $this->assertStringNotContainsString('#132232', file_get_contents($darkLogo));
+        $neutralAvatarSvg = file_get_contents($neutralAvatar);
+        $this->assertStringContainsString('<svg', $neutralAvatarSvg);
+        $this->assertStringContainsString('fill="#e4e6e9"', $neutralAvatarSvg);
         $dashboardCss = file_get_contents(resource_path('css/app.css'));
+        $mobileCss = file_get_contents(resource_path('css/layouts/admin-mobile.css'));
 
         $this->assertStringContainsString('--admin-header: #0f172a;', $dashboardCss);
         $this->assertStringContainsString('--admin-user-menu-bg: #111625;', $dashboardCss);
+        $this->assertStringContainsString('border: 0;', $dashboardCss);
+        $this->assertStringContainsString('border-radius: 999px;', $dashboardCss);
+        $this->assertStringContainsString('background: transparent;', $dashboardCss);
+        $this->assertStringNotContainsString('admin-user-menu-trigger-hover-bg', $dashboardCss);
+        $this->assertStringNotContainsString('.admin-user-menu-trigger:hover', $dashboardCss);
         $this->assertStringContainsString('background: var(--admin-user-menu-bg);', $dashboardCss);
+        $this->assertStringContainsString('.admin-mobile-menu-button', $mobileCss);
+        $this->assertStringContainsString('border: 0;', $mobileCss);
+        $this->assertStringContainsString('background: transparent;', $mobileCss);
+        $this->assertStringContainsString('color: var(--admin-bar-muted);', $mobileCss);
         $this->assertStringContainsString('.admin-topbar .bg-amber-50', $dashboardCss);
     }
 
@@ -1250,6 +1303,59 @@ class SystemManagementTest extends TestCase
         ]);
 
         return $subscription;
+    }
+
+    private function fakeZarinpalPayments(string ...$authorities): void
+    {
+        $requestSequence = Http::sequence();
+        $verifySequence = Http::sequence();
+
+        foreach (array_values($authorities) as $index => $authority) {
+            $requestSequence->push([
+                'data' => [
+                    'code' => 100,
+                    'message' => 'Success',
+                    'authority' => $authority,
+                ],
+                'errors' => [],
+            ]);
+
+            $verifySequence->push([
+                'data' => [
+                    'code' => 100,
+                    'message' => 'Verified',
+                    'ref_id' => 'REF-'.str_pad((string) ($index + 1), 6, '0', STR_PAD_LEFT),
+                ],
+                'errors' => [],
+            ]);
+        }
+
+        Http::fake([
+            'https://sandbox.zarinpal.com/pg/v4/payment/request.json' => $requestSequence,
+            'https://sandbox.zarinpal.com/pg/v4/payment/verify.json' => $verifySequence,
+        ]);
+    }
+
+    private function completeInvoicePayment(User $user, Invoice $invoice, string $authority, string $method = 'post'): Payment
+    {
+        $payUrl = '/admin/billing/invoices/'.$invoice->id.'/pay';
+        $payRequest = $this->actingAs($user)->forHost('hairvision-ai.test');
+        $payResponse = strtolower($method) === 'get'
+            ? $payRequest->get($payUrl)
+            : $payRequest->post($payUrl);
+
+        $payResponse->assertRedirect('https://sandbox.zarinpal.com/pg/StartPay/'.$authority);
+
+        $payment = $invoice->payments()->latest('id')->firstOrFail();
+        $this->assertSame($authority, $payment->authority);
+        $this->assertSame('pending', $invoice->refresh()->status);
+
+        $this->actingAs($user)
+            ->forHost('hairvision-ai.test')
+            ->get('/admin/billing/payments/'.$payment->id.'/verify?Authority='.$authority.'&Status=OK')
+            ->assertRedirect(route('admin.billing.index'));
+
+        return $payment->refresh();
     }
 
     private function forHost(string $host): self

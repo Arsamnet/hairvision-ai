@@ -43,6 +43,7 @@ return [
     'created_at' => 'زمان ثبت',
     'updated_at' => 'زمان به‌روزرسانی',
     'local_payment_gateway' => 'درگاه پرداخت محلی',
+    'zarinpal_test_payment_gateway' => 'درگاه تست زرین‌پال',
     'local_sms_gateway' => 'درگاه پیامک محلی سیستم',
     'ippanel_sms_gateway' => 'درگاه پیامک IPPanel سیستم',
     'sample_image_provider' => 'ارائه‌دهنده تصویر نمونه',

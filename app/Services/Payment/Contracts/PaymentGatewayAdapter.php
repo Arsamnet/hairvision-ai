@@ -15,7 +15,7 @@ interface PaymentGatewayAdapter
     /**
      * Start a payment transaction through the selected gateway.
      *
-     * @return array{authority: string|null, reference_id?: string|null, response: array<string, mixed>}
+     * @return array{authority: string|null, reference_id?: string|null, redirect_url?: string|null, response: array<string, mixed>}
      */
     public function initiate(PaymentGateway $gateway, Payment $payment): array;
 

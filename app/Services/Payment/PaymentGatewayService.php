@@ -5,6 +5,7 @@ namespace App\Services\Payment;
 use App\Models\Payment;
 use App\Models\PaymentGateway;
 use App\Services\Payment\Adapters\LocalPaymentGatewayAdapter;
+use App\Services\Payment\Adapters\ZarinpalPaymentGatewayAdapter;
 use App\Services\Payment\Contracts\PaymentGatewayAdapter;
 use Illuminate\Validation\ValidationException;
 
@@ -57,7 +58,9 @@ class PaymentGatewayService
 
         $payment->forceFill([
             'authority' => $result['authority'],
-            'gateway_response_json' => $result['response'],
+            'gateway_response_json' => $result['response'] + array_filter([
+                'redirect_url' => $result['redirect_url'] ?? null,
+            ]),
         ])->save();
 
         return $payment->refresh();
@@ -76,7 +79,8 @@ class PaymentGatewayService
     private function adapterFor(PaymentGateway $gateway): PaymentGatewayAdapter
     {
         return match ($gateway->provider_code) {
-            'local', 'zarinpal', 'idpay' => app(LocalPaymentGatewayAdapter::class),
+            'zarinpal' => app(ZarinpalPaymentGatewayAdapter::class),
+            'local', 'idpay' => app(LocalPaymentGatewayAdapter::class),
             default => app(LocalPaymentGatewayAdapter::class),
         };
     }

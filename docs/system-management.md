@@ -92,8 +92,10 @@ The MVP local adapter is a no-op and does not call external services.
 ## Payment Gateways and Billing
 
 Payment gateways are stored in `payment_gateways`; one enabled gateway may be
-selected as default. The MVP local payment adapter creates deterministic local
-references and does not call external services.
+selected as default. The seeded default test gateway is Zarinpal sandbox and
+redirects clinic users to the sandbox `StartPay` URL before payment
+verification. The local payment adapter remains available for deterministic
+non-external test flows.
 
 Billing tables:
 

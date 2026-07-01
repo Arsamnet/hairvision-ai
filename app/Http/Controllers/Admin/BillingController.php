@@ -12,10 +12,12 @@ use App\Support\Query\DateRangeFilter;
 use App\Support\Query\SearchFilter;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Illuminate\View\View;
+use Throwable;
 
 /**
- * Shows invoices and handles secure local payment verification flow.
+ * Shows invoices and handles gateway payment handoff and verification.
  *
  * @since 1.0.0
  */
@@ -62,19 +64,74 @@ class BillingController extends Controller
     {
         abort_unless($this->canAccessInvoice($request, $invoice), 403);
 
-        $payment = $billing->initiatePayment($invoice);
-        $billing->verifyPayment($payment);
+        try {
+            $payment = $billing->initiatePayment($invoice);
+            $redirectUrl = data_get($payment->gateway_response_json, 'redirect_url');
 
-        return back()->with('status', __('payments.payment_activated'));
+            if (is_string($redirectUrl) && trim($redirectUrl) !== '') {
+                return $this->redirectToGateway(trim($redirectUrl));
+            }
+
+            $billing->verifyPayment($payment);
+
+            return redirect()->route('admin.billing.index')->with('status', __('payments.payment_activated'));
+        } catch (Throwable $exception) {
+            Log::warning('Billing payment initiation failed.', [
+                'invoice_id' => $invoice->id,
+                'user_id' => $request->user()?->id,
+                'exception' => $exception::class,
+            ]);
+
+            return redirect()
+                ->route('admin.billing.index')
+                ->withErrors(['payment' => __('payments.payment_failed_generic')]);
+        }
     }
 
     public function verify(Request $request, Payment $payment, BillingService $billing): RedirectResponse
     {
-        abort_unless($this->canAccessInvoice($request, $payment->invoice), 403);
+        $payment->loadMissing('invoice');
 
-        $billing->verifyPayment($payment, $request->only(['reference_id']));
+        abort_unless($payment->invoice && $this->canAccessInvoice($request, $payment->invoice), 403);
 
-        return back()->with('status', __('payments.payment_verified'));
+        if ($this->gatewayRejectedCallback($request)) {
+            Log::warning('Billing payment callback was rejected by gateway.', [
+                'payment_id' => $payment->id,
+                'invoice_id' => $payment->invoice_id,
+                'gateway_status' => $request->input('Status', $request->input('status')),
+            ]);
+
+            try {
+                $billing->markPaymentFailed($payment, $this->callbackPayload($request));
+            } catch (Throwable $exception) {
+                Log::warning('Failed to mark rejected payment callback.', [
+                    'payment_id' => $payment->id,
+                    'invoice_id' => $payment->invoice_id,
+                    'exception' => $exception::class,
+                ]);
+            }
+
+            return redirect()
+                ->route('admin.billing.index')
+                ->withErrors(['payment' => __('payments.payment_failed_generic')]);
+        }
+
+        try {
+            $billing->verifyPayment($payment, $this->callbackPayload($request));
+
+            return redirect()->route('admin.billing.index')->with('status', __('payments.payment_verified'));
+        } catch (Throwable $exception) {
+            Log::warning('Billing payment verification failed.', [
+                'payment_id' => $payment->id,
+                'invoice_id' => $payment->invoice_id,
+                'user_id' => $request->user()?->id,
+                'exception' => $exception::class,
+            ]);
+
+            return redirect()
+                ->route('admin.billing.index')
+                ->withErrors(['payment' => __('payments.payment_failed_generic')]);
+        }
     }
 
     private function canAccessInvoice(Request $request, Invoice $invoice): bool
@@ -89,5 +146,31 @@ class BillingController extends Controller
 
         return $invoice->user_id === $user->id
             && (! $invoice->tenant_id || ($tenant && $invoice->tenant_id === $tenant->id));
+    }
+
+    private function redirectToGateway(string $url): RedirectResponse
+    {
+        if (filter_var($url, FILTER_VALIDATE_URL)) {
+            return redirect()->away($url);
+        }
+
+        return redirect()->to($url);
+    }
+
+    private function gatewayRejectedCallback(Request $request): bool
+    {
+        if (! $request->hasAny(['Status', 'status'])) {
+            return false;
+        }
+
+        return strtoupper((string) $request->input('Status', $request->input('status'))) !== 'OK';
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function callbackPayload(Request $request): array
+    {
+        return $request->only(['reference_id', 'Authority', 'authority', 'Status', 'status']);
     }
 }

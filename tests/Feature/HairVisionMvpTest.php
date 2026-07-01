@@ -135,6 +135,7 @@ class HairVisionMvpTest extends TestCase
     public function test_otp_request_stores_only_hash_and_is_rate_limited(): void
     {
         $tenant = $this->createTenant('Clinic One', 'clinic1', 'clinic1.hairvision-ai.test');
+        $this->enableIppanelOtpGateway();
 
         $first = $this->forHost('clinic1.hairvision-ai.test')
             ->postJson('/api/v1/auth/otp/request', ['phone' => '09123456789'])
@@ -142,7 +143,9 @@ class HairVisionMvpTest extends TestCase
             ->assertJsonPath('success', true)
             ->json();
 
-        $code = $this->extractDebugCode($first['debug_sms']);
+        $this->assertArrayNotHasKey('debug_sms', $first);
+
+        $code = $this->latestSentOtpCode();
 
         $otp = $tenant->otpCodes()->firstOrFail();
         $this->assertNotSame($code, $otp->code_hash);
@@ -162,11 +165,21 @@ class HairVisionMvpTest extends TestCase
         $this->createTenant('Clinic One', 'clinic1', 'clinic1.hairvision-ai.test');
 
         SmsGateway::create([
+            'name' => 'Local System',
+            'provider_code' => 'local',
+            'owner_scope' => 'system',
+            'status' => 'enabled',
+            'is_default' => true,
+            'encrypted_credentials' => [],
+            'settings_json' => ['purpose' => 'system_messages'],
+        ]);
+
+        SmsGateway::create([
             'name' => 'IPPanel System',
             'provider_code' => 'ippanel',
             'owner_scope' => 'system',
             'status' => 'enabled',
-            'is_default' => true,
+            'is_default' => false,
             'encrypted_credentials' => ['api_key' => 'system-token'],
             'settings_json' => [
                 'from_number' => '+983000505',
@@ -183,7 +196,9 @@ class HairVisionMvpTest extends TestCase
             ->assertOk()
             ->json();
 
-        $code = $this->extractDebugCode($payload['debug_sms']);
+        $this->assertArrayNotHasKey('debug_sms', $payload);
+
+        $code = $this->latestSentOtpCode();
 
         Http::assertSentCount(1);
         Http::assertSent(function ($request) use ($code): bool {
@@ -201,8 +216,7 @@ class HairVisionMvpTest extends TestCase
     {
         $tenant = $this->createTenant('Clinic One', 'clinic1', 'clinic1.hairvision-ai.test');
 
-        $payload = $this->requestOtpAndReturnPayload('clinic1.hairvision-ai.test', '09123456789');
-        $code = $this->extractDebugCode($payload['debug_sms']);
+        $code = $this->requestOtpAndReturnCode('clinic1.hairvision-ai.test', '09123456789');
 
         $this->forHost('clinic1.hairvision-ai.test')
             ->postJson('/api/v1/auth/otp/verify', [
@@ -221,6 +235,7 @@ class HairVisionMvpTest extends TestCase
     public function test_otp_accepts_supported_digit_scripts_and_rejects_other_characters(): void
     {
         $tenant = $this->createTenant('Clinic One', 'clinic1', 'clinic1.hairvision-ai.test');
+        $this->enableIppanelOtpGateway();
 
         $payload = $this->forHost('clinic1.hairvision-ai.test')
             ->postJson('/api/v1/auth/otp/request', ['phone' => '۰۹۱۲۳۴۵۶۷۸۹'])
@@ -228,7 +243,9 @@ class HairVisionMvpTest extends TestCase
             ->assertJsonPath('message', 'کد تایید ارسال شد.')
             ->json();
 
-        $code = $this->extractDebugCode($payload['debug_sms']);
+        $this->assertArrayNotHasKey('debug_sms', $payload);
+
+        $code = $this->latestSentOtpCode();
 
         $this->forHost('clinic1.hairvision-ai.test')
             ->postJson('/api/v1/auth/otp/verify', [
@@ -293,17 +310,16 @@ class HairVisionMvpTest extends TestCase
         $this->seedSampleImages();
         Http::fake();
 
-        $payload = $this->requestOtpAndReturnPayload('clinic1.hairvision-ai.test', '09123456789');
-        $code = $this->extractDebugCode($payload['debug_sms']);
+        $lead = Lead::create([
+            'tenant_id' => $tenant->id,
+            'phone' => '09123456789',
+            'phone_normalized' => '09123456789',
+            'phone_verified_at' => now(),
+            'status' => 'verified',
+        ]);
 
-        $this->forHost('clinic1.hairvision-ai.test')
-            ->postJson('/api/v1/auth/otp/verify', [
-                'phone' => '09123456789',
-                'code' => $code,
-            ])
-            ->assertOk();
-
-        $uploadId = $this->forHost('clinic1.hairvision-ai.test')
+        $uploadId = $this->withSession(['lead_id' => $lead->id])
+            ->forHost('clinic1.hairvision-ai.test')
             ->post('/api/v1/uploads', [
                 'image' => $this->fakeImageUpload(),
                 'consent' => '1',
@@ -312,7 +328,8 @@ class HairVisionMvpTest extends TestCase
             ->assertJsonPath('upload.status', 'validated')
             ->json('upload.id');
 
-        $groupId = $this->forHost('clinic1.hairvision-ai.test')
+        $groupId = $this->withSession(['lead_id' => $lead->id])
+            ->forHost('clinic1.hairvision-ai.test')
             ->postJson('/api/v1/generations', ['upload_id' => $uploadId])
             ->assertOk()
             ->assertJsonPath('generation_group.status', 'completed')
@@ -334,13 +351,15 @@ class HairVisionMvpTest extends TestCase
             'status' => 'validated',
         ]);
 
-        $this->forHost('clinic1.hairvision-ai.test')
+        $this->withSession(['lead_id' => $lead->id])
+            ->forHost('clinic1.hairvision-ai.test')
             ->getJson("/api/v1/generations/{$groupId}/status")
             ->assertOk()
             ->assertJsonPath('status', 'completed')
             ->assertJsonCount(3, 'jobs');
 
-        $results = $this->forHost('clinic1.hairvision-ai.test')
+        $results = $this->withSession(['lead_id' => $lead->id])
+            ->forHost('clinic1.hairvision-ai.test')
             ->getJson("/api/v1/generations/{$groupId}/results")
             ->assertOk()
             ->assertJsonPath('success', true)
@@ -351,7 +370,8 @@ class HairVisionMvpTest extends TestCase
         Storage::disk('local')->assertExists($asset->path);
         $this->assertStringStartsWith('tenants/'.$tenant->uuid.'/leads/', $asset->path);
 
-        $this->forHost('clinic1.hairvision-ai.test')
+        $this->withSession(['lead_id' => $lead->id])
+            ->forHost('clinic1.hairvision-ai.test')
             ->get($results[0]['url'])
             ->assertOk()
             ->assertHeader('content-type', 'image/jpeg');
@@ -511,12 +531,18 @@ class HairVisionMvpTest extends TestCase
         return $tenant;
     }
 
-    private function requestOtpAndReturnPayload(string $host, string $phone): array
+    private function requestOtpAndReturnCode(string $host, string $phone): string
     {
-        return $this->forHost($host)
+        $this->enableIppanelOtpGateway();
+
+        $payload = $this->forHost($host)
             ->postJson('/api/v1/auth/otp/request', ['phone' => $phone])
             ->assertOk()
             ->json();
+
+        $this->assertArrayNotHasKey('debug_sms', $payload);
+
+        return $this->latestSentOtpCode();
     }
 
     private function forHost(string $host): self
@@ -529,11 +555,42 @@ class HairVisionMvpTest extends TestCase
         ]);
     }
 
-    private function extractDebugCode(string $debugSms): string
+    private function enableIppanelOtpGateway(): SmsGateway
     {
-        preg_match('/([0-9۰-۹٠-٩]{6})/u', $debugSms, $matches);
+        Http::fake([
+            'https://edge.ippanel.com/v1/api/send' => Http::response(['ok' => true]),
+        ]);
 
-        return NumberNormalizer::toLatinDigits($matches[1]);
+        return SmsGateway::query()->firstOrCreate(
+            [
+                'provider_code' => 'ippanel',
+                'owner_scope' => 'system',
+                'user_id' => null,
+            ],
+            [
+                'name' => 'IPPanel System',
+                'status' => 'enabled',
+                'is_default' => false,
+                'encrypted_credentials' => ['api_key' => 'system-token'],
+                'settings_json' => [
+                    'from_number' => '+983000505',
+                    'otp_pattern_code' => 's5jh64gwzlk0jf3',
+                ],
+            ]
+        );
+    }
+
+    private function latestSentOtpCode(): string
+    {
+        $record = Http::recorded()->last();
+        $request = $record[0] ?? null;
+
+        $code = $request['params']['verification-code'] ?? null;
+
+        $this->assertIsString($code);
+        $this->assertMatchesRegularExpression('/^[0-9]{6}$/', $code);
+
+        return $code;
     }
 
     private function fakeImageUpload(): UploadedFile

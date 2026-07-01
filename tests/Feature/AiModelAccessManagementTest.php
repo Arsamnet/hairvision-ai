@@ -407,22 +407,20 @@ class AiModelAccessManagementTest extends TestCase
 
     private function createVerifiedUploadViaApi(string $host): string
     {
-        $payload = $this->forHost($host)
-            ->postJson('/api/v1/auth/otp/request', ['phone' => '09123456789'])
-            ->assertOk()
-            ->json();
+        $tenantId = TenantDomain::query()
+            ->where('domain', $host)
+            ->value('tenant_id');
 
-        preg_match('/([0-9۰-۹٠-٩]{6})/u', $payload['debug_sms'], $matches);
-        $code = $matches[1];
+        $lead = Lead::create([
+            'tenant_id' => $tenantId,
+            'phone' => '09127770000',
+            'phone_normalized' => '09127770000',
+            'phone_verified_at' => now(),
+            'status' => 'verified',
+        ]);
 
-        $this->forHost($host)
-            ->postJson('/api/v1/auth/otp/verify', [
-                'phone' => '09123456789',
-                'code' => $code,
-            ])
-            ->assertOk();
-
-        return $this->forHost($host)
+        return $this->withSession(['lead_id' => $lead->id])
+            ->forHost($host)
             ->post('/api/v1/uploads', [
                 'image' => $this->fakeImageUpload(),
                 'consent' => '1',

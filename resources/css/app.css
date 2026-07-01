@@ -526,23 +526,24 @@ html[data-admin-theme='dark'] .admin-logo-dark {
     cursor: pointer;
     list-style: none;
     place-items: center;
-    border: 1px solid var(--admin-user-menu-border);
-    border-radius: 0.5rem;
-    background: var(--admin-user-menu-bg);
+    overflow: hidden;
+    border: 0;
+    border-radius: 999px;
+    background: transparent;
     color: var(--admin-user-menu-muted);
     outline: none;
-    transition: background-color 160ms ease, border-color 160ms ease, color 160ms ease, box-shadow 160ms ease;
+    transition: box-shadow 160ms ease;
 }
 
 .admin-user-menu-trigger::-webkit-details-marker {
     display: none;
 }
 
-.admin-user-menu-trigger:hover,
-.admin-user-menu[open] > .admin-user-menu-trigger {
-    border-color: var(--admin-user-menu-border);
-    background: var(--admin-user-menu-hover);
-    color: var(--admin-user-menu-text);
+.admin-user-menu-trigger-avatar {
+    display: block;
+    height: 100%;
+    width: 100%;
+    object-fit: cover;
 }
 
 .admin-user-menu-panel {
@@ -578,8 +579,14 @@ html[data-admin-theme='dark'] .admin-logo-dark {
     flex-shrink: 0;
     place-items: center;
     border-radius: 0.5rem;
-    background: var(--admin-user-menu-elevated);
-    color: var(--admin-user-menu-muted);
+    overflow: hidden;
+}
+
+.admin-user-avatar-image {
+    display: block;
+    height: 100%;
+    width: 100%;
+    object-fit: cover;
 }
 
 .admin-user-menu-item {

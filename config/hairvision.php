@@ -65,6 +65,8 @@ return [
             'from_number' => env('HAIRVISION_IPPANEL_FROM_NUMBER', '+983000505'),
             'otp_pattern_code' => env('HAIRVISION_IPPANEL_OTP_PATTERN_CODE', 's5jh64gwzlk0jf3'),
             'endpoint_url' => env('HAIRVISION_IPPANEL_ENDPOINT_URL', 'https://edge.ippanel.com/v1/api/send'),
+            'timeout_seconds' => (int) env('HAIRVISION_IPPANEL_TIMEOUT_SECONDS', 8),
+            'connect_timeout_seconds' => (int) env('HAIRVISION_IPPANEL_CONNECT_TIMEOUT_SECONDS', 3),
         ],
     ],
 

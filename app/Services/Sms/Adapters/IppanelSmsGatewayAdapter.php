@@ -5,7 +5,10 @@ namespace App\Services\Sms\Adapters;
 use App\Models\SmsGateway;
 use App\Services\Sms\Contracts\SmsGatewayAdapter;
 use App\Support\NumberNormalizer;
+use Illuminate\Http\Client\ConnectionException;
+use Illuminate\Http\Client\RequestException;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
 
 /**
@@ -59,12 +62,39 @@ class IppanelSmsGatewayAdapter implements SmsGatewayAdapter
      */
     private function post(SmsGateway $gateway, array $payload): void
     {
-        Http::asJson()
-            ->withHeaders([
-                'Authorization' => $this->authorizationToken($gateway),
-            ])
-            ->post($this->endpoint($gateway), $payload)
-            ->throw();
+        $endpoint = $this->endpoint($gateway);
+
+        try {
+            Http::asJson()
+                ->timeout($this->timeoutSeconds($gateway))
+                ->connectTimeout($this->connectTimeoutSeconds($gateway))
+                ->withHeaders([
+                    'Authorization' => $this->authorizationToken($gateway),
+                ])
+                ->post($endpoint, $payload)
+                ->throw();
+        } catch (ConnectionException $exception) {
+            Log::warning('IPPanel SMS gateway connection failed.', [
+                'gateway_id' => $gateway->id,
+                'endpoint' => $endpoint,
+                'exception' => $exception::class,
+            ]);
+
+            throw ValidationException::withMessages([
+                'sms_gateway' => __('sms.ippanel_timeout'),
+            ]);
+        } catch (RequestException $exception) {
+            Log::warning('IPPanel SMS gateway request failed.', [
+                'gateway_id' => $gateway->id,
+                'endpoint' => $endpoint,
+                'status' => $exception->response?->status(),
+                'exception' => $exception::class,
+            ]);
+
+            throw ValidationException::withMessages([
+                'sms_gateway' => __('sms.ippanel_send_failed'),
+            ]);
+        }
     }
 
     private function authorizationToken(SmsGateway $gateway): string
@@ -101,6 +131,29 @@ class IppanelSmsGatewayAdapter implements SmsGatewayAdapter
         return is_string($endpoint) && trim($endpoint) !== ''
             ? trim($endpoint)
             : self::DEFAULT_ENDPOINT;
+    }
+
+    private function timeoutSeconds(SmsGateway $gateway): int
+    {
+        return $this->positiveInteger(
+            data_get($gateway->settings_json ?? [], 'timeout_seconds'),
+            (int) config('hairvision.sms.ippanel.timeout_seconds', 8)
+        );
+    }
+
+    private function connectTimeoutSeconds(SmsGateway $gateway): int
+    {
+        return $this->positiveInteger(
+            data_get($gateway->settings_json ?? [], 'connect_timeout_seconds'),
+            (int) config('hairvision.sms.ippanel.connect_timeout_seconds', 3)
+        );
+    }
+
+    private function positiveInteger(mixed $value, int $fallback): int
+    {
+        $number = is_numeric($value) ? (int) $value : $fallback;
+
+        return $number > 0 ? $number : $fallback;
     }
 
     private function recipient(string $phoneNormalized): string

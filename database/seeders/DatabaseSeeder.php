@@ -20,12 +20,17 @@ use App\Models\TenantThemeSetting;
 use App\Models\User;
 use App\Services\Auth\PermissionCatalog;
 use App\Services\Auth\PermissionService;
+use App\Services\Payment\PaymentGatewayService;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 
 class DatabaseSeeder extends Seeder
 {
+    private const DEFAULT_IPPANEL_AUTHORIZATION_TOKEN = 'YTIxMzVhYmMtZGRkYS00OWJhLWE2ZTItNjUzYjhkYTg5M2U0OGRiZjZjMzZiNjBkNjgxYmUwZTAwM2IwZDc1MzczMTU=';
+
+    private const DEFAULT_ZARINPAL_SANDBOX_MERCHANT_ID = '11111111-1111-4111-8111-111111111111';
+
     // Allow model events so model boot methods (like UUID generation) run during seeding.
 
     public function run(): void
@@ -43,7 +48,7 @@ class DatabaseSeeder extends Seeder
         $admin = $this->upsertUser(
             'مدیر کلینیک آریا',
             'test@example.com',
-            '09120000000',
+            '09217359491',
             'clinic_admin'
         );
 
@@ -169,7 +174,7 @@ class DatabaseSeeder extends Seeder
         $demoLeads = [
             [
                 'full_name' => 'مراجع آزمایشی',
-                'phone' => '09120000000',
+                'phone' => '09217359491',
                 'source' => 'landing_page',
                 'status' => 'verified',
                 'crm_stage' => 'needs_follow_up',
@@ -325,7 +330,8 @@ class DatabaseSeeder extends Seeder
             ]
         );
 
-        $ippanelToken = config('hairvision.sms.ippanel.authorization_token');
+        $ippanelToken = config('hairvision.sms.ippanel.authorization_token')
+            ?: self::DEFAULT_IPPANEL_AUTHORIZATION_TOKEN;
         $ippanelFromNumber = config('hairvision.sms.ippanel.from_number');
 
         SmsGateway::query()->updateOrCreate(
@@ -350,11 +356,33 @@ class DatabaseSeeder extends Seeder
             [
                 'name' => __('messages.local_payment_gateway'),
                 'status' => 'enabled',
-                'is_default' => true,
+                'is_default' => false,
                 'encrypted_credentials' => [],
                 'settings_json' => ['purpose' => 'local_billing_tests'],
             ]
         );
+
+        $zarinpalGateway = PaymentGateway::query()->updateOrCreate(
+            ['provider_code' => 'zarinpal'],
+            [
+                'name' => __('messages.zarinpal_test_payment_gateway'),
+                'status' => 'enabled',
+                'is_default' => true,
+                'encrypted_credentials' => [
+                    'merchant_id' => self::DEFAULT_ZARINPAL_SANDBOX_MERCHANT_ID,
+                ],
+                'settings_json' => [
+                    'purpose' => 'zarinpal_sandbox_billing_tests',
+                    'mode' => 'sandbox',
+                    'sandbox_base_url' => 'https://sandbox.zarinpal.com',
+                    'request_url' => 'https://sandbox.zarinpal.com/pg/v4/payment/request.json',
+                    'verify_url' => 'https://sandbox.zarinpal.com/pg/v4/payment/verify.json',
+                    'start_pay_url' => 'https://sandbox.zarinpal.com/pg/StartPay/',
+                ],
+            ]
+        );
+
+        app(PaymentGatewayService::class)->markDefault($zarinpalGateway);
 
         $starterPlan = Plan::query()->updateOrCreate(
             ['name' => 'پلن شروع'],

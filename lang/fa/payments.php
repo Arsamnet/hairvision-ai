@@ -14,6 +14,8 @@ return [
     'gateway_inactive' => 'درگاه پرداخت فعال نیست.',
     'payment_activated' => 'پرداخت فاکتور تایید و اشتراک فعال شد.',
     'payment_verified' => 'پرداخت تایید شد.',
+    'payment_failed_generic' => 'خطایی رخ داد. لطفا دوباره تلاش کنید.',
+    'zarinpal_description' => 'پرداخت فاکتور :number در HairVision',
     'pay' => 'پرداخت',
     'filter' => 'فیلتر',
     'search_placeholder' => 'جستجوی نام یا ارائه‌دهنده',

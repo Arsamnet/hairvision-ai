@@ -19,6 +19,24 @@ semantic versioning.
 - Resolve tenant from the request host, never from user input.
 - Never trust `tenant_id` from request bodies.
 
+## User-Facing Error Handling
+
+- Wrap user-facing write flows, external integrations, gateways, providers, and
+  background handoff points in `try`/`catch` blocks at the controller, service,
+  job, or adapter boundary where an exception could otherwise reach the user.
+- Log caught exceptions through Laravel logging (`Log::warning`, `Log::error`,
+  or `report`) with safe operational context such as model ids, operation names,
+  and endpoint labels.
+- Do not log or display OTP codes, credentials, bearer tokens, private storage
+  paths, full gateway authority values, uploaded payloads, or raw sensitive
+  provider responses.
+- Do not show exception messages, stack traces, SQL errors, provider diagnostics,
+  or gateway error bodies to end users. Return only a vague, localized fallback
+  message such as "خطایی رخ داد. لطفا دوباره تلاش کنید."
+- Authorization failures and validation errors may continue to use Laravel's
+  normal response flow, but unexpected operational failures must be caught,
+  logged, and translated to a generic user-safe response.
+
 ## API and Frontend Rules
 
 - Maintain API-first architecture.
