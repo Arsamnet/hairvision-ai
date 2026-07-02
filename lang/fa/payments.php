@@ -17,6 +17,13 @@ return [
     'payment_failed_generic' => 'خطایی رخ داد. لطفا دوباره تلاش کنید.',
     'zarinpal_description' => 'پرداخت فاکتور :number در HairVision',
     'pay' => 'پرداخت',
+    'view' => 'مشاهده',
+    'quick_payment' => 'پرداخت سریع',
+    'invoice_details' => 'جزئیات فاکتور',
+    'invoice_information' => 'اطلاعات سفارش',
+    'payment_information' => 'اطلاعات پرداخت',
+    'latest_payment' => 'آخرین پرداخت',
+    'no_payment_attempt' => 'هنوز تلاش پرداختی برای این فاکتور ثبت نشده است.',
     'filter' => 'فیلتر',
     'search_placeholder' => 'جستجوی نام یا ارائه‌دهنده',
     'invoice_search_placeholder' => 'جستجوی شماره فاکتور، کاربر یا پلن',
@@ -35,6 +42,15 @@ return [
         'plan_type' => 'نوع',
         'amount' => 'مبلغ',
         'status' => 'وضعیت',
+        'created_at' => 'زمان ثبت',
+        'due_at' => 'مهلت پرداخت',
+        'paid_at' => 'زمان پرداخت',
+        'expires_at' => 'اعتبار فاکتور',
+        'activated_at' => 'زمان فعال‌سازی',
+        'gateway' => 'درگاه',
+        'payment_status' => 'وضعیت پرداخت',
+        'authority' => 'شناسه مرجع',
+        'reference_id' => 'شماره پیگیری',
     ],
 
     'invoice_statuses' => [
@@ -48,5 +64,12 @@ return [
         'active' => 'فعال',
         'expired' => 'منقضی',
         'replaced' => 'جایگزین شده',
+    ],
+
+    'payment_statuses' => [
+        'pending' => 'در انتظار پرداخت',
+        'failed' => 'ناموفق',
+        'paid' => 'پرداخت شده',
+        'canceled' => 'لغو شده',
     ],
 ];

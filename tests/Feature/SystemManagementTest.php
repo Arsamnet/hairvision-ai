@@ -740,6 +740,64 @@ class SystemManagementTest extends TestCase
             ->assertSee($invoiceB->number);
     }
 
+    public function test_billing_invoices_show_direct_pay_button_and_details_modal(): void
+    {
+        $this->seed(DatabaseSeeder::class);
+        $this->deactivateSeededClinicPlan();
+
+        $user = User::query()->where('role', 'clinic_admin')->firstOrFail();
+        $plan = Plan::query()->where('status', 'active')->firstOrFail();
+        $gateway = PaymentGateway::query()->where('provider_code', 'zarinpal')->firstOrFail();
+        $invoice = app(BillingService::class)->invoiceForPlan($user, $plan);
+        $authority = 'A000000000000000000000000000000999';
+
+        Payment::query()->create([
+            'tenant_id' => $invoice->tenant_id,
+            'user_id' => $invoice->user_id,
+            'invoice_id' => $invoice->id,
+            'payment_gateway_id' => $gateway->id,
+            'status' => 'pending',
+            'amount' => $invoice->amount,
+            'currency' => $invoice->currency,
+            'authority' => $authority,
+            'idempotency_key' => 'billing-ui-details-test',
+        ]);
+
+        $this->actingAs($user)
+            ->forHost('hairvision-ai.test')
+            ->get('/admin/billing')
+            ->assertOk()
+            ->assertSee($invoice->number)
+            ->assertSee('data-invoice-direct-pay="'.$invoice->id.'"', false)
+            ->assertSee('invoice-details-'.$invoice->id.'-toggle', false)
+            ->assertSee(__('payments.view'))
+            ->assertSee(__('payments.invoice_information'))
+            ->assertSee(__('payments.payment_information'))
+            ->assertSee('•••• '.substr($authority, -8), false)
+            ->assertDontSee($authority, false);
+    }
+
+    public function test_active_subscription_box_is_visible_only_on_clinic_admin_hosts(): void
+    {
+        $this->seed(DatabaseSeeder::class);
+
+        $user = User::query()->where('role', 'clinic_admin')->firstOrFail();
+
+        $this->actingAs($user)
+            ->forHost('hairvision-ai.test')
+            ->get('/admin/billing')
+            ->assertOk()
+            ->assertDontSee('data-active-subscription-card', false)
+            ->assertDontSee(__('payments.active_subscription'));
+
+        $this->actingAs($user)
+            ->forHost('clinic1.hairvision-ai.test')
+            ->get('/admin/billing')
+            ->assertOk()
+            ->assertSee('data-active-subscription-card', false)
+            ->assertSee(__('payments.active_subscription'));
+    }
+
     public function test_subscriptions_expire_by_time_not_service_usage(): void
     {
         $this->seed(DatabaseSeeder::class);

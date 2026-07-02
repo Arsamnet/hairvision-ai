@@ -28,6 +28,10 @@ class BillingController extends Controller
         $user = $request->user();
         $canManage = $user->hasPermission('billing.manage');
         $tenant = $request->attributes->get('adminTenant');
+        $showActiveSubscriptionBox = $this->isClinicAdminHost($request);
+        $activeSubscription = $showActiveSubscriptionBox
+            ? $billing->activeSubscription($user, $tenant)
+            : null;
         $pagination = PaginationParameters::fromRequest(
             $request,
             ['created_at', 'number', 'amount', 'status'],
@@ -54,9 +58,10 @@ class BillingController extends Controller
             'tenant' => $tenant,
             'availableTenants' => $request->attributes->get('adminTenants'),
             'invoices' => $invoices,
-            'activeSubscription' => $billing->activeSubscription($user, $tenant),
-            'serviceSummaries' => $entitlements->summaryForSubscription($billing->activeSubscription($user, $tenant)),
+            'activeSubscription' => $activeSubscription,
+            'serviceSummaries' => $entitlements->summaryForSubscription($activeSubscription),
             'canManageBilling' => $canManage,
+            'showActiveSubscriptionBox' => $showActiveSubscriptionBox,
         ]);
     }
 
@@ -146,6 +151,11 @@ class BillingController extends Controller
 
         return $invoice->user_id === $user->id
             && (! $invoice->tenant_id || ($tenant && $invoice->tenant_id === $tenant->id));
+    }
+
+    private function isClinicAdminHost(Request $request): bool
+    {
+        return strtolower($request->getHost()) !== strtolower((string) config('hairvision.primary_domain'));
     }
 
     private function redirectToGateway(string $url): RedirectResponse
