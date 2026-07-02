@@ -184,18 +184,30 @@ Response:
   "success": true,
   "generation_group": {
     "id": "uuid",
-    "status": "completed"
+    "status": "processing"
   },
+  "current_stage": {
+    "key": "two_weeks",
+    "label": "دو هفته بعد از کاشت",
+    "status": "pending"
+  },
+  "stages": [
+    {"key": "two_weeks", "order": 1, "label": "دو هفته بعد از کاشت", "caption": "آثار ترمیم اولیه و خط رویش تازه"},
+    {"key": "intermediate_regrowth", "order": 2, "label": "مرحله رشد میانی", "caption": "رشد تدریجی و تراکم در حال شکل‌گیری"},
+    {"key": "final_result", "order": 3, "label": "نتیجه نهایی", "caption": "پوشش کامل‌تر و ظاهر طبیعی‌تر"}
+  ],
   "jobs": [
-    {"id": "uuid", "period": "3_months", "status": "completed"},
-    {"id": "uuid", "period": "6_months", "status": "completed"},
-    {"id": "uuid", "period": "12_months", "status": "completed"}
+    {"id": "uuid", "period": "two_weeks", "key": "two_weeks", "label": "دو هفته بعد از کاشت", "status": "pending", "asset_url": null},
+    {"id": "uuid", "period": "intermediate_regrowth", "key": "intermediate_regrowth", "label": "مرحله رشد میانی", "status": "pending", "asset_url": null},
+    {"id": "uuid", "period": "final_result", "key": "final_result", "label": "نتیجه نهایی", "status": "pending", "asset_url": null}
   ]
 }
 ```
 
-In debug/local sample mode the group may be completed immediately. The UI should
-still show a short progress cast before revealing results.
+The backend queues only the first pending stage. Each completed stage stores a
+private asset and queues the next stage. Clients should poll the status endpoint
+and reveal each job as soon as `asset_url` is present. Re-posting the same
+`upload_id` returns the existing group instead of creating duplicate jobs.
 
 ## Generation Status
 
@@ -209,11 +221,19 @@ Response:
 
 ```json
 {
-  "status": "completed",
+  "status": "processing",
+  "current_stage": {
+    "key": "intermediate_regrowth",
+    "label": "مرحله رشد میانی",
+    "status": "processing"
+  },
+  "stages": [
+    {"key": "two_weeks", "order": 1, "label": "دو هفته بعد از کاشت", "caption": "آثار ترمیم اولیه و خط رویش تازه"}
+  ],
   "jobs": [
-    {"period": "3_months", "status": "completed"},
-    {"period": "6_months", "status": "completed"},
-    {"period": "12_months", "status": "completed"}
+    {"period": "two_weeks", "status": "completed", "asset_url": "/api/v1/assets/uuid"},
+    {"period": "intermediate_regrowth", "status": "processing", "asset_url": null},
+    {"period": "final_result", "status": "pending", "asset_url": null}
   ]
 }
 ```
@@ -232,9 +252,9 @@ Response:
 {
   "success": true,
   "results": [
-    {"period": "3_months", "url": "/api/v1/assets/uuid"},
-    {"period": "6_months", "url": "/api/v1/assets/uuid"},
-    {"period": "12_months", "url": "/api/v1/assets/uuid"}
+    {"period": "two_weeks", "label": "دو هفته بعد از کاشت", "url": "/api/v1/assets/uuid"},
+    {"period": "intermediate_regrowth", "label": "مرحله رشد میانی", "url": "/api/v1/assets/uuid"},
+    {"period": "final_result", "label": "نتیجه نهایی", "url": "/api/v1/assets/uuid"}
   ],
   "disclaimer": "These images are simulations and do not guarantee treatment results."
 }

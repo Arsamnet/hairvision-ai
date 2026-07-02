@@ -16,10 +16,12 @@ The initial usage category is:
 
 - `hair_transplant`: `کاشت مو`
 
-The initial model is:
+The initial models are:
 
 - `sample_image`: the protected HairVision demo model used by the MVP sample
   generation flow.
+- `gapgpt`: the GapGPT image-edit model used by the seeded Clinic Aria demo for
+  staged hair-transplant generation.
 
 Config defines model capabilities, supported categories, provider class, timeout,
 credential field names, prompt support, and credit support. It does not contain
@@ -35,6 +37,12 @@ priority, optional credit limit, consumed credit, and creator/updater ids.
 
 Admins can create multiple access records for the same configured model. Stored
 credentials can be replaced, but they are never displayed in plain text.
+
+The demo seeder creates a GapGPT hair-transplant access record with three
+stage-specific prompts under `settings.stage_prompts`. It stores a development
+default API key and lets `GAPGPT_API_KEY` override that value. The seeded record
+and Clinic Aria assignment are active so `php artisan migrate:fresh --seed`
+produces a usable demo clinic without extra admin setup.
 
 ## Clinic Assignment
 

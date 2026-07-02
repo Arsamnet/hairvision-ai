@@ -44,6 +44,7 @@ class AiModelAccessManagementTest extends TestCase
             'hairvision.default_ai_provider' => 'sample_image',
             'hairvision.otp.max_requests' => 10,
             'hairvision.otp.decay_seconds' => 600,
+            'services.gapgpt.api_key' => null,
         ]);
     }
 
@@ -54,14 +55,46 @@ class AiModelAccessManagementTest extends TestCase
         $superAdmin = User::query()->where('role', 'super_admin')->firstOrFail();
         $tenant = Tenant::query()->where('slug', 'clinic1')->firstOrFail();
         $demo = AiModelAccess::query()->where('model_key', 'sample_image')->where('is_demo', true)->firstOrFail();
+        $gapGpt = AiModelAccess::query()->where('model_key', 'gapgpt')->where('usage_category_key', 'hair_transplant')->firstOrFail();
+        $rawGapGptCredentials = DB::table('ai_model_accesses')->where('id', $gapGpt->id)->value('credentials');
+        $stagePrompts = data_get($gapGpt->settings, 'stage_prompts');
 
         $this->assertArrayHasKey('sample_image', config('ai-models.models'));
+        $this->assertArrayHasKey('gapgpt', config('ai-models.models'));
         $this->assertArrayHasKey('hair_transplant', config('ai-models.usage_categories'));
         $this->assertSame('کاشت مو', __('ai_models.usage_categories.hair_transplant'));
         $this->assertTrue((bool) config('ai-models.models.sample_image.is_protected'));
         $this->assertTrue($demo->is_protected);
+        $this->assertTrue($gapGpt->is_active);
+        $this->assertStringStartsWith('sk-', $gapGpt->credentials['api_key']);
+        $this->assertIsString($rawGapGptCredentials);
+        $this->assertStringNotContainsString($gapGpt->credentials['api_key'], $rawGapGptCredentials);
+        $this->assertSame('{stage_prompt}', $gapGpt->prompt);
+        $this->assertIsArray($stagePrompts);
+        $this->assertSame(['two_weeks', 'intermediate_regrowth', 'final_result'], array_keys($stagePrompts));
+        $this->assertStringContainsString('two weeks after a complete and successful hair transplant', $stagePrompts['two_weeks']);
+        $this->assertStringContainsString('intermediate hair regrowth stage after a complete', $stagePrompts['intermediate_regrowth']);
+        $this->assertStringContainsString('final successful result after full hair growth', $stagePrompts['final_result']);
         $this->assertTrue($superAdmin->hasPermission('ai_models.manage_credit'));
         $this->assertTrue($tenant->aiModelAccesses()->whereKey($demo->id)->wherePivot('is_active', true)->exists());
+        $this->assertTrue($tenant->aiModelAccesses()->whereKey($gapGpt->id)->wherePivot('is_active', true)->exists());
+    }
+
+    public function test_gapgpt_seeded_access_uses_env_key_without_plaintext_storage(): void
+    {
+        config(['services.gapgpt.api_key' => 'test-gapgpt-secret']);
+
+        $this->seed(DatabaseSeeder::class);
+
+        $tenant = Tenant::query()->where('slug', 'clinic1')->firstOrFail();
+        $gapGpt = AiModelAccess::query()->where('model_key', 'gapgpt')->where('usage_category_key', 'hair_transplant')->firstOrFail();
+        $rawCredentials = DB::table('ai_model_accesses')->where('id', $gapGpt->id)->value('credentials');
+
+        $this->assertTrue($gapGpt->is_active);
+        $this->assertSame('test-gapgpt-secret', $gapGpt->credentials['api_key']);
+        $this->assertIsString($rawCredentials);
+        $this->assertStringNotContainsString('test-gapgpt-secret', $rawCredentials);
+        $this->assertTrue($tenant->aiModelAccesses()->whereKey($gapGpt->id)->wherePivot('is_active', true)->exists());
     }
 
     public function test_super_admin_crud_masks_credentials_and_protects_demo_delete(): void
@@ -172,6 +205,9 @@ class AiModelAccessManagementTest extends TestCase
         $tenant = Tenant::query()->where('slug', 'clinic1')->firstOrFail();
         $superAdmin = User::query()->where('role', 'super_admin')->firstOrFail();
         $this->activateSubscription(User::query()->where('role', 'clinic_admin')->firstOrFail());
+        $gapGpt = AiModelAccess::query()->where('model_key', 'gapgpt')->firstOrFail();
+        $tenant->aiModelAccesses()->updateExistingPivot($gapGpt->id, ['is_active' => false]);
+
         $access = AiModelAccess::create([
             'model_key' => 'sample_image',
             'usage_category_key' => 'hair_transplant',

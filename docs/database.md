@@ -214,7 +214,7 @@ Required fields:
 
 ### `generation_groups`
 
-Groups the three period jobs for one upload.
+Groups the three staged generation jobs for one upload.
 
 Required fields:
 
@@ -225,7 +225,7 @@ Required fields:
 
 ### `generation_jobs`
 
-Stores one provider job per period.
+Stores one provider job per stage.
 
 Required fields:
 
@@ -234,7 +234,7 @@ Required fields:
 - `lead_id`
 - `upload_id`
 - `provider_id`
-- `period`
+- `period` (`two_weeks`, `intermediate_regrowth`, or `final_result`)
 - `status`
 - `last_error`
 

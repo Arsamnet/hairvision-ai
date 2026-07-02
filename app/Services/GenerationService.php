@@ -11,12 +11,13 @@ use App\Models\TenantAiSetting;
 use App\Models\Upload;
 use App\Services\AI\AiModelManager;
 use App\Services\Billing\ServiceEntitlementService;
+use App\Services\Generation\GenerationStageCatalog;
 
 /**
- * Creates generation groups and dispatches period jobs.
+ * Creates generation groups and dispatches staged jobs.
  *
  * The service remains provider-aware only at the provider-code level needed for
- * local debug execution. Actual provider execution stays inside queued jobs.
+ * job metadata. Actual provider execution stays inside queued jobs.
  *
  * @since 1.0.0
  */
@@ -25,18 +26,28 @@ class GenerationService
     public function __construct(
         private readonly AiModelManager $aiModels,
         private readonly ServiceEntitlementService $entitlements,
+        private readonly GenerationStageCatalog $stages,
     ) {}
 
     /**
-     * Create one generation group and three period jobs for an upload.
+     * Create one generation group and three staged jobs for an upload.
      *
-     * Side effects: writes generation rows and dispatches or synchronously runs
-     * processing jobs when debug sample mode is enabled.
+     * Side effects: writes generation rows and dispatches the next pending
+     * stage for queued processing.
      */
     public function createForUpload(Upload $upload): GenerationGroup
     {
-        $periods = ['3_months', '6_months', '12_months'];
-        $this->entitlements->assertCanUse($upload->tenant, 'hair_transplant', count($periods));
+        $stageKeys = $this->stages->keys();
+
+        $existing = $upload->generationGroup()->with('jobs')->first();
+
+        if ($existing) {
+            $this->dispatchNextStage($existing);
+
+            return $existing->refresh();
+        }
+
+        $this->entitlements->assertCanUse($upload->tenant, 'hair_transplant', count($stageKeys));
 
         $modelAccess = $this->aiModels->resolveForClinic($upload->tenant, 'hair_transplant');
 
@@ -49,28 +60,57 @@ class GenerationService
 
         $provider = $this->resolveProvider($upload->tenant_id, $modelAccess);
 
-        foreach ($periods as $period) {
-            $job = GenerationJob::create([
+        foreach ($stageKeys as $stageKey) {
+            GenerationJob::create([
                 'generation_group_id' => $group->id,
                 'tenant_id' => $upload->tenant_id,
                 'lead_id' => $upload->lead_id,
                 'upload_id' => $upload->id,
                 'provider_id' => $provider->id,
                 'ai_model_access_id' => $modelAccess->id,
-                'period' => $period,
+                'period' => $stageKey,
                 'status' => 'pending',
                 'model_name' => $modelAccess->model_key,
-                'prompt' => $modelAccess->prompt ?: 'Sample hair growth preview for '.$period,
+                'prompt' => $this->stages->promptFor($modelAccess, $stageKey),
             ]);
-
-            if (config('hairvision.debug_fast_samples') && $provider->code === 'sample_image') {
-                (new ProcessGenerationJob($job))->handle();
-            } else {
-                dispatch(new ProcessGenerationJob($job));
-            }
         }
 
-        return $group;
+        $this->dispatchNextStage($group);
+
+        return $group->refresh();
+    }
+
+    public function dispatchNextStage(GenerationGroup $group): void
+    {
+        $group->load('jobs');
+
+        if ($group->status === 'completed' || $group->jobs->contains('status', 'failed')) {
+            return;
+        }
+
+        if ($group->jobs->contains('status', 'processing')) {
+            $group->update(['status' => 'processing']);
+
+            return;
+        }
+
+        $nextJob = $group->jobs
+            ->where('status', 'pending')
+            ->sortBy(fn (GenerationJob $job): int => $this->stages->order($job->period))
+            ->first();
+
+        if (! $nextJob) {
+            if ($group->jobs->every(fn (GenerationJob $job): bool => $job->status === 'completed')) {
+                $group->update(['status' => 'completed']);
+            }
+
+            return;
+        }
+
+        $group->update(['status' => 'processing']);
+        $nextJob->update(['status' => 'processing']);
+
+        dispatch(new ProcessGenerationJob($nextJob->refresh()));
     }
 
     /**
@@ -82,7 +122,22 @@ class GenerationService
     private function resolveProvider(int $tenantId, ?AiModelAccess $modelAccess = null): AiProvider
     {
         if ($modelAccess) {
-            return AiProvider::query()->where('code', '=', $modelAccess->model_key)->firstOrFail();
+            $config = config('ai-models.models.'.$modelAccess->model_key, []);
+
+            return AiProvider::query()->firstOrCreate(
+                ['code' => $modelAccess->model_key],
+                [
+                    'name' => is_string($config['display_name_key'] ?? null)
+                        ? __($config['display_name_key'])
+                        : $modelAccess->model_key,
+                    'type' => ($config['is_demo'] ?? false) ? 'local' : 'external',
+                    'base_url' => $config['endpoint'] ?? null,
+                    'auth_type' => empty($config['required_credentials'] ?? []) ? null : 'bearer',
+                    'is_active' => true,
+                    'supports_async' => false,
+                    'default_model' => $config['default_model'] ?? null,
+                ]
+            );
         }
 
         $setting = TenantAiSetting::query()

@@ -39,6 +39,11 @@
             100% { background-position: 0% 50%; }
         }
 
+        @keyframes hv-skeleton {
+            0% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
         .hv-enter { animation: hv-enter .25s ease-out both; }
         .hv-ai-cast {
             background: linear-gradient(120deg, rgba(20,184,166,.22), rgba(99,102,241,.24), rgba(168,85,247,.2), rgba(14,165,233,.2), rgba(45,212,191,.2));
@@ -150,6 +155,59 @@
             opacity: 0;
             transform: scale(.985) translateY(6px);
         }
+        .hv-generation-stage {
+            border: 1px solid rgba(228,228,231,.95);
+            background: rgba(255,255,255,.82);
+            transition: border-color .2s ease, background-color .2s ease, box-shadow .2s ease;
+        }
+        .hv-generation-stage.is-processing {
+            border-color: rgba(79,70,229,.36);
+            background: linear-gradient(135deg, rgba(238,242,255,.98), rgba(236,253,245,.9));
+            box-shadow: 0 12px 30px rgba(79,70,229,.12);
+        }
+        .hv-generation-stage.is-completed {
+            border-color: rgba(16,185,129,.34);
+            background: rgba(236,253,245,.92);
+        }
+        .hv-generation-stage.is-failed {
+            border-color: rgba(244,63,94,.36);
+            background: rgba(255,241,242,.92);
+        }
+        .hv-modal-toast {
+            background: linear-gradient(135deg, rgba(15,23,42,.92), rgba(49,46,129,.9));
+            box-shadow: 0 16px 44px rgba(0,0,0,.28);
+        }
+        .hv-thinking-bubble {
+            position: relative;
+            background: linear-gradient(135deg, #ffffff, #f8fafc);
+            box-shadow: 0 12px 30px rgba(79,70,229,.1);
+        }
+        .hv-thinking-bubble::after {
+            content: '';
+            position: absolute;
+            inset-inline-start: 1.25rem;
+            bottom: -7px;
+            width: 14px;
+            height: 14px;
+            transform: rotate(45deg);
+            background: #fff;
+            border-inline-end: 1px solid rgba(226,232,240,.8);
+            border-bottom: 1px solid rgba(226,232,240,.8);
+        }
+        .hv-thinking-dots span {
+            animation: hv-soft-pulse 1.2s ease-in-out infinite;
+        }
+        .hv-thinking-dots span:nth-child(2) { animation-delay: .16s; }
+        .hv-thinking-dots span:nth-child(3) { animation-delay: .32s; }
+        .hv-skeleton {
+            background: linear-gradient(110deg, #f4f4f5 8%, #e0e7ff 18%, #f4f4f5 33%);
+            background-size: 220% 100%;
+            animation: hv-skeleton 1.6s linear infinite;
+        }
+        .hv-upload-zone {
+            min-height: 17rem;
+            aspect-ratio: 4 / 5;
+        }
     </style>
 </head>
 <body class="min-h-screen bg-[#eef2ff] font-sans text-zinc-900 antialiased">
@@ -163,7 +221,7 @@
             <section class="relative isolate overflow-hidden px-4 py-6 sm:px-6 lg:py-8">
                 <div class="absolute inset-0 -z-10 bg-[linear-gradient(135deg,#ecfeff_0%,#f8fafc_32%,#eef2ff_68%,#faf5ff_100%)]"></div>
 
-                <div id="landingApp" data-preparing-message="<?php echo e(e(config('hairvision.visitor_messages.preparing_image'))); ?>" class="mx-auto grid w-full max-w-6xl gap-5 lg:grid-cols-[.86fr_1.14fr]">
+                <div id="landingApp" class="mx-auto grid w-full max-w-6xl gap-5 lg:grid-cols-[.86fr_1.14fr]">
                     <aside class="hv-hero-panel rounded-3xl p-5 text-white shadow-2xl shadow-indigo-950/20 lg:p-6">
                         <div class="flex h-full flex-col justify-between gap-8">
                             <div class="space-y-6">
@@ -263,9 +321,9 @@
                                 </div>
 
                                 <div class="grid gap-4 lg:grid-cols-[.9fr_1.1fr]">
-                                    <label for="image" class="hv-upload-zone group relative flex min-h-56 cursor-pointer flex-col items-center justify-center overflow-hidden rounded-3xl bg-white p-4 text-center ring-1 ring-zinc-200 transition hover:bg-indigo-50/60 hover:ring-indigo-200">
+                                    <label for="image" class="hv-upload-zone group relative flex cursor-pointer flex-col items-center justify-center overflow-hidden rounded-3xl bg-white p-4 text-center ring-1 ring-zinc-200 transition hover:bg-indigo-50/60 hover:ring-indigo-200">
                                         <input id="image" type="file" accept="image/*" class="sr-only" />
-                                        <img id="imagePreview" alt="پیش نمایش تصویر" class="hidden h-full max-h-72 w-full rounded-2xl object-cover" />
+                                        <img id="imagePreview" alt="پیش نمایش تصویر" class="hidden h-full w-full cursor-zoom-in rounded-2xl object-cover" />
                                         <span id="imagePlaceholder" class="space-y-2">
                                             <span class="relative z-10 mx-auto grid h-12 w-12 place-items-center rounded-2xl bg-linear-to-br from-zinc-950 via-indigo-800 to-emerald-700 text-xl text-white shadow-lg shadow-indigo-200 transition group-hover:scale-110" aria-hidden="true">
                                                 <span class="fi fi-rr-upload h-6 w-6"></span>
@@ -287,7 +345,15 @@
                                                     <span class="hv-live-dot h-2 w-2 rounded-full bg-emerald-500"></span>
                                                     <span>پردازش هوشمند</span>
                                                 </div>
-                                                <p id="castMessage" class="mt-3 min-h-14 text-sm leading-7 text-zinc-700"></p>
+                                                <div class="hv-thinking-bubble mt-3 rounded-2xl border border-zinc-200 px-4 py-3">
+                                                    <div class="mb-2 flex items-center gap-1 hv-thinking-dots" aria-hidden="true">
+                                                        <span class="h-1.5 w-1.5 rounded-full bg-indigo-500"></span>
+                                                        <span class="h-1.5 w-1.5 rounded-full bg-indigo-500"></span>
+                                                        <span class="h-1.5 w-1.5 rounded-full bg-indigo-500"></span>
+                                                    </div>
+                                                    <p id="castMessage" class="min-h-12 text-sm leading-7 text-zinc-700"></p>
+                                                </div>
+                                                <div id="processingStageList" class="mt-4 grid gap-2"></div>
                                             </div>
                                         </div>
                                         <div class="grid gap-3 lg:grid-cols-2">
@@ -307,7 +373,24 @@
                                     </div>
                                     <button id="newSession" class="hv-lift rounded-2xl bg-white px-4 py-2 text-sm font-bold text-zinc-700 ring-1 ring-zinc-200">ثبت تصویر جدید</button>
                                 </div>
-                                <div id="resultsContainer" class="grid gap-4 lg:grid-cols-2 xl:grid-cols-4"></div>
+                                <div id="resultsStatusBox" class="hidden rounded-3xl p-px hv-ai-cast">
+                                    <div class="rounded-3xl bg-white/90 p-4 backdrop-blur">
+                                        <div class="flex items-center gap-2 text-xs font-bold text-zinc-500">
+                                            <span class="hv-live-dot h-2 w-2 rounded-full bg-emerald-500"></span>
+                                            <span>پردازش مرحله‌ای</span>
+                                        </div>
+                                        <div class="hv-thinking-bubble mt-3 rounded-2xl border border-zinc-200 px-4 py-3">
+                                            <div class="mb-2 flex items-center gap-1 hv-thinking-dots" aria-hidden="true">
+                                                <span class="h-1.5 w-1.5 rounded-full bg-indigo-500"></span>
+                                                <span class="h-1.5 w-1.5 rounded-full bg-indigo-500"></span>
+                                                <span class="h-1.5 w-1.5 rounded-full bg-indigo-500"></span>
+                                            </div>
+                                            <p id="resultsCastMessage" class="text-sm leading-7 text-zinc-700"></p>
+                                        </div>
+                                        <div id="resultsStageList" class="mt-4 grid gap-2 lg:grid-cols-3"></div>
+                                    </div>
+                                </div>
+                                <div id="resultsContainer" class="grid grid-cols-2 gap-3 lg:grid-cols-4"></div>
                             </section>
                         </div>
                     </section>
@@ -330,25 +413,44 @@
             <span class="fi fi-rr-arrow-small-right h-5 w-5" aria-hidden="true"></span>
         </button>
         <figure class="w-full max-w-5xl">
+            <div id="modalSkeleton" class="hv-skeleton mx-auto hidden aspect-[4/5] max-h-[82vh] w-full max-w-xl rounded-3xl shadow-2xl"></div>
             <img id="modalImage" alt="نمای بزرگ تصویر" class="hv-modal-image mx-auto max-h-[82vh] max-w-full rounded-3xl object-contain shadow-2xl" />
             <figcaption id="modalCaption" class="mt-4 text-center text-sm font-bold text-white"></figcaption>
         </figure>
+        <p id="modalToast" class="hv-modal-toast absolute bottom-4 left-4 right-4 hidden rounded-2xl px-4 py-3 text-center text-sm font-bold leading-7 text-white sm:left-1/2 sm:right-auto sm:w-full sm:max-w-xl sm:-translate-x-1/2"></p>
         <button id="nextImageModal" class="absolute left-4 top-1/2 grid h-11 w-11 -translate-y-1/2 place-items-center rounded-full bg-white/95 text-xl font-bold text-zinc-950 shadow-lg transition hover:scale-105 sm:left-8" aria-label="تصویر بعدی">
             <span class="fi fi-rr-arrow-small-left h-5 w-5" aria-hidden="true"></span>
         </button>
     </div>
 
-    <script>
-        const PREPARING_MESSAGE = document.getElementById('landingApp')?.dataset.preparingMessage || 'تصویر شما در حال آماده سازی است.';
-        const STATE = { phone: null, verified: false, uploadId: null, generationGroupId: null, originalPreviewUrl: null, galleryItems: [], activeGalleryIndex: 0 };
-        const CAST_MESSAGES = [
-            PREPARING_MESSAGE,
-            'کیفیت تصویر بررسی شد و برای پیش نمایش مناسب است.',
-            'نمای ۳ ماهه در حال آماده سازی است.',
-            'نمای ۶ ماهه در حال آماده سازی است.',
-            'نمای ۱۲ ماهه در حال آماده سازی است.',
-            'چیدمان نهایی تصاویر در حال انجام است.'
+    <?php
+        $stageCatalog = app(\App\Services\Generation\GenerationStageCatalog::class);
+        $generationFrontend = [
+            'stages' => $stageCatalog->publicStages(),
+            'messages' => __('ai.generation.messages'),
+            'statuses' => __('ai.generation.statuses'),
+            'messageIntervalMs' => config('hairvision.generation.message_interval_ms'),
+            'pollIntervalMs' => config('hairvision.generation.poll_interval_ms'),
+            'pollTimeoutMs' => config('hairvision.generation.poll_timeout_ms'),
         ];
+    ?>
+    <script>
+        const GENERATION = <?php echo json_encode($generationFrontend, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES); ?>;
+        const STATE = {
+            phone: null,
+            verified: false,
+            uploadId: null,
+            generationGroupId: null,
+            originalPreviewUrl: null,
+            galleryItems: [],
+            activeGalleryIndex: 0,
+            stageJobs: [],
+            currentStageKey: null,
+            currentMessage: '',
+            messageIndex: 0,
+            messageTimer: null,
+            generationComplete: false,
+        };
         const DIGIT_MAP = {
             '۰': '0', '۱': '1', '۲': '2', '۳': '3', '۴': '4', '۵': '5', '۶': '6', '۷': '7', '۸': '8', '۹': '9',
             '٠': '0', '١': '1', '٢': '2', '٣': '3', '٤': '4', '٥': '5', '٦': '6', '٧': '7', '٨': '8', '٩': '9'
@@ -386,6 +488,104 @@
             });
         }
 
+        function escapeHtml(value) {
+            const element = document.createElement('div');
+            element.textContent = value ?? '';
+            return element.innerHTML;
+        }
+
+        function wait(ms) {
+            return new Promise((resolve) => setTimeout(resolve, ms));
+        }
+
+        function firstStageKey() {
+            return GENERATION.stages?.[0]?.key || 'two_weeks';
+        }
+
+        function stageMessages(stageKey) {
+            return Array.isArray(GENERATION.messages?.[stageKey]) ? GENERATION.messages[stageKey] : [];
+        }
+
+        function completionMessage() {
+            return GENERATION.messages?.completed?.[0] || '';
+        }
+
+        function failedMessage() {
+            return GENERATION.messages?.failed?.[0] || '';
+        }
+
+        function statusLabel(status) {
+            return GENERATION.statuses?.[status] || status || '';
+        }
+
+        function friendlyApiMessage(status, fallback = 'خطایی رخ داد. لطفا دوباره تلاش کنید.') {
+            if ([401, 403, 419].includes(Number(status))) {
+                return 'برای ادامه، لطفاً کد تایید جدید دریافت کنید.';
+            }
+
+            return fallback;
+        }
+
+        async function parseJsonResponse(response) {
+            const text = await response.text();
+
+            if (!text) return {};
+
+            try {
+                return JSON.parse(text);
+            } catch (error) {
+                return {};
+            }
+        }
+
+        async function requestJson(url, options = {}) {
+            const body = options.body;
+            const isFormData = body instanceof FormData;
+            const response = await fetch(url, {
+                credentials: 'same-origin',
+                ...options,
+                headers: {
+                    Accept: 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest',
+                    ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
+                    ...(options.headers || {}),
+                },
+            });
+            const payload = await parseJsonResponse(response);
+
+            if (!response.ok) {
+                return {
+                    ...payload,
+                    success: false,
+                    status: response.status,
+                    message: payload.message || friendlyApiMessage(response.status),
+                    requiresVerification: [401, 403, 419].includes(response.status),
+                };
+            }
+
+            return { ...payload, status: response.status };
+        }
+
+        function handleApiFailure(payload, errorId = 'uploadError') {
+            const message = payload?.requiresVerification
+                ? 'برای ادامه، لطفاً کد تایید جدید دریافت کنید.'
+                : (payload?.message || friendlyApiMessage(payload?.status));
+
+            stopStageMessages();
+            UI.clearStatus();
+            UI.showError(errorId, message);
+
+            if (payload?.requiresVerification) {
+                STATE.verified = false;
+                sessionStorage.removeItem('hairvisionVerified');
+                document.getElementById('otp').value = '';
+                UI.clearError('otpError');
+                UI.showStep(1);
+                UI.showError('phoneError', message);
+                document.getElementById('requestOtp').focus();
+            }
+        }
+
         const UI = {
             showStep(stepNum) {
                 document.querySelectorAll('#landingApp .flow-step').forEach((el) => {
@@ -416,13 +616,11 @@
                             : 'step-indicator hv-step hv-step-upcoming rounded-2xl px-3 py-3 text-right text-sm transition hover:bg-indigo-50';
 
                     if (marker) {
-                        marker.innerHTML = done
-                            ? '<span class="fi fi-rr-check h-4 w-4" aria-hidden="true"></span>'
-                            : toPersianDigits(index);
+                        marker.innerHTML = toPersianDigits(index);
                         marker.className = active
                             ? 'step-marker mb-2 grid h-7 w-7 place-items-center rounded-xl bg-white/15 text-xs font-bold text-white'
                             : done
-                                ? 'step-marker mb-2 grid h-7 w-7 place-items-center rounded-xl bg-emerald-700 text-xs font-bold text-white'
+                                ? 'step-marker mb-2 grid h-7 w-7 place-items-center rounded-xl bg-white text-xs font-bold text-emerald-700 ring-1 ring-emerald-300'
                                 : 'step-marker mb-2 grid h-7 w-7 place-items-center rounded-xl bg-white text-xs font-bold text-zinc-500';
                     }
 
@@ -448,61 +646,68 @@
                 el.classList.remove('hidden');
             },
             showStatus(message) {
+                STATE.currentMessage = message || '';
                 document.getElementById('statusBox').classList.remove('hidden');
-                document.getElementById('castMessage').textContent = message;
+                document.getElementById('resultsStatusBox').classList.remove('hidden');
+                document.getElementById('castMessage').textContent = STATE.currentMessage;
+                document.getElementById('resultsCastMessage').textContent = STATE.currentMessage;
+                this.showModalToast(STATE.currentMessage);
             },
             clearStatus() {
                 document.getElementById('castMessage').textContent = '';
+                document.getElementById('resultsCastMessage').textContent = '';
                 document.getElementById('statusBox').classList.add('hidden');
+                document.getElementById('resultsStatusBox').classList.add('hidden');
+                this.hideModalToast();
+            },
+            showModalToast(message) {
+                const modal = document.getElementById('imageModal');
+                const toast = document.getElementById('modalToast');
+                if (!toast || modal.classList.contains('hidden') || STATE.generationComplete || !message) return;
+                toast.textContent = message;
+                toast.classList.remove('hidden');
+            },
+            hideModalToast() {
+                const toast = document.getElementById('modalToast');
+                if (!toast) return;
+                toast.textContent = '';
+                toast.classList.add('hidden');
             },
         };
 
         const API = {
             async requestOtp(phone) {
-                const response = await fetch('/api/v1/auth/otp/request', {
+                return requestJson('/api/v1/auth/otp/request', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ phone }),
-                    credentials: 'same-origin',
                 });
-                return response.json();
             },
             async verifyOtp(phone, code) {
-                const response = await fetch('/api/v1/auth/otp/verify', {
+                return requestJson('/api/v1/auth/otp/verify', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ phone, code }),
-                    credentials: 'same-origin',
                 });
-                return response.json();
             },
             async uploadImage(file, consent) {
                 const formData = new FormData();
                 formData.append('image', file);
                 formData.append('consent', consent ? '1' : '0');
-                const response = await fetch('/api/v1/uploads', {
+                return requestJson('/api/v1/uploads', {
                     method: 'POST',
                     body: formData,
-                    credentials: 'same-origin',
                 });
-                return response.json();
             },
             async createGeneration(uploadId) {
-                const response = await fetch('/api/v1/generations', {
+                return requestJson('/api/v1/generations', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ upload_id: uploadId }),
-                    credentials: 'same-origin',
                 });
-                return response.json();
             },
             async getGenerationStatus(groupId) {
-                const response = await fetch(`/api/v1/generations/${groupId}/status`, { credentials: 'same-origin' });
-                return response.json();
+                return requestJson(`/api/v1/generations/${groupId}/status`);
             },
             async getGenerationResults(groupId) {
-                const response = await fetch(`/api/v1/generations/${groupId}/results`, { credentials: 'same-origin' });
-                return response.json();
+                return requestJson(`/api/v1/generations/${groupId}/results`);
             },
         };
 
@@ -532,6 +737,15 @@
             preview.src = STATE.originalPreviewUrl;
             preview.classList.remove('hidden');
             placeholder.classList.add('hidden');
+            primeGallery();
+        });
+
+        document.getElementById('imagePreview').addEventListener('click', (event) => {
+            if (!STATE.originalPreviewUrl) return;
+            event.preventDefault();
+            event.stopPropagation();
+            primeGallery();
+            openImageModal(0);
         });
 
         document.getElementById('requestOtp').addEventListener('click', async () => {
@@ -590,42 +804,48 @@
             if (!fileInput.files.length) return UI.showError('uploadError', 'لطفا یک تصویر انتخاب کنید.');
             if (!consent) return UI.showError('uploadError', 'برای ادامه باید رضایت پردازش تصویر را تایید کنید.');
 
+            resetGenerationProgress(false);
             const btn = document.getElementById('upload');
             btn.disabled = true;
             btn.textContent = 'در حال ارسال...';
-            await playCastMessages([CAST_MESSAGES[0]]);
+            startStageMessages(firstStageKey(), true);
 
-            const result = await API.uploadImage(fileInput.files[0], consent);
-            btn.disabled = false;
-            btn.textContent = 'دریافت پیش نمایش';
-            if (result.success && result.upload?.id) {
-                STATE.uploadId = result.upload.id;
-                const genResult = await API.createGeneration(STATE.uploadId);
-                if (genResult.success && genResult.generation_group?.id) {
-                    STATE.generationGroupId = genResult.generation_group.id;
-                    const completedNow = genResult.generation_group.status === 'completed'
-                        || (Array.isArray(genResult.jobs) && genResult.jobs.every((job) => job.status === 'completed'));
+            try {
+                const result = await API.uploadImage(fileInput.files[0], consent);
+                if (result.success && result.upload?.id) {
+                    STATE.uploadId = result.upload.id;
+                    btn.textContent = 'در حال ساخت مرحله اول...';
+                    const genResult = await API.createGeneration(STATE.uploadId);
+                    if (genResult.success && genResult.generation_group?.id) {
+                        STATE.generationGroupId = genResult.generation_group.id;
+                        const state = applyGenerationStatus(genResult);
 
-                    if (completedNow) {
-                        await playCastMessages(CAST_MESSAGES.slice(1), 900);
-                        await showResultsNow();
+                        if (state === 'processing') {
+                            await pollUntilComplete();
+                        }
                     } else {
-                        await pollUntilReady();
+                        btn.disabled = false;
+                        btn.textContent = 'دریافت پیش نمایش';
+                        handleApiFailure(genResult);
                     }
                 } else {
-                    UI.clearStatus();
-                    UI.showError('uploadError', 'ساخت نتیجه ناموفق بود.');
+                    btn.disabled = false;
+                    btn.textContent = 'دریافت پیش نمایش';
+                    handleApiFailure(result);
                 }
-            } else {
+            } catch (error) {
+                stopStageMessages();
+                btn.disabled = false;
+                btn.textContent = 'دریافت پیش نمایش';
                 UI.clearStatus();
-                UI.showError('uploadError', result.message || 'بارگذاری تصویر ناموفق بود.');
+                UI.showError('uploadError', 'خطایی رخ داد. لطفا دوباره تلاش کنید.');
             }
         });
 
         document.getElementById('backToVerify').addEventListener('click', () => {
             resetImageInput();
+            resetGenerationProgress();
             UI.clearError('uploadError');
-            UI.clearStatus();
             UI.showStep(2);
         });
 
@@ -634,10 +854,10 @@
             STATE.generationGroupId = null;
             document.getElementById('otp').value = '';
             resetImageInput();
+            resetGenerationProgress();
             UI.clearError('phoneError');
             UI.clearError('otpError');
             UI.clearError('uploadError');
-            UI.clearStatus();
             document.getElementById('resultsContainer').innerHTML = '';
             if (STATE.verified) {
                 UI.showStep(3);
@@ -663,85 +883,233 @@
             if (event.key === 'ArrowLeft') showNextImage();
         });
 
-        async function showResultsNow() {
-            const resultData = await API.getGenerationResults(STATE.generationGroupId);
-            if (resultData.success && resultData.results) {
-                UI.clearStatus();
-                displayResults(resultData.results);
-                UI.showStep(4);
-            } else {
-                UI.clearStatus();
-                UI.showError('uploadError', resultData.message || 'دریافت نتایج ناموفق بود.');
-            }
-        }
+        async function pollUntilComplete() {
+            const startedAt = Date.now();
+            const timeoutMs = Number(GENERATION.pollTimeoutMs || 360000);
+            const intervalMs = Number(GENERATION.pollIntervalMs || 5000);
 
-        async function pollUntilReady() {
-            let attempts = 0;
-            const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
-            while (attempts < 60) {
-                attempts++;
-                await playCastMessages([CAST_MESSAGES[attempts % CAST_MESSAGES.length]], 750);
+            while (Date.now() - startedAt < timeoutMs) {
+                await wait(intervalMs);
                 const statusResult = await API.getGenerationStatus(STATE.generationGroupId);
-                if (statusResult.status === 'completed') {
-                    await playCastMessages(['نتایج آماده شدند و در حال نمایش هستند.'], 750);
-                    await showResultsNow();
-                    return;
+                if (statusResult.success === false) {
+                    handleApiFailure(statusResult);
+                    return 'failed';
                 }
-                await wait(700);
+
+                const state = applyGenerationStatus(statusResult);
+
+                if (state === 'completed' || state === 'failed') {
+                    return state;
+                }
             }
-            UI.clearStatus();
+
+            stopStageMessages();
             UI.showError('uploadError', 'آماده سازی تصاویر بیشتر از حد انتظار طول کشید. لطفا دوباره تلاش کنید.');
+            return 'failed';
         }
 
-        async function playCastMessages(messages, delay = 850) {
-            const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
-            for (const message of messages) {
-                UI.showStatus(message);
-                await wait(delay);
+        function applyGenerationStatus(payload) {
+            const jobs = Array.isArray(payload.jobs) ? payload.jobs : [];
+            STATE.stageJobs = jobs;
+            renderStagePanels(jobs);
+
+            const readyJobs = jobs.filter((job) => job.asset_url);
+            const failed = payload.status === 'failed' || jobs.some((job) => job.status === 'failed');
+            const completed = payload.status === 'completed' || (jobs.length > 0 && jobs.every((job) => job.status === 'completed'));
+
+            if (readyJobs.length > 0 || !document.getElementById('step4').classList.contains('hidden')) {
+                displayGenerationResults(jobs);
+                UI.showStep(4);
             }
+
+            if (failed) {
+                stopStageMessages();
+                STATE.generationComplete = false;
+                UI.showStatus(failedMessage());
+                UI.showError('uploadError', failedMessage());
+                return 'failed';
+            }
+
+            if (completed) {
+                displayGenerationResults(jobs);
+                UI.showStep(4);
+                showCompletionMessage();
+                return 'completed';
+            }
+
+            const current = payload.current_stage?.key || currentStageFromJobs(jobs)?.key || firstStageKey();
+            startStageMessages(current);
+
+            return 'processing';
         }
 
-        function displayResults(results) {
+        function currentStageFromJobs(jobs) {
+            return jobs.find((job) => job.status === 'processing')
+                || jobs.find((job) => job.status === 'pending')
+                || jobs.find((job) => job.status === 'failed')
+                || null;
+        }
+
+        function startStageMessages(stageKey, force = false) {
+            const key = stageKey || firstStageKey();
+            const messages = stageMessages(key);
+            if (!messages.length) return;
+
+            if (!force && STATE.currentStageKey === key && STATE.messageTimer) {
+                return;
+            }
+
+            stopStageMessages();
+            STATE.currentStageKey = key;
+            STATE.messageIndex = 0;
+            UI.showStatus(messages[0]);
+            STATE.messageTimer = window.setInterval(() => {
+                STATE.messageIndex = (STATE.messageIndex + 1) % messages.length;
+                UI.showStatus(messages[STATE.messageIndex]);
+            }, Number(GENERATION.messageIntervalMs || 10000));
+        }
+
+        function stopStageMessages() {
+            if (STATE.messageTimer) {
+                window.clearInterval(STATE.messageTimer);
+            }
+            STATE.messageTimer = null;
+        }
+
+        function showCompletionMessage() {
+            stopStageMessages();
+            STATE.generationComplete = true;
+            UI.showStatus(completionMessage());
+            UI.hideModalToast();
+        }
+
+        function renderStagePanels(jobs) {
+            renderStageList('processingStageList', jobs);
+            renderStageList('resultsStageList', jobs);
+        }
+
+        function renderStageList(containerId, jobs) {
+            const container = document.getElementById(containerId);
+            if (!container) return;
+
+            container.innerHTML = (GENERATION.stages || []).map((stage, index) => {
+                const job = jobs.find((item) => item.key === stage.key || item.period === stage.key) || {};
+                const status = job.status || 'pending';
+                const failed = status === 'failed';
+                const completed = status === 'completed';
+                const processing = status === 'processing';
+                const statusClass = failed ? 'is-failed' : completed ? 'is-completed' : processing ? 'is-processing' : '';
+                const markerClass = completed
+                    ? 'bg-emerald-700 text-white'
+                    : failed
+                        ? 'bg-rose-600 text-white'
+                        : processing
+                            ? 'bg-indigo-700 text-white'
+                            : 'bg-white text-zinc-500';
+                const marker = toPersianDigits(index + 1);
+                const error = failed && job.error ? `<p class="mt-2 text-xs leading-6 text-rose-700">${escapeHtml(job.error)}</p>` : '';
+
+                return `
+                    <article class="hv-generation-stage ${statusClass} rounded-2xl p-3">
+                        <div class="flex items-start gap-3">
+                            <span class="grid h-8 w-8 shrink-0 place-items-center rounded-xl text-xs font-bold ${markerClass}">${marker}</span>
+                            <span class="min-w-0">
+                                <span class="block text-sm font-bold text-zinc-900">${escapeHtml(stage.label)}</span>
+                                <span class="mt-1 block text-xs leading-6 text-zinc-500">${escapeHtml(stage.caption || '')}</span>
+                                <span class="mt-2 inline-flex rounded-full bg-white/75 px-2 py-1 text-xs font-bold text-zinc-600 ring-1 ring-zinc-200">${escapeHtml(statusLabel(status))}</span>
+                                ${error}
+                            </span>
+                        </div>
+                    </article>
+                `;
+            }).join('');
+        }
+
+        function galleryItemsFromJobs(jobs = STATE.stageJobs) {
+            return [
+                {
+                    period: 'original',
+                    label: 'تصویر اولیه',
+                    caption: 'تصویر بارگذاری شده',
+                    status: STATE.originalPreviewUrl ? 'completed' : 'pending',
+                    url: STATE.originalPreviewUrl,
+                },
+                ...(GENERATION.stages || []).map((stage) => {
+                    const job = jobs.find((item) => item.key === stage.key || item.period === stage.key) || {};
+
+                    return {
+                        period: stage.key,
+                        label: stage.label,
+                        caption: stage.caption,
+                        status: job.status || 'pending',
+                        url: job.asset_url || null,
+                    };
+                }),
+            ];
+        }
+
+        function primeGallery() {
+            STATE.galleryItems = galleryItemsFromJobs();
+        }
+
+        function displayGenerationResults(jobs) {
             const container = document.getElementById('resultsContainer');
             container.innerHTML = '';
-            const items = [
-                { period: 'original', label: 'تصویر اولیه', caption: 'تصویر بارگذاری شده', url: STATE.originalPreviewUrl },
-                { period: '3_months', label: '۳ ماه', caption: 'نمای آغاز مسیر', url: results.find((r) => r.period === '3_months')?.url },
-                { period: '6_months', label: '۶ ماه', caption: 'نمای میانی', url: results.find((r) => r.period === '6_months')?.url },
-                { period: '12_months', label: '۱۲ ماه', caption: 'نمای کامل تر', url: results.find((r) => r.period === '12_months')?.url },
-            ];
-            STATE.galleryItems = items.filter((item) => item.url);
+            const items = galleryItemsFromJobs(jobs);
+            STATE.galleryItems = items;
 
             items.forEach((item, index) => {
                 const card = document.createElement('article');
                 card.className = 'hv-result-card hv-enter overflow-hidden rounded-3xl bg-white shadow-lg shadow-indigo-100/70';
                 card.style.animationDelay = `${index * 70}ms`;
-                const galleryIndex = STATE.galleryItems.findIndex((galleryItem) => galleryItem.period === item.period);
-                card.innerHTML = item.url
-                    ? `<button type="button" class="block w-full text-right" data-gallery-index="${galleryIndex}"><span class="relative block overflow-hidden"><img src="${item.url}" alt="${item.label}" class="hv-result-image aspect-[4/5] w-full object-cover" loading="lazy" /><span class="absolute left-3 top-3 grid h-9 w-9 place-items-center rounded-full bg-white/95 text-zinc-950 shadow-lg"><span class="fi fi-rr-zoom-in h-4 w-4" aria-hidden="true"></span></span></span><span class="block p-4"><span class="block text-base font-bold text-zinc-950">${item.label}</span><span class="mt-1 block text-sm leading-6 text-zinc-500">${item.caption}</span></span></button>`
-                    : `<div class="aspect-[4/5] w-full bg-zinc-100"></div><div class="p-4"><p class="text-base font-bold text-zinc-950">${item.label}</p><p class="mt-1 text-sm leading-6 text-zinc-500">تصویر آماده نشد.</p></div>`;
+                const media = item.url
+                    ? `<img src="${item.url}" alt="${escapeHtml(item.label)}" class="hv-result-image aspect-[4/5] w-full object-cover" loading="lazy" />`
+                    : `<span class="hv-skeleton block aspect-[4/5] w-full"></span><span class="absolute inset-0 grid place-items-center px-4 text-center"><span><span class="mx-auto grid h-12 w-12 place-items-center rounded-2xl bg-white/90 text-sm font-bold text-zinc-500 shadow-sm">${toPersianDigits(index + 1)}</span><span class="mt-3 block text-sm font-bold text-zinc-600">${escapeHtml(statusLabel(item.status))}</span></span></span>`;
+                const status = item.period === 'original'
+                    ? `<span class="mt-3 inline-flex rounded-full bg-emerald-50 px-3 py-1 text-xs font-bold text-emerald-700">${escapeHtml(statusLabel(item.status))}</span>`
+                    : `<span class="mt-3 inline-flex rounded-full bg-zinc-100 px-3 py-1 text-xs font-bold text-zinc-600">${escapeHtml(statusLabel(item.status))}</span>`;
+
+                card.innerHTML = `<button type="button" class="block w-full text-right" data-gallery-index="${index}"><span class="relative block overflow-hidden bg-zinc-100">${media}</span><span class="block p-4"><span class="block text-base font-bold text-zinc-950">${escapeHtml(item.label)}</span><span class="mt-1 block text-sm leading-6 text-zinc-500">${escapeHtml(item.caption || '')}</span>${status}</span></button>`;
                 container.appendChild(card);
             });
 
             container.querySelectorAll('[data-gallery-index]').forEach((button) => {
                 button.addEventListener('click', () => openImageModal(Number(button.dataset.galleryIndex)));
             });
+
+            if (!document.getElementById('imageModal').classList.contains('hidden') && STATE.galleryItems.length) {
+                STATE.activeGalleryIndex = Math.min(STATE.activeGalleryIndex, STATE.galleryItems.length - 1);
+                renderModalImage(false);
+            }
         }
 
         function openImageModal(index) {
-            STATE.activeGalleryIndex = Number.isFinite(index) ? index : 0;
+            if (!STATE.galleryItems.length) {
+                primeGallery();
+            }
+
+            if (!STATE.galleryItems.length) return;
+
+            STATE.activeGalleryIndex = Math.min(
+                Math.max(Number.isFinite(index) ? index : 0, 0),
+                STATE.galleryItems.length - 1
+            );
             const modal = document.getElementById('imageModal');
             modal.classList.remove('hidden');
             modal.classList.add('flex');
             renderModalImage(false);
+            UI.showModalToast(STATE.currentMessage);
         }
 
         function closeImageModal() {
             const modal = document.getElementById('imageModal');
             modal.classList.add('hidden');
             modal.classList.remove('flex');
+            document.getElementById('modalSkeleton').classList.add('hidden');
             document.getElementById('modalImage').src = '';
+            document.getElementById('modalImage').classList.remove('hidden', 'is-changing');
             document.getElementById('modalCaption').textContent = '';
+            UI.hideModalToast();
         }
 
         function showPreviousImage() {
@@ -760,9 +1128,22 @@
             const item = STATE.galleryItems[STATE.activeGalleryIndex];
             if (!item) return;
             const image = document.getElementById('modalImage');
+            const skeleton = document.getElementById('modalSkeleton');
             const caption = document.getElementById('modalCaption');
 
             const applyImage = () => {
+                if (!item.url) {
+                    image.classList.add('hidden');
+                    image.classList.remove('is-changing');
+                    image.removeAttribute('src');
+                    skeleton.classList.remove('hidden');
+                    caption.textContent = `${item.label} - ${statusLabel(item.status || 'pending')}`;
+                    UI.showModalToast(STATE.currentMessage);
+                    return;
+                }
+
+                skeleton.classList.add('hidden');
+                image.classList.remove('hidden');
                 image.src = item.url;
                 image.alt = item.label || 'نمای بزرگ تصویر';
                 caption.textContent = `${item.label} - ${item.caption}`;
@@ -774,7 +1155,9 @@
                 return;
             }
 
-            image.classList.add('is-changing');
+            if (item.url) {
+                image.classList.add('is-changing');
+            }
             window.setTimeout(applyImage, 160);
         }
 
@@ -790,6 +1173,23 @@
                 URL.revokeObjectURL(STATE.originalPreviewUrl);
                 STATE.originalPreviewUrl = null;
             }
+            STATE.galleryItems = [];
+        }
+
+        function resetGenerationProgress(clearStatus = true) {
+            stopStageMessages();
+            STATE.stageJobs = [];
+            STATE.galleryItems = [];
+            STATE.currentStageKey = null;
+            STATE.currentMessage = '';
+            STATE.messageIndex = 0;
+            STATE.generationComplete = false;
+            renderStagePanels([]);
+            document.getElementById('resultsContainer').innerHTML = '';
+            const uploadButton = document.getElementById('upload');
+            uploadButton.disabled = false;
+            uploadButton.textContent = 'دریافت پیش نمایش';
+            if (clearStatus) UI.clearStatus();
         }
 
         function loadSessionState() {
@@ -810,6 +1210,7 @@
             }
         }
 
+        renderStagePanels([]);
         loadSessionState();
     </script>
 </body>

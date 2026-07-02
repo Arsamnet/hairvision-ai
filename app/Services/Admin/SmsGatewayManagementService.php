@@ -265,6 +265,10 @@ class SmsGatewayManagementService
             $settings['otp_pattern_code'] = $data['otp_pattern_code'] ?: null;
         }
 
+        if (array_key_exists('otp_pattern_variable', $data)) {
+            $settings['otp_pattern_variable'] = $data['otp_pattern_variable'] ?: null;
+        }
+
         if (array_key_exists('endpoint_url', $data)) {
             $settings['endpoint_url'] = $data['endpoint_url'] ?: null;
         }

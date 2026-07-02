@@ -26,7 +26,37 @@ class SmsGatewayService
             ->enabled()
             ->where('is_default', true)
             ->first()
-            ?? SmsGateway::query()->system()->enabled()->orderBy('id')->first();
+            ?? SmsGateway::query()->system()->enabled()->orderBy('id', 'asc')->first()
+            ?? $this->systemDefaultFromConfig();
+    }
+
+    /**
+     * Return a system-level gateway built from config when no DB gateway exists.
+     */
+    private function systemDefaultFromConfig(): ?SmsGateway
+    {
+        $token = config('hairvision.sms.ippanel.authorization_token');
+
+        if (! is_string($token) || trim($token) === '') {
+            return null;
+        }
+
+        return new SmsGateway([
+            'name' => 'IPPanel (configured)',
+            'provider_code' => 'ippanel',
+            'status' => 'enabled',
+            'encrypted_credentials' => [
+                'api_key' => trim($token),
+            ],
+            'settings_json' => [
+                'from_number' => config('hairvision.sms.ippanel.from_number'),
+                'endpoint_url' => config('hairvision.sms.ippanel.endpoint_url'),
+                'otp_pattern_code' => config('hairvision.sms.ippanel.otp_pattern_code'),
+                'otp_pattern_variable' => config('hairvision.sms.ippanel.otp_pattern_variable'),
+                'timeout_seconds' => config('hairvision.sms.ippanel.timeout_seconds'),
+                'connect_timeout_seconds' => config('hairvision.sms.ippanel.connect_timeout_seconds'),
+            ],
+        ]);
     }
 
     /**
@@ -34,13 +64,20 @@ class SmsGatewayService
      */
     public function systemIppanel(): ?SmsGateway
     {
-        return SmsGateway::query()
+        $gateway = SmsGateway::query()
             ->system()
             ->enabled()
             ->where('provider_code', 'ippanel')
             ->orderByDesc('is_default')
             ->orderBy('id')
-            ->first();
+            ->get()
+            ->first(function (SmsGateway $gateway): bool {
+                $token = data_get($gateway->encrypted_credentials ?? [], 'api_key');
+
+                return is_string($token) && trim($token) !== '';
+            });
+
+        return $gateway ?? $this->systemDefaultFromConfig();
     }
 
     /**

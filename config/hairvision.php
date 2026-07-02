@@ -7,6 +7,12 @@ return [
 
     'primary_domain' => env('HAIRVISION_PRIMARY_DOMAIN', 'hairvision-ai.test'),
 
+    'sessions' => [
+        'lead_cookie' => env('HAIRVISION_LEAD_SESSION_COOKIE', 'hairvision_lead_session'),
+        'clinic_admin_cookie' => env('HAIRVISION_CLINIC_ADMIN_SESSION_COOKIE', 'hairvision_clinic_admin_session'),
+        'platform_admin_cookie' => env('HAIRVISION_PLATFORM_ADMIN_SESSION_COOKIE', 'hairvision_platform_admin_session'),
+    ],
+
     'billing' => [
         'default_service_key' => env('HAIRVISION_DEFAULT_SERVICE_KEY', 'hair_transplant'),
         'allow_duplicate_service_add_ons' => false,
@@ -38,6 +44,37 @@ return [
         'preparing_image' => env('HAIRVISION_PREPARING_IMAGE_MESSAGE', 'در حال آماده سازی تصویر و ساخت نتایج نمونه هستیم. لطفا چند لحظه صبر کنید.'),
     ],
 
+    'generation' => [
+        'message_interval_ms' => (int) env('HAIRVISION_GENERATION_MESSAGE_INTERVAL_MS', 10000),
+        'poll_interval_ms' => (int) env('HAIRVISION_GENERATION_POLL_INTERVAL_MS', 5000),
+        'poll_timeout_ms' => (int) env('HAIRVISION_GENERATION_POLL_TIMEOUT_MS', 360000),
+        'stages' => [
+            'two_weeks' => [
+                'order' => 1,
+                'label_key' => 'ai.generation.stages.two_weeks',
+                'sample_image' => env('HAIRVISION_SAMPLE_IMAGE_TWO_WEEKS', env('HAIRVISION_SAMPLE_IMAGE_3_MONTHS', 'sample-results/3-months.jpg')),
+                'prompt' => 'Create exactly one realistic hair transplant preview image showing the same person two weeks after a complete hair transplant. Preserve the face identity, camera angle, lighting, skin tone, and background. Only edit the scalp and hairline area. Show an early post-transplant stage with a natural designed hairline, subtle redness, tiny graft marks, mild swelling, and short implanted hair stubble. Keep the result clinical, natural, and photorealistic.',
+            ],
+            'intermediate_regrowth' => [
+                'order' => 2,
+                'label_key' => 'ai.generation.stages.intermediate_regrowth',
+                'sample_image' => env('HAIRVISION_SAMPLE_IMAGE_INTERMEDIATE_REGROWTH', env('HAIRVISION_SAMPLE_IMAGE_6_MONTHS', 'sample-results/6-months.jpg')),
+                'prompt' => 'Create exactly one realistic hair transplant preview image showing the same person in an intermediate regrowth stage after hair transplant. Preserve the face identity, camera angle, lighting, skin tone, and background. Only edit the scalp and hairline area. Show natural early regrowth with reduced healing marks, uneven but believable density, short growing hairs, and a natural hairline that is still filling in. Keep the result photorealistic and medically plausible.',
+            ],
+            'final_result' => [
+                'order' => 3,
+                'label_key' => 'ai.generation.stages.final_result',
+                'sample_image' => env('HAIRVISION_SAMPLE_IMAGE_FINAL_RESULT', env('HAIRVISION_SAMPLE_IMAGE_12_MONTHS', 'sample-results/12-months.jpg')),
+                'prompt' => 'Create exactly one realistic final hair transplant result image showing the same person after full growth from a complete hair transplant. Preserve the face identity, camera angle, lighting, skin tone, and background. Only edit the scalp and hairline area. Show a fuller natural hairline, realistic density, natural direction and texture, and coverage that suits the person’s face. Keep the result photorealistic, balanced, and medically plausible.',
+            ],
+        ],
+        'legacy_stage_map' => [
+            '3_months' => 'two_weeks',
+            '6_months' => 'intermediate_regrowth',
+            '12_months' => 'final_result',
+        ],
+    ],
+
     'sample_images' => [
         '3_months' => env('HAIRVISION_SAMPLE_IMAGE_3_MONTHS', 'sample-results/3-months.jpg'),
         '6_months' => env('HAIRVISION_SAMPLE_IMAGE_6_MONTHS', 'sample-results/6-months.jpg'),
@@ -64,6 +101,7 @@ return [
             'authorization_token' => env('HAIRVISION_IPPANEL_AUTHORIZATION_TOKEN'),
             'from_number' => env('HAIRVISION_IPPANEL_FROM_NUMBER', '+983000505'),
             'otp_pattern_code' => env('HAIRVISION_IPPANEL_OTP_PATTERN_CODE', 's5jh64gwzlk0jf3'),
+            'otp_pattern_variable' => env('HAIRVISION_IPPANEL_OTP_PATTERN_VARIABLE', 'verification-code'),
             'endpoint_url' => env('HAIRVISION_IPPANEL_ENDPOINT_URL', 'https://edge.ippanel.com/v1/api/send'),
             'timeout_seconds' => (int) env('HAIRVISION_IPPANEL_TIMEOUT_SECONDS', 8),
             'connect_timeout_seconds' => (int) env('HAIRVISION_IPPANEL_CONNECT_TIMEOUT_SECONDS', 3),

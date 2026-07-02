@@ -58,6 +58,16 @@ Demo mobile numbers after `php artisan migrate:fresh --seed`:
 - Editor: `09120000001`
 - Viewer: `09120000002`
 
+The demo seed also prepares Clinic Aria (`clinic1`) for immediate use:
+
+- the tenant and both `clinic1.hairvision-ai.test` and `hairvision-ai.test`
+  domains are active;
+- `پلن شروع` is purchased through a seeded paid invoice/payment and has an
+  active clinic subscription;
+- all configured AI service entitlements are active with seed credit;
+- both `sample_image` and the seeded GapGPT hair-transplant access are assigned
+  to the clinic, with GapGPT taking priority for real staged image generation.
+
 ## Configuration Baseline
 
 `.env.example` must stay aligned with the MVP architecture:
@@ -71,6 +81,9 @@ CACHE_STORE=redis
 QUEUE_CONNECTION=redis
 SESSION_DRIVER=redis
 REDIS_CLIENT=predis
+HAIRVISION_LEAD_SESSION_COOKIE=hairvision_lead_session
+HAIRVISION_CLINIC_ADMIN_SESSION_COOKIE=hairvision_clinic_admin_session
+HAIRVISION_PLATFORM_ADMIN_SESSION_COOKIE=hairvision_platform_admin_session
 HAIRVISION_DEFAULT_AI_PROVIDER=sample_image
 HAIRVISION_SUPER_ADMIN_NAME="مدیر سیستم HairVision"
 HAIRVISION_SUPER_ADMIN_EMAIL=superadmin@example.com
@@ -82,8 +95,14 @@ HAIRVISION_ADMIN_OTP_DECAY_SECONDS=600
 HAIRVISION_ADMIN_OTP_MAX_VERIFY_ATTEMPTS=5
 HAIRVISION_ADMIN_OTP_VERIFY_DECAY_SECONDS=600
 HAIRVISION_ADMIN_OTP_MAX_ATTEMPTS=5
+HAIRVISION_IPPANEL_OTP_PATTERN_VARIABLE=verification-code
 HAIRVISION_IPPANEL_TIMEOUT_SECONDS=8
 HAIRVISION_IPPANEL_CONNECT_TIMEOUT_SECONDS=3
+HAIRVISION_GENERATION_MESSAGE_INTERVAL_MS=10000
+HAIRVISION_GENERATION_POLL_INTERVAL_MS=5000
+GAPGPT_API_KEY=
+GAPGPT_IMAGE_EDIT_ENDPOINT=https://api.gapgpt.app/v1/images/edits
+GAPGPT_IMAGE_EDIT_MODEL=gpt-image-2
 ```
 
 Tests may override queues and sessions to `sync` and `array` through

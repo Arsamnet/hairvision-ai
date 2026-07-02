@@ -10,6 +10,7 @@ use App\Support\Query\DateRangeFilter;
 use App\Support\Query\SearchFilter;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
 
@@ -152,7 +153,7 @@ class AiModelManager
     /**
      * Return active access records assigned to a clinic and category.
      *
-     * @return \Illuminate\Database\Eloquent\Collection<int, AiModelAccess>
+     * @return Collection<int, AiModelAccess>
      */
     public function availableForClinic(Tenant $clinic, string $usageCategoryKey)
     {
@@ -209,7 +210,7 @@ class AiModelManager
             'name' => $data['name'],
             'description' => $data['description'] ?? null,
             'credentials' => array_filter($credentials, fn (mixed $value): bool => filled($value)),
-            'settings' => $data['settings'] ?? $access?->settings ?? [],
+            'settings' => $this->filteredSettings((array) ($data['settings'] ?? $access?->settings ?? [])),
             'prompt' => $data['prompt'] ?? null,
             'credit_limit' => filled($data['credit_limit'] ?? null) ? (int) $data['credit_limit'] : null,
             'is_active' => (bool) ($data['is_active'] ?? false),
@@ -217,5 +218,17 @@ class AiModelManager
             'is_demo' => (bool) ($data['is_demo'] ?? $access?->is_demo ?? false),
             'is_protected' => (bool) ($data['is_protected'] ?? $access?->is_protected ?? false),
         ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $settings
+     * @return array<string, mixed>
+     */
+    private function filteredSettings(array $settings): array
+    {
+        return collect($settings)
+            ->map(fn (mixed $value): mixed => is_array($value) ? $this->filteredSettings($value) : $value)
+            ->filter(fn (mixed $value): bool => is_array($value) ? $value !== [] : filled($value))
+            ->all();
     }
 }

@@ -40,6 +40,26 @@ class GenerationGroup extends Model
     }
 
     /**
+     * Verified lead that owns this generation group.
+     *
+     * @return BelongsTo<Lead, $this>
+     */
+    public function lead(): BelongsTo
+    {
+        return $this->belongsTo(Lead::class);
+    }
+
+    /**
+     * Upload used as the reference input.
+     *
+     * @return BelongsTo<Upload, $this>
+     */
+    public function upload(): BelongsTo
+    {
+        return $this->belongsTo(Upload::class);
+    }
+
+    /**
      * Period jobs in this group.
      *
      * @return HasMany<GenerationJob, $this>

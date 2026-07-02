@@ -5,7 +5,8 @@ Version target: `1.0.0`
 HairVision is a Laravel 13 multi-tenant MVP for hair transplant clinics. A visitor
 lands on a tenant-specific subdomain or custom domain, verifies a phone number by
 OTP, becomes a lead for that tenant, uploads a face/scalp photo, and receives
-local sample progress images for 3, 6, and 12 months.
+three staged preview images: two weeks after transplant, intermediate regrowth,
+and the final result.
 
 The MVP frontend is a Persian, right-to-left Blade experience using the embedded
 Vazirmatn font. Business behavior is API-first: Blade calls versioned `/api/v1`
@@ -22,6 +23,7 @@ endpoints and does not duplicate backend business logic.
 - Private local upload storage
 - Provider-agnostic AI adapter layer
 - MVP default provider: `sample_image`
+- Optional assigned provider: `gapgpt` image edits for staged generation
 - Redis Queue and Laravel Horizon for queue processing outside tests
 - Feature tests for tenant resolution, OTP, upload validation, sample
   generation, and tenant isolation

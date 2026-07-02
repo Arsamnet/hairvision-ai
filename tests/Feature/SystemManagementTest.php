@@ -26,6 +26,7 @@ use Database\Seeders\DatabaseSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
 use Tests\TestCase;
@@ -47,13 +48,13 @@ class SystemManagementTest extends TestCase
 
         $this->assertSame(1, User::query()->where('role', 'super_admin')->count());
         $this->assertTrue($superAdmin->hasPermission('payment_gateways.manage'));
-        $this->assertSame(Permission::query()->count(), Role::query()->where('code', 'super_admin')->firstOrFail()->permissions()->count());
+        $this->assertSame(Permission::query()->count('*'), Role::query()->where('code', 'super_admin')->firstOrFail()->permissions()->count('*'));
         $this->assertSame(1, SmsGateway::query()->system()->where('is_default', true)->count());
         $this->assertDatabaseHas('sms_gateways', [
             'owner_scope' => 'system',
             'provider_code' => 'ippanel',
             'status' => 'enabled',
-            'is_default' => false,
+            'is_default' => true,
         ]);
         $this->assertSame(
             'YTIxMzVhYmMtZGRkYS00OWJhLWE2ZTItNjUzYjhkYTg5M2U0OGRiZjZjMzZiNjBkNjgxYmUwZTAwM2IwZDc1MzczMTU=',
@@ -65,8 +66,19 @@ class SystemManagementTest extends TestCase
         $this->assertSame('sandbox', $zarinpalGateway->settings_json['mode'] ?? null);
         $this->assertSame('https://sandbox.zarinpal.com', $zarinpalGateway->settings_json['sandbox_base_url'] ?? null);
         $this->assertSame('11111111-1111-4111-8111-111111111111', $zarinpalGateway->encrypted_credentials['merchant_id'] ?? null);
-        $this->assertGreaterThan(0, SystemSetting::query()->count());
-        $this->assertGreaterThan(0, Plan::query()->count());
+        $this->assertGreaterThan(0, SystemSetting::query()->count('*'));
+        $this->assertGreaterThan(0, Plan::query()->count('*'));
+
+        $tenant = Tenant::query()->where('slug', 'clinic1')->firstOrFail();
+        $activeSubscription = Subscription::query()->where('tenant_id', $tenant->id)->where('status', 'active')->firstOrFail();
+        $seededServiceCount = count(config('hairvision.ai_services', [])) ?: 1;
+
+        $this->assertSame('پلن شروع', $activeSubscription->plan->name);
+        $this->assertSame(1, Subscription::query()->where('tenant_id', $tenant->id)->where('status', 'active')->count());
+        $this->assertSame(1, Invoice::query()->where('tenant_id', $tenant->id)->where('status', 'paid')->where('number', 'HV-SEED-CLINIC1-STARTER')->count());
+        $this->assertSame(1, Payment::query()->where('tenant_id', $tenant->id)->where('status', 'paid')->where('idempotency_key', 'seed-clinic1-starter-plan-paid')->count());
+        $this->assertSame($seededServiceCount, $activeSubscription->serviceEntitlements()->where('is_active', true)->count());
+        $this->assertSame($seededServiceCount * 100, $activeSubscription->serviceEntitlements()->sum('included_credit'));
     }
 
     public function test_system_management_routes_and_menu_are_permission_protected(): void
@@ -287,10 +299,14 @@ class SystemManagementTest extends TestCase
 
     public function test_gateway_selection_separates_system_and_user_private_sms(): void
     {
+        Http::fake([
+            'https://edge.ippanel.com/v1/api/send' => Http::response(['meta' => ['status' => true]]),
+        ]);
+
         $this->seed(DatabaseSeeder::class);
 
         $user = User::query()->where('role', 'clinic_admin')->firstOrFail();
-        $systemGateway = SmsGateway::query()->system()->firstOrFail();
+        $systemGateway = SmsGateway::query()->system()->where('is_default', true)->firstOrFail();
         $privateGateway = SmsGateway::create([
             'user_id' => $user->id,
             'name' => 'Private KaveNegar',
@@ -317,7 +333,7 @@ class SystemManagementTest extends TestCase
     public function test_ippanel_gateway_sends_otp_patterns_and_regular_messages(): void
     {
         Http::fake([
-            'https://edge.ippanel.com/v1/api/send' => Http::response(['ok' => true]),
+            'https://edge.ippanel.com/v1/api/send' => Http::response(['meta' => ['status' => true]]),
         ]);
 
         $gateway = SmsGateway::create([
@@ -344,7 +360,7 @@ class SystemManagementTest extends TestCase
                 && $request['sending_type'] === 'pattern'
                 && $request['from_number'] === '+983000505'
                 && $request['code'] === 's5jh64gwzlk0jf3'
-                && $request['recipients'] === ['+989124248164']
+                && $request['recipients'] === ['989124248164']
                 && $request['params']['verification-code'] === '385107';
         });
 
@@ -353,8 +369,37 @@ class SystemManagementTest extends TestCase
                 && $request->header('Authorization') === ['system-token']
                 && $request['sending_type'] === 'webservice'
                 && $request['from_number'] === '+983000505'
-                && $request['message'] === 'متن پیام'
-                && $request['params']['recipients'] === ['+989124248164'];
+                && $request['params']['message'] === 'متن پیام'
+                && $request['params']['recipients'] === ['989124248164'];
+        });
+    }
+
+    public function test_ippanel_gateway_normalizes_authorization_recipient_and_pattern_variable(): void
+    {
+        Http::fake([
+            'https://edge.ippanel.com/v1/api/send' => Http::response(['meta' => ['status' => true]]),
+        ]);
+
+        SmsGateway::create([
+            'name' => 'IPPanel System',
+            'provider_code' => 'ippanel',
+            'owner_scope' => 'system',
+            'status' => 'enabled',
+            'is_default' => true,
+            'encrypted_credentials' => ['api_key' => 'Bearer system-token'],
+            'settings_json' => [
+                'from_number' => '+983000505',
+                'otp_pattern_code' => 's5jh64gwzlk0jf3',
+                'otp_pattern_variable' => 'code',
+            ],
+        ]);
+
+        app(SmsGatewayService::class)->sendSystemOtp('+989124248164', '385107');
+
+        Http::assertSent(function ($request): bool {
+            return $request->header('Authorization') === ['system-token']
+                && $request['recipients'] === ['989124248164']
+                && $request['params']['code'] === '385107';
         });
     }
 
@@ -379,6 +424,56 @@ class SystemManagementTest extends TestCase
         $this->expectExceptionMessage(__('sms.ippanel_timeout'));
 
         app(SmsGatewayService::class)->sendSystemOtp('09124248164', '385107');
+    }
+
+    public function test_ippanel_gateway_failed_response_logs_safe_context(): void
+    {
+        Log::spy();
+
+        Http::fake([
+            'https://edge.ippanel.com/v1/api/send' => Http::response([
+                'meta' => [
+                    'status' => false,
+                    'message' => 'Invalid recipient 989124248164 for code 385107',
+                ],
+                'data' => [
+                    'recipient' => '989124248164',
+                    'verification-code' => '385107',
+                ],
+            ]),
+        ]);
+
+        SmsGateway::create([
+            'name' => 'IPPanel System',
+            'provider_code' => 'ippanel',
+            'owner_scope' => 'system',
+            'status' => 'enabled',
+            'is_default' => true,
+            'encrypted_credentials' => ['api_key' => 'system-token'],
+            'settings_json' => [
+                'from_number' => '+983000505',
+                'otp_pattern_code' => 's5jh64gwzlk0jf3',
+            ],
+        ]);
+
+        try {
+            app(SmsGatewayService::class)->sendSystemOtp('09124248164', '385107');
+            $this->fail('Expected IPPanel failed response to throw a validation exception.');
+        } catch (ValidationException $exception) {
+            $this->assertSame(__('sms.ippanel_send_failed'), $exception->errors()['sms_gateway'][0] ?? null);
+        }
+
+        Log::shouldHaveReceived('warning')
+            ->withArgs(fn (string $message, array $context): bool => $message === 'IPPanel SMS gateway request failed.'
+                && ($context['http_status'] ?? null) === 200
+                && ($context['ippanel_status'] ?? null) === false
+                && ($context['ippanel_message'] ?? null) === 'Invalid recipient [number] for code [number]'
+                && ($context['sending_type'] ?? null) === 'pattern'
+                && ! array_key_exists('payload', $context)
+                && ! str_contains(json_encode($context, JSON_THROW_ON_ERROR), '385107')
+                && ! str_contains(json_encode($context, JSON_THROW_ON_ERROR), '989124248164')
+                && ! str_contains(json_encode($context, JSON_THROW_ON_ERROR), 'system-token'))
+            ->once();
     }
 
     public function test_sms_gateway_crud_masks_credentials_and_enforces_authorization(): void
@@ -552,6 +647,7 @@ class SystemManagementTest extends TestCase
     public function test_payment_default_gateway_invoice_payment_and_plan_upgrade_are_idempotent(): void
     {
         $this->seed(DatabaseSeeder::class);
+        $this->deactivateSeededClinicPlan();
 
         $user = User::query()->where('role', 'clinic_admin')->firstOrFail();
         $starter = Plan::query()->firstOrFail();
@@ -617,6 +713,7 @@ class SystemManagementTest extends TestCase
     public function test_invoices_are_user_scoped_unless_user_can_manage_billing(): void
     {
         $this->seed(DatabaseSeeder::class);
+        $this->deactivateSeededClinicPlan();
 
         $plan = Plan::query()->firstOrFail();
         $userA = User::query()->where('role', 'clinic_admin')->firstOrFail();
@@ -646,6 +743,7 @@ class SystemManagementTest extends TestCase
     public function test_subscriptions_expire_by_time_not_service_usage(): void
     {
         $this->seed(DatabaseSeeder::class);
+        $this->deactivateSeededClinicPlan();
 
         $user = User::query()->where('role', 'clinic_admin')->firstOrFail();
         $plan = Plan::query()->firstOrFail();
@@ -669,6 +767,7 @@ class SystemManagementTest extends TestCase
     public function test_sidebar_icons_and_locked_menu_state_when_user_has_no_active_plan(): void
     {
         $this->seed(DatabaseSeeder::class);
+        $this->deactivateSeededClinicPlan('cancelled');
 
         $user = User::query()->where('role', 'clinic_admin')->firstOrFail();
 
@@ -737,6 +836,7 @@ class SystemManagementTest extends TestCase
     public function test_inactive_plan_users_can_access_allowed_pages_and_restricted_routes_are_blocked(): void
     {
         $this->seed(DatabaseSeeder::class);
+        $this->deactivateSeededClinicPlan('cancelled');
 
         $user = User::query()->where('role', 'clinic_admin')->firstOrFail();
 
@@ -762,7 +862,6 @@ class SystemManagementTest extends TestCase
 
         $superAdmin = User::query()->where('role', 'super_admin')->firstOrFail();
         $normalUser = User::query()->where('role', 'clinic_admin')->firstOrFail();
-        $this->activateSubscription($normalUser);
 
         $this->actingAs($superAdmin)
             ->forHost('hairvision-ai.test')
@@ -823,6 +922,7 @@ class SystemManagementTest extends TestCase
     public function test_user_can_purchase_pay_and_upgrade_active_plan_without_carrying_credit(): void
     {
         $this->seed(DatabaseSeeder::class);
+        $this->deactivateSeededClinicPlan();
         $this->fakeZarinpalPayments('A000000000000000000000000000000000101', 'A000000000000000000000000000000000102');
 
         $user = User::query()->where('role', 'clinic_admin')->firstOrFail();
@@ -842,7 +942,7 @@ class SystemManagementTest extends TestCase
             ->post('/admin/plans/'.$starter->id.'/purchase')
             ->assertRedirect(route('admin.billing.index'));
 
-        $invoice = $user->invoices()->where('plan_id', $starter->id)->firstOrFail();
+        $invoice = $user->invoices()->where('plan_id', $starter->id)->where('status', 'pending')->latest('id')->firstOrFail();
         $payment = $this->completeInvoicePayment($user, $invoice, 'A000000000000000000000000000000000101', 'get');
         $this->assertSame('paid', $payment->refresh()->status);
 
@@ -875,10 +975,7 @@ class SystemManagementTest extends TestCase
         $this->actingAs($user)
             ->forHost('hairvision-ai.test')
             ->post('/admin/plans/'.$plan->id.'/purchase')
-            ->assertRedirect(route('admin.billing.index'));
-
-        $invoice = $user->invoices()->where('plan_id', $plan->id)->firstOrFail();
-        $this->completeInvoicePayment($user, $invoice, 'A000000000000000000000000000000000201');
+            ->assertSessionHasErrors('plan');
 
         $active = $user->subscriptions()->where('status', 'active')->firstOrFail();
 
@@ -901,7 +998,7 @@ class SystemManagementTest extends TestCase
             ->assertRedirect(route('admin.billing.index'));
 
         $renewedInvoice = $user->invoices()->where('plan_id', $plan->id)->where('status', 'pending')->latest('id')->firstOrFail();
-        $this->completeInvoicePayment($user, $renewedInvoice, 'A000000000000000000000000000000000202');
+        $this->completeInvoicePayment($user, $renewedInvoice, 'A000000000000000000000000000000000201');
 
         $renewed = $user->subscriptions()->where('status', 'active')->firstOrFail();
         $renewed->serviceEntitlements()->firstOrFail()->forceFill(['used_credit' => $renewed->serviceEntitlements()->firstOrFail()->totalCredit()])->save();
@@ -1062,7 +1159,7 @@ class SystemManagementTest extends TestCase
 
     public function test_persian_language_files_contain_required_keys(): void
     {
-        foreach (['dashboard', 'menu', 'auth', 'plans', 'payments', 'subscriptions', 'credits', 'services', 'leads', 'crm', 'sms', 'settings', 'system', 'permissions', 'reports', 'messages', 'ai_models', 'validation'] as $file) {
+        foreach (['dashboard', 'menu', 'auth', 'plans', 'payments', 'subscriptions', 'credits', 'services', 'leads', 'crm', 'sms', 'settings', 'system', 'permissions', 'reports', 'messages', 'ai_models', 'ai', 'validation'] as $file) {
             $this->assertFileExists(base_path('lang/fa/'.$file.'.php'));
         }
 
@@ -1237,6 +1334,23 @@ class SystemManagementTest extends TestCase
             'status' => 'verified',
             'crm_stage' => 'new_lead',
         ]);
+    }
+
+    private function deactivateSeededClinicPlan(string $status = 'expired'): void
+    {
+        $tenant = Tenant::query()->where('slug', 'clinic1')->first();
+
+        if (! $tenant) {
+            return;
+        }
+
+        Subscription::query()
+            ->where('tenant_id', $tenant->id)
+            ->where('status', 'active')
+            ->update([
+                'status' => $status,
+                'ends_at' => now()->subMinute(),
+            ]);
     }
 
     private function activateSubscription(User $user): Subscription

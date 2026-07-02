@@ -43,6 +43,14 @@
   sortable heading links, active sort icons, and table pagination footers.
 - Config-backed AI model definitions and usage categories, including the
   protected `sample_image` demo model for `کاشت مو`.
+- Config-backed `gapgpt` image edit model for staged hair-transplant generation,
+  using encrypted AI model access credentials and a configurable endpoint.
+- Seeded GapGPT hair-transplant access with encrypted default/env-backed
+  credentials and stage-specific prompts for the two-week, intermediate, and
+  final images.
+- Seeded Clinic Aria starter subscription, paid invoice/payment, service
+  entitlements, and credit ledger rows so `migrate:fresh --seed` is immediately
+  usable.
 - Admin AI model access management under `/admin/ai-models` with encrypted
   credentials, prompts, active status, credit limits, protected/demo flags,
   backend filters, masked credential display, and usage logs.
@@ -67,6 +75,10 @@
 - Shared mobile list Blade components for dashboard table/card summaries.
 - Focused responsive JavaScript modules for drawer state and duplicate
   mobile/desktop form-control disabling.
+- Public Persian Blade generation gallery with four fixed slots, skeleton
+  result states, message bubbles, and modal navigation from the uploaded image.
+- Scoped session cookies for public lead generation, tenant clinic dashboards,
+  and the primary platform dashboard.
 
 ### Changed
 
@@ -131,6 +143,17 @@
   the plan only after the verified callback returns.
 - Public generation now checks active base subscription, service entitlement,
   remaining service credit, and AI model assignment before creating period jobs.
+- Public generation now creates semantic stages (`two_weeks`,
+  `intermediate_regrowth`, `final_result`), queues only the next pending stage,
+  reveals ready assets through polling, and sends a final SMS after all stages
+  complete.
+- Clinic Aria seeding now activates all configured service entitlements and the
+  seeded GapGPT assignment by default.
+- The public visitor UI now uses localized rotating progress messages, a
+  three-stage RTL generation progress component, and modal toasts while later
+  stages are still processing.
+- Public lead verification now stays isolated from clinic and platform admin
+  login/logout session regeneration.
 
 ### Security
 
@@ -147,6 +170,8 @@
 - Protected demo AI model access records cannot be deleted.
 - Clinics can use only active AI model access records assigned to them, and
   failed provider responses do not consume credit.
+- GapGPT gateway failures are logged through Laravel logs with non-sensitive
+  context and without API keys.
 - Service credit consumption is recorded in `credit_transactions` and uses row
   locking to prevent negative balances and double spending.
 - Lead upload previews are streamed through policy and tenant checks without

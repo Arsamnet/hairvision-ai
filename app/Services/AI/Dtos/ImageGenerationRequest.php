@@ -13,7 +13,7 @@ final class ImageGenerationRequest
      * @param  string  $tenantUuid  Public UUID for provider path scoping.
      * @param  string  $leadUuid  Public UUID for provider path scoping.
      * @param  string  $uploadPath  Private upload path on the configured disk.
-     * @param  string  $period  Progress period such as `3_months`.
+     * @param  string  $period  Stage key such as `two_weeks`.
      * @param  string  $prompt  Provider prompt or local sample description.
      * @param  string|null  $modelName  Optional provider model override.
      * @param  array<string, mixed>  $settings  Provider-specific settings.

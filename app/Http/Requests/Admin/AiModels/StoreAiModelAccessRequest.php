@@ -33,6 +33,8 @@ class StoreAiModelAccessRequest extends FormRequest
             'credentials' => ['array'],
             'credentials.*' => ['nullable', 'string', 'max:2000'],
             'settings' => ['array'],
+            'settings.stage_prompts' => ['nullable', 'array'],
+            'settings.stage_prompts.*' => ['nullable', 'string', 'max:20000'],
             'prompt' => ['nullable', 'string', 'max:20000'],
             'credit_limit' => ['nullable', 'integer', 'min:0', 'max:4294967295'],
             'priority' => ['nullable', 'integer', 'min:0', 'max:100000'],
@@ -86,7 +88,10 @@ class StoreAiModelAccessRequest extends FormRequest
             return false;
         }
 
-        if ($this->filled('prompt') && ! $user->hasPermission('ai_models.manage_prompt', $tenantId)) {
+        $stagePrompts = collect((array) data_get($this->input('settings', []), 'stage_prompts'))
+            ->filter(fn (mixed $value): bool => filled($value));
+
+        if (($this->filled('prompt') || $stagePrompts->isNotEmpty()) && ! $user->hasPermission('ai_models.manage_prompt', $tenantId)) {
             return false;
         }
 

@@ -51,7 +51,8 @@ Before editing code, read:
 - Every tenant-owned record must include `tenant_id`.
 - Never store OTP codes in plain text; store only hashes.
 - Never store uploaded user photos in the public webroot.
-- In MVP, use `SampleImageProvider` as the default AI provider.
+- In MVP, use `SampleImageProvider` as the default AI provider. Real providers
+  such as GapGPT must stay opt-in through assigned AI model access records.
 - `SampleImageProvider` must not call external AI services and must not generate
   images.
 - Queue-heavy processing must use Redis Queue and Horizon outside tests.
@@ -69,7 +70,8 @@ Before editing code, read:
 - OTP verify creates or updates a verified lead.
 - Upload requires a verified lead session.
 - Uploaded files are stored privately.
-- Generation creates jobs for `3_months`, `6_months`, and `12_months`.
+- Generation creates staged jobs for `two_weeks`, `intermediate_regrowth`, and
+  `final_result`.
 - `SampleImageProvider` copies local sample images and makes no external HTTP
   calls.
 - Results and assets are scoped to the current tenant and lead session.
@@ -137,7 +139,8 @@ Core constraints:
 - Do not trust tenant_id from requests.
 - Store OTP hashes only.
 - Store uploads and generated assets privately.
-- Use SampleImageProvider only.
+- Use SampleImageProvider by default; real providers must stay behind the AI
+  model access/provider adapter layer.
 - SampleImageProvider must not call external services or generate images.
 - Enforce active base subscription, service entitlement, remaining service
   credit, and assigned AI model access before public AI generation.

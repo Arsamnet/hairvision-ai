@@ -176,6 +176,17 @@ class AdminDashboardTest extends TestCase
         $this->assertSame(5, $tenant->leads()->count());
         $this->assertSame(1, $tenant->leads()->where('crm_stage', 'converted')->count());
         $this->assertSame(1, $tenant->leads()->where('status', 'archived')->count());
+
+        $activeSubscription = Subscription::query()
+            ->with(['plan', 'serviceEntitlements'])
+            ->where('tenant_id', $tenant->id)
+            ->where('status', 'active')
+            ->firstOrFail();
+        $seededServiceCount = count(config('hairvision.ai_services', [])) ?: 1;
+
+        $this->assertSame('پلن شروع', $activeSubscription->plan->name);
+        $this->assertTrue((bool) data_get($activeSubscription->plan->features_json, 'ai_generation'));
+        $this->assertSame($seededServiceCount * 100, $activeSubscription->serviceEntitlements->sum('included_credit'));
     }
 
     public function test_admin_lead_list_is_scoped_to_active_tenant(): void
@@ -322,7 +333,7 @@ class AdminDashboardTest extends TestCase
     private function enableIppanelOtpGateway(): SmsGateway
     {
         Http::fake([
-            'https://edge.ippanel.com/v1/api/send' => Http::response(['ok' => true]),
+            'https://edge.ippanel.com/v1/api/send' => Http::response(['meta' => ['status' => true]]),
         ]);
 
         return SmsGateway::create([

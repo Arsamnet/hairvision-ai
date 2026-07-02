@@ -2,18 +2,19 @@
 
 namespace Tests\Feature;
 
-use App\Models\AiProvider;
+use App\Jobs\ProcessGenerationJob;
 use App\Models\AiModelAccess;
+use App\Models\AiProvider;
+use App\Models\CreditTransaction;
 use App\Models\GeneratedAsset;
 use App\Models\GenerationGroup;
 use App\Models\GenerationJob;
 use App\Models\Lead;
 use App\Models\LeadNote;
-use App\Models\CreditTransaction;
 use App\Models\Plan;
+use App\Models\SmsGateway;
 use App\Models\Subscription;
 use App\Models\SubscriptionServiceEntitlement;
-use App\Models\SmsGateway;
 use App\Models\Template;
 use App\Models\Tenant;
 use App\Models\TenantAiSetting;
@@ -21,12 +22,15 @@ use App\Models\TenantDomain;
 use App\Models\TenantThemeSetting;
 use App\Models\Upload;
 use App\Models\User;
+use App\Services\Sms\SmsGatewayService;
 use App\Support\NumberNormalizer;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
@@ -188,7 +192,7 @@ class HairVisionMvpTest extends TestCase
         ]);
 
         Http::fake([
-            'https://edge.ippanel.com/v1/api/send' => Http::response(['ok' => true]),
+            'https://edge.ippanel.com/v1/api/send' => Http::response(['meta' => ['status' => true]]),
         ]);
 
         $payload = $this->forHost('clinic1.hairvision-ai.test')
@@ -207,7 +211,7 @@ class HairVisionMvpTest extends TestCase
                 && $request['sending_type'] === 'pattern'
                 && $request['from_number'] === '+983000505'
                 && $request['code'] === 's5jh64gwzlk0jf3'
-                && $request['recipients'] === ['+989124248164']
+                && $request['recipients'] === ['989124248164']
                 && $request['params']['verification-code'] === $code;
         });
     }
@@ -303,6 +307,60 @@ class HairVisionMvpTest extends TestCase
             ->assertJsonValidationErrors('image');
     }
 
+    public function test_generation_requires_verified_lead_session_with_json_message(): void
+    {
+        $this->createTenant('Clinic One', 'clinic1', 'clinic1.hairvision-ai.test');
+
+        $this->forHost('clinic1.hairvision-ai.test')
+            ->postJson('/api/v1/generations', [
+                'upload_id' => '11111111-1111-4111-8111-111111111111',
+            ])
+            ->assertForbidden()
+            ->assertJsonPath('message', __('auth.verify_phone_to_view_results'));
+    }
+
+    public function test_public_lead_clinic_admin_and_platform_admin_use_separate_session_cookies(): void
+    {
+        $tenant = $this->createTenant('Clinic One', 'clinic1', 'clinic1.hairvision-ai.test');
+        $clinicAdmin = User::factory()->create([
+            'phone_normalized' => '09120000000',
+            'role' => 'clinic_admin',
+            'status' => 'active',
+        ]);
+        $platformAdmin = User::factory()->create([
+            'phone_normalized' => '09129999999',
+            'role' => 'super_admin',
+            'status' => 'active',
+        ]);
+        $tenant->users()->attach($clinicAdmin->id, ['role' => 'clinic_admin', 'status' => 'active']);
+
+        $code = $this->requestOtpAndReturnCode('clinic1.hairvision-ai.test', '09123456789');
+
+        $this->forHost('clinic1.hairvision-ai.test')
+            ->postJson('/api/v1/auth/otp/verify', [
+                'phone' => '09123456789',
+                'code' => $code,
+            ])
+            ->assertOk()
+            ->assertCookie(config('hairvision.sessions.lead_cookie'))
+            ->assertCookieMissing(config('hairvision.sessions.clinic_admin_cookie'))
+            ->assertCookieMissing(config('hairvision.sessions.platform_admin_cookie'));
+
+        $this->forHost('clinic1.hairvision-ai.test')
+            ->post('/admin/otp/request', ['phone' => '09120000000'])
+            ->assertRedirect(route('admin.otp.form'))
+            ->assertCookie(config('hairvision.sessions.clinic_admin_cookie'))
+            ->assertCookieMissing(config('hairvision.sessions.lead_cookie'))
+            ->assertCookieMissing(config('hairvision.sessions.platform_admin_cookie'));
+
+        $this->forHost('hairvision-ai.test')
+            ->post('/admin/otp/request', ['phone' => $platformAdmin->phone_normalized])
+            ->assertRedirect(route('admin.otp.form'))
+            ->assertCookie(config('hairvision.sessions.platform_admin_cookie'))
+            ->assertCookieMissing(config('hairvision.sessions.lead_cookie'))
+            ->assertCookieMissing(config('hairvision.sessions.clinic_admin_cookie'));
+    }
+
     public function test_sample_generation_flow_creates_three_private_assets_without_external_http(): void
     {
         $tenant = $this->createTenant('Clinic One', 'clinic1', 'clinic1.hairvision-ai.test');
@@ -317,6 +375,23 @@ class HairVisionMvpTest extends TestCase
             'phone_verified_at' => now(),
             'status' => 'verified',
         ]);
+
+        $smsGateway = SmsGateway::create([
+            'name' => 'Local System',
+            'provider_code' => 'local',
+            'owner_scope' => 'system',
+            'status' => 'enabled',
+            'is_default' => true,
+            'encrypted_credentials' => [],
+            'settings_json' => ['purpose' => 'system_messages'],
+        ]);
+
+        $this->mock(SmsGatewayService::class, function ($mock) use ($lead, $smsGateway): void {
+            $mock->shouldReceive('sendSystemMessage')
+                ->once()
+                ->with($lead->phone_normalized, __('ai.generation.sms.completed'))
+                ->andReturn($smsGateway);
+        });
 
         $uploadId = $this->withSession(['lead_id' => $lead->id])
             ->forHost('clinic1.hairvision-ai.test')
@@ -333,12 +408,15 @@ class HairVisionMvpTest extends TestCase
             ->postJson('/api/v1/generations', ['upload_id' => $uploadId])
             ->assertOk()
             ->assertJsonPath('generation_group.status', 'completed')
+            ->assertJsonPath('stages.0.key', 'two_weeks')
+            ->assertJsonPath('jobs.0.period', 'two_weeks')
             ->assertJsonCount(3, 'jobs')
             ->json('generation_group.id');
 
         $group = GenerationGroup::query()->where('uuid', $groupId)->firstOrFail();
         $this->assertSame($tenant->id, $group->tenant_id);
         $this->assertSame('completed', $group->refresh()->status);
+        $this->assertSame(['two_weeks', 'intermediate_regrowth', 'final_result'], $group->jobs()->orderBy('id')->pluck('period')->all());
         $this->assertSame(3, $group->jobs()->where('status', 'completed')->count());
         $this->assertSame(3, GeneratedAsset::query()->where('generation_group_id', $group->id)->count());
         $this->assertSame(3, CreditTransaction::query()->where('tenant_id', $tenant->id)->where('type', 'use')->count());
@@ -356,6 +434,7 @@ class HairVisionMvpTest extends TestCase
             ->getJson("/api/v1/generations/{$groupId}/status")
             ->assertOk()
             ->assertJsonPath('status', 'completed')
+            ->assertJsonPath('stages.2.key', 'final_result')
             ->assertJsonCount(3, 'jobs');
 
         $results = $this->withSession(['lead_id' => $lead->id])
@@ -363,11 +442,12 @@ class HairVisionMvpTest extends TestCase
             ->getJson("/api/v1/generations/{$groupId}/results")
             ->assertOk()
             ->assertJsonPath('success', true)
+            ->assertJsonPath('results.0.period', 'two_weeks')
             ->assertJsonCount(3, 'results')
             ->json('results');
 
         $asset = GeneratedAsset::query()->firstOrFail();
-        Storage::disk('local')->assertExists($asset->path);
+        $this->assertTrue(Storage::disk('local')->exists($asset->path));
         $this->assertStringStartsWith('tenants/'.$tenant->uuid.'/leads/', $asset->path);
 
         $this->withSession(['lead_id' => $lead->id])
@@ -377,6 +457,228 @@ class HairVisionMvpTest extends TestCase
             ->assertHeader('content-type', 'image/jpeg');
 
         Http::assertNothingSent();
+
+        $repeatGroupId = $this->withSession(['lead_id' => $lead->id])
+            ->forHost('clinic1.hairvision-ai.test')
+            ->postJson('/api/v1/generations', ['upload_id' => $uploadId])
+            ->assertOk()
+            ->json('generation_group.id');
+
+        $this->assertSame($groupId, $repeatGroupId);
+        $this->assertSame(1, GenerationGroup::query()->where('upload_id', $group->upload_id)->count());
+    }
+
+    public function test_gapgpt_generation_sends_three_independent_image_edit_requests(): void
+    {
+        $tenant = $this->createTenant('Clinic One', 'clinic1', 'clinic1.hairvision-ai.test');
+        $this->activateTenantSubscription($tenant, 10);
+
+        AiProvider::query()->firstOrCreate(
+            ['code' => 'gapgpt'],
+            [
+                'name' => 'GapGPT',
+                'type' => 'external',
+                'base_url' => 'https://api.gapgpt.app/v1/images/edits',
+                'auth_type' => 'bearer',
+                'is_active' => true,
+                'supports_async' => false,
+            ]
+        );
+
+        $access = AiModelAccess::create([
+            'model_key' => 'gapgpt',
+            'usage_category_key' => 'hair_transplant',
+            'name' => 'GapGPT Test Access',
+            'credentials' => ['api_key' => 'Bearer gap-secret'],
+            'settings' => [
+                'endpoint_url' => 'https://api.gapgpt.app/v1/images/edits',
+                'model' => 'gpt-image-2',
+                'output_format' => 'jpeg',
+            ],
+            'prompt' => '{stage_prompt}',
+            'credit_limit' => 3,
+            'is_active' => true,
+            'priority' => 0,
+        ]);
+
+        $tenant->aiModelAccesses()->syncWithoutDetaching([
+            $access->id => ['is_active' => true],
+        ]);
+
+        Http::fake([
+            'https://api.gapgpt.app/v1/images/edits' => Http::response([
+                'id' => 'gap-response',
+                'data' => [
+                    ['b64_json' => self::TEST_JPEG_BASE64],
+                ],
+            ], 200, ['x-request-id' => 'gap-request']),
+        ]);
+
+        $lead = Lead::create([
+            'tenant_id' => $tenant->id,
+            'phone' => '09124441111',
+            'phone_normalized' => '09124441111',
+            'phone_verified_at' => now(),
+            'status' => 'verified',
+        ]);
+
+        $uploadId = $this->withSession(['lead_id' => $lead->id])
+            ->forHost('clinic1.hairvision-ai.test')
+            ->post('/api/v1/uploads', [
+                'image' => $this->fakeImageUpload(),
+                'consent' => '1',
+            ])
+            ->assertOk()
+            ->json('upload.id');
+
+        $groupId = $this->withSession(['lead_id' => $lead->id])
+            ->forHost('clinic1.hairvision-ai.test')
+            ->postJson('/api/v1/generations', ['upload_id' => $uploadId])
+            ->assertOk()
+            ->assertJsonPath('generation_group.status', 'completed')
+            ->json('generation_group.id');
+
+        $gapGptRequests = Http::recorded()
+            ->filter(fn (array $record): bool => $record[0]->url() === 'https://api.gapgpt.app/v1/images/edits')
+            ->values();
+
+        $this->assertCount(3, $gapGptRequests);
+
+        $prompts = $gapGptRequests
+            ->map(fn (array $record) => $this->multipartField($record[0]->body(), 'prompt'))
+            ->filter()
+            ->values()
+            ->all();
+
+        $this->assertCount(3, array_unique($prompts));
+        $this->assertTrue(collect($prompts)->every(fn (string $prompt): bool => str_contains($prompt, 'exactly one')));
+        $this->assertTrue($gapGptRequests->every(fn (array $record): bool => $this->multipartField($record[0]->body(), 'n') === '1'));
+        $this->assertTrue($gapGptRequests->every(fn (array $record): bool => $record[0]->header('Authorization') === ['Bearer gap-secret']));
+
+        $group = GenerationGroup::query()->where('uuid', $groupId)->firstOrFail();
+        $this->assertSame(['two_weeks', 'intermediate_regrowth', 'final_result'], $group->jobs()->orderBy('id')->pluck('period')->all());
+        $this->assertSame(3, GeneratedAsset::query()->where('generation_group_id', $group->id)->count());
+        $this->assertSame(3, $access->refresh()->credit_used);
+    }
+
+    public function test_gapgpt_http_errors_are_written_to_laravel_log(): void
+    {
+        $tenant = $this->createTenant('Clinic One', 'clinic1', 'clinic1.hairvision-ai.test');
+        $this->activateTenantSubscription($tenant, 10);
+        Log::spy();
+
+        AiProvider::query()->firstOrCreate(
+            ['code' => 'gapgpt'],
+            [
+                'name' => 'GapGPT',
+                'type' => 'external',
+                'base_url' => 'https://api.gapgpt.app/v1/images/edits',
+                'auth_type' => 'bearer',
+                'is_active' => true,
+                'supports_async' => false,
+            ]
+        );
+
+        $access = AiModelAccess::create([
+            'model_key' => 'gapgpt',
+            'usage_category_key' => 'hair_transplant',
+            'name' => 'GapGPT Error Access',
+            'credentials' => ['api_key' => 'gap-secret'],
+            'settings' => [
+                'endpoint_url' => 'https://api.gapgpt.app/v1/images/edits',
+                'model' => 'gpt-image-2',
+                'output_format' => 'jpeg',
+            ],
+            'prompt' => '{stage_prompt}',
+            'credit_limit' => 3,
+            'is_active' => true,
+            'priority' => 0,
+        ]);
+
+        $tenant->aiModelAccesses()->syncWithoutDetaching([
+            $access->id => ['is_active' => true],
+        ]);
+
+        Http::fake([
+            'https://api.gapgpt.app/v1/images/edits' => Http::response([
+                'error' => ['message' => 'Invalid API key'],
+            ], 401, ['x-request-id' => 'gap-error-request']),
+        ]);
+
+        $lead = Lead::create([
+            'tenant_id' => $tenant->id,
+            'phone' => '09124442222',
+            'phone_normalized' => '09124442222',
+            'phone_verified_at' => now(),
+            'status' => 'verified',
+        ]);
+
+        $uploadId = $this->withSession(['lead_id' => $lead->id])
+            ->forHost('clinic1.hairvision-ai.test')
+            ->post('/api/v1/uploads', [
+                'image' => $this->fakeImageUpload(),
+                'consent' => '1',
+            ])
+            ->assertOk()
+            ->json('upload.id');
+
+        $this->withSession(['lead_id' => $lead->id])
+            ->forHost('clinic1.hairvision-ai.test')
+            ->postJson('/api/v1/generations', ['upload_id' => $uploadId])
+            ->assertOk()
+            ->assertJsonPath('generation_group.status', 'failed')
+            ->assertJsonPath('jobs.0.status', 'failed');
+
+        Log::shouldHaveReceived('warning')
+            ->withArgs(fn (string $message, array $context): bool => $message === 'GapGPT image edit request failed with HTTP error.'
+                && ($context['provider'] ?? null) === 'gapgpt'
+                && ($context['http_status'] ?? null) === 401
+                && ($context['request_id'] ?? null) === 'gap-error-request'
+                && ($context['endpoint_host'] ?? null) === 'api.gapgpt.app'
+                && ! str_contains(json_encode($context, JSON_THROW_ON_ERROR), 'gap-secret'))
+            ->once();
+    }
+
+    public function test_generation_dispatches_only_the_first_stage_initially(): void
+    {
+        $tenant = $this->createTenant('Clinic One', 'clinic1', 'clinic1.hairvision-ai.test');
+        $this->activateTenantSubscription($tenant, 10);
+        Queue::fake();
+
+        $lead = Lead::create([
+            'tenant_id' => $tenant->id,
+            'phone' => '09125551111',
+            'phone_normalized' => '09125551111',
+            'phone_verified_at' => now(),
+            'status' => 'verified',
+        ]);
+
+        $uploadId = $this->withSession(['lead_id' => $lead->id])
+            ->forHost('clinic1.hairvision-ai.test')
+            ->post('/api/v1/uploads', [
+                'image' => $this->fakeImageUpload(),
+                'consent' => '1',
+            ])
+            ->assertOk()
+            ->json('upload.id');
+
+        $groupId = $this->withSession(['lead_id' => $lead->id])
+            ->forHost('clinic1.hairvision-ai.test')
+            ->postJson('/api/v1/generations', ['upload_id' => $uploadId])
+            ->assertOk()
+            ->assertJsonPath('generation_group.status', 'processing')
+            ->assertJsonPath('jobs.0.status', 'processing')
+            ->assertJsonPath('jobs.0.period', 'two_weeks')
+            ->assertJsonPath('jobs.1.period', 'intermediate_regrowth')
+            ->assertJsonPath('jobs.2.period', 'final_result')
+            ->json('generation_group.id');
+
+        $group = GenerationGroup::query()->where('uuid', $groupId)->firstOrFail();
+
+        $this->assertSame(1, $group->jobs()->where('status', 'processing')->count());
+        $this->assertSame(2, $group->jobs()->where('status', 'pending')->count());
+        Queue::assertPushed(ProcessGenerationJob::class, 1);
+        Queue::assertPushed(ProcessGenerationJob::class, fn (ProcessGenerationJob $job): bool => $job->generationJob->period === 'two_weeks');
     }
 
     public function test_tenant_b_cannot_access_tenant_a_assets(): void
@@ -418,9 +720,9 @@ class HairVisionMvpTest extends TestCase
             'generation_job_id' => $this->createCompletedGenerationJob($tenantA, $leadA, $upload, $group)->id,
             'tenant_id' => $tenantA->id,
             'lead_id' => $leadA->id,
-            'period' => '3_months',
+            'period' => 'two_weeks',
             'disk' => 'local',
-            'path' => 'tenants/'.$tenantA->uuid.'/leads/'.$leadA->uuid.'/results/'.$group->uuid.'/3_months.jpg',
+            'path' => 'tenants/'.$tenantA->uuid.'/leads/'.$leadA->uuid.'/results/'.$group->uuid.'/two_weeks.jpg',
             'mime' => 'image/jpeg',
             'size' => 1,
         ]);
@@ -558,7 +860,7 @@ class HairVisionMvpTest extends TestCase
     private function enableIppanelOtpGateway(): SmsGateway
     {
         Http::fake([
-            'https://edge.ippanel.com/v1/api/send' => Http::response(['ok' => true]),
+            'https://edge.ippanel.com/v1/api/send' => Http::response(['meta' => ['status' => true]]),
         ]);
 
         return SmsGateway::query()->firstOrCreate(
@@ -606,6 +908,17 @@ class HairVisionMvpTest extends TestCase
         foreach (['3-months.jpg', '6-months.jpg', '12-months.jpg'] as $filename) {
             Storage::disk('local')->put('sample-results/'.$filename, base64_decode(self::TEST_JPEG_BASE64));
         }
+    }
+
+    private function multipartField(string $body, string $field): ?string
+    {
+        $pattern = '/name="'.preg_quote($field, '/').'"\RContent-Length: \d+\R\R(?P<value>.*?)\R--/s';
+
+        if (! preg_match($pattern, $body, $matches)) {
+            return null;
+        }
+
+        return trim((string) $matches['value']);
     }
 
     private function activateTenantSubscription(Tenant $tenant, int $credit = 100): Subscription
@@ -682,7 +995,7 @@ class HairVisionMvpTest extends TestCase
             'lead_id' => $lead->id,
             'upload_id' => $upload->id,
             'provider_id' => $provider->id,
-            'period' => '3_months',
+            'period' => 'two_weeks',
             'status' => 'completed',
             'prompt' => 'Sample',
             'completed_at' => now(),

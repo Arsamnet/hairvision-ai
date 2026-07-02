@@ -72,6 +72,9 @@ return [
     ],
 
     'periods' => [
+        'two_weeks' => 'دو هفته بعد از کاشت',
+        'intermediate_regrowth' => 'مرحله رشد میانی',
+        'final_result' => 'نتیجه نهایی',
         '3_months' => '۳ ماه',
         '6_months' => '۶ ماه',
         '12_months' => '۱۲ ماه',

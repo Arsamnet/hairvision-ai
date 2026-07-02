@@ -12,7 +12,8 @@ Current release target: `1.0.0`
 HairVision is a Laravel 13 multi-tenant SaaS MVP for hair transplant clinics.
 Visitors enter through a tenant-specific subdomain or custom domain, verify their
 phone number with OTP, become a lead for that tenant, upload a face/scalp photo,
-and receive local sample progress images for 3, 6, and 12 months.
+and receive staged preview images for two weeks after transplant, intermediate
+regrowth, and the final result.
 
 ## Must Read First
 
@@ -88,7 +89,8 @@ For version `1.0.0`, keep the project focused on Phase 1:
 - One test tenant can be resolved by host.
 - OTP request/verify creates a verified lead.
 - Upload requires a verified lead session and stores files privately.
-- Generation creates three periods and uses `SampleImageProvider`.
+- Generation creates the three staged jobs and uses `SampleImageProvider` by
+  default.
 - Generated assets are tenant- and lead-scoped.
 - The Persian RTL Blade page drives the flow through `/api/v1`.
 - Tests pass before the work is considered complete.

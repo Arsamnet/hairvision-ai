@@ -10,6 +10,11 @@
         ->flatMap(fn (array $model): array => array_merge($model['required_credentials'] ?? [], $model['optional_credentials'] ?? []))
         ->unique()
         ->values();
+    $settingFields = collect($models)
+        ->flatMap(fn (array $model): array => $model['configurable_settings'] ?? [])
+        ->unique()
+        ->values();
+    $generationStages = app(\App\Services\Generation\GenerationStageCatalog::class)->publicStages();
 @endphp
 
 <input type="hidden" name="_form" value="{{ $formKey }}">
@@ -59,7 +64,42 @@
         </div>
     @endif
 
+    @if($settingFields->isNotEmpty())
+        <div class="grid gap-3 rounded-lg border border-zinc-100 bg-zinc-50 p-3 md:col-span-2 md:grid-cols-2">
+            <p class="text-sm font-bold text-zinc-700 md:col-span-2">{{ __('ai_models.settings') }}</p>
+            @foreach($settingFields as $field)
+                <input
+                    name="settings[{{ $field }}]"
+                    value="{{ old('settings.'.$field, data_get($access?->settings ?? [], $field)) }}"
+                    class="h-11 rounded-lg border border-zinc-200 bg-white px-3 text-sm outline-none focus:border-teal-500"
+                    placeholder="{{ __('ai_models.'.$field) }} - {{ __('ai_models.setting_placeholder') }}"
+                    dir="ltr"
+                    autocomplete="off"
+                >
+            @endforeach
+        </div>
+    @endif
+
     <textarea name="prompt" rows="4" class="rounded-lg border border-zinc-200 px-3 py-2 text-sm outline-none focus:border-teal-500 md:col-span-2" placeholder="{{ __('ai_models.prompt') }}">{{ old('prompt', $access?->prompt) }}</textarea>
+
+    <div class="grid gap-3 rounded-lg border border-zinc-100 bg-zinc-50 p-3 md:col-span-2">
+        <div>
+            <p class="text-sm font-bold text-zinc-700">{{ __('ai_models.stage_prompts') }}</p>
+            <p class="mt-1 text-xs leading-6 text-zinc-500">{{ __('ai_models.stage_prompt_hint') }}</p>
+        </div>
+        @foreach($generationStages as $stage)
+            <label class="grid gap-1 text-sm font-bold">
+                <span>{{ $stage['label'] }}</span>
+                <textarea
+                    name="settings[stage_prompts][{{ $stage['key'] }}]"
+                    rows="5"
+                    class="rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm leading-7 outline-none focus:border-teal-500"
+                    dir="ltr"
+                    placeholder="{{ $stage['label'] }}"
+                >{{ old('settings.stage_prompts.'.$stage['key'], data_get($access?->settings ?? [], 'stage_prompts.'.$stage['key'])) }}</textarea>
+            </label>
+        @endforeach
+    </div>
 
     <input name="credit_limit" value="{{ old('credit_limit', $access?->credit_limit) }}" class="h-11 rounded-lg border border-zinc-200 px-3 text-sm outline-none focus:border-teal-500" placeholder="{{ __('ai_models.credit_limit') }}" dir="ltr">
 

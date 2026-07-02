@@ -27,6 +27,7 @@ return [
     'sender' => 'فرستنده',
     'from_number' => 'شماره فرستنده',
     'otp_pattern_code' => 'کد پترن OTP',
+    'otp_pattern_variable' => 'نام متغیر کد در پترن',
     'endpoint_url' => 'آدرس API',
     'activate_private_gateway' => 'فعال‌سازی پنل پیامک اختصاصی',
     'private_user' => 'کاربر خصوصی',

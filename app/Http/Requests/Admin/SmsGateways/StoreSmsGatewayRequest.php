@@ -34,6 +34,7 @@ class StoreSmsGatewayRequest extends FormRequest
             'sender' => ['nullable', 'string', 'max:120'],
             'from_number' => ['nullable', 'string', 'max:120'],
             'otp_pattern_code' => ['nullable', 'string', 'max:120'],
+            'otp_pattern_variable' => ['nullable', 'string', 'max:120'],
             'endpoint_url' => ['nullable', 'url', 'max:500'],
         ];
     }

@@ -2,16 +2,21 @@
 
 namespace Database\Seeders;
 
-use App\Models\AiProvider;
 use App\Models\AiModelAccess;
+use App\Models\AiProvider;
+use App\Models\CreditTransaction;
+use App\Models\Invoice;
 use App\Models\Lead;
 use App\Models\LeadNote;
+use App\Models\Payment;
 use App\Models\PaymentGateway;
 use App\Models\Permission;
 use App\Models\Plan;
 use App\Models\Role;
 use App\Models\SmsGateway;
 use App\Models\SystemSetting;
+use App\Models\Subscription;
+use App\Models\SubscriptionServiceEntitlement;
 use App\Models\Template;
 use App\Models\Tenant;
 use App\Models\TenantAiSetting;
@@ -20,6 +25,7 @@ use App\Models\TenantThemeSetting;
 use App\Models\User;
 use App\Services\Auth\PermissionCatalog;
 use App\Services\Auth\PermissionService;
+use App\Services\Billing\SubscriptionActivationService;
 use App\Services\Payment\PaymentGatewayService;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
@@ -30,6 +36,8 @@ class DatabaseSeeder extends Seeder
     private const DEFAULT_IPPANEL_AUTHORIZATION_TOKEN = 'YTIxMzVhYmMtZGRkYS00OWJhLWE2ZTItNjUzYjhkYTg5M2U0OGRiZjZjMzZiNjBkNjgxYmUwZTAwM2IwZDc1MzczMTU=';
 
     private const DEFAULT_ZARINPAL_SANDBOX_MERCHANT_ID = '11111111-1111-4111-8111-111111111111';
+
+    private const DEFAULT_GAPGPT_API_KEY = 'sk-kYItwu26tpEYhjx6tY7Vi4YzOfNGqr5ifc0JCjaQK3HD06fv';
 
     // Allow model events so model boot methods (like UUID generation) run during seeding.
 
@@ -106,6 +114,19 @@ class DatabaseSeeder extends Seeder
             ]
         );
 
+        AiProvider::query()->updateOrCreate(
+            ['code' => 'gapgpt'],
+            [
+                'name' => __('messages.gapgpt_image_provider'),
+                'type' => 'external',
+                'base_url' => config('ai-models.models.gapgpt.endpoint'),
+                'auth_type' => 'bearer',
+                'is_active' => true,
+                'supports_async' => false,
+                'default_model' => config('ai-models.models.gapgpt.default_model'),
+            ]
+        );
+
         TenantAiSetting::query()->updateOrCreate(
             ['tenant_id' => $tenant->id, 'provider_id' => $provider->id],
             ['is_default' => true]
@@ -133,9 +154,48 @@ class DatabaseSeeder extends Seeder
             ]
         );
 
+        $configuredGapGptApiKey = config('services.gapgpt.api_key');
+        $gapGptApiKey = $configuredGapGptApiKey ?: self::DEFAULT_GAPGPT_API_KEY;
+        $gapGptIsActive = filled($gapGptApiKey);
+        $gapGptAccess = AiModelAccess::query()->updateOrCreate(
+            [
+                'model_key' => 'gapgpt',
+                'usage_category_key' => 'hair_transplant',
+                'name' => __('ai_models.seed.gapgpt_access_name'),
+            ],
+            [
+                'description' => __('ai_models.seed.gapgpt_access_description'),
+                'credentials' => ['api_key' => $gapGptApiKey],
+                'settings' => [
+                    'endpoint_url' => config('ai-models.models.gapgpt.endpoint'),
+                    'model' => config('ai-models.models.gapgpt.default_model'),
+                    'image_field' => config('ai-models.models.gapgpt.image_field'),
+                    'output_format' => 'jpeg',
+                    'timeout_seconds' => config('ai-models.models.gapgpt.default_timeout'),
+                    'connect_timeout_seconds' => config('ai-models.models.gapgpt.default_connect_timeout'),
+                    'retry_attempts' => 1,
+                    'retry_sleep_ms' => 750,
+                    'stage_prompts' => $this->gapGptStagePrompts(),
+                ],
+                'prompt' => '{stage_prompt}',
+                'credit_limit' => null,
+                'credit_used' => 0,
+                'is_active' => $gapGptIsActive,
+                'is_demo' => false,
+                'is_protected' => false,
+                'priority' => filled($gapGptApiKey) ? 0 : 10,
+                'created_by' => $superAdmin->id,
+                'updated_by' => $superAdmin->id,
+            ]
+        );
+
         $tenant->aiModelAccesses()->syncWithoutDetaching([
             $demoAccess->id => [
                 'is_active' => true,
+                'assigned_by' => $superAdmin->id,
+            ],
+            $gapGptAccess->id => [
+                'is_active' => $gapGptIsActive,
                 'assigned_by' => $superAdmin->id,
             ],
         ]);
@@ -170,6 +230,8 @@ class DatabaseSeeder extends Seeder
         $this->syncTenantRole($tenant, $admin, 'clinic_admin');
         $this->syncTenantRole($tenant, $editor, 'editor');
         $this->syncTenantRole($tenant, $viewer, 'viewer');
+
+        $this->seedActiveClinicPlan($tenant, $admin);
 
         $demoLeads = [
             [
@@ -294,7 +356,7 @@ class DatabaseSeeder extends Seeder
             );
 
             $permissionIds = Permission::query()
-                ->whereIn('code', $roleDefinition['permissions'])
+                ->whereIn('code', $roleDefinition['permissions'], 'and', false)
                 ->pluck('id')
                 ->all();
 
@@ -324,32 +386,34 @@ class DatabaseSeeder extends Seeder
             [
                 'name' => __('messages.local_sms_gateway'),
                 'status' => 'enabled',
-                'is_default' => true,
+                'is_default' => false,
                 'encrypted_credentials' => [],
                 'settings_json' => ['purpose' => 'system_messages'],
             ]
         );
 
-        $ippanelToken = config('hairvision.sms.ippanel.authorization_token')
-            ?: self::DEFAULT_IPPANEL_AUTHORIZATION_TOKEN;
+        $ippanelToken = config('hairvision.sms.ippanel.authorization_token') ?: self::DEFAULT_IPPANEL_AUTHORIZATION_TOKEN;
         $ippanelFromNumber = config('hairvision.sms.ippanel.from_number');
 
-        SmsGateway::query()->updateOrCreate(
-            ['owner_scope' => 'system', 'provider_code' => 'ippanel', 'user_id' => null],
-            [
-                'name' => __('messages.ippanel_sms_gateway'),
-                'status' => 'enabled',
-                'is_default' => false,
-                'encrypted_credentials' => filled($ippanelToken) ? ['api_key' => $ippanelToken] : [],
-                'settings_json' => array_filter([
-                    'purpose' => 'system_messages',
-                    'from_number' => $ippanelFromNumber,
-                    'sender' => $ippanelFromNumber,
-                    'otp_pattern_code' => config('hairvision.sms.ippanel.otp_pattern_code'),
-                    'endpoint_url' => config('hairvision.sms.ippanel.endpoint_url'),
-                ]),
-            ]
-        );
+        if (filled($ippanelToken)) {
+            SmsGateway::query()->updateOrCreate(
+                ['owner_scope' => 'system', 'provider_code' => 'ippanel', 'user_id' => null],
+                [
+                    'name' => __('messages.ippanel_sms_gateway'),
+                    'status' => 'enabled',
+                    'is_default' => true,
+                    'encrypted_credentials' => ['api_key' => $ippanelToken],
+                    'settings_json' => array_filter([
+                        'purpose' => 'system_messages',
+                        'from_number' => $ippanelFromNumber,
+                        'sender' => $ippanelFromNumber,
+                        'otp_pattern_code' => config('hairvision.sms.ippanel.otp_pattern_code'),
+                        'otp_pattern_variable' => config('hairvision.sms.ippanel.otp_pattern_variable'),
+                        'endpoint_url' => config('hairvision.sms.ippanel.endpoint_url'),
+                    ]),
+                ]
+            );
+        }
 
         PaymentGateway::query()->updateOrCreate(
             ['provider_code' => 'local'],
@@ -384,28 +448,213 @@ class DatabaseSeeder extends Seeder
 
         app(PaymentGatewayService::class)->markDefault($zarinpalGateway);
 
+        $starterPlanCredits = $this->starterPlanServiceCredits();
+
         $starterPlan = Plan::query()->updateOrCreate(
             ['name' => 'پلن شروع'],
             [
-                'description' => 'پلن نمونه برای تست خرید، تمدید و ارتقا در MVP.',
+                'description' => 'پلن فعال کلینیک آریا برای استفاده کامل از امکانات MVP.',
                 'plan_type' => 'base_subscription',
-                'service_key' => 'hair_transplant',
+                'service_key' => count($starterPlanCredits) === 1 ? array_key_first($starterPlanCredits) : null,
                 'price' => 9900000,
                 'currency' => 'IRR',
                 'duration_days' => 30,
-                'usage_limit' => 100,
-                'features_json' => ['leads' => true, 'reports' => true],
+                'usage_limit' => array_sum($starterPlanCredits),
+                'features_json' => $this->starterPlanFeatures(),
                 'status' => 'active',
             ]
         );
 
-        $starterPlan->serviceEntitlements()->updateOrCreate(
-            ['service_key' => 'hair_transplant'],
-            [
-                'credit_amount' => 100,
-                'is_active' => true,
-            ]
-        );
+        foreach ($starterPlanCredits as $serviceKey => $credit) {
+            $starterPlan->serviceEntitlements()->updateOrCreate(
+                ['service_key' => $serviceKey],
+                [
+                    'credit_amount' => $credit,
+                    'is_active' => true,
+                ]
+            );
+        }
+
+        $starterPlan->serviceEntitlements()
+            ->whereNotIn('service_key', array_keys($starterPlanCredits))
+            ->update(['is_active' => false]);
+    }
+
+    private function seedActiveClinicPlan(Tenant $tenant, User $admin): void
+    {
+        $starterPlan = Plan::query()
+            ->with('serviceEntitlements')
+            ->where('name', 'پلن شروع')
+            ->firstOrFail();
+
+        $activeStarter = $this->activeStarterSubscription($tenant, $starterPlan);
+        $now = now();
+
+        $invoice = Invoice::query()->firstOrNew([
+            'number' => 'HV-SEED-CLINIC1-STARTER',
+        ]);
+
+        $invoice->fill([
+            'tenant_id' => $tenant->id,
+            'user_id' => $admin->id,
+            'plan_id' => $starterPlan->id,
+            'status' => 'paid',
+            'amount' => $starterPlan->price,
+            'currency' => $starterPlan->currency,
+            'due_at' => $now,
+            'paid_at' => $now,
+            'expires_at' => $now->copy()->addDays((int) $starterPlan->duration_days),
+            'metadata_json' => [
+                'seeded' => true,
+                'clinic' => 'clinic1',
+                'plan_type' => $starterPlan->plan_type->value,
+                'service_credits' => $starterPlan->serviceCredits(),
+            ],
+        ]);
+
+        if (! $activeStarter) {
+            $invoice->activated_at = null;
+        } elseif (! $invoice->activated_at) {
+            $invoice->activated_at = $activeStarter->starts_at;
+        }
+
+        $invoice->save();
+
+        $gateway = PaymentGateway::query()->where('provider_code', 'local')->first()
+            ?? PaymentGateway::query()->where('is_default', true)->first();
+
+        if ($gateway) {
+            Payment::query()->updateOrCreate(
+                ['idempotency_key' => 'seed-clinic1-starter-plan-paid'],
+                [
+                    'tenant_id' => $tenant->id,
+                    'user_id' => $admin->id,
+                    'invoice_id' => $invoice->id,
+                    'payment_gateway_id' => $gateway->id,
+                    'status' => 'paid',
+                    'amount' => $starterPlan->price,
+                    'currency' => $starterPlan->currency,
+                    'authority' => 'SEED-CLINIC1-STARTER',
+                    'reference_id' => 'SEED-CLINIC1-PAID',
+                    'gateway_response_json' => [
+                        'provider' => $gateway->provider_code,
+                        'seeded' => true,
+                    ],
+                    'verified_at' => $now,
+                ]
+            );
+        }
+
+        $subscription = $activeStarter;
+
+        if (! $subscription) {
+            $subscription = app(SubscriptionActivationService::class)
+                ->activateInvoice($invoice->refresh());
+        }
+
+        if (! $subscription) {
+            return;
+        }
+
+        $subscription->forceFill([
+            'tenant_id' => $tenant->id,
+            'user_id' => $admin->id,
+            'plan_id' => $starterPlan->id,
+            'invoice_id' => $subscription->invoice_id ?? $invoice->id,
+            'status' => 'active',
+            'usage_limit' => array_sum($starterPlan->serviceCredits()),
+        ])->save();
+
+        $this->syncSeededSubscriptionEntitlements($tenant, $admin, $starterPlan, $subscription->refresh(), $invoice->refresh());
+    }
+
+    private function activeStarterSubscription(Tenant $tenant, Plan $starterPlan): ?Subscription
+    {
+        return Subscription::query()
+            ->where('tenant_id', $tenant->id)
+            ->where('plan_id', $starterPlan->id)
+            ->where('status', 'active')
+            ->where('ends_at', '>', now())
+            ->latest('starts_at')
+            ->latest('id')
+            ->first();
+    }
+
+    private function syncSeededSubscriptionEntitlements(
+        Tenant $tenant,
+        User $admin,
+        Plan $starterPlan,
+        Subscription $subscription,
+        Invoice $invoice,
+    ): void {
+        foreach ($starterPlan->fresh('serviceEntitlements')->serviceCredits() as $serviceKey => $credit) {
+            $entitlement = SubscriptionServiceEntitlement::query()->updateOrCreate(
+                [
+                    'subscription_id' => $subscription->id,
+                    'service_key' => $serviceKey,
+                    'source_type' => 'base_plan',
+                ],
+                [
+                    'tenant_id' => $tenant->id,
+                    'plan_id' => $starterPlan->id,
+                    'source_id' => $starterPlan->id,
+                    'included_credit' => $credit,
+                    'purchased_credit' => 0,
+                    'is_active' => true,
+                    'starts_at' => $subscription->starts_at,
+                    'ends_at' => $subscription->ends_at,
+                ]
+            );
+
+            CreditTransaction::query()->updateOrCreate(
+                [
+                    'tenant_id' => $tenant->id,
+                    'subscription_id' => $subscription->id,
+                    'subscription_service_entitlement_id' => $entitlement->id,
+                    'service_key' => $serviceKey,
+                    'type' => 'grant',
+                    'related_type' => $invoice->getMorphClass(),
+                    'related_id' => $invoice->id,
+                ],
+                [
+                    'amount' => $credit,
+                    'balance_after' => $entitlement->remainingCredit(),
+                    'description' => __('credits.descriptions.base_grant', ['plan' => $starterPlan->name]),
+                    'created_by' => $admin->id,
+                ]
+            );
+        }
+    }
+
+    /**
+     * @return array<string, int>
+     */
+    private function starterPlanServiceCredits(): array
+    {
+        $serviceKeys = array_keys(config('hairvision.ai_services', [])) ?: ['hair_transplant'];
+
+        return collect($serviceKeys)
+            ->mapWithKeys(fn (string $serviceKey): array => [$serviceKey => 100])
+            ->all();
+    }
+
+    /**
+     * @return array<string, bool>
+     */
+    private function starterPlanFeatures(): array
+    {
+        return [
+            'ai_generation' => true,
+            'ai_models' => true,
+            'billing' => true,
+            'crm' => true,
+            'leads' => true,
+            'reports' => true,
+            'settings' => true,
+            'sms' => true,
+            'team' => true,
+            'uploads' => true,
+        ];
     }
 
     /**
@@ -456,6 +705,152 @@ class DatabaseSeeder extends Seeder
                 'value' => config('hairvision.pagination.max_per_page'),
                 'description' => 'حداکثر تعداد قابل قبول برای صفحه‌بندی‌های مشترک.',
             ],
+        ];
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    private function gapGptStagePrompts(): array
+    {
+        return [
+            'two_weeks' => <<<'PROMPT'
+Use the uploaded photo as the direct reference and generate exactly one ultra-realistic photo edit of the same person, showing the person two weeks after a complete and successful hair transplant.
+
+Overall objective:
+Create a realistic 2-week post-hair-transplant photo edit based on the uploaded image. The transplant must not be limited to the person’s existing hair. Any bald or thinning areas, especially the frontal hairline, temples, front scalp, mid-scalp, and top of the head, must be treated as transplant recipient areas where new hair has been implanted.
+
+Very important transplant coverage rule:
+If the original person has a completely bald or heavily receded front area, reconstruct the recipient area as if it has been fully implanted. Do not only thicken old remaining hair. Create a natural new hairline design and visible implantation pattern across the bald frontal and top scalp areas.
+
+Stage requirements:
+
+Show the same person 2 weeks after a complete hair transplant.
+The transplanted zones should clearly show many visible transplant marks across the future hairline, frontal scalp, temples, mid-scalp, and top area where needed.
+Include realistic small red dots, healing micro-scabs, and mild post-transplant redness across the implanted areas.
+Hair should still appear very short, early-stage, and not grown in yet.
+The pattern of transplant marks must show that the previously bald or thinning areas have been fully implanted.
+Keep the result realistic, medically believable, and not overly graphic.
+
+Critical identity and consistency requirements:
+
+Preserve the exact same person.
+Do not change the face, facial structure, skin tone, ethnicity, age, expression, camera angle, pose, clothing, background, lighting, or overall composition.
+Keep the same framing and perspective as the original uploaded image.
+Do not make the person look like someone else.
+Do not change beard, eyebrows, eyes, nose, lips, jawline, ears, or facial details.
+Do not change the clothes, clothing color, or clothing style.
+Do not change the background in any way.
+Do not add or remove objects.
+The only allowed changes are the scalp, hairline, hair density, implanted area, and visible hair-transplant healing effects appropriate to this timeline.
+
+General realism requirements:
+
+Ultra-realistic medical-style photo edit.
+The result must look like a real hair transplant progress photo, not a 3D render, painting, cartoon, or beauty-retouched image.
+Keep natural skin texture, realistic scalp detail, and natural hair texture.
+Avoid artificial perfection or over-editing.
+Hair color and hair texture should remain consistent with the person’s natural appearance.
+
+Output requirements:
+
+Produce exactly one high-resolution realistic photo edit.
+The output must look like the same person in the same original photo setup.
+Do not alter any non-hair element of the original image.
+PROMPT,
+            'intermediate_regrowth' => <<<'PROMPT'
+Use the uploaded photo as the direct reference and generate exactly one ultra-realistic photo edit of the same person, showing an intermediate hair regrowth stage after a complete and successful hair transplant.
+
+Overall objective:
+Create a realistic intermediate post-hair-transplant regrowth photo edit based on the uploaded image. The transplant must not be limited to the person’s existing hair. Any bald or thinning areas, especially the frontal hairline, temples, front scalp, mid-scalp, and top of the head, must show early new hair growth from the transplanted areas.
+
+Very important transplant coverage rule:
+If the original person has a completely bald or heavily receded front area, reconstruct it as a fully treated recipient area with new hair growth beginning across the bald frontal and top scalp areas. Do not only thicken old remaining hair. Create a natural new hairline with sparse and uneven early regrowth.
+
+Stage requirements:
+
+Show the same person at a later intermediate stage after the transplant.
+The red transplant wounds and scabs should be mostly healed or no longer visible.
+New hair should appear across the transplanted bald or thinning areas, including the front hairline, temples, mid-scalp, and top scalp.
+Hair should still look thin, sparse, uneven, and incomplete.
+The scalp should still be partially visible, showing that the final density has not fully developed yet.
+This stage should look clearly improved compared to the 2-week stage, but not yet full or final.
+The new hairline should be visible but still developing.
+
+Critical identity and consistency requirements:
+
+Preserve the exact same person.
+Do not change the face, facial structure, skin tone, ethnicity, age, expression, camera angle, pose, clothing, background, lighting, or overall composition.
+Keep the same framing and perspective as the original uploaded image.
+Do not make the person look like someone else.
+Do not change beard, eyebrows, eyes, nose, lips, jawline, ears, or facial details.
+Do not change the clothes, clothing color, or clothing style.
+Do not change the background in any way.
+Do not add or remove objects.
+The only allowed changes are the scalp, hairline, hair density, implanted area, and hair regrowth stage.
+
+General realism requirements:
+
+Ultra-realistic medical-style photo edit.
+The result must look like a real hair transplant progress photo, not a 3D render, painting, cartoon, or beauty-retouched image.
+Keep natural skin texture, realistic scalp detail, and natural hair texture.
+Avoid artificial perfection, fake density, or unrealistic hairlines.
+Hair color and hair texture should remain consistent with the person’s natural appearance.
+
+Output requirements:
+
+Produce exactly one high-resolution realistic photo edit.
+The output must look like the same person in the same original photo setup.
+Do not alter any non-hair element of the original image.
+PROMPT,
+            'final_result' => <<<'PROMPT'
+Use the uploaded photo as the direct reference and generate exactly one ultra-realistic photo edit of the same person, showing the final successful result after full hair growth from a complete hair transplant.
+
+Overall objective:
+Create a realistic final 1-year post-hair-transplant result based on the uploaded image. The transplant must not be limited to the person’s existing hair. Any bald or thinning areas, especially the frontal hairline, temples, front scalp, mid-scalp, and top of the head, must now look naturally filled in with fully grown transplanted hair.
+
+Very important transplant coverage rule:
+If the original person has a completely bald or heavily receded front area, reconstruct it as a successful complete transplant result. Do not only thicken old remaining hair. Create a realistic full new hairline and new hair growth across the bald frontal and top scalp areas, as if the person no longer appears bald in the transplanted areas.
+
+Stage requirements:
+
+Show the same person at the final successful result stage after full hair growth.
+The previously bald or thinning front and top areas should now look naturally filled in.
+Create a realistic full hairline where needed, including the frontal area and temples.
+The person should no longer look bald in the transplanted areas.
+Hair should appear fully grown, naturally fuller, and complete across the front, mid-scalp, and top.
+The hairline must be natural, age-appropriate, and proportional to the face.
+The density should look successful and full, but still realistic and slightly imperfect.
+Avoid an unnaturally perfect, overly dense, fake, or wig-like result.
+The final image should look like a real successful 1-year post-transplant result, as if the person naturally has a full head of hair again.
+
+Critical identity and consistency requirements:
+
+Preserve the exact same person.
+Do not change the face, facial structure, skin tone, ethnicity, age, expression, camera angle, pose, clothing, background, lighting, or overall composition.
+Keep the same framing and perspective as the original uploaded image.
+Do not make the person look like someone else.
+Do not change beard, eyebrows, eyes, nose, lips, jawline, ears, or facial details.
+Do not change the clothes, clothing color, or clothing style.
+Do not change the background in any way.
+Do not add or remove objects.
+The only allowed changes are the scalp, hairline, hair density, and fully grown transplanted hair.
+
+General realism requirements:
+
+Ultra-realistic medical-style photo edit.
+The result must look like a real successful hair transplant photo, not a 3D render, painting, cartoon, or beauty-retouched image.
+Keep natural skin texture, realistic scalp detail, and natural hair texture.
+Avoid artificial perfection, fake density, or unrealistic hairlines.
+Hair color and hair texture should remain consistent with the person’s natural appearance.
+The final hair should look full and successful, but not like a wig or artificial hairpiece.
+
+Output requirements:
+
+Produce exactly one high-resolution realistic photo edit.
+The output must look like the same person in the same original photo setup.
+Do not alter any non-hair element of the original image.
+PROMPT,
         ];
     }
 

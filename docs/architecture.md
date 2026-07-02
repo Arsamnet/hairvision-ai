@@ -36,6 +36,11 @@ Browser
 ```
 
 Dashboard OTP login is separate from the public verified-lead session flow.
+The three authentication surfaces use separate session cookies: public lead
+generation APIs use the lead cookie, clinic dashboards use the clinic admin
+cookie on tenant hosts, and the platform dashboard uses the platform admin
+cookie on the primary host. This prevents `/admin` login, logout, or session
+regeneration from invalidating a visitor lead session in the same browser.
 
 ## Multi-Tenancy
 
@@ -105,7 +110,10 @@ replicate
 custom_http
 ```
 
-Only `sample_image` is allowed in version `1.0.0`.
+`sample_image` remains the protected default provider for version `1.0.0`.
+GapGPT image edits are available only when a system-managed `gapgpt` AI model
+access record is active, assigned to the clinic, and configured with encrypted
+credentials.
 
 Provider selection target:
 
@@ -131,14 +139,16 @@ active clinic base subscription, an active service entitlement for
 Service credit is consumed per completed job through `CreditLedgerService`; a
 failed provider response does not consume service credit.
 
-Each generation period is a separate job:
+Each generation stage is a separate job:
 
-- `3_months`
-- `6_months`
-- `12_months`
+- `two_weeks`
+- `intermediate_regrowth`
+- `final_result`
 
-This keeps retries, failures, timing, and future provider costs isolated per
-period.
+Only the first pending stage is queued when the group is created. A completed
+stage saves its private asset and then dispatches the next stage, so the public
+UI can reveal each image as soon as it is ready while later stages continue.
+This keeps retries, failures, timing, and provider costs isolated per stage.
 
 ## Sample Image Provider
 
@@ -160,6 +170,14 @@ App\Services\AI\Providers\SampleImageProvider
 8. Never use random external image URLs.
 
 Configured default sample paths:
+
+```text
+storage/app/private/sample-results/3-months.jpg -> two_weeks
+storage/app/private/sample-results/6-months.jpg -> intermediate_regrowth
+storage/app/private/sample-results/12-months.jpg -> final_result
+```
+
+Legacy environment variables remain supported for the sample files:
 
 ```text
 storage/app/private/sample-results/3-months.jpg

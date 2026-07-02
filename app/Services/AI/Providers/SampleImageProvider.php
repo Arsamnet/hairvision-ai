@@ -5,6 +5,7 @@ namespace App\Services\AI\Providers;
 use App\Services\AI\Contracts\ImageGenerationProvider;
 use App\Services\AI\Dtos\ImageGenerationRequest;
 use App\Services\AI\Dtos\ImageGenerationResponse;
+use App\Services\Generation\GenerationStageCatalog;
 use Illuminate\Support\Facades\Storage;
 
 /**
@@ -31,7 +32,9 @@ class SampleImageProvider implements ImageGenerationProvider
      */
     public function submit(ImageGenerationRequest $request): ImageGenerationResponse
     {
-        $sampleKey = config('hairvision.sample_images.'.$request->period);
+        $catalog = app(GenerationStageCatalog::class);
+        $period = $catalog->normalizeKey($request->period);
+        $sampleKey = $catalog->sampleImagePath($period) ?? config('hairvision.sample_images.'.$request->period);
         $fallback = config('hairvision.sample_images.fallback');
 
         // Prefer private sample assets under storage/app/private when present
@@ -54,7 +57,7 @@ class SampleImageProvider implements ImageGenerationProvider
             localPath: $sampleKey,
             metadata: [
                 'provider' => 'sample_image',
-                'period' => $request->period,
+                'period' => $period,
             ],
         );
     }

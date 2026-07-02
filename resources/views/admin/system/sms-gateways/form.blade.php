@@ -53,6 +53,10 @@
         <input name="otp_pattern_code" value="{{ old('otp_pattern_code', data_get($gateway?->settings_json, 'otp_pattern_code')) }}" class="mt-2 h-11 w-full rounded-lg border border-zinc-200 px-3 text-sm outline-none focus:border-teal-500" dir="ltr">
     </label>
     <label class="block">
+        <span class="text-sm font-bold text-zinc-600">{{ __('sms.otp_pattern_variable') }}</span>
+        <input name="otp_pattern_variable" value="{{ old('otp_pattern_variable', data_get($gateway?->settings_json, 'otp_pattern_variable', config('hairvision.sms.ippanel.otp_pattern_variable'))) }}" class="mt-2 h-11 w-full rounded-lg border border-zinc-200 px-3 text-sm outline-none focus:border-teal-500" dir="ltr">
+    </label>
+    <label class="block">
         <span class="text-sm font-bold text-zinc-600">{{ __('sms.endpoint_url') }}</span>
         <input name="endpoint_url" value="{{ old('endpoint_url', data_get($gateway?->settings_json, 'endpoint_url')) }}" placeholder="https://edge.ippanel.com/v1/api/send" class="mt-2 h-11 w-full rounded-lg border border-zinc-200 px-3 text-sm outline-none focus:border-teal-500" dir="ltr">
     </label>

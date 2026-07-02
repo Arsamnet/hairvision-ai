@@ -62,7 +62,9 @@ overlapping metrics.
 
 1. Migrations and models exist for the Phase 1 data model.
 2. Tenant resolution middleware uses request host.
-3. Seeder creates one test tenant, one tenant domain, and `sample_image`.
+3. Seeder creates one ready-to-use Clinic Aria tenant, active domains, an active
+   purchased starter plan, service credits, `sample_image`, and active GapGPT
+   model access.
 4. `/api/v1` routes exist for bootstrap, OTP, upload, generation, status,
    results, and assets.
 5. OTP request stores hashes and is rate-limited.
@@ -70,14 +72,17 @@ overlapping metrics.
 7. Upload requires a verified lead session.
 8. Generation requires the current tenant and current session lead.
 9. `SampleImageProvider` returns local sample paths only.
-10. Jobs copy samples into private tenant/lead result paths.
-11. Blade is Persian RTL and calls `/api/v1`.
-12. Tenant theme settings support header, footer, and back-to-site link.
-13. Landing page visits are tracked before lead creation.
-14. Lead CRM stage and admin note structure exists.
-15. Feature tests cover public flow, theme fields, CRM structure, visit
+10. Generation creates staged jobs for `two_weeks`, `intermediate_regrowth`,
+    and `final_result`; only the next pending stage is queued.
+11. Jobs copy samples or real provider output into private tenant/lead result
+    paths.
+12. Blade is Persian RTL and calls `/api/v1`.
+13. Tenant theme settings support header, footer, and back-to-site link.
+14. Landing page visits are tracked before lead creation.
+15. Lead CRM stage and admin note structure exists.
+16. Feature tests cover public flow, theme fields, CRM structure, visit
     tracking, and tenant isolation.
-16. SaaS billing tests cover base plans, service add-ons, top-ups, service
+17. SaaS billing tests cover base plans, service add-ons, top-ups, service
     entitlements, ledger consumption, and AI service access blocking.
 
 ## Testing Rule
@@ -134,8 +139,11 @@ php artisan test
 - OTP verify creates a verified lead.
 - Upload requires verified lead session.
 - Invalid uploads are rejected.
-- Sample generation creates three jobs.
+- Sample generation creates three staged jobs.
 - Sample generation creates three generated assets.
+- The public API starts only the first queued stage when the queue is faked.
+- GapGPT generation sends three independent image edit requests with `n = 1`.
+- Generation auth failures return JSON messages suitable for the Blade frontend.
 - Generated assets are stored privately.
 - `SampleImageProvider` sends no external HTTP requests.
 - Debug/local sample generation can display completed results immediately.
@@ -188,11 +196,14 @@ php artisan test
 
 - AI model config and Persian usage category loading.
 - Protected demo model seeding and Super Admin permissions.
+- Seeded GapGPT access stores three stage prompts and an encrypted default
+  credential and is active for Clinic Aria after seeding.
 - AI model access CRUD, credential encryption, masking, toggling, and protected
   delete denial.
 - Clinic assignment and generation credit/log creation.
 - Unassigned, inactive, and credit-finished access blocking.
 - Failed provider responses not consuming credit.
+- GapGPT HTTP gateway failures being written to Laravel logs without API keys.
 - Clinic manager user creation scoped to the actor's clinic and clinic-level
   role assignment.
 

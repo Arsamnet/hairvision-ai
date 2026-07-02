@@ -47,6 +47,7 @@ return [
     'local_sms_gateway' => 'درگاه پیامک محلی سیستم',
     'ippanel_sms_gateway' => 'درگاه پیامک IPPanel سیستم',
     'sample_image_provider' => 'ارائه‌دهنده تصویر نمونه',
+    'gapgpt_image_provider' => 'ارائه‌دهنده ویرایش تصویر GapGPT',
     'classic_template' => 'کلاسیک',
     'payment_gateway_created' => 'درگاه پرداخت ساخته شد.',
     'payment_gateway_updated' => 'درگاه پرداخت به‌روزرسانی شد.',

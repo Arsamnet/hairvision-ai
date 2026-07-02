@@ -6,7 +6,7 @@ use App\Models\SmsGateway;
 use App\Services\Sms\Contracts\SmsGatewayAdapter;
 use App\Support\NumberNormalizer;
 use Illuminate\Http\Client\ConnectionException;
-use Illuminate\Http\Client\RequestException;
+use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
@@ -25,11 +25,11 @@ class IppanelSmsGatewayAdapter implements SmsGatewayAdapter
         $this->post($gateway, [
             'sending_type' => 'webservice',
             'from_number' => $this->fromNumber($gateway),
-            'message' => $message,
             'params' => [
                 'recipients' => [
                     $this->recipient($phoneNormalized),
                 ],
+                'message' => $message,
             ],
         ]);
     }
@@ -52,7 +52,7 @@ class IppanelSmsGatewayAdapter implements SmsGatewayAdapter
                 $this->recipient($phoneNormalized),
             ],
             'params' => [
-                'verification-code' => $code,
+                $this->otpPatternVariable($gateway) => $code,
             ],
         ]);
     }
@@ -65,14 +65,22 @@ class IppanelSmsGatewayAdapter implements SmsGatewayAdapter
         $endpoint = $this->endpoint($gateway);
 
         try {
-            Http::asJson()
+            $response = Http::asJson()
+                ->acceptJson()
                 ->timeout($this->timeoutSeconds($gateway))
                 ->connectTimeout($this->connectTimeoutSeconds($gateway))
                 ->withHeaders([
-                    'Authorization' => $this->authorizationToken($gateway),
+                    'Authorization' => $this->authorizationHeader($gateway),
                 ])
-                ->post($endpoint, $payload)
-                ->throw();
+                ->post($endpoint, $payload);
+
+            if (! $this->isSuccessfulResponse($response)) {
+                $this->logFailedResponse($gateway, $endpoint, $response, $payload['sending_type'] ?? null);
+
+                throw ValidationException::withMessages([
+                    'sms_gateway' => __('sms.ippanel_send_failed'),
+                ]);
+            }
         } catch (ConnectionException $exception) {
             Log::warning('IPPanel SMS gateway connection failed.', [
                 'gateway_id' => $gateway->id,
@@ -83,18 +91,14 @@ class IppanelSmsGatewayAdapter implements SmsGatewayAdapter
             throw ValidationException::withMessages([
                 'sms_gateway' => __('sms.ippanel_timeout'),
             ]);
-        } catch (RequestException $exception) {
-            Log::warning('IPPanel SMS gateway request failed.', [
-                'gateway_id' => $gateway->id,
-                'endpoint' => $endpoint,
-                'status' => $exception->response?->status(),
-                'exception' => $exception::class,
-            ]);
-
-            throw ValidationException::withMessages([
-                'sms_gateway' => __('sms.ippanel_send_failed'),
-            ]);
         }
+    }
+
+    private function authorizationHeader(SmsGateway $gateway): string
+    {
+        $token = $this->authorizationToken($gateway);
+
+        return preg_replace('/^Bearer\s+/i', '', $token) ?: $token;
     }
 
     private function authorizationToken(SmsGateway $gateway): string
@@ -122,6 +126,16 @@ class IppanelSmsGatewayAdapter implements SmsGatewayAdapter
         }
 
         return trim($fromNumber);
+    }
+
+    private function otpPatternVariable(SmsGateway $gateway): string
+    {
+        $variable = data_get($gateway->settings_json ?? [], 'otp_pattern_variable')
+            ?? config('hairvision.sms.ippanel.otp_pattern_variable', 'verification-code');
+
+        return is_string($variable) && trim($variable) !== ''
+            ? trim($variable)
+            : 'verification-code';
     }
 
     private function endpoint(SmsGateway $gateway): string
@@ -161,17 +175,62 @@ class IppanelSmsGatewayAdapter implements SmsGatewayAdapter
         $digits = NumberNormalizer::digitsOnly($phoneNormalized);
 
         if (str_starts_with($digits, '0') && strlen($digits) === 11) {
-            return '+98'.substr($digits, 1);
+            return '98'.substr($digits, 1);
         }
 
         if (str_starts_with($digits, '98') && strlen($digits) === 12) {
-            return '+'.$digits;
+            return $digits;
         }
 
         if (str_starts_with($digits, '9') && strlen($digits) === 10) {
-            return '+98'.$digits;
+            return '98'.$digits;
         }
 
-        return str_starts_with($phoneNormalized, '+') ? '+'.$digits : $phoneNormalized;
+        return $digits !== '' ? $digits : $phoneNormalized;
+    }
+
+    private function isSuccessfulResponse(Response $response): bool
+    {
+        if (! $response->successful()) {
+            return false;
+        }
+
+        $metaStatus = data_get($response->json() ?? [], 'meta.status');
+
+        if (is_bool($metaStatus)) {
+            return $metaStatus;
+        }
+
+        if (is_string($metaStatus) && in_array(strtolower($metaStatus), ['false', '0'], true)) {
+            return false;
+        }
+
+        return true;
+    }
+
+    private function logFailedResponse(SmsGateway $gateway, string $endpoint, Response $response, mixed $sendingType): void
+    {
+        $body = $response->json() ?? [];
+
+        Log::warning('IPPanel SMS gateway request failed.', [
+            'gateway_id' => $gateway->id,
+            'endpoint' => $endpoint,
+            'http_status' => $response->status(),
+            'ippanel_status' => data_get($body, 'meta.status'),
+            'ippanel_message' => $this->safeContextText(data_get($body, 'meta.message')),
+            'sending_type' => is_string($sendingType) ? $sendingType : null,
+        ]);
+    }
+
+    private function safeContextText(mixed $value): ?string
+    {
+        if (! is_scalar($value)) {
+            return null;
+        }
+
+        $text = (string) $value;
+        $text = preg_replace('/\+?\d{6,}/', '[number]', $text) ?: $text;
+
+        return mb_strlen($text) > 200 ? mb_substr($text, 0, 200) : $text;
     }
 }

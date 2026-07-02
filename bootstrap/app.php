@@ -2,6 +2,9 @@
 
 use App\Http\Middleware\EnsureActivePlanAccess;
 use App\Http\Middleware\EnsureAdminPermission;
+use App\Http\Middleware\UseScopedSessionCookie;
+use Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse;
+use Illuminate\Cookie\Middleware\EncryptCookies;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -16,9 +19,20 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
-        $middleware->api([
-            StartSession::class,
+        $middleware->web(prepend: [
+            UseScopedSessionCookie::class,
         ]);
+
+        $middleware->api(
+            prepend: [
+                UseScopedSessionCookie::class,
+                EncryptCookies::class,
+                AddQueuedCookiesToResponse::class,
+            ],
+            append: [
+                StartSession::class,
+            ],
+        );
 
         $middleware->redirectGuestsTo(fn (Request $request): ?string => $request->is('admin') || $request->is('admin/*')
             ? route('admin.login')
