@@ -936,18 +936,23 @@ class SystemManagementTest extends TestCase
 
         $this->assertDatabaseHas('plans', ['name' => 'پلن مدیریتی']);
 
-        $this->actingAs($superAdmin)
+        $plansResponse = $this->actingAs($superAdmin)
             ->forHost('hairvision-ai.test')
             ->get('/admin/plans?'.http_build_query(['search' => 'پلن مدیریتی', 'status' => 'active', 'sort' => 'name', 'direction' => 'asc']))
             ->assertOk()
             ->assertSee('پلن مدیریتی')
             ->assertSee('create-plan-modal-toggle', false)
-            ->assertSee('edit-plan-', false)
+            ->assertSee('data-admin-modal-trigger="edit-plan-', false)
             ->assertSee('data-admin-table-container', false)
             ->assertSee('aria-sort="ascending"', false)
             ->assertSee('data-table-action-menu', false)
             ->assertSee('data-confirm-form', false)
             ->assertDontSee('confirm(', false);
+
+        $this->assertMatchesRegularExpression(
+            '/<details[^>]*data-table-action-menu[^>]*>(?:(?!<\/details>).)*data-admin-modal-trigger="edit-plan-\d+"(?:(?!<\/details>).)*<\/details>/s',
+            $plansResponse->getContent()
+        );
 
         $this->actingAs($normalUser)
             ->forHost('hairvision-ai.test')

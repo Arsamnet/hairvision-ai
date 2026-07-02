@@ -10,6 +10,6 @@
     ];
 @endphp
 
-<span {{ $attributes->merge(['class' => 'inline-flex rounded-full px-3 py-1 text-xs font-bold '.($tones[$tone] ?? $tones['zinc'])]) }}>
+<span {{ $attributes->merge(['class' => 'inline-flex rounded-full px-3 py-1 text-xs font-bold text-nowrap '.($tones[$tone] ?? $tones['zinc'])]) }}>
     {{ $slot }}
 </span>
