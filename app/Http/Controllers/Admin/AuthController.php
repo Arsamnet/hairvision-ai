@@ -46,6 +46,10 @@ class AuthController extends Controller
         $otpService->requestCode($phone, $request->ip());
         $request->session()->put('admin_pending_phone', $normalized);
 
+        if ($debugSms = $otpService->lastDebugSms()) {
+            $request->session()->flash('debug_sms', $debugSms);
+        }
+
         Log::info('Admin OTP requested.', [
             'phone_hash' => hash('sha256', $normalized),
             'ip' => $request->ip(),
@@ -66,6 +70,7 @@ class AuthController extends Controller
 
         return view('admin.auth.verify', [
             'phone' => session('admin_pending_phone'),
+            'debugSms' => session('debug_sms'),
         ]);
     }
 

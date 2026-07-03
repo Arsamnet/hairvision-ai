@@ -115,6 +115,13 @@ GapGPT image edits are available only when a system-managed `gapgpt` AI model
 access record is active, assigned to the clinic, and configured with encrypted
 credentials.
 
+GapGPT image edits call `POST https://api.gapgpt.app/v1/images/edits` as
+multipart form data through Laravel's HTTP client. The request uses
+`Authorization: Bearer <GAPGPT_API_KEY>`, `Accept: application/json`, file field
+`image`, and text fields `model = gpt-image-2`, `prompt`, `n = 1`,
+`response_format = url`, and `size = 1024x1024`. Do not send this request as
+JSON and do not manually force `Content-Type: application/json`.
+
 Provider selection target:
 
 ```text

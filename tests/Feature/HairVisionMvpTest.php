@@ -216,6 +216,22 @@ class HairVisionMvpTest extends TestCase
         });
     }
 
+    public function test_otp_request_exposes_debug_sms_for_local_system_provider(): void
+    {
+        $this->createTenant('Clinic One', 'clinic1', 'clinic1.hairvision-ai.test');
+
+        config(['hairvision.sms.default_provider' => 'local']);
+
+        $payload = $this->forHost('clinic1.hairvision-ai.test')
+            ->postJson('/api/v1/auth/otp/request', ['phone' => '09124248164'])
+            ->assertOk()
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('debug_sms', fn ($value) => is_string($value) && preg_match('/^[0-9]{6}$/', $value))
+            ->json();
+
+        $this->assertMatchesRegularExpression('/^[0-9]{6}$/', $payload['debug_sms']);
+    }
+
     public function test_otp_verify_creates_verified_lead_for_current_tenant(): void
     {
         $tenant = $this->createTenant('Clinic One', 'clinic1', 'clinic1.hairvision-ai.test');
@@ -493,7 +509,8 @@ class HairVisionMvpTest extends TestCase
             'settings' => [
                 'endpoint_url' => 'https://api.gapgpt.app/v1/images/edits',
                 'model' => 'gpt-image-2',
-                'output_format' => 'jpeg',
+                'size' => '1024x1024',
+                'response_format' => 'url',
             ],
             'prompt' => '{stage_prompt}',
             'credit_limit' => 3,
@@ -509,9 +526,12 @@ class HairVisionMvpTest extends TestCase
             'https://api.gapgpt.app/v1/images/edits' => Http::response([
                 'id' => 'gap-response',
                 'data' => [
-                    ['b64_json' => self::TEST_JPEG_BASE64],
+                    ['url' => 'https://cdn.gapgpt.test/generated/result.jpg'],
                 ],
             ], 200, ['x-request-id' => 'gap-request']),
+            'https://cdn.gapgpt.test/generated/result.jpg' => Http::response(base64_decode(self::TEST_JPEG_BASE64), 200, [
+                'Content-Type' => 'image/jpeg',
+            ]),
         ]);
 
         $lead = Lead::create([
@@ -552,8 +572,14 @@ class HairVisionMvpTest extends TestCase
 
         $this->assertCount(3, array_unique($prompts));
         $this->assertTrue(collect($prompts)->every(fn (string $prompt): bool => str_contains($prompt, 'exactly one')));
+        $this->assertTrue($gapGptRequests->every(fn (array $record): bool => $this->multipartField($record[0]->body(), 'model') === 'gpt-image-2'));
         $this->assertTrue($gapGptRequests->every(fn (array $record): bool => $this->multipartField($record[0]->body(), 'n') === '1'));
+        $this->assertTrue($gapGptRequests->every(fn (array $record): bool => $this->multipartField($record[0]->body(), 'response_format') === 'url'));
+        $this->assertTrue($gapGptRequests->every(fn (array $record): bool => $this->multipartField($record[0]->body(), 'size') === '1024x1024'));
+        $this->assertTrue($gapGptRequests->every(fn (array $record): bool => str_contains($record[0]->body(), 'name="image"; filename=')));
         $this->assertTrue($gapGptRequests->every(fn (array $record): bool => $record[0]->header('Authorization') === ['Bearer gap-secret']));
+        $this->assertTrue($gapGptRequests->every(fn (array $record): bool => str_contains($record[0]->header('Content-Type')[0] ?? '', 'multipart/form-data; boundary=')));
+        $this->assertTrue($gapGptRequests->every(fn (array $record): bool => ! str_contains($record[0]->header('Content-Type')[0] ?? '', 'application/json')));
 
         $group = GenerationGroup::query()->where('uuid', $groupId)->firstOrFail();
         $this->assertSame(['two_weeks', 'intermediate_regrowth', 'final_result'], $group->jobs()->orderBy('id')->pluck('period')->all());
@@ -587,7 +613,8 @@ class HairVisionMvpTest extends TestCase
             'settings' => [
                 'endpoint_url' => 'https://api.gapgpt.app/v1/images/edits',
                 'model' => 'gpt-image-2',
-                'output_format' => 'jpeg',
+                'size' => '1024x1024',
+                'response_format' => 'url',
             ],
             'prompt' => '{stage_prompt}',
             'credit_limit' => 3,

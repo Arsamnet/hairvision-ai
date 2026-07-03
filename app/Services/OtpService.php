@@ -53,6 +53,11 @@ class OtpService
         return $otp;
     }
 
+    public function lastDebugSms(): ?string
+    {
+        return $this->smsGateways->lastDebugSms();
+    }
+
     /**
      * Verify an OTP and create or update the tenant-scoped verified lead.
      *

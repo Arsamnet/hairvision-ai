@@ -97,6 +97,7 @@ return [
     ],
 
     'sms' => [
+        'default_provider' => env('HAIRVISION_DEFAULT_SMS_PROVIDER', 'ippanel'),
         'ippanel' => [
             'authorization_token' => env('HAIRVISION_IPPANEL_AUTHORIZATION_TOKEN'),
             'from_number' => env('HAIRVISION_IPPANEL_FROM_NUMBER', '+983000505'),

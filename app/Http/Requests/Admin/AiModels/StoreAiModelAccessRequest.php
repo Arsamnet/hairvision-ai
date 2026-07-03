@@ -59,7 +59,7 @@ class StoreAiModelAccessRequest extends FormRequest
             }
 
             foreach ($model['required_credentials'] ?? [] as $field) {
-                if (! filled(data_get($this->input('credentials', []), $field))) {
+                if ($this->boolean('is_active') && ! filled(data_get($this->input('credentials', []), $field))) {
                     $validator->errors()->add("credentials.$field", __('ai_models.errors.required_credential', ['field' => $field]));
                 }
             }

@@ -64,12 +64,17 @@ class AiModelAccessManagementTest extends TestCase
         $this->assertArrayHasKey('hair_transplant', config('ai-models.usage_categories'));
         $this->assertSame('کاشت مو', __('ai_models.usage_categories.hair_transplant'));
         $this->assertTrue((bool) config('ai-models.models.sample_image.is_protected'));
+        $this->assertFalse((bool) config('ai-models.models.sample_image.requires_credentials'));
+        $this->assertTrue((bool) config('ai-models.models.gapgpt.requires_credentials'));
         $this->assertTrue($demo->is_protected);
-        $this->assertTrue($gapGpt->is_active);
-        $this->assertStringStartsWith('sk-', $gapGpt->credentials['api_key']);
+        $this->assertTrue($demo->is_active);
+        $this->assertFalse($gapGpt->is_active);
+        $this->assertSame([], $gapGpt->credentials);
         $this->assertIsString($rawGapGptCredentials);
-        $this->assertStringNotContainsString($gapGpt->credentials['api_key'], $rawGapGptCredentials);
         $this->assertSame('{stage_prompt}', $gapGpt->prompt);
+        $this->assertSame('gpt-image-2', data_get($gapGpt->settings, 'model'));
+        $this->assertSame('1024x1024', data_get($gapGpt->settings, 'size'));
+        $this->assertSame('url', data_get($gapGpt->settings, 'response_format'));
         $this->assertIsArray($stagePrompts);
         $this->assertSame(['two_weeks', 'intermediate_regrowth', 'final_result'], array_keys($stagePrompts));
         $this->assertStringContainsString('two weeks after a complete and successful hair transplant', $stagePrompts['two_weeks']);
@@ -77,7 +82,7 @@ class AiModelAccessManagementTest extends TestCase
         $this->assertStringContainsString('final successful result after full hair growth', $stagePrompts['final_result']);
         $this->assertTrue($superAdmin->hasPermission('ai_models.manage_credit'));
         $this->assertTrue($tenant->aiModelAccesses()->whereKey($demo->id)->wherePivot('is_active', true)->exists());
-        $this->assertTrue($tenant->aiModelAccesses()->whereKey($gapGpt->id)->wherePivot('is_active', true)->exists());
+        $this->assertTrue($tenant->aiModelAccesses()->whereKey($gapGpt->id)->wherePivot('is_active', false)->exists());
     }
 
     public function test_gapgpt_seeded_access_uses_env_key_without_plaintext_storage(): void
@@ -299,6 +304,34 @@ class AiModelAccessManagementTest extends TestCase
             'status' => 'failed',
             'credit_consumed' => 0,
         ]);
+    }
+
+    public function test_active_demo_model_returns_predefined_image_for_each_stage(): void
+    {
+        $tenant = $this->createTenant('Clinic One', 'clinic1', 'clinic1.hairvision-ai.test');
+        $this->seedSampleImages();
+
+        $access = $this->createAccess([
+            'is_demo' => true,
+            'is_protected' => true,
+            'credit_limit' => null,
+        ]);
+
+        $tenant->aiModelAccesses()->attach($access->id, ['is_active' => true]);
+
+        foreach (['two_weeks', 'intermediate_regrowth', 'final_result'] as $stageKey) {
+            $response = app(RunAiModelAction::class)->execute(
+                $tenant,
+                'hair_transplant',
+                ['period' => $stageKey],
+                selectedAccess: $access,
+            );
+
+            $this->assertTrue($response->successful);
+            $this->assertSame(base64_decode(self::TEST_JPEG_BASE64), $response->output['binary_content'] ?? null);
+            $this->assertSame('sample_image', $response->metadata['provider'] ?? null);
+            $this->assertSame($stageKey, $response->metadata['stage_key'] ?? null);
+        }
     }
 
     public function test_clinic_manager_creates_only_own_clinic_users_and_cannot_assign_system_roles(): void

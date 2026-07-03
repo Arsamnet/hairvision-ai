@@ -58,6 +58,11 @@ class AdminOtpService
         return $otp;
     }
 
+    public function lastDebugSms(): ?string
+    {
+        return $this->smsGateways->lastDebugSms();
+    }
+
     /**
      * Verify a dashboard OTP and return the authenticated user.
      *

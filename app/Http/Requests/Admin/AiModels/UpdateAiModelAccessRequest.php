@@ -61,7 +61,7 @@ class UpdateAiModelAccessRequest extends FormRequest
                 $newValue = data_get($this->input('credentials', []), $field);
                 $oldValue = data_get($access?->credentials ?? [], $field);
 
-                if (! filled($newValue) && ! filled($oldValue)) {
+                if ($this->boolean('is_active') && ! filled($newValue) && ! filled($oldValue)) {
                     $validator->errors()->add("credentials.$field", __('ai_models.errors.required_credential', ['field' => $field]));
                 }
             }

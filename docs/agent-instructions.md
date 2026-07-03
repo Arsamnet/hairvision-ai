@@ -55,6 +55,12 @@ Before editing code, read:
   such as GapGPT must stay opt-in through assigned AI model access records.
 - `SampleImageProvider` must not call external AI services and must not generate
   images.
+- The protected `مدل نمونه HairVision` access must work without credentials and
+  return configured local sample images for the staged generation periods.
+- GapGPT image edits must use multipart form data, not JSON: file field `image`,
+  `model = gpt-image-2`, `n = 1`, `response_format = url`, and
+  `size = 1024x1024`.
+- Never seed, commit, log, display, or document a real GapGPT API key.
 - Queue-heavy processing must use Redis Queue and Horizon outside tests.
 - Do not introduce React, Vue, Inertia, Livewire, or Next.js into the MVP unless
   explicitly requested.

@@ -82,6 +82,11 @@
 
 ### Changed
 
+- HairVision demo AI access now returns configured local sample image bytes
+  through the AI model provider path instead of relying on a metadata-only mock.
+- GapGPT image edits now send the verified multipart request shape with
+  `image`, `model`, `prompt`, `n`, `response_format`, and `size` form fields.
+- Seeded GapGPT access is inactive unless `GAPGPT_API_KEY` is configured.
 - Super Admin dashboard starts in global platform context instead of selecting a
   clinic by default.
 - Dashboard header no longer renders a global clinic filter; clinic filters live
@@ -157,6 +162,9 @@
 
 ### Security
 
+- Removed the hardcoded GapGPT API key fallback from database seeding; GapGPT
+  credentials now come from encrypted access records or environment-backed
+  service config.
 - Plan-restricted routes are blocked server-side for inactive, expired, or
   credit-finished normal users.
 - Same active plan repurchase is blocked server-side until the active

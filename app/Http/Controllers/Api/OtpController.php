@@ -43,11 +43,14 @@ class OtpController extends Controller
 
         $otpService->requestCode($phone, $request->ip(), $tenant->id);
 
-        return response()->json([
+        $debugSms = $otpService->lastDebugSms();
+
+        return response()->json(array_filter([
             'success' => true,
             'message' => __('auth.otp_sent'),
             'expires_in' => 120,
-        ]);
+            'debug_sms' => $debugSms,
+        ], fn ($value) => $value !== null));
     }
 
     /**

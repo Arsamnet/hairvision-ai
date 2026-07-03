@@ -306,6 +306,7 @@
                                 <div>
                                     <label for="otp" class="block text-sm font-bold text-zinc-800">کد تایید</label>
                                     <input id="otp" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="6" pattern="[0-9۰-۹٠-٩]*" placeholder="۱۲۳۴۵۶" class="hv-ai-input mt-2 w-full rounded-2xl px-4 py-3 text-right text-base outline-none transition" />
+                                    <p id="otpDebug" class="mt-2 hidden text-sm text-sky-700"></p>
                                     <p id="otpError" class="mt-2 hidden text-sm text-rose-600"></p>
                                 </div>
                                 <div class="grid gap-3 lg:grid-cols-2">
@@ -645,6 +646,18 @@
                 el.textContent = msg;
                 el.classList.remove('hidden');
             },
+            showDebugOtp(code) {
+                const el = document.getElementById('otpDebug');
+                if (!el) return;
+                el.textContent = `کد اشکال‌زدایی: ${toPersianDigits(code)}`;
+                el.classList.remove('hidden');
+            },
+            clearDebugOtp() {
+                const el = document.getElementById('otpDebug');
+                if (!el) return;
+                el.textContent = '';
+                el.classList.add('hidden');
+            },
             showStatus(message) {
                 STATE.currentMessage = message || '';
                 document.getElementById('statusBox').classList.remove('hidden');
@@ -763,6 +776,13 @@
                 STATE.phone = phone;
                 sessionStorage.setItem('hairvisionPhone', phone);
                 document.getElementById('displayPhone').textContent = toPersianDigits(phone);
+
+                if (result.debug_sms) {
+                    UI.showDebugOtp(result.debug_sms);
+                } else {
+                    UI.clearDebugOtp();
+                }
+
                 UI.showStep(2);
                 document.getElementById('otp').focus();
             } else {
@@ -794,6 +814,7 @@
         document.getElementById('backToPhone').addEventListener('click', () => {
             document.getElementById('otp').value = '';
             UI.clearError('otpError');
+            UI.clearDebugOtp();
             UI.showStep(1);
         });
 
@@ -804,6 +825,7 @@
             if (!fileInput.files.length) return UI.showError('uploadError', 'لطفا یک تصویر انتخاب کنید.');
             if (!consent) return UI.showError('uploadError', 'برای ادامه باید رضایت پردازش تصویر را تایید کنید.');
 
+            UI.clearDebugOtp();
             resetGenerationProgress(false);
             const btn = document.getElementById('upload');
             btn.disabled = true;

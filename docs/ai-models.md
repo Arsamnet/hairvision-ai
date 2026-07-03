@@ -27,6 +27,18 @@ Config defines model capabilities, supported categories, provider class, timeout
 credential field names, prompt support, and credit support. It does not contain
 real API keys or sensitive values.
 
+The `sample_image` model is displayed in Persian as `مدل نمونه HairVision`. It is
+a demo provider, requires no credentials, can be disabled, and is protected from
+deletion. It must not call external services or generate new images. Each stage
+returns one configured local sample image:
+
+- `two_weeks`
+- `intermediate_regrowth`
+- `final_result`
+
+The `gapgpt` model is displayed in Persian as `ویرایش تصویر GapGPT`. It is a
+real web-service provider and requires credentials before it can be activated.
+
 ## Access Records
 
 Database access records live in `ai_model_accesses`.
@@ -38,11 +50,49 @@ priority, optional credit limit, consumed credit, and creator/updater ids.
 Admins can create multiple access records for the same configured model. Stored
 credentials can be replaced, but they are never displayed in plain text.
 
+Credential precedence for GapGPT:
+
+1. Encrypted `ai_model_accesses.credentials.api_key` on the selected access
+   record.
+2. `config('services.gapgpt.api_key')`, backed by `GAPGPT_API_KEY`.
+
 The demo seeder creates a GapGPT hair-transplant access record with three
-stage-specific prompts under `settings.stage_prompts`. It stores a development
-default API key and lets `GAPGPT_API_KEY` override that value. The seeded record
-and Clinic Aria assignment are active so `php artisan migrate:fresh --seed`
-produces a usable demo clinic without extra admin setup.
+stage-specific prompts under `settings.stage_prompts`. It never seeds a real API
+key. The seeded GapGPT record is active only when `GAPGPT_API_KEY` is configured;
+otherwise it is assigned to Clinic Aria but inactive.
+
+GapGPT environment values:
+
+```env
+GAPGPT_API_KEY=<GAPGPT_API_KEY>
+GAPGPT_IMAGE_EDIT_ENDPOINT=https://api.gapgpt.app/v1/images/edits
+GAPGPT_IMAGE_MODEL=gpt-image-2
+GAPGPT_IMAGE_SIZE=1024x1024
+GAPGPT_IMAGE_RESPONSE_FORMAT=url
+```
+
+## GapGPT Multipart Request
+
+GapGPT image edits must use multipart form data, not JSON:
+
+```text
+POST https://api.gapgpt.app/v1/images/edits
+Accept: application/json
+Authorization: Bearer <GAPGPT_API_KEY>
+```
+
+Required multipart fields:
+
+- `image`: uploaded source image file
+- `model`: `gpt-image-2`
+- `prompt`: stage-specific prompt
+- `n`: `1`
+- `response_format`: `url`
+- `size`: `1024x1024`
+
+Do not set `Content-Type: application/json` for this request. Laravel's HTTP
+client should create the multipart boundary automatically through `attach()`.
+Automated tests use HTTP fakes and must not call the real GapGPT API.
 
 ## Clinic Assignment
 
@@ -102,7 +152,8 @@ Important classes:
 - `App\Actions\Ai\RunAiModelAction`
 - `App\Actions\Ai\AssignAiModelToClinicAction`
 - `App\Contracts\Ai\AiModelProviderInterface`
-- `App\Services\AI\Providers\MockupAiProvider`
+- `App\Services\AI\Providers\HairVisionDemoProvider`
+- `App\Services\AI\Providers\GapGptImageEditProvider`
 
 Controllers validate requests, authorize actions, and call these services.
 Provider logic is not placed in controllers.

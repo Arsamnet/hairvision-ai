@@ -1,7 +1,7 @@
 <?php
 
 use App\Services\AI\Providers\GapGptImageEditProvider;
-use App\Services\AI\Providers\MockupAiProvider;
+use App\Services\AI\Providers\HairVisionDemoProvider;
 
 return [
     'usage_categories' => [
@@ -21,25 +21,28 @@ return [
         'sample_image' => [
             'key' => 'sample_image',
             'display_name_key' => 'ai_models.models.sample_image.name',
-            'provider' => 'HairVision',
+            'provider' => 'demo',
             'vendor' => 'HairVision',
             'description_key' => 'ai_models.models.sample_image.description',
-            'driver' => MockupAiProvider::class,
+            'driver' => HairVisionDemoProvider::class,
             'required_credentials' => [],
-            'optional_credentials' => ['api_key'],
+            'optional_credentials' => [],
             'supported_usage_categories' => ['hair_transplant', 'eyebrow_transplant'],
             'default_timeout' => 5,
             'endpoint' => null,
             'is_system' => true,
             'is_demo' => true,
             'is_protected' => true,
+            'requires_credentials' => false,
+            'supports_prompt' => true,
+            'supports_image_edit' => true,
             'supports_prompt_customization' => true,
             'supports_credit_based_usage' => true,
         ],
         'gapgpt' => [
             'key' => 'gapgpt',
             'display_name_key' => 'ai_models.models.gapgpt.name',
-            'provider' => 'GapGPT',
+            'provider' => 'gapgpt',
             'vendor' => 'GapGPT',
             'description_key' => 'ai_models.models.gapgpt.description',
             'driver' => GapGptImageEditProvider::class,
@@ -48,10 +51,8 @@ return [
             'configurable_settings' => [
                 'endpoint_url',
                 'model',
-                'image_field',
                 'size',
-                'quality',
-                'output_format',
+                'response_format',
                 'timeout_seconds',
                 'connect_timeout_seconds',
                 'retry_attempts',
@@ -60,12 +61,18 @@ return [
             'supported_usage_categories' => ['hair_transplant'],
             'default_timeout' => (int) env('GAPGPT_IMAGE_EDIT_TIMEOUT_SECONDS', 90),
             'default_connect_timeout' => (int) env('GAPGPT_IMAGE_EDIT_CONNECT_TIMEOUT_SECONDS', 10),
-            'endpoint' => env('GAPGPT_IMAGE_EDIT_ENDPOINT', 'https://api.gapgpt.app/v1/images/edits'),
-            'default_model' => env('GAPGPT_IMAGE_EDIT_MODEL', 'gpt-image-2'),
-            'image_field' => env('GAPGPT_IMAGE_EDIT_IMAGE_FIELD', 'image'),
+            'endpoint' => env('GAPGPT_IMAGE_EDIT_ENDPOINT', env('GAPGPT_IMAGE_EDIT_ENDPOINT_URL', 'https://api.gapgpt.app/v1/images/edits')),
+            'default_model' => env('GAPGPT_IMAGE_MODEL', env('GAPGPT_IMAGE_EDIT_MODEL', 'gpt-image-2')),
+            'default_size' => env('GAPGPT_IMAGE_SIZE', '1024x1024'),
+            'default_response_format' => env('GAPGPT_IMAGE_RESPONSE_FORMAT', 'url'),
+            'default_n' => 1,
+            'image_field' => 'image',
             'is_system' => true,
             'is_demo' => false,
             'is_protected' => false,
+            'requires_credentials' => true,
+            'supports_prompt' => true,
+            'supports_image_edit' => true,
             'supports_prompt_customization' => true,
             'supports_credit_based_usage' => true,
         ],

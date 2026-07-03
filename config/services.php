@@ -24,6 +24,10 @@ return [
 
     'gapgpt' => [
         'api_key' => env('GAPGPT_API_KEY'),
+        'image_edit_endpoint' => env('GAPGPT_IMAGE_EDIT_ENDPOINT', env('GAPGPT_IMAGE_EDIT_ENDPOINT_URL', 'https://api.gapgpt.app/v1/images/edits')),
+        'image_model' => env('GAPGPT_IMAGE_MODEL', env('GAPGPT_IMAGE_EDIT_MODEL', 'gpt-image-2')),
+        'image_size' => env('GAPGPT_IMAGE_SIZE', '1024x1024'),
+        'image_response_format' => env('GAPGPT_IMAGE_RESPONSE_FORMAT', 'url'),
     ],
 
     'ses' => [

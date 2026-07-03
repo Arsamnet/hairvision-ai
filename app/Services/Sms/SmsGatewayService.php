@@ -16,6 +16,8 @@ use Illuminate\Validation\ValidationException;
  */
 class SmsGatewayService
 {
+    private ?string $debugSms = null;
+
     /**
      * Return the default system SMS gateway for platform messages.
      */
@@ -35,6 +37,18 @@ class SmsGatewayService
      */
     private function systemDefaultFromConfig(): ?SmsGateway
     {
+        $provider = config('hairvision.sms.default_provider', 'ippanel');
+
+        if ($provider === 'local') {
+            return new SmsGateway([
+                'name' => 'Local SMS Gateway (configured)',
+                'provider_code' => 'local',
+                'status' => 'enabled',
+                'encrypted_credentials' => [],
+                'settings_json' => ['purpose' => 'system_messages'],
+            ]);
+        }
+
         $token = config('hairvision.sms.ippanel.authorization_token');
 
         if (! is_string($token) || trim($token) === '') {
@@ -64,6 +78,10 @@ class SmsGatewayService
      */
     public function systemIppanel(): ?SmsGateway
     {
+        if (config('hairvision.sms.default_provider', 'ippanel') === 'local') {
+            return $this->systemDefaultFromConfig();
+        }
+
         $gateway = SmsGateway::query()
             ->system()
             ->enabled()
@@ -106,6 +124,8 @@ class SmsGatewayService
      */
     public function sendSystemMessage(string $phoneNormalized, string $message): SmsGateway
     {
+        $this->debugSms = null;
+
         $gateway = $this->systemDefault();
 
         if (! $gateway) {
@@ -126,6 +146,8 @@ class SmsGatewayService
      */
     public function sendSystemOtp(string $phoneNormalized, string $code): SmsGateway
     {
+        $this->debugSms = null;
+
         $gateway = $this->systemIppanel();
 
         if (! $gateway) {
@@ -135,6 +157,10 @@ class SmsGatewayService
         }
 
         $this->adapterFor($gateway)->sendOtp($gateway, $phoneNormalized, $code);
+
+        if ($gateway->provider_code === 'local') {
+            $this->debugSms = $code;
+        }
 
         return $gateway;
     }
@@ -147,6 +173,8 @@ class SmsGatewayService
      */
     public function sendUserCustomerMessage(User $user, string $phoneNormalized, string $message): SmsGateway
     {
+        $this->debugSms = null;
+
         $gateway = $this->userDefault($user) ?? $this->systemDefault();
 
         if (! $gateway) {
@@ -175,6 +203,11 @@ class SmsGatewayService
         $gateway->forceFill(['is_default' => true])->save();
 
         return $gateway->refresh();
+    }
+
+    public function lastDebugSms(): ?string
+    {
+        return $this->debugSms;
     }
 
     /**

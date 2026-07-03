@@ -24,7 +24,7 @@ class GapGptImageEditProvider implements AiModelProviderInterface
 {
     public function run(AiModelRequestData $request): AiModelResponseData
     {
-        $apiKey = data_get($request->credentials, 'api_key');
+        $apiKey = data_get($request->credentials, 'api_key') ?: config('services.gapgpt.api_key');
 
         if (! is_string($apiKey) || trim($apiKey) === '') {
             return $this->failed('missing_credentials', __('ai_models.errors.missing_credentials'));
@@ -116,32 +116,27 @@ class GapGptImageEditProvider implements AiModelProviderInterface
     ): Response {
         $settings = $request->settings;
         $modelConfig = $request->modelConfig;
-        $endpoint = (string) ($settings['endpoint_url'] ?? $modelConfig['endpoint']);
+        $endpoint = (string) ($settings['endpoint_url'] ?? config('services.gapgpt.image_edit_endpoint') ?? $modelConfig['endpoint']);
         $timeout = $this->positiveInt($settings['timeout_seconds'] ?? $modelConfig['default_timeout'] ?? 90, 90);
         $connectTimeout = $this->positiveInt($settings['connect_timeout_seconds'] ?? $modelConfig['default_connect_timeout'] ?? 10, 10);
         $retryAttempts = max(1, $this->positiveInt($settings['retry_attempts'] ?? 1, 1));
         $retrySleep = $this->positiveInt($settings['retry_sleep_ms'] ?? 750, 750);
-        $imageField = (string) ($settings['image_field'] ?? $modelConfig['image_field'] ?? 'image');
         $contents = Storage::disk($disk)->get($path);
-        $mime = Storage::disk($disk)->mimeType($path) ?: 'image/jpeg';
 
-        $fields = array_filter([
+        $fields = [
             'model' => $this->modelName($request),
             'prompt' => $prompt,
             'n' => 1,
-            'size' => $settings['size'] ?? null,
-            'quality' => $settings['quality'] ?? null,
-            'output_format' => $settings['output_format'] ?? 'jpeg',
-            'background' => $settings['background'] ?? null,
-            'input_fidelity' => $settings['input_fidelity'] ?? null,
-        ], fn (mixed $value): bool => $value !== null && $value !== '');
+            'response_format' => $this->responseFormat($request),
+            'size' => $this->imageSize($request),
+        ];
 
         return Http::withToken($apiKey)
             ->acceptJson()
             ->timeout($timeout)
             ->connectTimeout($connectTimeout)
             ->retry($retryAttempts, $retrySleep, throw: false)
-            ->attach($imageField, $contents, basename($path), ['Content-Type' => $mime])
+            ->attach('image', $contents, basename($path))
             ->post($endpoint, $fields);
     }
 
@@ -226,7 +221,26 @@ class GapGptImageEditProvider implements AiModelProviderInterface
 
     private function modelName(AiModelRequestData $request): string
     {
-        return (string) ($request->settings['model'] ?? $request->modelConfig['default_model'] ?? 'gpt-image-2');
+        return (string) ($request->settings['model']
+            ?? config('services.gapgpt.image_model')
+            ?? $request->modelConfig['default_model']
+            ?? 'gpt-image-2');
+    }
+
+    private function imageSize(AiModelRequestData $request): string
+    {
+        return (string) ($request->settings['size']
+            ?? config('services.gapgpt.image_size')
+            ?? $request->modelConfig['default_size']
+            ?? '1024x1024');
+    }
+
+    private function responseFormat(AiModelRequestData $request): string
+    {
+        return (string) ($request->settings['response_format']
+            ?? config('services.gapgpt.image_response_format')
+            ?? $request->modelConfig['default_response_format']
+            ?? 'url');
     }
 
     private function normalizeBearerToken(string $apiKey): string

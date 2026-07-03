@@ -4,6 +4,13 @@
 @section('page_title', __('ai_models.details'))
 
 @section('content')
+    @php
+        $modelConfig = $resolver->model($aiModelAccess->model_key);
+        $requiredCredentials = collect($modelConfig['required_credentials'] ?? []);
+        $credentialsConfigured = $requiredCredentials->isEmpty()
+            || $requiredCredentials->every(fn (string $field): bool => filled(data_get($aiModelAccess->credentials ?? [], $field)));
+    @endphp
+
     <div class="space-y-5">
         <x-admin.card>
             <div class="flex flex-wrap items-start justify-between gap-3">
@@ -42,7 +49,21 @@
                 </div>
             </div>
 
-            <div class="mt-5 grid gap-3 md:grid-cols-4">
+            <div class="mt-5 grid gap-3 md:grid-cols-3">
+                <div class="rounded-lg bg-zinc-50 p-3">
+                    <p class="text-xs font-bold text-zinc-500">{{ __('ai_models.model_type') }}</p>
+                    <p class="mt-1 font-bold">{{ $aiModelAccess->is_demo ? __('ai_models.flags.demo') : __('ai_models.flags.real') }}</p>
+                </div>
+                <div class="rounded-lg bg-zinc-50 p-3">
+                    <p class="text-xs font-bold text-zinc-500">{{ __('ai_models.credential_status') }}</p>
+                    <p class="mt-1 font-bold">
+                        @if($requiredCredentials->isEmpty())
+                            {{ __('ai_models.credentials_not_required') }}
+                        @else
+                            {{ $credentialsConfigured ? __('ai_models.credentials_configured') : __('ai_models.credentials_missing') }}
+                        @endif
+                    </p>
+                </div>
                 <div class="rounded-lg bg-zinc-50 p-3">
                     <p class="text-xs font-bold text-zinc-500">{{ __('ai_models.credit_limit') }}</p>
                     <p class="mt-1 font-bold">{{ $aiModelAccess->credit_limit === null ? __('ai_models.unlimited_credit') : number_format($aiModelAccess->credit_limit) }}</p>

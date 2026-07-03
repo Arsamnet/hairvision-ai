@@ -21,6 +21,13 @@
                 <div class="mb-4 rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-bold text-rose-700">{{ $errors->first() }}</div>
             @endif
 
+            @if(! empty($debugSms))
+                <div class="mb-4 rounded-lg border border-sky-200 bg-sky-50 px-4 py-3 text-sm font-bold text-sky-900">
+                    <span class="font-semibold">کد ورود آزمایشی:</span>
+                    <span dir="ltr">{{ $debugSms }}</span>
+                </div>
+            @endif
+
             <form method="POST" action="{{ route('admin.otp.verify') }}" class="space-y-4">
                 @csrf
                 <input type="hidden" name="phone" value="{{ $phone }}">

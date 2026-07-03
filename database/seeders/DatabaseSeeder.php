@@ -37,8 +37,6 @@ class DatabaseSeeder extends Seeder
 
     private const DEFAULT_ZARINPAL_SANDBOX_MERCHANT_ID = '11111111-1111-4111-8111-111111111111';
 
-    private const DEFAULT_GAPGPT_API_KEY = 'sk-kYItwu26tpEYhjx6tY7Vi4YzOfNGqr5ifc0JCjaQK3HD06fv';
-
     // Allow model events so model boot methods (like UUID generation) run during seeding.
 
     public function run(): void
@@ -154,8 +152,7 @@ class DatabaseSeeder extends Seeder
             ]
         );
 
-        $configuredGapGptApiKey = config('services.gapgpt.api_key');
-        $gapGptApiKey = $configuredGapGptApiKey ?: self::DEFAULT_GAPGPT_API_KEY;
+        $gapGptApiKey = config('services.gapgpt.api_key');
         $gapGptIsActive = filled($gapGptApiKey);
         $gapGptAccess = AiModelAccess::query()->updateOrCreate(
             [
@@ -165,12 +162,12 @@ class DatabaseSeeder extends Seeder
             ],
             [
                 'description' => __('ai_models.seed.gapgpt_access_description'),
-                'credentials' => ['api_key' => $gapGptApiKey],
+                'credentials' => filled($gapGptApiKey) ? ['api_key' => $gapGptApiKey] : [],
                 'settings' => [
-                    'endpoint_url' => config('ai-models.models.gapgpt.endpoint'),
-                    'model' => config('ai-models.models.gapgpt.default_model'),
-                    'image_field' => config('ai-models.models.gapgpt.image_field'),
-                    'output_format' => 'jpeg',
+                    'endpoint_url' => config('services.gapgpt.image_edit_endpoint'),
+                    'model' => config('services.gapgpt.image_model'),
+                    'size' => config('services.gapgpt.image_size'),
+                    'response_format' => config('services.gapgpt.image_response_format'),
                     'timeout_seconds' => config('ai-models.models.gapgpt.default_timeout'),
                     'connect_timeout_seconds' => config('ai-models.models.gapgpt.default_connect_timeout'),
                     'retry_attempts' => 1,
@@ -183,7 +180,7 @@ class DatabaseSeeder extends Seeder
                 'is_active' => $gapGptIsActive,
                 'is_demo' => false,
                 'is_protected' => false,
-                'priority' => filled($gapGptApiKey) ? 0 : 10,
+                'priority' => $gapGptIsActive ? 0 : 10,
                 'created_by' => $superAdmin->id,
                 'updated_by' => $superAdmin->id,
             ]
