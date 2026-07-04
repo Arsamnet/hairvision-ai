@@ -423,796 +423,1099 @@
         </button>
     </div>
 
-    <?php
-        $stageCatalog = app(\App\Services\Generation\GenerationStageCatalog::class);
-        $generationFrontend = [
-            'stages' => $stageCatalog->publicStages(),
-            'messages' => __('ai.generation.messages'),
-            'statuses' => __('ai.generation.statuses'),
-            'messageIntervalMs' => config('hairvision.generation.message_interval_ms'),
-            'pollIntervalMs' => config('hairvision.generation.poll_interval_ms'),
-            'pollTimeoutMs' => config('hairvision.generation.poll_timeout_ms'),
-        ];
-    ?>
-    <script>
-        const GENERATION = <?php echo json_encode($generationFrontend, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES); ?>;
-        const STATE = {
-            phone: null,
-            verified: false,
-            uploadId: null,
-            generationGroupId: null,
-            originalPreviewUrl: null,
-            galleryItems: [],
-            activeGalleryIndex: 0,
-            stageJobs: [],
-            currentStageKey: null,
-            currentMessage: '',
-            messageIndex: 0,
-            messageTimer: null,
-            generationComplete: false,
-        };
-        const DIGIT_MAP = {
-            '۰': '0', '۱': '1', '۲': '2', '۳': '3', '۴': '4', '۵': '5', '۶': '6', '۷': '7', '۸': '8', '۹': '9',
-            '٠': '0', '١': '1', '٢': '2', '٣': '3', '٤': '4', '٥': '5', '٦': '6', '٧': '7', '٨': '8', '٩': '9'
-        };
-        const PERSIAN_DIGITS = ['۰', '۱', '۲', '۳', '۴', '۵', '۶', '۷', '۸', '۹'];
-        const SUPPORTED_DIGIT_PATTERN = /^[0-9۰-۹٠-٩]+$/u;
+<?php
+    $stageCatalog = app(\App\Services\Generation\GenerationStageCatalog::class);
 
-        function normalizeDigits(value) {
-            return Array.from(value || '')
-                .map((char) => DIGIT_MAP[char] ?? char)
-                .filter((char) => /[0-9]/.test(char))
-                .join('');
-        }
+    $generationFrontend = [
+        'stages' => $stageCatalog->publicStages(),
+        'messages' => __('ai.generation.messages'),
+        'statuses' => __('ai.generation.statuses'),
+        'messageIntervalMs' => config('hairvision.generation.message_interval_ms'),
+        'pollIntervalMs' => config('hairvision.generation.poll_interval_ms'),
+        'softTimeoutMs' => config('hairvision.generation.soft_timeout_ms'),
+        'maxWaitMs' => config('hairvision.generation.max_wait_ms'),
+        'allowBackgroundCompletion' => config('hairvision.generation.allow_background_completion'),
+        'pollTimeoutMs' => config('hairvision.generation.poll_timeout_ms'),
+    ];
+?>
+<script>
+    const GENERATION = <?php echo json_encode($generationFrontend, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES); ?>;
 
-        function toPersianDigits(value) {
-            return String(value || '').replace(/[0-9]/g, (digit) => PERSIAN_DIGITS[Number(digit)]);
-        }
+    const STORAGE_KEYS = {
+        phone: 'hairvisionPhone',
+        verified: 'hairvisionVerified',
+        activeGenerationGroupId: 'hairvisionActiveGenerationGroupId',
+    };
 
-        function isSupportedDigits(value) {
-            return !value || SUPPORTED_DIGIT_PATTERN.test(value);
-        }
+    const STATE = {
+        phone: null,
+        verified: false,
+        uploadId: null,
+        generationGroupId: null,
+        originalPreviewUrl: null,
+        galleryItems: [],
+        activeGalleryIndex: 0,
+        stageJobs: [],
+        currentStageKey: null,
+        currentMessage: '',
+        messageIndex: 0,
+        messageTimer: null,
+        generationComplete: false,
+        longRunningMessageShown: false,
+    };
 
-        function bindDigitOnlyInput(input, maxLength, onComplete = null) {
-            input.addEventListener('beforeinput', (event) => {
-                if (!event.data) return;
-                if (!isSupportedDigits(event.data)) event.preventDefault();
-            });
+    const DIGIT_MAP = {
+        '۰': '0', '۱': '1', '۲': '2', '۳': '3', '۴': '4', '۵': '5', '۶': '6', '۷': '7', '۸': '8', '۹': '9',
+        '٠': '0', '١': '1', '٢': '2', '٣': '3', '٤': '4', '٥': '5', '٦': '6', '٧': '7', '٨': '8', '٩': '9'
+    };
 
-            input.addEventListener('input', (event) => {
-                const normalized = normalizeDigits(event.target.value).slice(0, maxLength);
-                event.target.value = toPersianDigits(normalized);
-                if (normalized.length === maxLength && typeof onComplete === 'function') {
-                    onComplete(normalized);
-                }
-            });
-        }
+    const PERSIAN_DIGITS = ['۰', '۱', '۲', '۳', '۴', '۵', '۶', '۷', '۸', '۹'];
+    const SUPPORTED_DIGIT_PATTERN = /^[0-9۰-۹٠-٩]+$/u;
 
-        function escapeHtml(value) {
-            const element = document.createElement('div');
-            element.textContent = value ?? '';
-            return element.innerHTML;
-        }
+    function normalizeDigits(value) {
+        return Array.from(value || '')
+            .map((char) => DIGIT_MAP[char] ?? char)
+            .filter((char) => /[0-9]/.test(char))
+            .join('');
+    }
 
-        function wait(ms) {
-            return new Promise((resolve) => setTimeout(resolve, ms));
-        }
+    function toPersianDigits(value) {
+        return String(value || '').replace(/[0-9]/g, (digit) => PERSIAN_DIGITS[Number(digit)]);
+    }
 
-        function firstStageKey() {
-            return GENERATION.stages?.[0]?.key || 'two_weeks';
-        }
+    function isSupportedDigits(value) {
+        return !value || SUPPORTED_DIGIT_PATTERN.test(value);
+    }
 
-        function stageMessages(stageKey) {
-            return Array.isArray(GENERATION.messages?.[stageKey]) ? GENERATION.messages[stageKey] : [];
-        }
+    function bindDigitOnlyInput(input, maxLength, onComplete = null) {
+        input.addEventListener('beforeinput', (event) => {
+            if (!event.data) return;
+            if (!isSupportedDigits(event.data)) event.preventDefault();
+        });
 
-        function completionMessage() {
-            return GENERATION.messages?.completed?.[0] || '';
-        }
+        input.addEventListener('input', (event) => {
+            const normalized = normalizeDigits(event.target.value).slice(0, maxLength);
+            event.target.value = toPersianDigits(normalized);
 
-        function failedMessage() {
-            return GENERATION.messages?.failed?.[0] || '';
-        }
-
-        function statusLabel(status) {
-            return GENERATION.statuses?.[status] || status || '';
-        }
-
-        function friendlyApiMessage(status, fallback = 'خطایی رخ داد. لطفا دوباره تلاش کنید.') {
-            if ([401, 403, 419].includes(Number(status))) {
-                return 'برای ادامه، لطفاً کد تایید جدید دریافت کنید.';
+            if (normalized.length === maxLength && typeof onComplete === 'function') {
+                onComplete(normalized);
             }
+        });
+    }
 
-            return fallback;
+    function escapeHtml(value) {
+        const element = document.createElement('div');
+        element.textContent = value ?? '';
+        return element.innerHTML;
+    }
+
+    function wait(ms) {
+        return new Promise((resolve) => setTimeout(resolve, ms));
+    }
+
+    function firstStageKey() {
+        return GENERATION.stages?.[0]?.key || 'two_weeks';
+    }
+
+    function stageMessages(stageKey) {
+        return Array.isArray(GENERATION.messages?.[stageKey]) ? GENERATION.messages[stageKey] : [];
+    }
+
+    function completionMessage() {
+        return GENERATION.messages?.completed?.[0] || 'پیش‌نمایش شما آماده شد.';
+    }
+
+    function failedMessage() {
+        return GENERATION.messages?.failed?.[0] || 'ساخت پیش‌نمایش ناموفق بود. لطفاً دوباره تلاش کنید.';
+    }
+
+    function statusLabel(status) {
+        return GENERATION.statuses?.[status] || status || '';
+    }
+
+    function verificationStatusCodes() {
+        return [401, 403, 404, 419];
+    }
+
+    function friendlyApiMessage(status, fallback = 'خطایی رخ داد. لطفاً دوباره تلاش کنید.') {
+        if (verificationStatusCodes().includes(Number(status))) {
+            return 'نشست تایید شما معتبر نیست. لطفاً دوباره کد تایید دریافت کنید.';
         }
 
-        async function parseJsonResponse(response) {
-            const text = await response.text();
+        return fallback;
+    }
 
-            if (!text) return {};
+    function longRunningMessage() {
+        return 'ساخت تصاویر با مدل واقعی کمی زمان‌بر است. پردازش همچنان در سرور ادامه دارد و نتیجه پس از آماده شدن نمایش داده می‌شود.';
+    }
 
-            try {
-                return JSON.parse(text);
-            } catch (error) {
-                return {};
-            }
+    function backgroundContinueMessage() {
+        return 'پردازش تصاویر همچنان در پس‌زمینه ادامه دارد. می‌توانید چند دقیقه بعد دوباره همین صفحه را بررسی کنید.';
+    }
+
+    async function parseJsonResponse(response) {
+        const text = await response.text();
+
+        if (!text) return {};
+
+        try {
+            return JSON.parse(text);
+        } catch (error) {
+            return {};
+        }
+    }
+
+    async function requestJson(url, options = {}) {
+        const body = options.body;
+        const isFormData = body instanceof FormData;
+
+        const response = await fetch(url, {
+            credentials: 'same-origin',
+            ...options,
+            headers: {
+                Accept: 'application/json',
+                'X-Requested-With': 'XMLHttpRequest',
+                ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
+                ...(options.headers || {}),
+            },
+        });
+
+        const payload = await parseJsonResponse(response);
+
+        if (!response.ok) {
+            return {
+                ...payload,
+                success: false,
+                status: response.status,
+                message: payload.message || friendlyApiMessage(response.status),
+                requiresVerification: verificationStatusCodes().includes(response.status),
+            };
         }
 
-        async function requestJson(url, options = {}) {
-            const body = options.body;
-            const isFormData = body instanceof FormData;
-            const response = await fetch(url, {
-                credentials: 'same-origin',
-                ...options,
-                headers: {
-                    Accept: 'application/json',
-                    'X-Requested-With': 'XMLHttpRequest',
-                    ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
-                    ...(options.headers || {}),
-                },
-            });
-            const payload = await parseJsonResponse(response);
+        return { ...payload, status: response.status };
+    }
 
-            if (!response.ok) {
-                return {
-                    ...payload,
-                    success: false,
-                    status: response.status,
-                    message: payload.message || friendlyApiMessage(response.status),
-                    requiresVerification: [401, 403, 419].includes(response.status),
-                };
-            }
+    function clearActiveGeneration() {
+        sessionStorage.removeItem(STORAGE_KEYS.activeGenerationGroupId);
+    }
 
-            return { ...payload, status: response.status };
+    function saveActiveGeneration(groupId) {
+        if (!groupId) return;
+        sessionStorage.setItem(STORAGE_KEYS.activeGenerationGroupId, groupId);
+    }
+
+    function handleApiFailure(payload, errorId = 'uploadError') {
+        const message = payload?.requiresVerification
+            ? 'نشست تایید شما معتبر نیست. لطفاً دوباره کد تایید دریافت کنید.'
+            : (payload?.message || friendlyApiMessage(payload?.status));
+
+        stopStageMessages();
+        UI.clearStatus();
+        UI.showError(errorId, message);
+
+        const uploadButton = document.getElementById('upload');
+        if (uploadButton) {
+            uploadButton.disabled = false;
+            uploadButton.textContent = 'دریافت پیش نمایش';
         }
 
-        function handleApiFailure(payload, errorId = 'uploadError') {
-            const message = payload?.requiresVerification
-                ? 'برای ادامه، لطفاً کد تایید جدید دریافت کنید.'
-                : (payload?.message || friendlyApiMessage(payload?.status));
+        if (payload?.requiresVerification) {
+            STATE.verified = false;
+            sessionStorage.removeItem(STORAGE_KEYS.verified);
+            document.getElementById('otp').value = '';
+            UI.clearError('otpError');
+            UI.clearDebugOtp();
 
-            stopStageMessages();
-            UI.clearStatus();
-            UI.showError(errorId, message);
-
-            if (payload?.requiresVerification) {
-                STATE.verified = false;
-                sessionStorage.removeItem('hairvisionVerified');
-                document.getElementById('otp').value = '';
-                UI.clearError('otpError');
+            if (STATE.phone) {
+                document.getElementById('displayPhone').textContent = toPersianDigits(STATE.phone);
+                UI.showStep(2);
+                UI.showError('otpError', message);
+                document.getElementById('otp').focus();
+            } else {
                 UI.showStep(1);
                 UI.showError('phoneError', message);
                 document.getElementById('requestOtp').focus();
             }
         }
+    }
 
-        const UI = {
-            showStep(stepNum) {
-                document.querySelectorAll('#landingApp .flow-step').forEach((el) => {
-                    el.classList.add('hidden');
-                    el.classList.remove('hv-enter');
-                });
-                const nextStep = document.getElementById(`step${stepNum}`);
-                nextStep.classList.remove('hidden');
-                nextStep.classList.add('hv-enter');
-                this.updateStepper(stepNum);
-            },
-            updateStepper(stepNum) {
-                const progress = document.getElementById('stepProgress');
-                if (progress) {
-                    progress.style.width = `${Math.max(25, stepNum * 25)}%`;
-                }
+    const UI = {
+        showStep(stepNum) {
+            document.querySelectorAll('#landingApp .flow-step').forEach((el) => {
+                el.classList.add('hidden');
+                el.classList.remove('hv-enter');
+            });
 
-                document.querySelectorAll('[data-step-indicator]').forEach((el) => {
-                    const index = Number(el.dataset.stepIndicator);
-                    const active = index === stepNum;
-                    const done = index < stepNum;
-                    const marker = el.querySelector('.step-marker');
+            const nextStep = document.getElementById(`step${stepNum}`);
+            nextStep.classList.remove('hidden');
+            nextStep.classList.add('hv-enter');
+            this.updateStepper(stepNum);
+        },
 
-                    el.className = active
-                        ? 'step-indicator hv-step hv-step-active rounded-2xl px-3 py-3 text-right text-sm transition'
+        updateStepper(stepNum) {
+            const progress = document.getElementById('stepProgress');
+
+            if (progress) {
+                progress.style.width = `${Math.max(25, stepNum * 25)}%`;
+            }
+
+            document.querySelectorAll('[data-step-indicator]').forEach((el) => {
+                const index = Number(el.dataset.stepIndicator);
+                const active = index === stepNum;
+                const done = index < stepNum;
+                const marker = el.querySelector('.step-marker');
+
+                el.className = active
+                    ? 'step-indicator hv-step hv-step-active rounded-2xl px-3 py-3 text-right text-sm transition'
+                    : done
+                        ? 'step-indicator hv-step hv-step-done rounded-2xl px-3 py-3 text-right text-sm transition'
+                        : 'step-indicator hv-step hv-step-upcoming rounded-2xl px-3 py-3 text-right text-sm transition hover:bg-indigo-50';
+
+                if (marker) {
+                    marker.innerHTML = toPersianDigits(index);
+                    marker.className = active
+                        ? 'step-marker mb-2 grid h-7 w-7 place-items-center rounded-xl bg-white/15 text-xs font-bold text-white'
                         : done
-                            ? 'step-indicator hv-step hv-step-done rounded-2xl px-3 py-3 text-right text-sm transition'
-                            : 'step-indicator hv-step hv-step-upcoming rounded-2xl px-3 py-3 text-right text-sm transition hover:bg-indigo-50';
-
-                    if (marker) {
-                        marker.innerHTML = toPersianDigits(index);
-                        marker.className = active
-                            ? 'step-marker mb-2 grid h-7 w-7 place-items-center rounded-xl bg-white/15 text-xs font-bold text-white'
-                            : done
-                                ? 'step-marker mb-2 grid h-7 w-7 place-items-center rounded-xl bg-white text-xs font-bold text-emerald-700 ring-1 ring-emerald-300'
-                                : 'step-marker mb-2 grid h-7 w-7 place-items-center rounded-xl bg-white text-xs font-bold text-zinc-500';
-                    }
-
-                    const textSpans = el.querySelectorAll('span');
-                    const title = textSpans[1];
-                    const caption = textSpans[2];
-                    if (title) title.className = 'block font-bold';
-                    if (caption) {
-                        caption.className = active ? 'text-xs text-white/70' : done ? 'text-xs text-emerald-700/75' : 'text-xs text-zinc-500';
-                    }
-                });
-            },
-            clearError(id) {
-                const el = document.getElementById(id);
-                if (!el) return;
-                el.textContent = '';
-                el.classList.add('hidden');
-            },
-            showError(id, msg) {
-                const el = document.getElementById(id);
-                if (!el) return;
-                el.textContent = msg;
-                el.classList.remove('hidden');
-            },
-            showDebugOtp(code) {
-                const el = document.getElementById('otpDebug');
-                if (!el) return;
-                el.textContent = `کد اشکال‌زدایی: ${toPersianDigits(code)}`;
-                el.classList.remove('hidden');
-            },
-            clearDebugOtp() {
-                const el = document.getElementById('otpDebug');
-                if (!el) return;
-                el.textContent = '';
-                el.classList.add('hidden');
-            },
-            showStatus(message) {
-                STATE.currentMessage = message || '';
-                document.getElementById('statusBox').classList.remove('hidden');
-                document.getElementById('resultsStatusBox').classList.remove('hidden');
-                document.getElementById('castMessage').textContent = STATE.currentMessage;
-                document.getElementById('resultsCastMessage').textContent = STATE.currentMessage;
-                this.showModalToast(STATE.currentMessage);
-            },
-            clearStatus() {
-                document.getElementById('castMessage').textContent = '';
-                document.getElementById('resultsCastMessage').textContent = '';
-                document.getElementById('statusBox').classList.add('hidden');
-                document.getElementById('resultsStatusBox').classList.add('hidden');
-                this.hideModalToast();
-            },
-            showModalToast(message) {
-                const modal = document.getElementById('imageModal');
-                const toast = document.getElementById('modalToast');
-                if (!toast || modal.classList.contains('hidden') || STATE.generationComplete || !message) return;
-                toast.textContent = message;
-                toast.classList.remove('hidden');
-            },
-            hideModalToast() {
-                const toast = document.getElementById('modalToast');
-                if (!toast) return;
-                toast.textContent = '';
-                toast.classList.add('hidden');
-            },
-        };
-
-        const API = {
-            async requestOtp(phone) {
-                return requestJson('/api/v1/auth/otp/request', {
-                    method: 'POST',
-                    body: JSON.stringify({ phone }),
-                });
-            },
-            async verifyOtp(phone, code) {
-                return requestJson('/api/v1/auth/otp/verify', {
-                    method: 'POST',
-                    body: JSON.stringify({ phone, code }),
-                });
-            },
-            async uploadImage(file, consent) {
-                const formData = new FormData();
-                formData.append('image', file);
-                formData.append('consent', consent ? '1' : '0');
-                return requestJson('/api/v1/uploads', {
-                    method: 'POST',
-                    body: formData,
-                });
-            },
-            async createGeneration(uploadId) {
-                return requestJson('/api/v1/generations', {
-                    method: 'POST',
-                    body: JSON.stringify({ upload_id: uploadId }),
-                });
-            },
-            async getGenerationStatus(groupId) {
-                return requestJson(`/api/v1/generations/${groupId}/status`);
-            },
-            async getGenerationResults(groupId) {
-                return requestJson(`/api/v1/generations/${groupId}/results`);
-            },
-        };
-
-        bindDigitOnlyInput(document.getElementById('phone'), 11);
-
-        document.getElementById('phone').addEventListener('keydown', (event) => {
-            if (event.key === 'Enter') {
-                event.preventDefault();
-                document.getElementById('requestOtp').click();
-            }
-        });
-
-        bindDigitOnlyInput(document.getElementById('otp'), 6, () => {
-            const button = document.getElementById('verifyOtp');
-            if (!button.disabled) {
-                document.getElementById('verifyOtp').click();
-            }
-        });
-
-        document.getElementById('image').addEventListener('change', (event) => {
-            const file = event.target.files?.[0];
-            if (!file) return;
-            const preview = document.getElementById('imagePreview');
-            const placeholder = document.getElementById('imagePlaceholder');
-            if (STATE.originalPreviewUrl) URL.revokeObjectURL(STATE.originalPreviewUrl);
-            STATE.originalPreviewUrl = URL.createObjectURL(file);
-            preview.src = STATE.originalPreviewUrl;
-            preview.classList.remove('hidden');
-            placeholder.classList.add('hidden');
-            primeGallery();
-        });
-
-        document.getElementById('imagePreview').addEventListener('click', (event) => {
-            if (!STATE.originalPreviewUrl) return;
-            event.preventDefault();
-            event.stopPropagation();
-            primeGallery();
-            openImageModal(0);
-        });
-
-        document.getElementById('requestOtp').addEventListener('click', async () => {
-            const phone = normalizeDigits(document.getElementById('phone').value);
-            UI.clearError('phoneError');
-            if (phone.length !== 11) return UI.showError('phoneError', 'شماره موبایل باید ۱۱ رقم باشد.');
-            const btn = document.getElementById('requestOtp');
-            if (btn.disabled) return;
-            btn.disabled = true;
-            btn.textContent = 'در حال ارسال...';
-            const result = await API.requestOtp(phone);
-            btn.disabled = false;
-            btn.textContent = 'ارسال کد تایید';
-            if (result.success) {
-                STATE.phone = phone;
-                sessionStorage.setItem('hairvisionPhone', phone);
-                document.getElementById('displayPhone').textContent = toPersianDigits(phone);
-
-                if (result.debug_sms) {
-                    UI.showDebugOtp(result.debug_sms);
-                } else {
-                    UI.clearDebugOtp();
+                            ? 'step-marker mb-2 grid h-7 w-7 place-items-center rounded-xl bg-white text-xs font-bold text-emerald-700 ring-1 ring-emerald-300'
+                            : 'step-marker mb-2 grid h-7 w-7 place-items-center rounded-xl bg-white text-xs font-bold text-zinc-500';
                 }
 
-                UI.showStep(2);
-                document.getElementById('otp').focus();
-            } else {
-                UI.showError('phoneError', result.message || 'ارسال کد تایید ناموفق بود.');
-            }
-        });
+                const textSpans = el.querySelectorAll('span');
+                const title = textSpans[1];
+                const caption = textSpans[2];
 
-        document.getElementById('verifyOtp').addEventListener('click', async () => {
-            const code = normalizeDigits(document.getElementById('otp').value);
-            UI.clearError('otpError');
-            if (!code || code.length !== 6) return UI.showError('otpError', 'کد ۶ رقمی را وارد کنید.');
-            const btn = document.getElementById('verifyOtp');
-            if (btn.disabled) return;
-            btn.disabled = true;
-            btn.textContent = 'در حال تایید...';
-            const result = await API.verifyOtp(STATE.phone, code);
-            btn.disabled = false;
-            btn.textContent = 'تایید و ادامه';
-            if (result.success) {
-                STATE.verified = true;
-                sessionStorage.setItem('hairvisionPhone', STATE.phone);
-                sessionStorage.setItem('hairvisionVerified', '1');
-                UI.showStep(3);
-            } else {
-                UI.showError('otpError', result.message || 'تایید کد ناموفق بود.');
-            }
-        });
+                if (title) title.className = 'block font-bold';
 
-        document.getElementById('backToPhone').addEventListener('click', () => {
-            document.getElementById('otp').value = '';
-            UI.clearError('otpError');
-            UI.clearDebugOtp();
+                if (caption) {
+                    caption.className = active
+                        ? 'text-xs text-white/70'
+                        : done
+                            ? 'text-xs text-emerald-700/75'
+                            : 'text-xs text-zinc-500';
+                }
+            });
+        },
+
+        clearError(id) {
+            const el = document.getElementById(id);
+            if (!el) return;
+
+            el.textContent = '';
+            el.classList.add('hidden');
+        },
+
+        showError(id, msg) {
+            const el = document.getElementById(id);
+            if (!el) return;
+
+            el.textContent = msg;
+            el.classList.remove('hidden');
+        },
+
+        showDebugOtp(code) {
+            const el = document.getElementById('otpDebug');
+            if (!el) return;
+
+            el.textContent = `کد اشکال‌زدایی: ${toPersianDigits(code)}`;
+            el.classList.remove('hidden');
+        },
+
+        clearDebugOtp() {
+            const el = document.getElementById('otpDebug');
+            if (!el) return;
+
+            el.textContent = '';
+            el.classList.add('hidden');
+        },
+
+        showStatus(message) {
+            STATE.currentMessage = message || '';
+
+            document.getElementById('statusBox').classList.remove('hidden');
+            document.getElementById('resultsStatusBox').classList.remove('hidden');
+            document.getElementById('castMessage').textContent = STATE.currentMessage;
+            document.getElementById('resultsCastMessage').textContent = STATE.currentMessage;
+
+            this.showModalToast(STATE.currentMessage);
+        },
+
+        clearStatus() {
+            document.getElementById('castMessage').textContent = '';
+            document.getElementById('resultsCastMessage').textContent = '';
+            document.getElementById('statusBox').classList.add('hidden');
+            document.getElementById('resultsStatusBox').classList.add('hidden');
+
+            this.hideModalToast();
+        },
+
+        showModalToast(message) {
+            const modal = document.getElementById('imageModal');
+            const toast = document.getElementById('modalToast');
+
+            if (!toast || modal.classList.contains('hidden') || STATE.generationComplete || !message) return;
+
+            toast.textContent = message;
+            toast.classList.remove('hidden');
+        },
+
+        hideModalToast() {
+            const toast = document.getElementById('modalToast');
+            if (!toast) return;
+
+            toast.textContent = '';
+            toast.classList.add('hidden');
+        },
+    };
+
+    const API = {
+        async requestOtp(phone) {
+            return requestJson('/api/v1/auth/otp/request', {
+                method: 'POST',
+                body: JSON.stringify({ phone }),
+            });
+        },
+
+        async verifyOtp(phone, code) {
+            return requestJson('/api/v1/auth/otp/verify', {
+                method: 'POST',
+                body: JSON.stringify({ phone, code }),
+            });
+        },
+
+        async uploadImage(file, consent) {
+            const formData = new FormData();
+            formData.append('image', file);
+            formData.append('consent', consent ? '1' : '0');
+
+            return requestJson('/api/v1/uploads', {
+                method: 'POST',
+                body: formData,
+            });
+        },
+
+        async createGeneration(uploadId) {
+            return requestJson('/api/v1/generations', {
+                method: 'POST',
+                body: JSON.stringify({ upload_id: uploadId }),
+            });
+        },
+
+        async getGenerationStatus(groupId) {
+            return requestJson(`/api/v1/generations/${groupId}/status`);
+        },
+
+        async getGenerationResults(groupId) {
+            return requestJson(`/api/v1/generations/${groupId}/results`);
+        },
+    };
+
+    bindDigitOnlyInput(document.getElementById('phone'), 11);
+
+    document.getElementById('phone').addEventListener('keydown', (event) => {
+        if (event.key === 'Enter') {
+            event.preventDefault();
+            document.getElementById('requestOtp').click();
+        }
+    });
+
+    bindDigitOnlyInput(document.getElementById('otp'), 6, () => {
+        const button = document.getElementById('verifyOtp');
+
+        if (!button.disabled) {
+            document.getElementById('verifyOtp').click();
+        }
+    });
+
+    document.getElementById('image').addEventListener('change', (event) => {
+        const file = event.target.files?.[0];
+        if (!file) return;
+
+        const preview = document.getElementById('imagePreview');
+        const placeholder = document.getElementById('imagePlaceholder');
+
+        if (STATE.originalPreviewUrl) URL.revokeObjectURL(STATE.originalPreviewUrl);
+
+        STATE.originalPreviewUrl = URL.createObjectURL(file);
+        preview.src = STATE.originalPreviewUrl;
+        preview.classList.remove('hidden');
+        placeholder.classList.add('hidden');
+
+        primeGallery();
+    });
+
+    document.getElementById('imagePreview').addEventListener('click', (event) => {
+        if (!STATE.originalPreviewUrl) return;
+
+        event.preventDefault();
+        event.stopPropagation();
+
+        primeGallery();
+        openImageModal(0);
+    });
+
+    document.getElementById('requestOtp').addEventListener('click', async () => {
+        const phone = normalizeDigits(document.getElementById('phone').value);
+
+        UI.clearError('phoneError');
+
+        if (phone.length !== 11) {
+            return UI.showError('phoneError', 'شماره موبایل باید ۱۱ رقم باشد.');
+        }
+
+        const btn = document.getElementById('requestOtp');
+
+        if (btn.disabled) return;
+
+        btn.disabled = true;
+        btn.textContent = 'در حال ارسال...';
+
+        const result = await API.requestOtp(phone);
+
+        btn.disabled = false;
+        btn.textContent = 'ارسال کد تایید';
+
+        if (result.success) {
+            STATE.phone = phone;
+            STATE.verified = false;
+
+            sessionStorage.setItem(STORAGE_KEYS.phone, phone);
+            sessionStorage.removeItem(STORAGE_KEYS.verified);
+
+            document.getElementById('displayPhone').textContent = toPersianDigits(phone);
+
+            if (result.debug_sms) {
+                UI.showDebugOtp(result.debug_sms);
+            } else {
+                UI.clearDebugOtp();
+            }
+
+            UI.showStep(2);
+            document.getElementById('otp').focus();
+
+            return;
+        }
+
+        UI.showError('phoneError', result.message || 'ارسال کد تایید ناموفق بود.');
+    });
+
+    document.getElementById('verifyOtp').addEventListener('click', async () => {
+        const code = normalizeDigits(document.getElementById('otp').value);
+
+        UI.clearError('otpError');
+
+        if (!code || code.length !== 6) {
+            return UI.showError('otpError', 'کد ۶ رقمی را وارد کنید.');
+        }
+
+        const btn = document.getElementById('verifyOtp');
+
+        if (btn.disabled) return;
+
+        btn.disabled = true;
+        btn.textContent = 'در حال تایید...';
+
+        const result = await API.verifyOtp(STATE.phone, code);
+
+        btn.disabled = false;
+        btn.textContent = 'تایید و ادامه';
+
+        if (result.success) {
+            STATE.verified = true;
+
+            sessionStorage.setItem(STORAGE_KEYS.phone, STATE.phone);
+            sessionStorage.setItem(STORAGE_KEYS.verified, '1');
+
+            UI.showStep(3);
+
+            return;
+        }
+
+        UI.showError('otpError', result.message || 'تایید کد ناموفق بود.');
+    });
+
+    document.getElementById('backToPhone').addEventListener('click', () => {
+        document.getElementById('otp').value = '';
+
+        STATE.verified = false;
+        sessionStorage.removeItem(STORAGE_KEYS.verified);
+
+        UI.clearError('otpError');
+        UI.clearDebugOtp();
+        UI.showStep(1);
+    });
+
+    document.getElementById('upload').addEventListener('click', async () => {
+        const fileInput = document.getElementById('image');
+        const consent = document.getElementById('consent').checked;
+        const btn = document.getElementById('upload');
+
+        UI.clearError('uploadError');
+
+        if (!STATE.verified) {
+            sessionStorage.removeItem(STORAGE_KEYS.verified);
             UI.showStep(1);
-        });
+            UI.showError('phoneError', 'برای ادامه، لطفاً ابتدا شماره موبایل خود را تایید کنید.');
+            return;
+        }
 
-        document.getElementById('upload').addEventListener('click', async () => {
-            const fileInput = document.getElementById('image');
-            const consent = document.getElementById('consent').checked;
-            UI.clearError('uploadError');
-            if (!fileInput.files.length) return UI.showError('uploadError', 'لطفا یک تصویر انتخاب کنید.');
-            if (!consent) return UI.showError('uploadError', 'برای ادامه باید رضایت پردازش تصویر را تایید کنید.');
-
-            UI.clearDebugOtp();
-            resetGenerationProgress(false);
-            const btn = document.getElementById('upload');
+        if (STATE.generationGroupId && !STATE.generationComplete) {
             btn.disabled = true;
-            btn.textContent = 'در حال ارسال...';
-            startStageMessages(firstStageKey(), true);
+            btn.textContent = 'در حال بررسی نتیجه...';
 
             try {
-                const result = await API.uploadImage(fileInput.files[0], consent);
-                if (result.success && result.upload?.id) {
-                    STATE.uploadId = result.upload.id;
-                    btn.textContent = 'در حال ساخت مرحله اول...';
-                    const genResult = await API.createGeneration(STATE.uploadId);
-                    if (genResult.success && genResult.generation_group?.id) {
-                        STATE.generationGroupId = genResult.generation_group.id;
-                        const state = applyGenerationStatus(genResult);
+                const statusResult = await API.getGenerationStatus(STATE.generationGroupId);
 
-                        if (state === 'processing') {
-                            await pollUntilComplete();
-                        }
-                    } else {
-                        btn.disabled = false;
-                        btn.textContent = 'دریافت پیش نمایش';
-                        handleApiFailure(genResult);
-                    }
-                } else {
+                if (statusResult.success === false) {
                     btn.disabled = false;
                     btn.textContent = 'دریافت پیش نمایش';
-                    handleApiFailure(result);
-                }
-            } catch (error) {
-                stopStageMessages();
-                btn.disabled = false;
-                btn.textContent = 'دریافت پیش نمایش';
-                UI.clearStatus();
-                UI.showError('uploadError', 'خطایی رخ داد. لطفا دوباره تلاش کنید.');
-            }
-        });
-
-        document.getElementById('backToVerify').addEventListener('click', () => {
-            resetImageInput();
-            resetGenerationProgress();
-            UI.clearError('uploadError');
-            UI.showStep(2);
-        });
-
-        document.getElementById('closeImageModal').addEventListener('click', closeImageModal);
-        document.getElementById('prevImageModal').addEventListener('click', showPreviousImage);
-        document.getElementById('nextImageModal').addEventListener('click', showNextImage);
-        document.getElementById('imageModal').addEventListener('click', (event) => {
-            if (event.target.id === 'imageModal') closeImageModal();
-        });
-        document.addEventListener('keydown', (event) => {
-            const modal = document.getElementById('imageModal');
-            if (modal.classList.contains('hidden')) return;
-            if (event.key === 'Escape') closeImageModal();
-            if (event.key === 'ArrowRight') showPreviousImage();
-            if (event.key === 'ArrowLeft') showNextImage();
-        });
-
-        async function pollUntilComplete() {
-            const startedAt = Date.now();
-            const timeoutMs = Number(GENERATION.pollTimeoutMs || 360000);
-            const intervalMs = Number(GENERATION.pollIntervalMs || 5000);
-
-            while (Date.now() - startedAt < timeoutMs) {
-                await wait(intervalMs);
-                const statusResult = await API.getGenerationStatus(STATE.generationGroupId);
-                if (statusResult.success === false) {
                     handleApiFailure(statusResult);
-                    return 'failed';
+                    return;
                 }
 
                 const state = applyGenerationStatus(statusResult);
 
-                if (state === 'completed' || state === 'failed') {
-                    return state;
+                if (state === 'processing') {
+                    const pollState = await pollUntilComplete();
+
+                    if (pollState === 'background') {
+                        btn.disabled = false;
+                        btn.textContent = 'بررسی وضعیت نتیجه';
+                    }
                 }
+            } catch (error) {
+                btn.disabled = false;
+                btn.textContent = 'بررسی وضعیت نتیجه';
+                UI.showStatus('ارتباط موقتاً قطع شد، اما اگر پردازش در سرور شروع شده باشد، ساخت تصاویر در پس‌زمینه ادامه دارد.');
             }
 
-            stopStageMessages();
-            UI.showError('uploadError', 'آماده سازی تصاویر بیشتر از حد انتظار طول کشید. لطفا دوباره تلاش کنید.');
-            return 'failed';
+            return;
         }
 
-        function applyGenerationStatus(payload) {
-            const jobs = Array.isArray(payload.jobs) ? payload.jobs : [];
-            STATE.stageJobs = jobs;
-            renderStagePanels(jobs);
-
-            const readyJobs = jobs.filter((job) => job.asset_url);
-            const failed = payload.status === 'failed' || jobs.some((job) => job.status === 'failed');
-            const completed = payload.status === 'completed' || (jobs.length > 0 && jobs.every((job) => job.status === 'completed'));
-
-            if (readyJobs.length > 0 || !document.getElementById('step4').classList.contains('hidden')) {
-                displayGenerationResults(jobs);
-                UI.showStep(4);
-            }
-
-            if (failed) {
-                stopStageMessages();
-                STATE.generationComplete = false;
-                UI.showStatus(failedMessage());
-                UI.showError('uploadError', failedMessage());
-                return 'failed';
-            }
-
-            if (completed) {
-                displayGenerationResults(jobs);
-                UI.showStep(4);
-                showCompletionMessage();
-                return 'completed';
-            }
-
-            const current = payload.current_stage?.key || currentStageFromJobs(jobs)?.key || firstStageKey();
-            startStageMessages(current);
-
-            return 'processing';
+        if (!fileInput.files.length) {
+            return UI.showError('uploadError', 'لطفاً یک تصویر انتخاب کنید.');
         }
 
-        function currentStageFromJobs(jobs) {
-            return jobs.find((job) => job.status === 'processing')
-                || jobs.find((job) => job.status === 'pending')
-                || jobs.find((job) => job.status === 'failed')
-                || null;
+        if (!consent) {
+            return UI.showError('uploadError', 'برای ادامه باید رضایت پردازش تصویر را تایید کنید.');
         }
 
-        function startStageMessages(stageKey, force = false) {
-            const key = stageKey || firstStageKey();
-            const messages = stageMessages(key);
-            if (!messages.length) return;
+        UI.clearDebugOtp();
+        resetGenerationProgress(false);
 
-            if (!force && STATE.currentStageKey === key && STATE.messageTimer) {
-                return;
-            }
+        btn.disabled = true;
+        btn.textContent = 'در حال ارسال...';
 
-            stopStageMessages();
-            STATE.currentStageKey = key;
-            STATE.messageIndex = 0;
-            UI.showStatus(messages[0]);
-            STATE.messageTimer = window.setInterval(() => {
-                STATE.messageIndex = (STATE.messageIndex + 1) % messages.length;
-                UI.showStatus(messages[STATE.messageIndex]);
-            }, Number(GENERATION.messageIntervalMs || 10000));
-        }
+        startStageMessages(firstStageKey(), true);
 
-        function stopStageMessages() {
-            if (STATE.messageTimer) {
-                window.clearInterval(STATE.messageTimer);
-            }
-            STATE.messageTimer = null;
-        }
+        try {
+            const result = await API.uploadImage(fileInput.files[0], consent);
 
-        function showCompletionMessage() {
-            stopStageMessages();
-            STATE.generationComplete = true;
-            UI.showStatus(completionMessage());
-            UI.hideModalToast();
-        }
+            if (result.success && result.upload?.id) {
+                STATE.uploadId = result.upload.id;
+                btn.textContent = 'در حال ساخت مرحله اول...';
 
-        function renderStagePanels(jobs) {
-            renderStageList('processingStageList', jobs);
-            renderStageList('resultsStageList', jobs);
-        }
+                const genResult = await API.createGeneration(STATE.uploadId);
 
-        function renderStageList(containerId, jobs) {
-            const container = document.getElementById(containerId);
-            if (!container) return;
+                if (genResult.success && genResult.generation_group?.id) {
+                    STATE.generationGroupId = genResult.generation_group.id;
+                    saveActiveGeneration(STATE.generationGroupId);
 
-            container.innerHTML = (GENERATION.stages || []).map((stage, index) => {
-                const job = jobs.find((item) => item.key === stage.key || item.period === stage.key) || {};
-                const status = job.status || 'pending';
-                const failed = status === 'failed';
-                const completed = status === 'completed';
-                const processing = status === 'processing';
-                const statusClass = failed ? 'is-failed' : completed ? 'is-completed' : processing ? 'is-processing' : '';
-                const markerClass = completed
-                    ? 'bg-emerald-700 text-white'
-                    : failed
-                        ? 'bg-rose-600 text-white'
-                        : processing
-                            ? 'bg-indigo-700 text-white'
-                            : 'bg-white text-zinc-500';
-                const marker = toPersianDigits(index + 1);
-                const error = failed && job.error ? `<p class="mt-2 text-xs leading-6 text-rose-700">${escapeHtml(job.error)}</p>` : '';
+                    const state = applyGenerationStatus(genResult);
 
-                return `
-                    <article class="hv-generation-stage ${statusClass} rounded-2xl p-3">
-                        <div class="flex items-start gap-3">
-                            <span class="grid h-8 w-8 shrink-0 place-items-center rounded-xl text-xs font-bold ${markerClass}">${marker}</span>
-                            <span class="min-w-0">
-                                <span class="block text-sm font-bold text-zinc-900">${escapeHtml(stage.label)}</span>
-                                <span class="mt-1 block text-xs leading-6 text-zinc-500">${escapeHtml(stage.caption || '')}</span>
-                                <span class="mt-2 inline-flex rounded-full bg-white/75 px-2 py-1 text-xs font-bold text-zinc-600 ring-1 ring-zinc-200">${escapeHtml(statusLabel(status))}</span>
-                                ${error}
-                            </span>
-                        </div>
-                    </article>
-                `;
-            }).join('');
-        }
+                    if (state === 'processing') {
+                        const pollState = await pollUntilComplete();
 
-        function galleryItemsFromJobs(jobs = STATE.stageJobs) {
-            return [
-                {
-                    period: 'original',
-                    label: 'تصویر اولیه',
-                    caption: 'تصویر بارگذاری شده',
-                    status: STATE.originalPreviewUrl ? 'completed' : 'pending',
-                    url: STATE.originalPreviewUrl,
-                },
-                ...(GENERATION.stages || []).map((stage) => {
-                    const job = jobs.find((item) => item.key === stage.key || item.period === stage.key) || {};
+                        if (pollState === 'background') {
+                            btn.disabled = false;
+                            btn.textContent = 'بررسی وضعیت نتیجه';
+                        }
+                    }
 
-                    return {
-                        period: stage.key,
-                        label: stage.label,
-                        caption: stage.caption,
-                        status: job.status || 'pending',
-                        url: job.asset_url || null,
-                    };
-                }),
-            ];
-        }
-
-        function primeGallery() {
-            STATE.galleryItems = galleryItemsFromJobs();
-        }
-
-        function displayGenerationResults(jobs) {
-            const container = document.getElementById('resultsContainer');
-            container.innerHTML = '';
-            const items = galleryItemsFromJobs(jobs);
-            STATE.galleryItems = items;
-
-            items.forEach((item, index) => {
-                const card = document.createElement('article');
-                card.className = 'hv-result-card hv-enter overflow-hidden rounded-3xl bg-white shadow-lg shadow-indigo-100/70';
-                card.style.animationDelay = `${index * 70}ms`;
-                const media = item.url
-                    ? `<img src="${item.url}" alt="${escapeHtml(item.label)}" class="hv-result-image aspect-[4/5] w-full object-cover" loading="lazy" />`
-                    : `<span class="hv-skeleton block aspect-[4/5] w-full"></span><span class="absolute inset-0 grid place-items-center px-4 text-center"><span><span class="mx-auto grid h-12 w-12 place-items-center rounded-2xl bg-white/90 text-sm font-bold text-zinc-500 shadow-sm">${toPersianDigits(index + 1)}</span><span class="mt-3 block text-sm font-bold text-zinc-600">${escapeHtml(statusLabel(item.status))}</span></span></span>`;
-                const status = item.period === 'original'
-                    ? `<span class="mt-3 inline-flex rounded-full bg-emerald-50 px-3 py-1 text-xs font-bold text-emerald-700">${escapeHtml(statusLabel(item.status))}</span>`
-                    : `<span class="mt-3 inline-flex rounded-full bg-zinc-100 px-3 py-1 text-xs font-bold text-zinc-600">${escapeHtml(statusLabel(item.status))}</span>`;
-
-                card.innerHTML = `<button type="button" class="block w-full text-right" data-gallery-index="${index}"><span class="relative block overflow-hidden bg-zinc-100">${media}</span><span class="block p-4"><span class="block text-base font-bold text-zinc-950">${escapeHtml(item.label)}</span><span class="mt-1 block text-sm leading-6 text-zinc-500">${escapeHtml(item.caption || '')}</span>${status}</span></button>`;
-                container.appendChild(card);
-            });
-
-            container.querySelectorAll('[data-gallery-index]').forEach((button) => {
-                button.addEventListener('click', () => openImageModal(Number(button.dataset.galleryIndex)));
-            });
-
-            if (!document.getElementById('imageModal').classList.contains('hidden') && STATE.galleryItems.length) {
-                STATE.activeGalleryIndex = Math.min(STATE.activeGalleryIndex, STATE.galleryItems.length - 1);
-                renderModalImage(false);
-            }
-        }
-
-        function openImageModal(index) {
-            if (!STATE.galleryItems.length) {
-                primeGallery();
-            }
-
-            if (!STATE.galleryItems.length) return;
-
-            STATE.activeGalleryIndex = Math.min(
-                Math.max(Number.isFinite(index) ? index : 0, 0),
-                STATE.galleryItems.length - 1
-            );
-            const modal = document.getElementById('imageModal');
-            modal.classList.remove('hidden');
-            modal.classList.add('flex');
-            renderModalImage(false);
-            UI.showModalToast(STATE.currentMessage);
-        }
-
-        function closeImageModal() {
-            const modal = document.getElementById('imageModal');
-            modal.classList.add('hidden');
-            modal.classList.remove('flex');
-            document.getElementById('modalSkeleton').classList.add('hidden');
-            document.getElementById('modalImage').src = '';
-            document.getElementById('modalImage').classList.remove('hidden', 'is-changing');
-            document.getElementById('modalCaption').textContent = '';
-            UI.hideModalToast();
-        }
-
-        function showPreviousImage() {
-            if (!STATE.galleryItems.length) return;
-            STATE.activeGalleryIndex = (STATE.activeGalleryIndex - 1 + STATE.galleryItems.length) % STATE.galleryItems.length;
-            renderModalImage(true);
-        }
-
-        function showNextImage() {
-            if (!STATE.galleryItems.length) return;
-            STATE.activeGalleryIndex = (STATE.activeGalleryIndex + 1) % STATE.galleryItems.length;
-            renderModalImage(true);
-        }
-
-        function renderModalImage(animate = true) {
-            const item = STATE.galleryItems[STATE.activeGalleryIndex];
-            if (!item) return;
-            const image = document.getElementById('modalImage');
-            const skeleton = document.getElementById('modalSkeleton');
-            const caption = document.getElementById('modalCaption');
-
-            const applyImage = () => {
-                if (!item.url) {
-                    image.classList.add('hidden');
-                    image.classList.remove('is-changing');
-                    image.removeAttribute('src');
-                    skeleton.classList.remove('hidden');
-                    caption.textContent = `${item.label} - ${statusLabel(item.status || 'pending')}`;
-                    UI.showModalToast(STATE.currentMessage);
                     return;
                 }
 
-                skeleton.classList.add('hidden');
-                image.classList.remove('hidden');
-                image.src = item.url;
-                image.alt = item.label || 'نمای بزرگ تصویر';
-                caption.textContent = `${item.label} - ${item.caption}`;
-                image.classList.remove('is-changing');
-            };
+                btn.disabled = false;
+                btn.textContent = 'دریافت پیش نمایش';
+                handleApiFailure(genResult);
 
-            if (!animate) {
-                applyImage();
                 return;
             }
 
-            if (item.url) {
-                image.classList.add('is-changing');
-            }
-            window.setTimeout(applyImage, 160);
-        }
-
-        function resetImageInput() {
-            document.getElementById('image').value = '';
-            document.getElementById('consent').checked = false;
-            const preview = document.getElementById('imagePreview');
-            const placeholder = document.getElementById('imagePlaceholder');
-            preview.src = '';
-            preview.classList.add('hidden');
-            placeholder.classList.remove('hidden');
-            if (STATE.originalPreviewUrl) {
-                URL.revokeObjectURL(STATE.originalPreviewUrl);
-                STATE.originalPreviewUrl = null;
-            }
-            STATE.galleryItems = [];
-        }
-
-        function resetGenerationProgress(clearStatus = true) {
+            btn.disabled = false;
+            btn.textContent = 'دریافت پیش نمایش';
+            handleApiFailure(result);
+        } catch (error) {
             stopStageMessages();
-            STATE.stageJobs = [];
-            STATE.galleryItems = [];
-            STATE.currentStageKey = null;
-            STATE.currentMessage = '';
-            STATE.messageIndex = 0;
+
+            btn.disabled = false;
+            btn.textContent = 'دریافت پیش نمایش';
+
+            UI.clearStatus();
+            UI.showError('uploadError', 'خطایی رخ داد. لطفاً دوباره تلاش کنید.');
+        }
+    });
+
+    document.getElementById('backToVerify').addEventListener('click', () => {
+        resetImageInput();
+        resetGenerationProgress();
+        UI.clearError('uploadError');
+        UI.showStep(2);
+    });
+
+    document.getElementById('closeImageModal').addEventListener('click', closeImageModal);
+    document.getElementById('prevImageModal').addEventListener('click', showPreviousImage);
+    document.getElementById('nextImageModal').addEventListener('click', showNextImage);
+
+    document.getElementById('imageModal').addEventListener('click', (event) => {
+        if (event.target.id === 'imageModal') closeImageModal();
+    });
+
+    document.addEventListener('keydown', (event) => {
+        const modal = document.getElementById('imageModal');
+
+        if (modal.classList.contains('hidden')) return;
+
+        if (event.key === 'Escape') closeImageModal();
+        if (event.key === 'ArrowRight') showPreviousImage();
+        if (event.key === 'ArrowLeft') showNextImage();
+    });
+
+    async function pollUntilComplete() {
+        const startedAt = Date.now();
+        const intervalMs = Number(GENERATION.pollIntervalMs || 5000);
+        const softTimeoutMs = Number(GENERATION.softTimeoutMs || 120000);
+        const legacyTimeoutMs = Number(GENERATION.pollTimeoutMs || 900000);
+        const maxWaitMs = Number(GENERATION.maxWaitMs || legacyTimeoutMs || 900000);
+        let softMessageShown = false;
+
+        while (Date.now() - startedAt < maxWaitMs) {
+            await wait(intervalMs);
+
+            const elapsed = Date.now() - startedAt;
+            const statusResult = await API.getGenerationStatus(STATE.generationGroupId);
+
+            if (statusResult.success === false) {
+                handleApiFailure(statusResult);
+                return 'failed';
+            }
+
+            const state = applyGenerationStatus(statusResult);
+
+            if (state === 'completed' || state === 'failed') {
+                return state;
+            }
+
+            if (elapsed >= softTimeoutMs && !softMessageShown) {
+                softMessageShown = true;
+                STATE.longRunningMessageShown = true;
+                UI.showStatus(longRunningMessage());
+            }
+        }
+
+        stopStageMessages();
+        UI.showStatus(backgroundContinueMessage());
+        UI.showError('uploadError', backgroundContinueMessage());
+
+        return 'background';
+    }
+
+    function applyGenerationStatus(payload) {
+        const jobs = Array.isArray(payload.jobs) ? payload.jobs : [];
+
+        STATE.stageJobs = jobs;
+        renderStagePanels(jobs);
+
+        const readyJobs = jobs.filter((job) => job.asset_url);
+        const failed = payload.status === 'failed' || jobs.some((job) => job.status === 'failed');
+        const completed = payload.status === 'completed' || (jobs.length > 0 && jobs.every((job) => job.status === 'completed'));
+
+        if (readyJobs.length > 0 || !document.getElementById('step4').classList.contains('hidden')) {
+            displayGenerationResults(jobs);
+            UI.showStep(4);
+        }
+
+        if (failed) {
+            clearActiveGeneration();
+            stopStageMessages();
+
             STATE.generationComplete = false;
-            renderStagePanels([]);
-            document.getElementById('resultsContainer').innerHTML = '';
+
+            UI.showStatus(failedMessage());
+            UI.showError('uploadError', failedMessage());
+
             const uploadButton = document.getElementById('upload');
             uploadButton.disabled = false;
             uploadButton.textContent = 'دریافت پیش نمایش';
-            if (clearStatus) UI.clearStatus();
+
+            return 'failed';
         }
 
-        function loadSessionState() {
-            const storedPhone = sessionStorage.getItem('hairvisionPhone');
-            const storedVerified = sessionStorage.getItem('hairvisionVerified') === '1';
-            if (storedPhone) {
-                STATE.phone = normalizeDigits(storedPhone).slice(0, 11);
-                document.getElementById('phone').value = toPersianDigits(STATE.phone);
-                document.getElementById('displayPhone').textContent = toPersianDigits(STATE.phone);
-            }
-            if (storedVerified) {
-                STATE.verified = true;
-                UI.showStep(3);
-            } else if (storedPhone) {
-                UI.showStep(2);
-            } else {
-                UI.showStep(1);
-            }
+        if (completed) {
+            clearActiveGeneration();
+            displayGenerationResults(jobs);
+            UI.showStep(4);
+            showCompletionMessage();
+
+            const uploadButton = document.getElementById('upload');
+            uploadButton.disabled = false;
+            uploadButton.textContent = 'دریافت پیش نمایش';
+
+            return 'completed';
         }
 
+        const current = payload.current_stage?.key || currentStageFromJobs(jobs)?.key || firstStageKey();
+        startStageMessages(current);
+
+        return 'processing';
+    }
+
+    function currentStageFromJobs(jobs) {
+        return jobs.find((job) => job.status === 'processing')
+            || jobs.find((job) => job.status === 'pending')
+            || jobs.find((job) => job.status === 'failed')
+            || null;
+    }
+
+    function startStageMessages(stageKey, force = false) {
+        const key = stageKey || firstStageKey();
+        const messages = stageMessages(key);
+
+        if (!messages.length) return;
+
+        if (!force && STATE.currentStageKey === key && STATE.messageTimer) {
+            return;
+        }
+
+        stopStageMessages();
+
+        STATE.currentStageKey = key;
+        STATE.messageIndex = 0;
+
+        UI.showStatus(messages[0]);
+
+        STATE.messageTimer = window.setInterval(() => {
+            STATE.messageIndex = (STATE.messageIndex + 1) % messages.length;
+            UI.showStatus(messages[STATE.messageIndex]);
+        }, Number(GENERATION.messageIntervalMs || 10000));
+    }
+
+    function stopStageMessages() {
+        if (STATE.messageTimer) {
+            window.clearInterval(STATE.messageTimer);
+        }
+
+        STATE.messageTimer = null;
+    }
+
+    function showCompletionMessage() {
+        stopStageMessages();
+
+        STATE.generationComplete = true;
+
+        UI.showStatus(completionMessage());
+        UI.hideModalToast();
+    }
+
+    function renderStagePanels(jobs) {
+        renderStageList('processingStageList', jobs);
+        renderStageList('resultsStageList', jobs);
+    }
+
+    function renderStageList(containerId, jobs) {
+        const container = document.getElementById(containerId);
+
+        if (!container) return;
+
+        container.innerHTML = (GENERATION.stages || []).map((stage, index) => {
+            const job = jobs.find((item) => item.key === stage.key || item.period === stage.key) || {};
+            const status = job.status || 'pending';
+            const failed = status === 'failed';
+            const completed = status === 'completed';
+            const processing = status === 'processing';
+            const statusClass = failed ? 'is-failed' : completed ? 'is-completed' : processing ? 'is-processing' : '';
+            const markerClass = completed
+                ? 'bg-emerald-700 text-white'
+                : failed
+                    ? 'bg-rose-600 text-white'
+                    : processing
+                        ? 'bg-indigo-700 text-white'
+                        : 'bg-white text-zinc-500';
+            const marker = toPersianDigits(index + 1);
+            const error = failed && job.error
+                ? `<p class="mt-2 text-xs leading-6 text-rose-700">${escapeHtml(job.error)}</p>`
+                : '';
+
+            return `
+                <article class="hv-generation-stage ${statusClass} rounded-2xl p-3">
+                    <div class="flex items-start gap-3">
+                        <span class="grid h-8 w-8 shrink-0 place-items-center rounded-xl text-xs font-bold ${markerClass}">${marker}</span>
+                        <span class="min-w-0">
+                            <span class="block text-sm font-bold text-zinc-900">${escapeHtml(stage.label)}</span>
+                            <span class="mt-1 block text-xs leading-6 text-zinc-500">${escapeHtml(stage.caption || '')}</span>
+                            <span class="mt-2 inline-flex rounded-full bg-white/75 px-2 py-1 text-xs font-bold text-zinc-600 ring-1 ring-zinc-200">${escapeHtml(statusLabel(status))}</span>
+                            ${error}
+                        </span>
+                    </div>
+                </article>
+            `;
+        }).join('');
+    }
+
+    function galleryItemsFromJobs(jobs = STATE.stageJobs) {
+        return [
+            {
+                period: 'original',
+                label: 'تصویر اولیه',
+                caption: 'تصویر بارگذاری شده',
+                status: STATE.originalPreviewUrl ? 'completed' : 'pending',
+                url: STATE.originalPreviewUrl,
+            },
+            ...(GENERATION.stages || []).map((stage) => {
+                const job = jobs.find((item) => item.key === stage.key || item.period === stage.key) || {};
+
+                return {
+                    period: stage.key,
+                    label: stage.label,
+                    caption: stage.caption,
+                    status: job.status || 'pending',
+                    url: job.asset_url || null,
+                };
+            }),
+        ];
+    }
+
+    function primeGallery() {
+        STATE.galleryItems = galleryItemsFromJobs();
+    }
+
+    function displayGenerationResults(jobs) {
+        const container = document.getElementById('resultsContainer');
+        container.innerHTML = '';
+
+        const items = galleryItemsFromJobs(jobs);
+        STATE.galleryItems = items;
+
+        items.forEach((item, index) => {
+            const card = document.createElement('article');
+            card.className = 'hv-result-card hv-enter overflow-hidden rounded-3xl bg-white shadow-lg shadow-indigo-100/70';
+            card.style.animationDelay = `${index * 70}ms`;
+
+            const media = item.url
+                ? `<img src="${item.url}" alt="${escapeHtml(item.label)}" class="hv-result-image aspect-[4/5] w-full object-cover" loading="lazy" />`
+                : `<span class="hv-skeleton block aspect-[4/5] w-full"></span><span class="absolute inset-0 grid place-items-center px-4 text-center"><span><span class="mx-auto grid h-12 w-12 place-items-center rounded-2xl bg-white/90 text-sm font-bold text-zinc-500 shadow-sm">${toPersianDigits(index + 1)}</span><span class="mt-3 block text-sm font-bold text-zinc-600">${escapeHtml(statusLabel(item.status))}</span></span></span>`;
+
+            const status = item.period === 'original'
+                ? `<span class="mt-3 inline-flex rounded-full bg-emerald-50 px-3 py-1 text-xs font-bold text-emerald-700">${escapeHtml(statusLabel(item.status))}</span>`
+                : `<span class="mt-3 inline-flex rounded-full bg-zinc-100 px-3 py-1 text-xs font-bold text-zinc-600">${escapeHtml(statusLabel(item.status))}</span>`;
+
+            card.innerHTML = `<button type="button" class="block w-full text-right" data-gallery-index="${index}"><span class="relative block overflow-hidden bg-zinc-100">${media}</span><span class="block p-4"><span class="block text-base font-bold text-zinc-950">${escapeHtml(item.label)}</span><span class="mt-1 block text-sm leading-6 text-zinc-500">${escapeHtml(item.caption || '')}</span>${status}</span></button>`;
+
+            container.appendChild(card);
+        });
+
+        container.querySelectorAll('[data-gallery-index]').forEach((button) => {
+            button.addEventListener('click', () => openImageModal(Number(button.dataset.galleryIndex)));
+        });
+
+        if (!document.getElementById('imageModal').classList.contains('hidden') && STATE.galleryItems.length) {
+            STATE.activeGalleryIndex = Math.min(STATE.activeGalleryIndex, STATE.galleryItems.length - 1);
+            renderModalImage(false);
+        }
+    }
+
+    function openImageModal(index) {
+        if (!STATE.galleryItems.length) {
+            primeGallery();
+        }
+
+        if (!STATE.galleryItems.length) return;
+
+        STATE.activeGalleryIndex = Math.min(
+            Math.max(Number.isFinite(index) ? index : 0, 0),
+            STATE.galleryItems.length - 1
+        );
+
+        const modal = document.getElementById('imageModal');
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+
+        renderModalImage(false);
+        UI.showModalToast(STATE.currentMessage);
+    }
+
+    function closeImageModal() {
+        const modal = document.getElementById('imageModal');
+
+        modal.classList.add('hidden');
+        modal.classList.remove('flex');
+
+        document.getElementById('modalSkeleton').classList.add('hidden');
+        document.getElementById('modalImage').src = '';
+        document.getElementById('modalImage').classList.remove('hidden', 'is-changing');
+        document.getElementById('modalCaption').textContent = '';
+
+        UI.hideModalToast();
+    }
+
+    function showPreviousImage() {
+        if (!STATE.galleryItems.length) return;
+
+        STATE.activeGalleryIndex = (STATE.activeGalleryIndex - 1 + STATE.galleryItems.length) % STATE.galleryItems.length;
+        renderModalImage(true);
+    }
+
+    function showNextImage() {
+        if (!STATE.galleryItems.length) return;
+
+        STATE.activeGalleryIndex = (STATE.activeGalleryIndex + 1) % STATE.galleryItems.length;
+        renderModalImage(true);
+    }
+
+    function renderModalImage(animate = true) {
+        const item = STATE.galleryItems[STATE.activeGalleryIndex];
+
+        if (!item) return;
+
+        const image = document.getElementById('modalImage');
+        const skeleton = document.getElementById('modalSkeleton');
+        const caption = document.getElementById('modalCaption');
+
+        const applyImage = () => {
+            if (!item.url) {
+                image.classList.add('hidden');
+                image.classList.remove('is-changing');
+                image.removeAttribute('src');
+
+                skeleton.classList.remove('hidden');
+                caption.textContent = `${item.label} - ${statusLabel(item.status || 'pending')}`;
+
+                UI.showModalToast(STATE.currentMessage);
+
+                return;
+            }
+
+            skeleton.classList.add('hidden');
+            image.classList.remove('hidden');
+            image.src = item.url;
+            image.alt = item.label || 'نمای بزرگ تصویر';
+            caption.textContent = `${item.label} - ${item.caption}`;
+            image.classList.remove('is-changing');
+        };
+
+        if (!animate) {
+            applyImage();
+            return;
+        }
+
+        if (item.url) {
+            image.classList.add('is-changing');
+        }
+
+        window.setTimeout(applyImage, 160);
+    }
+
+    function resetImageInput() {
+        document.getElementById('image').value = '';
+        document.getElementById('consent').checked = false;
+
+        const preview = document.getElementById('imagePreview');
+        const placeholder = document.getElementById('imagePlaceholder');
+
+        preview.src = '';
+        preview.classList.add('hidden');
+        placeholder.classList.remove('hidden');
+
+        if (STATE.originalPreviewUrl) {
+            URL.revokeObjectURL(STATE.originalPreviewUrl);
+            STATE.originalPreviewUrl = null;
+        }
+
+        STATE.galleryItems = [];
+    }
+
+    function resetGenerationProgress(clearStatus = true) {
+        stopStageMessages();
+
+        STATE.uploadId = null;
+        STATE.generationGroupId = null;
+        STATE.stageJobs = [];
+        STATE.galleryItems = [];
+        STATE.currentStageKey = null;
+        STATE.currentMessage = '';
+        STATE.messageIndex = 0;
+        STATE.generationComplete = false;
+        STATE.longRunningMessageShown = false;
+
+        clearActiveGeneration();
         renderStagePanels([]);
-        loadSessionState();
-    </script>
+
+        document.getElementById('resultsContainer').innerHTML = '';
+
+        const uploadButton = document.getElementById('upload');
+        uploadButton.disabled = false;
+        uploadButton.textContent = 'دریافت پیش نمایش';
+
+        if (clearStatus) UI.clearStatus();
+    }
+
+    function loadSessionState() {
+        const storedPhone = sessionStorage.getItem(STORAGE_KEYS.phone);
+
+        /*
+         * Do not fully trust sessionStorage as server-side verification.
+         * Laravel lead verification lives in the backend session/cookie.
+         * After session driver changes, expired cookies, or server cleanup,
+         * sessionStorage may still say verified while the backend session is gone.
+         */
+        sessionStorage.removeItem(STORAGE_KEYS.verified);
+        STATE.verified = false;
+
+        if (storedPhone) {
+            STATE.phone = normalizeDigits(storedPhone).slice(0, 11);
+            document.getElementById('phone').value = toPersianDigits(STATE.phone);
+            document.getElementById('displayPhone').textContent = toPersianDigits(STATE.phone);
+            UI.showStep(2);
+            document.getElementById('otp').focus();
+            return;
+        }
+
+        UI.showStep(1);
+    }
+
+    async function resumeActiveGenerationIfPresent() {
+        const activeGroupId = sessionStorage.getItem(STORAGE_KEYS.activeGenerationGroupId);
+
+        if (!activeGroupId) return;
+
+        STATE.generationGroupId = activeGroupId;
+
+        UI.showStep(4);
+        UI.showStatus('در حال بررسی وضعیت پردازش قبلی...');
+
+        try {
+            const statusResult = await API.getGenerationStatus(activeGroupId);
+
+            if (statusResult.success === false) {
+                clearActiveGeneration();
+                handleApiFailure(statusResult);
+                return;
+            }
+
+            const state = applyGenerationStatus(statusResult);
+
+            if (state === 'processing') {
+                const uploadButton = document.getElementById('upload');
+                uploadButton.textContent = 'بررسی وضعیت نتیجه';
+                await pollUntilComplete();
+            }
+        } catch (error) {
+            UI.showStatus('ارتباط موقتاً قطع شد، اما اگر پردازش در سرور شروع شده باشد، ساخت تصاویر در پس‌زمینه ادامه دارد.');
+        }
+    }
+
+    renderStagePanels([]);
+    loadSessionState();
+    resumeActiveGenerationIfPresent();
+</script>
 </body>
 </html>

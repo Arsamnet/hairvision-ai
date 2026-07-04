@@ -79,7 +79,7 @@ class SystemManagementTest extends TestCase
 
         $this->assertSame('پلن شروع', $activeSubscription->plan->name);
         $this->assertSame(1, Subscription::query()->where('tenant_id', $tenant->id)->where('status', 'active')->count());
-        $this->assertSame(1, Invoice::query()->where('tenant_id', $tenant->id)->where('status', 'paid')->where('number', 'HV-SEED-aria-STARTER')->count());
+        $this->assertSame(1, Invoice::query()->where('tenant_id', $tenant->id)->where('status', 'paid')->where('number', 'HV-SEED-ARIA-STARTER')->count());
         $this->assertSame(1, Payment::query()->where('tenant_id', $tenant->id)->where('status', 'paid')->where('idempotency_key', 'seed-aria-starter-plan-paid')->count());
         $this->assertSame($seededServiceCount, $activeSubscription->serviceEntitlements()->where('is_active', true)->count());
         $this->assertSame($seededServiceCount * 100, $activeSubscription->serviceEntitlements()->sum('included_credit'));

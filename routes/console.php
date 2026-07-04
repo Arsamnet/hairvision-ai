@@ -21,3 +21,10 @@ Artisan::command('inspire', function () {
 Schedule::command('queue:work redis --queue=default --once --timeout=300 --tries=1')
     ->everyMinute()
     ->withoutOverlapping(10);
+
+// For cpanel
+/*
+Schedule::command('queue:work database --queue=default --once --timeout=300 --tries=1')
+    ->everyMinute()
+    ->withoutOverlapping(10);
+*/

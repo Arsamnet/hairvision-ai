@@ -43,10 +43,12 @@ class LeadGeneratedAssetController extends Controller
             'lead_id' => $lead->id,
         ]);
 
-        if ($tenant instanceof Tenant && $lead->tenant_id !== $tenant->id) {
+        if ($tenant instanceof Tenant && (int) $lead->tenant_id !== (int) $tenant->id) {
             DebugStepLogger::step($request, $scope, 'Lead tenant mismatch', [
                 'admin_tenant_id' => $tenant->id,
+                'admin_tenant_id_type' => gettype($tenant->id),
                 'lead_tenant_id' => $lead->tenant_id,
+                'lead_tenant_id_type' => gettype($lead->tenant_id),
                 'lead_id' => $lead->id,
             ]);
 
@@ -58,34 +60,57 @@ class LeadGeneratedAssetController extends Controller
             'lead_tenant_id' => $lead->tenant_id,
         ]);
 
-        if ($generatedAsset->lead_id !== $lead->id || $generatedAsset->tenant_id !== $lead->tenant_id) {
+        if (
+            (int) $generatedAsset->lead_id !== (int) $lead->id
+            || (int) $generatedAsset->tenant_id !== (int) $lead->tenant_id
+        ) {
             DebugStepLogger::step($request, $scope, 'Asset scope mismatch', [
                 'lead_id' => $lead->id,
+                'lead_id_type' => gettype($lead->id),
                 'lead_tenant_id' => $lead->tenant_id,
+                'lead_tenant_id_type' => gettype($lead->tenant_id),
                 'asset_id' => $generatedAsset->id,
                 'asset_lead_id' => $generatedAsset->lead_id,
+                'asset_lead_id_type' => gettype($generatedAsset->lead_id),
                 'asset_tenant_id' => $generatedAsset->tenant_id,
+                'asset_tenant_id_type' => gettype($generatedAsset->tenant_id),
             ]);
 
             abort(Response::HTTP_NOT_FOUND);
         }
+
+        $diskName = $generatedAsset->disk ?: 'local';
+        $path = $generatedAsset->path;
 
         DebugStepLogger::step($request, $scope, 'Asset scope verified', [
             'asset_id' => $generatedAsset->id,
             'asset_uuid' => $generatedAsset->uuid,
             'lead_id' => $lead->id,
             'tenant_id' => $lead->tenant_id,
-            'disk' => $generatedAsset->disk,
+            'disk' => $diskName,
+            'path' => $path,
             'mime' => $generatedAsset->mime,
         ]);
 
-        $disk = Storage::disk($generatedAsset->disk);
+        if (! is_string($path) || $path === '') {
+            DebugStepLogger::step($request, $scope, 'Asset path is empty', [
+                'asset_id' => $generatedAsset->id,
+                'asset_uuid' => $generatedAsset->uuid,
+                'disk' => $diskName,
+                'path' => $path,
+            ]);
 
-        if (! $disk->exists($generatedAsset->path)) {
+            abort(Response::HTTP_NOT_FOUND);
+        }
+
+        $disk = Storage::disk($diskName);
+
+        if (! $disk->exists($path)) {
             DebugStepLogger::step($request, $scope, 'Asset file missing on disk', [
                 'asset_id' => $generatedAsset->id,
                 'asset_uuid' => $generatedAsset->uuid,
-                'disk' => $generatedAsset->disk,
+                'disk' => $diskName,
+                'path' => $path,
             ]);
 
             abort(Response::HTTP_NOT_FOUND);
@@ -94,11 +119,24 @@ class LeadGeneratedAssetController extends Controller
         DebugStepLogger::step($request, $scope, 'Asset file exists on disk', [
             'asset_id' => $generatedAsset->id,
             'asset_uuid' => $generatedAsset->uuid,
-            'disk' => $generatedAsset->disk,
+            'disk' => $diskName,
+            'path' => $path,
         ]);
 
-        $stream = $disk->get($generatedAsset->path);
-        $mime = (string) $generatedAsset->mime;
+        $stream = $disk->get($path);
+
+        if (! is_string($stream) || $stream === '') {
+            DebugStepLogger::step($request, $scope, 'Asset file content is empty', [
+                'asset_id' => $generatedAsset->id,
+                'asset_uuid' => $generatedAsset->uuid,
+                'disk' => $diskName,
+                'path' => $path,
+            ]);
+
+            abort(Response::HTTP_NOT_FOUND);
+        }
+
+        $mime = $this->resolveImageMime((string) $generatedAsset->mime, $path);
 
         DebugStepLogger::step($request, $scope, 'Asset file loaded', [
             'asset_id' => $generatedAsset->id,
@@ -106,17 +144,6 @@ class LeadGeneratedAssetController extends Controller
             'bytes' => strlen($stream),
             'mime' => $mime,
         ]);
-
-        if (! str_starts_with($mime, 'image/')) {
-            DebugStepLogger::step($request, $scope, 'Asset MIME fallback applied', [
-                'asset_id' => $generatedAsset->id,
-                'asset_uuid' => $generatedAsset->uuid,
-                'original_mime' => $mime,
-                'fallback_mime' => 'image/jpeg',
-            ]);
-
-            $mime = 'image/jpeg';
-        }
 
         DebugStepLogger::step($request, $scope, 'Response prepared', [
             'asset_id' => $generatedAsset->id,
@@ -135,6 +162,24 @@ class LeadGeneratedAssetController extends Controller
      */
     private function tenantId(mixed $tenant): ?int
     {
-        return $tenant instanceof Tenant ? $tenant->id : null;
+        return $tenant instanceof Tenant ? (int) $tenant->id : null;
+    }
+
+    /**
+     * Resolve a safe image MIME type without relying on Storage::mimeType().
+     */
+    private function resolveImageMime(?string $storedMime, string $path): string
+    {
+        if (is_string($storedMime) && str_starts_with($storedMime, 'image/')) {
+            return $storedMime;
+        }
+
+        return match (strtolower(pathinfo($path, PATHINFO_EXTENSION))) {
+            'png' => 'image/png',
+            'webp' => 'image/webp',
+            'gif' => 'image/gif',
+            'jpg', 'jpeg' => 'image/jpeg',
+            default => 'image/jpeg',
+        };
     }
 }

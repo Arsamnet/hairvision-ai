@@ -1,0 +1,38 @@
+{
+  "resources/css/app.css": {
+    "file": "assets/app-W6C_kVnV.css",
+    "name": "app",
+    "names": [
+      "app.css"
+    ],
+    "src": "resources/css/app.css",
+    "isEntry": true,
+    "assets": [
+      "assets/Vazirmatn-Regular-CtGL0YI-.woff2",
+      "assets/Vazirmatn-Bold-_OhAJEdh.woff2",
+      "assets/uicons-regular-rounded-0sU45oCT.woff2"
+    ]
+  },
+  "resources/fonts/uicons/uicons-regular-rounded.woff2": {
+    "file": "assets/uicons-regular-rounded-0sU45oCT.woff2",
+    "src": "resources/fonts/uicons/uicons-regular-rounded.woff2"
+  },
+  "resources/fonts/vazirmatn/Vazirmatn-Bold.woff2": {
+    "file": "assets/Vazirmatn-Bold-_OhAJEdh.woff2",
+    "src": "resources/fonts/vazirmatn/Vazirmatn-Bold.woff2"
+  },
+  "resources/fonts/vazirmatn/Vazirmatn-Regular.woff2": {
+    "file": "assets/Vazirmatn-Regular-CtGL0YI-.woff2",
+    "src": "resources/fonts/vazirmatn/Vazirmatn-Regular.woff2"
+  },
+  "resources/img/favicon.png": {
+    "file": "assets/favicon-BgHyGnK0.png",
+    "src": "resources/img/favicon.png"
+  },
+  "resources/js/app.js": {
+    "file": "assets/app-L9vuwdDt.js",
+    "name": "app",
+    "src": "resources/js/app.js",
+    "isEntry": true
+  }
+}

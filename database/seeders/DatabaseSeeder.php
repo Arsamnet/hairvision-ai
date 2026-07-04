@@ -220,7 +220,7 @@ class DatabaseSeeder extends Seeder
                 'body_html' => null,
                 'footer_html' => '<div class="mx-auto flex w-full max-w-6xl flex-wrap items-center justify-between gap-3 px-4 py-5 text-sm text-zinc-500 sm:px-6"><p>کلینیک کاشت مو آریا - مشاوره، طراحی خط رویش و پیگیری درمان</p><p class="flex items-center gap-2"><img src="/theme/logo.svg" alt="" class="h-8"></p></div>',
                 'back_link_title' => 'بازگشت به سایت کلینیک',
-                'back_link_url' => 'https://hairvision-ai.test',
+                'back_link_url' => 'https://hairvision.ir',
             ]
         );
 
@@ -488,7 +488,7 @@ class DatabaseSeeder extends Seeder
         $now = now();
 
         $invoice = Invoice::query()->firstOrNew([
-            'number' => 'HV-SEED-aria-STARTER',
+            'number' => 'HV-SEED-ARIA-STARTER',
         ]);
 
         $invoice->fill([
@@ -531,8 +531,8 @@ class DatabaseSeeder extends Seeder
                     'status' => 'paid',
                     'amount' => $starterPlan->price,
                     'currency' => $starterPlan->currency,
-                    'authority' => 'SEED-aria-STARTER',
-                    'reference_id' => 'SEED-aria-PAID',
+                    'authority' => 'SEED-ARIA-STARTER',
+                    'reference_id' => 'SEED-ARIA-PAID',
                     'gateway_response_json' => [
                         'provider' => $gateway->provider_code,
                         'seeded' => true,

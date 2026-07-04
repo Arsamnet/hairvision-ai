@@ -53,7 +53,7 @@
 
                 @if($primaryUpload)
                     <figure class="mt-4 overflow-hidden rounded-lg border border-zinc-100 bg-zinc-50">
-                        <img src="{{ route('admin.leads.uploads.show', [$lead, $primaryUpload]) }}" alt="{{ __('leads.uploads.alt') }}" class="max-h-[32rem] w-full object-contain">
+                        <img src="{{ route('admin.leads.uploads.show', [$lead, $primaryUpload]) }}" alt="{{ __('leads.uploads.alt') }}" class="max-h-128 w-full object-contain">
                         <figcaption class="border-t border-zinc-100 px-4 py-3 text-xs font-bold text-zinc-500">
                             {{ __('leads.uploads.uploaded_at', ['date' => $primaryUpload->created_at?->diffForHumans()]) }}
                         </figcaption>
@@ -85,9 +85,9 @@
                                     @endphp
                                     <div class="overflow-hidden rounded-lg bg-zinc-50 text-sm">
                                         @if($asset)
-                                            <img src="{{ route('admin.leads.assets.show', [$lead, $asset]) }}" alt="{{ __('leads.generations.asset_alt', ['period' => __('leads.periods.'.$job->period)]) }}" class="aspect-[4/5] w-full bg-zinc-100 object-cover">
+                                            <img src="{{ route('admin.leads.assets.show', [$lead, $asset]) }}" alt="{{ __('leads.generations.asset_alt', ['period' => __('leads.periods.'.$job->period)]) }}" class="aspect-4/5 w-full bg-zinc-100 object-cover">
                                         @else
-                                            <div class="grid aspect-[4/5] w-full place-items-center bg-zinc-100 px-3 text-center text-xs font-bold text-zinc-400">
+                                            <div class="grid aspect-4/5 w-full place-items-center bg-zinc-100 px-3 text-center text-xs font-bold text-zinc-400">
                                                 {{ __('leads.generations.asset_pending') }}
                                             </div>
                                         @endif
