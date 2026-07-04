@@ -103,7 +103,7 @@ Dashboard features:
   gateways, plans, billing, and management reports.
 - System dashboard and management reports reuse the shared platform overview
   service so overlapping metrics are not duplicated in controllers.
-- Demo seed data for `clinic1`.
+- Demo seed data for `aria`.
 
 Plan-restricted normal-user routes include operational lead, CRM, user, SMS, and
 user-report sections. Dashboard, plans, billing/invoices, tenant switch, logout,

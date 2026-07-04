@@ -79,9 +79,22 @@
                             </div>
                             <div class="mt-3 grid gap-2 sm:grid-cols-3">
                                 @foreach($group->jobs as $job)
-                                    <div class="rounded-lg bg-zinc-50 p-3 text-sm">
-                                        <p class="font-bold">{{ __('leads.periods.'.$job->period) }}</p>
-                                        <p class="mt-1 text-zinc-500">{{ $job->status }}</p>
+                                    @php
+                                        $asset = $group->assets->firstWhere('generation_job_id', $job->id)
+                                            ?? $group->assets->firstWhere('period', $job->period);
+                                    @endphp
+                                    <div class="overflow-hidden rounded-lg bg-zinc-50 text-sm">
+                                        @if($asset)
+                                            <img src="{{ route('admin.leads.assets.show', [$lead, $asset]) }}" alt="{{ __('leads.generations.asset_alt', ['period' => __('leads.periods.'.$job->period)]) }}" class="aspect-[4/5] w-full bg-zinc-100 object-cover">
+                                        @else
+                                            <div class="grid aspect-[4/5] w-full place-items-center bg-zinc-100 px-3 text-center text-xs font-bold text-zinc-400">
+                                                {{ __('leads.generations.asset_pending') }}
+                                            </div>
+                                        @endif
+                                        <div class="p-3">
+                                            <p class="font-bold">{{ __('leads.periods.'.$job->period) }}</p>
+                                            <p class="mt-1 text-zinc-500">{{ $job->status }}</p>
+                                        </div>
                                     </div>
                                 @endforeach
                             </div>

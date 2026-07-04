@@ -73,7 +73,7 @@ class DatabaseSeeder extends Seeder
         );
 
         $tenant = Tenant::query()->updateOrCreate(
-            ['slug' => 'clinic1'],
+            ['slug' => 'aria'],
             [
                 'name' => 'کلینیک آریا',
                 'status' => 'active',
@@ -82,7 +82,7 @@ class DatabaseSeeder extends Seeder
 
         // Visitor-facing tenant domain
         TenantDomain::query()->updateOrCreate(
-            ['domain' => 'clinic1.hairvision-ai.test'],
+            ['domain' => 'aria.hairvision-ai.test'],
             [
                 'tenant_id' => $tenant->id,
                 'type' => 'tenant_subdomain',
@@ -107,7 +107,7 @@ class DatabaseSeeder extends Seeder
             [
                 'name' => __('messages.sample_image_provider'),
                 'type' => 'local',
-                'is_active' => true,
+                'is_active' => false,
                 'supports_async' => false,
             ]
         );
@@ -488,7 +488,7 @@ class DatabaseSeeder extends Seeder
         $now = now();
 
         $invoice = Invoice::query()->firstOrNew([
-            'number' => 'HV-SEED-CLINIC1-STARTER',
+            'number' => 'HV-SEED-aria-STARTER',
         ]);
 
         $invoice->fill([
@@ -503,7 +503,7 @@ class DatabaseSeeder extends Seeder
             'expires_at' => $now->copy()->addDays((int) $starterPlan->duration_days),
             'metadata_json' => [
                 'seeded' => true,
-                'clinic' => 'clinic1',
+                'clinic' => 'aria',
                 'plan_type' => $starterPlan->plan_type->value,
                 'service_credits' => $starterPlan->serviceCredits(),
             ],
@@ -522,7 +522,7 @@ class DatabaseSeeder extends Seeder
 
         if ($gateway) {
             Payment::query()->updateOrCreate(
-                ['idempotency_key' => 'seed-clinic1-starter-plan-paid'],
+                ['idempotency_key' => 'seed-aria-starter-plan-paid'],
                 [
                     'tenant_id' => $tenant->id,
                     'user_id' => $admin->id,
@@ -531,8 +531,8 @@ class DatabaseSeeder extends Seeder
                     'status' => 'paid',
                     'amount' => $starterPlan->price,
                     'currency' => $starterPlan->currency,
-                    'authority' => 'SEED-CLINIC1-STARTER',
-                    'reference_id' => 'SEED-CLINIC1-PAID',
+                    'authority' => 'SEED-aria-STARTER',
+                    'reference_id' => 'SEED-aria-PAID',
                     'gateway_response_json' => [
                         'provider' => $gateway->provider_code,
                         'seeded' => true,

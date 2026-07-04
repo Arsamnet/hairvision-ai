@@ -63,6 +63,7 @@ relative Markdown link.
 - [Localization](docs/localization.md)
 - [Security](docs/security.md)
 - [Performance](docs/performance.md)
+- [Debugging and Step Logging](docs/debugging.md)
 - [Coding Standards](docs/coding-standards.md)
 - [Testing](docs/testing.md)
 - [Release Notes](docs/release-notes.md)
@@ -79,7 +80,7 @@ php artisan migrate:fresh --seed
 npm run build
 ```
 
-For local development, map `clinic1.hairvision-ai.test` to `127.0.0.1`, then run:
+For local development, map `aria.hairvision-ai.test` to `127.0.0.1`, then run:
 
 ```bash
 php artisan serve --host=127.0.0.1 --port=8000

@@ -152,7 +152,7 @@ class SaasBillingEntitlementTest extends TestCase
 
     public function test_generation_is_blocked_when_subscription_is_expired_or_service_credit_is_finished(): void
     {
-        [$tenant, $user] = $this->clinicUser(domain: 'clinic1.hairvision-ai.test');
+        [$tenant, $user] = $this->clinicUser(domain: 'aria.hairvision-ai.test');
         $this->attachAiModel($tenant);
         $upload = $this->uploadForTenant($tenant);
         $billing = app(BillingService::class);
@@ -160,7 +160,7 @@ class SaasBillingEntitlementTest extends TestCase
         $subscription = $billing->activatePlan($user, $lowCredit, $billing->invoiceForPlan($user, $lowCredit, $tenant), $tenant);
 
         $this->withSession(['lead_id' => $upload->lead_id])
-            ->forHost('clinic1.hairvision-ai.test')
+            ->forHost('aria.hairvision-ai.test')
             ->postJson('/api/v1/generations', ['upload_id' => $upload->uuid])
             ->assertStatus(422)
             ->assertJsonValidationErrors('service_access');
@@ -168,7 +168,7 @@ class SaasBillingEntitlementTest extends TestCase
         $subscription->forceFill(['ends_at' => now()->subMinute()])->save();
 
         $this->withSession(['lead_id' => $upload->lead_id])
-            ->forHost('clinic1.hairvision-ai.test')
+            ->forHost('aria.hairvision-ai.test')
             ->postJson('/api/v1/generations', ['upload_id' => $upload->uuid])
             ->assertStatus(422)
             ->assertJsonValidationErrors('service_access');

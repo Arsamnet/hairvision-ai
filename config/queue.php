@@ -68,7 +68,19 @@ return [
             'driver' => 'redis',
             'connection' => env('REDIS_QUEUE_CONNECTION', 'default'),
             'queue' => env('REDIS_QUEUE', 'default'),
-            'retry_after' => (int) env('REDIS_QUEUE_RETRY_AFTER', 90),
+
+            /*
+             |--------------------------------------------------------------------------
+             | Redis Queue Retry After
+             |--------------------------------------------------------------------------
+             |
+             | This value must be greater than the queue worker timeout.
+             | For example, if the worker timeout is 300 seconds, retry_after
+             | should be greater than 300 to avoid duplicate processing.
+             |
+             */
+
+            'retry_after' => (int) env('REDIS_QUEUE_RETRY_AFTER', 420),
             'block_for' => null,
             'after_commit' => false,
         ],

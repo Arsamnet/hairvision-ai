@@ -59,12 +59,12 @@ class HairVisionMvpTest extends TestCase
 
     public function test_tenant_is_resolved_by_host_and_unknown_hosts_return_404(): void
     {
-        $this->createTenant('Clinic One', 'clinic1', 'clinic1.hairvision-ai.test');
+        $this->createTenant('Clinic One', 'aria', 'aria.hairvision-ai.test');
 
-        $this->forHost('clinic1.hairvision-ai.test')
+        $this->forHost('aria.hairvision-ai.test')
             ->getJson('/api/v1/bootstrap')
             ->assertOk()
-            ->assertJsonPath('tenant.slug', 'clinic1')
+            ->assertJsonPath('tenant.slug', 'aria')
             ->assertJsonPath('features.ai_provider', 'sample_image');
 
         $this->forHost('unknown.hairvision-ai.test')
@@ -74,25 +74,25 @@ class HairVisionMvpTest extends TestCase
 
     public function test_landing_page_visit_is_tracked_before_any_lead_is_created(): void
     {
-        $tenant = $this->createTenant('Clinic One', 'clinic1', 'clinic1.hairvision-ai.test');
+        $tenant = $this->createTenant('Clinic One', 'aria', 'aria.hairvision-ai.test');
 
-        $this->forHost('clinic1.hairvision-ai.test')
+        $this->forHost('aria.hairvision-ai.test')
             ->get('/')
             ->assertOk();
 
         $this->assertSame(1, $tenant->landingPageVisits()->count());
         $this->assertDatabaseHas('tenant_landing_page_visits', [
             'tenant_id' => $tenant->id,
-            'host' => 'clinic1.hairvision-ai.test',
+            'host' => 'aria.hairvision-ai.test',
         ]);
         $this->assertDatabaseCount('leads', 0);
     }
 
     public function test_landing_page_uses_tenant_favicon_or_default_fallback(): void
     {
-        $tenant = $this->createTenant('Clinic One', 'clinic1', 'clinic1.hairvision-ai.test');
+        $tenant = $this->createTenant('Clinic One', 'aria', 'aria.hairvision-ai.test');
 
-        $this->forHost('clinic1.hairvision-ai.test')
+        $this->forHost('aria.hairvision-ai.test')
             ->get('/')
             ->assertOk()
             ->assertSee('rel="icon"', false)
@@ -111,7 +111,7 @@ class HairVisionMvpTest extends TestCase
             'favicon_path' => '/favicon.ico',
         ]);
 
-        $this->forHost('clinic1.hairvision-ai.test')
+        $this->forHost('aria.hairvision-ai.test')
             ->get('/')
             ->assertOk()
             ->assertSee('href="/favicon.ico"', false)
@@ -119,7 +119,7 @@ class HairVisionMvpTest extends TestCase
 
         $tenant->theme()->update(['favicon_path' => '/theme/missing-favicon.png']);
 
-        $this->forHost('clinic1.hairvision-ai.test')
+        $this->forHost('aria.hairvision-ai.test')
             ->get('/')
             ->assertOk()
             ->assertSee('/build/assets/favicon-', false)
@@ -128,7 +128,7 @@ class HairVisionMvpTest extends TestCase
 
         $tenant->theme()->update(['favicon_path' => 'https://example.test/favicon.png']);
 
-        $this->forHost('clinic1.hairvision-ai.test')
+        $this->forHost('aria.hairvision-ai.test')
             ->get('/')
             ->assertOk()
             ->assertSee('/build/assets/favicon-', false)
@@ -138,10 +138,10 @@ class HairVisionMvpTest extends TestCase
 
     public function test_otp_request_stores_only_hash_and_is_rate_limited(): void
     {
-        $tenant = $this->createTenant('Clinic One', 'clinic1', 'clinic1.hairvision-ai.test');
+        $tenant = $this->createTenant('Clinic One', 'aria', 'aria.hairvision-ai.test');
         $this->enableIppanelOtpGateway();
 
-        $first = $this->forHost('clinic1.hairvision-ai.test')
+        $first = $this->forHost('aria.hairvision-ai.test')
             ->postJson('/api/v1/auth/otp/request', ['phone' => '09123456789'])
             ->assertOk()
             ->assertJsonPath('success', true)
@@ -155,18 +155,18 @@ class HairVisionMvpTest extends TestCase
         $this->assertNotSame($code, $otp->code_hash);
         $this->assertTrue(Hash::check($code, $otp->code_hash));
 
-        $this->forHost('clinic1.hairvision-ai.test')
+        $this->forHost('aria.hairvision-ai.test')
             ->postJson('/api/v1/auth/otp/request', ['phone' => '09123456789'])
             ->assertOk();
 
-        $this->forHost('clinic1.hairvision-ai.test')
+        $this->forHost('aria.hairvision-ai.test')
             ->postJson('/api/v1/auth/otp/request', ['phone' => '09123456789'])
             ->assertStatus(429);
     }
 
     public function test_otp_request_sends_system_ippanel_pattern_when_configured(): void
     {
-        $this->createTenant('Clinic One', 'clinic1', 'clinic1.hairvision-ai.test');
+        $this->createTenant('Clinic One', 'aria', 'aria.hairvision-ai.test');
 
         SmsGateway::create([
             'name' => 'Local System',
@@ -195,7 +195,7 @@ class HairVisionMvpTest extends TestCase
             'https://edge.ippanel.com/v1/api/send' => Http::response(['meta' => ['status' => true]]),
         ]);
 
-        $payload = $this->forHost('clinic1.hairvision-ai.test')
+        $payload = $this->forHost('aria.hairvision-ai.test')
             ->postJson('/api/v1/auth/otp/request', ['phone' => '09124248164'])
             ->assertOk()
             ->json();
@@ -218,11 +218,11 @@ class HairVisionMvpTest extends TestCase
 
     public function test_otp_request_exposes_debug_sms_for_local_system_provider(): void
     {
-        $this->createTenant('Clinic One', 'clinic1', 'clinic1.hairvision-ai.test');
+        $this->createTenant('Clinic One', 'aria', 'aria.hairvision-ai.test');
 
         config(['hairvision.sms.default_provider' => 'local']);
 
-        $payload = $this->forHost('clinic1.hairvision-ai.test')
+        $payload = $this->forHost('aria.hairvision-ai.test')
             ->postJson('/api/v1/auth/otp/request', ['phone' => '09124248164'])
             ->assertOk()
             ->assertJsonPath('success', true)
@@ -234,11 +234,11 @@ class HairVisionMvpTest extends TestCase
 
     public function test_otp_verify_creates_verified_lead_for_current_tenant(): void
     {
-        $tenant = $this->createTenant('Clinic One', 'clinic1', 'clinic1.hairvision-ai.test');
+        $tenant = $this->createTenant('Clinic One', 'aria', 'aria.hairvision-ai.test');
 
-        $code = $this->requestOtpAndReturnCode('clinic1.hairvision-ai.test', '09123456789');
+        $code = $this->requestOtpAndReturnCode('aria.hairvision-ai.test', '09123456789');
 
-        $this->forHost('clinic1.hairvision-ai.test')
+        $this->forHost('aria.hairvision-ai.test')
             ->postJson('/api/v1/auth/otp/verify', [
                 'phone' => '09123456789',
                 'code' => $code,
@@ -254,10 +254,10 @@ class HairVisionMvpTest extends TestCase
 
     public function test_otp_accepts_supported_digit_scripts_and_rejects_other_characters(): void
     {
-        $tenant = $this->createTenant('Clinic One', 'clinic1', 'clinic1.hairvision-ai.test');
+        $tenant = $this->createTenant('Clinic One', 'aria', 'aria.hairvision-ai.test');
         $this->enableIppanelOtpGateway();
 
-        $payload = $this->forHost('clinic1.hairvision-ai.test')
+        $payload = $this->forHost('aria.hairvision-ai.test')
             ->postJson('/api/v1/auth/otp/request', ['phone' => '۰۹۱۲۳۴۵۶۷۸۹'])
             ->assertOk()
             ->assertJsonPath('message', 'کد تایید ارسال شد.')
@@ -267,7 +267,7 @@ class HairVisionMvpTest extends TestCase
 
         $code = $this->latestSentOtpCode();
 
-        $this->forHost('clinic1.hairvision-ai.test')
+        $this->forHost('aria.hairvision-ai.test')
             ->postJson('/api/v1/auth/otp/verify', [
                 'phone' => '۰۹۱۲۳۴۵۶۷۸۹',
                 'code' => NumberNormalizer::toPersianDigits($code),
@@ -281,12 +281,12 @@ class HairVisionMvpTest extends TestCase
             'phone_normalized' => '09123456789',
         ]);
 
-        $this->forHost('clinic1.hairvision-ai.test')
+        $this->forHost('aria.hairvision-ai.test')
             ->postJson('/api/v1/auth/otp/request', ['phone' => '0912abc6789'])
             ->assertStatus(422)
             ->assertJsonPath('message', 'شماره موبایل باید فقط شامل ۱۱ رقم باشد.');
 
-        $this->forHost('clinic1.hairvision-ai.test')
+        $this->forHost('aria.hairvision-ai.test')
             ->postJson('/api/v1/auth/otp/verify', [
                 'phone' => '۰۹۱۲۳۴۵۶۷۸۹',
                 'code' => '۱۲۳x۵۶',
@@ -297,9 +297,9 @@ class HairVisionMvpTest extends TestCase
 
     public function test_upload_requires_verified_lead_session_and_rejects_invalid_files(): void
     {
-        $tenant = $this->createTenant('Clinic One', 'clinic1', 'clinic1.hairvision-ai.test');
+        $tenant = $this->createTenant('Clinic One', 'aria', 'aria.hairvision-ai.test');
 
-        $this->forHost('clinic1.hairvision-ai.test')
+        $this->forHost('aria.hairvision-ai.test')
             ->post('/api/v1/uploads', [
                 'image' => $this->fakeImageUpload(),
                 'consent' => '1',
@@ -315,7 +315,7 @@ class HairVisionMvpTest extends TestCase
         ]);
 
         $this->withSession(['lead_id' => $lead->id])
-            ->forHost('clinic1.hairvision-ai.test')
+            ->forHost('aria.hairvision-ai.test')
             ->post('/api/v1/uploads', [
                 'image' => UploadedFile::fake()->create('notes.txt', 1, 'text/plain'),
                 'consent' => '1',
@@ -325,9 +325,9 @@ class HairVisionMvpTest extends TestCase
 
     public function test_generation_requires_verified_lead_session_with_json_message(): void
     {
-        $this->createTenant('Clinic One', 'clinic1', 'clinic1.hairvision-ai.test');
+        $this->createTenant('Clinic One', 'aria', 'aria.hairvision-ai.test');
 
-        $this->forHost('clinic1.hairvision-ai.test')
+        $this->forHost('aria.hairvision-ai.test')
             ->postJson('/api/v1/generations', [
                 'upload_id' => '11111111-1111-4111-8111-111111111111',
             ])
@@ -337,7 +337,7 @@ class HairVisionMvpTest extends TestCase
 
     public function test_public_lead_clinic_admin_and_platform_admin_use_separate_session_cookies(): void
     {
-        $tenant = $this->createTenant('Clinic One', 'clinic1', 'clinic1.hairvision-ai.test');
+        $tenant = $this->createTenant('Clinic One', 'aria', 'aria.hairvision-ai.test');
         $clinicAdmin = User::factory()->create([
             'phone_normalized' => '09120000000',
             'role' => 'clinic_admin',
@@ -350,9 +350,9 @@ class HairVisionMvpTest extends TestCase
         ]);
         $tenant->users()->attach($clinicAdmin->id, ['role' => 'clinic_admin', 'status' => 'active']);
 
-        $code = $this->requestOtpAndReturnCode('clinic1.hairvision-ai.test', '09123456789');
+        $code = $this->requestOtpAndReturnCode('aria.hairvision-ai.test', '09123456789');
 
-        $this->forHost('clinic1.hairvision-ai.test')
+        $this->forHost('aria.hairvision-ai.test')
             ->postJson('/api/v1/auth/otp/verify', [
                 'phone' => '09123456789',
                 'code' => $code,
@@ -362,7 +362,7 @@ class HairVisionMvpTest extends TestCase
             ->assertCookieMissing(config('hairvision.sessions.clinic_admin_cookie'))
             ->assertCookieMissing(config('hairvision.sessions.platform_admin_cookie'));
 
-        $this->forHost('clinic1.hairvision-ai.test')
+        $this->forHost('aria.hairvision-ai.test')
             ->post('/admin/otp/request', ['phone' => '09120000000'])
             ->assertRedirect(route('admin.otp.form'))
             ->assertCookie(config('hairvision.sessions.clinic_admin_cookie'))
@@ -379,7 +379,7 @@ class HairVisionMvpTest extends TestCase
 
     public function test_sample_generation_flow_creates_three_private_assets_without_external_http(): void
     {
-        $tenant = $this->createTenant('Clinic One', 'clinic1', 'clinic1.hairvision-ai.test');
+        $tenant = $this->createTenant('Clinic One', 'aria', 'aria.hairvision-ai.test');
         $this->activateTenantSubscription($tenant, 10);
         $this->seedSampleImages();
         Http::fake();
@@ -410,7 +410,7 @@ class HairVisionMvpTest extends TestCase
         });
 
         $uploadId = $this->withSession(['lead_id' => $lead->id])
-            ->forHost('clinic1.hairvision-ai.test')
+            ->forHost('aria.hairvision-ai.test')
             ->post('/api/v1/uploads', [
                 'image' => $this->fakeImageUpload(),
                 'consent' => '1',
@@ -420,7 +420,7 @@ class HairVisionMvpTest extends TestCase
             ->json('upload.id');
 
         $groupId = $this->withSession(['lead_id' => $lead->id])
-            ->forHost('clinic1.hairvision-ai.test')
+            ->forHost('aria.hairvision-ai.test')
             ->postJson('/api/v1/generations', ['upload_id' => $uploadId])
             ->assertOk()
             ->assertJsonPath('generation_group.status', 'completed')
@@ -446,7 +446,7 @@ class HairVisionMvpTest extends TestCase
         ]);
 
         $this->withSession(['lead_id' => $lead->id])
-            ->forHost('clinic1.hairvision-ai.test')
+            ->forHost('aria.hairvision-ai.test')
             ->getJson("/api/v1/generations/{$groupId}/status")
             ->assertOk()
             ->assertJsonPath('status', 'completed')
@@ -454,7 +454,7 @@ class HairVisionMvpTest extends TestCase
             ->assertJsonCount(3, 'jobs');
 
         $results = $this->withSession(['lead_id' => $lead->id])
-            ->forHost('clinic1.hairvision-ai.test')
+            ->forHost('aria.hairvision-ai.test')
             ->getJson("/api/v1/generations/{$groupId}/results")
             ->assertOk()
             ->assertJsonPath('success', true)
@@ -467,7 +467,7 @@ class HairVisionMvpTest extends TestCase
         $this->assertStringStartsWith('tenants/'.$tenant->uuid.'/leads/', $asset->path);
 
         $this->withSession(['lead_id' => $lead->id])
-            ->forHost('clinic1.hairvision-ai.test')
+            ->forHost('aria.hairvision-ai.test')
             ->get($results[0]['url'])
             ->assertOk()
             ->assertHeader('content-type', 'image/jpeg');
@@ -475,7 +475,7 @@ class HairVisionMvpTest extends TestCase
         Http::assertNothingSent();
 
         $repeatGroupId = $this->withSession(['lead_id' => $lead->id])
-            ->forHost('clinic1.hairvision-ai.test')
+            ->forHost('aria.hairvision-ai.test')
             ->postJson('/api/v1/generations', ['upload_id' => $uploadId])
             ->assertOk()
             ->json('generation_group.id');
@@ -486,7 +486,7 @@ class HairVisionMvpTest extends TestCase
 
     public function test_gapgpt_generation_sends_three_independent_image_edit_requests(): void
     {
-        $tenant = $this->createTenant('Clinic One', 'clinic1', 'clinic1.hairvision-ai.test');
+        $tenant = $this->createTenant('Clinic One', 'aria', 'aria.hairvision-ai.test');
         $this->activateTenantSubscription($tenant, 10);
 
         AiProvider::query()->firstOrCreate(
@@ -543,7 +543,7 @@ class HairVisionMvpTest extends TestCase
         ]);
 
         $uploadId = $this->withSession(['lead_id' => $lead->id])
-            ->forHost('clinic1.hairvision-ai.test')
+            ->forHost('aria.hairvision-ai.test')
             ->post('/api/v1/uploads', [
                 'image' => $this->fakeImageUpload(),
                 'consent' => '1',
@@ -552,7 +552,7 @@ class HairVisionMvpTest extends TestCase
             ->json('upload.id');
 
         $groupId = $this->withSession(['lead_id' => $lead->id])
-            ->forHost('clinic1.hairvision-ai.test')
+            ->forHost('aria.hairvision-ai.test')
             ->postJson('/api/v1/generations', ['upload_id' => $uploadId])
             ->assertOk()
             ->assertJsonPath('generation_group.status', 'completed')
@@ -589,7 +589,7 @@ class HairVisionMvpTest extends TestCase
 
     public function test_gapgpt_http_errors_are_written_to_laravel_log(): void
     {
-        $tenant = $this->createTenant('Clinic One', 'clinic1', 'clinic1.hairvision-ai.test');
+        $tenant = $this->createTenant('Clinic One', 'aria', 'aria.hairvision-ai.test');
         $this->activateTenantSubscription($tenant, 10);
         Log::spy();
 
@@ -641,7 +641,7 @@ class HairVisionMvpTest extends TestCase
         ]);
 
         $uploadId = $this->withSession(['lead_id' => $lead->id])
-            ->forHost('clinic1.hairvision-ai.test')
+            ->forHost('aria.hairvision-ai.test')
             ->post('/api/v1/uploads', [
                 'image' => $this->fakeImageUpload(),
                 'consent' => '1',
@@ -650,7 +650,7 @@ class HairVisionMvpTest extends TestCase
             ->json('upload.id');
 
         $this->withSession(['lead_id' => $lead->id])
-            ->forHost('clinic1.hairvision-ai.test')
+            ->forHost('aria.hairvision-ai.test')
             ->postJson('/api/v1/generations', ['upload_id' => $uploadId])
             ->assertOk()
             ->assertJsonPath('generation_group.status', 'failed')
@@ -668,7 +668,7 @@ class HairVisionMvpTest extends TestCase
 
     public function test_generation_dispatches_only_the_first_stage_initially(): void
     {
-        $tenant = $this->createTenant('Clinic One', 'clinic1', 'clinic1.hairvision-ai.test');
+        $tenant = $this->createTenant('Clinic One', 'aria', 'aria.hairvision-ai.test');
         $this->activateTenantSubscription($tenant, 10);
         Queue::fake();
 
@@ -681,7 +681,7 @@ class HairVisionMvpTest extends TestCase
         ]);
 
         $uploadId = $this->withSession(['lead_id' => $lead->id])
-            ->forHost('clinic1.hairvision-ai.test')
+            ->forHost('aria.hairvision-ai.test')
             ->post('/api/v1/uploads', [
                 'image' => $this->fakeImageUpload(),
                 'consent' => '1',
@@ -690,7 +690,7 @@ class HairVisionMvpTest extends TestCase
             ->json('upload.id');
 
         $groupId = $this->withSession(['lead_id' => $lead->id])
-            ->forHost('clinic1.hairvision-ai.test')
+            ->forHost('aria.hairvision-ai.test')
             ->postJson('/api/v1/generations', ['upload_id' => $uploadId])
             ->assertOk()
             ->assertJsonPath('generation_group.status', 'processing')
@@ -710,7 +710,7 @@ class HairVisionMvpTest extends TestCase
 
     public function test_tenant_b_cannot_access_tenant_a_assets(): void
     {
-        $tenantA = $this->createTenant('Clinic One', 'clinic1', 'clinic1.hairvision-ai.test');
+        $tenantA = $this->createTenant('Clinic One', 'aria', 'aria.hairvision-ai.test');
         $tenantB = $this->createTenant('Clinic Two', 'clinic2', 'clinic2.hairvision-ai.test');
 
         $leadA = Lead::create([
@@ -764,7 +764,7 @@ class HairVisionMvpTest extends TestCase
 
     public function test_theme_back_link_and_crm_lead_notes_are_tenant_owned(): void
     {
-        $tenant = $this->createTenant('Clinic One', 'clinic1', 'clinic1.hairvision-ai.test');
+        $tenant = $this->createTenant('Clinic One', 'aria', 'aria.hairvision-ai.test');
         $template = Template::create([
             'code' => 'clinic',
             'name' => 'Clinic',
@@ -932,7 +932,7 @@ class HairVisionMvpTest extends TestCase
 
     private function seedSampleImages(): void
     {
-        foreach (['3-months.jpg', '6-months.jpg', '12-months.jpg'] as $filename) {
+        foreach (['two-weeks.jpg', 'intermediate_regrowth.jpg', 'final_result.jpg'] as $filename) {
             Storage::disk('local')->put('sample-results/'.$filename, base64_decode(self::TEST_JPEG_BASE64));
         }
     }

@@ -47,24 +47,51 @@ return [
     'generation' => [
         'message_interval_ms' => (int) env('HAIRVISION_GENERATION_MESSAGE_INTERVAL_MS', 10000),
         'poll_interval_ms' => (int) env('HAIRVISION_GENERATION_POLL_INTERVAL_MS', 5000),
-        'poll_timeout_ms' => (int) env('HAIRVISION_GENERATION_POLL_TIMEOUT_MS', 360000),
+
+        /*
+        |--------------------------------------------------------------------------
+        | Generation Polling UX
+        |--------------------------------------------------------------------------
+        |
+        | soft_timeout_ms only changes the frontend message.
+        | max_wait_ms is the maximum time the frontend should keep polling
+        | in the current page session before telling the user that background
+        | processing is still continuing.
+        |
+        | poll_timeout_ms is kept as a legacy alias so older Blade/JS code
+        | that still reads it will not break.
+        |
+        */
+
+        'soft_timeout_ms' => (int) env('HAIRVISION_GENERATION_SOFT_TIMEOUT_MS', 120000),
+        'max_wait_ms' => (int) env('HAIRVISION_GENERATION_MAX_WAIT_MS', 900000),
+        'allow_background_completion' => filter_var(
+            env('HAIRVISION_GENERATION_ALLOW_BACKGROUND_COMPLETION', true),
+            FILTER_VALIDATE_BOOLEAN
+        ),
+
+        'poll_timeout_ms' => (int) env(
+            'HAIRVISION_GENERATION_POLL_TIMEOUT_MS',
+            env('HAIRVISION_GENERATION_MAX_WAIT_MS', 900000)
+        ),
+
         'stages' => [
             'two_weeks' => [
                 'order' => 1,
                 'label_key' => 'ai.generation.stages.two_weeks',
-                'sample_image' => env('HAIRVISION_SAMPLE_IMAGE_TWO_WEEKS', env('HAIRVISION_SAMPLE_IMAGE_3_MONTHS', 'sample-results/3-months.jpg')),
+                'sample_image' => env('HAIRVISION_SAMPLE_IMAGE_TWO_WEEKS', env('HAIRVISION_SAMPLE_IMAGE_3_MONTHS', 'sample-results/two-weeks.jpg')),
                 'prompt' => 'Create exactly one realistic hair transplant preview image showing the same person two weeks after a complete hair transplant. Preserve the face identity, camera angle, lighting, skin tone, and background. Only edit the scalp and hairline area. Show an early post-transplant stage with a natural designed hairline, subtle redness, tiny graft marks, mild swelling, and short implanted hair stubble. Keep the result clinical, natural, and photorealistic.',
             ],
             'intermediate_regrowth' => [
                 'order' => 2,
                 'label_key' => 'ai.generation.stages.intermediate_regrowth',
-                'sample_image' => env('HAIRVISION_SAMPLE_IMAGE_INTERMEDIATE_REGROWTH', env('HAIRVISION_SAMPLE_IMAGE_6_MONTHS', 'sample-results/6-months.jpg')),
+                'sample_image' => env('HAIRVISION_SAMPLE_IMAGE_INTERMEDIATE_REGROWTH', env('HAIRVISION_SAMPLE_IMAGE_6_MONTHS', 'sample-results/intermediate_regrowth.jpg')),
                 'prompt' => 'Create exactly one realistic hair transplant preview image showing the same person in an intermediate regrowth stage after hair transplant. Preserve the face identity, camera angle, lighting, skin tone, and background. Only edit the scalp and hairline area. Show natural early regrowth with reduced healing marks, uneven but believable density, short growing hairs, and a natural hairline that is still filling in. Keep the result photorealistic and medically plausible.',
             ],
             'final_result' => [
                 'order' => 3,
                 'label_key' => 'ai.generation.stages.final_result',
-                'sample_image' => env('HAIRVISION_SAMPLE_IMAGE_FINAL_RESULT', env('HAIRVISION_SAMPLE_IMAGE_12_MONTHS', 'sample-results/12-months.jpg')),
+                'sample_image' => env('HAIRVISION_SAMPLE_IMAGE_FINAL_RESULT', env('HAIRVISION_SAMPLE_IMAGE_12_MONTHS', 'sample-results/final_result.jpg')),
                 'prompt' => 'Create exactly one realistic final hair transplant result image showing the same person after full growth from a complete hair transplant. Preserve the face identity, camera angle, lighting, skin tone, and background. Only edit the scalp and hairline area. Show a fuller natural hairline, realistic density, natural direction and texture, and coverage that suits the person’s face. Keep the result photorealistic, balanced, and medically plausible.',
             ],
         ],
@@ -75,10 +102,27 @@ return [
         ],
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | API Image Preprocessing
+    |--------------------------------------------------------------------------
+    |
+    | The original upload should remain unchanged. Before sending an image to
+    | external AI APIs, create an optimized API input copy with a maximum
+    | dimension and controlled format/quality.
+    |
+    */
+
+    'api_image' => [
+        'max_dimension' => (int) env('HAIRVISION_API_IMAGE_MAX_DIMENSION', 1024),
+        'jpeg_quality' => (int) env('HAIRVISION_API_IMAGE_JPEG_QUALITY', 85),
+        'format' => env('HAIRVISION_API_IMAGE_FORMAT', 'jpg'),
+    ],
+
     'sample_images' => [
-        '3_months' => env('HAIRVISION_SAMPLE_IMAGE_3_MONTHS', 'sample-results/3-months.jpg'),
-        '6_months' => env('HAIRVISION_SAMPLE_IMAGE_6_MONTHS', 'sample-results/6-months.jpg'),
-        '12_months' => env('HAIRVISION_SAMPLE_IMAGE_12_MONTHS', 'sample-results/12-months.jpg'),
+        '3_months' => env('HAIRVISION_SAMPLE_IMAGE_3_MONTHS', 'sample-results/two-weeks.jpg'),
+        '6_months' => env('HAIRVISION_SAMPLE_IMAGE_6_MONTHS', 'sample-results/intermediate_regrowth.jpg'),
+        '12_months' => env('HAIRVISION_SAMPLE_IMAGE_12_MONTHS', 'sample-results/final_result.jpg'),
         'fallback' => env('HAIRVISION_SAMPLE_IMAGE_FALLBACK', 'sample-results/hairvision-sample-result.jpg'),
     ],
 
@@ -110,5 +154,8 @@ return [
     ],
 
     // Runs sample image jobs synchronously for local/debug UX.
-    'debug_fast_samples' => env('HAIRVISION_DEBUG_FAST_SAMPLES', env('APP_DEBUG', false)),
+    'debug_fast_samples' => filter_var(
+        env('HAIRVISION_DEBUG_FAST_SAMPLES', env('APP_DEBUG', false)),
+        FILTER_VALIDATE_BOOLEAN
+    ),
 ];

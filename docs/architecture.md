@@ -179,26 +179,26 @@ App\Services\AI\Providers\SampleImageProvider
 Configured default sample paths:
 
 ```text
-storage/app/private/sample-results/3-months.jpg -> two_weeks
-storage/app/private/sample-results/6-months.jpg -> intermediate_regrowth
-storage/app/private/sample-results/12-months.jpg -> final_result
+storage/app/private/sample-results/two-weeks.jpg -> two_weeks
+storage/app/private/sample-results/intermediate_regrowth.jpg -> intermediate_regrowth
+storage/app/private/sample-results/final_result.jpg -> final_result
 ```
 
 Legacy environment variables remain supported for the sample files:
 
 ```text
-storage/app/private/sample-results/3-months.jpg
-storage/app/private/sample-results/6-months.jpg
-storage/app/private/sample-results/12-months.jpg
+storage/app/private/sample-results/two-weeks.jpg
+storage/app/private/sample-results/intermediate_regrowth.jpg
+storage/app/private/sample-results/final_result.jpg
 ```
 
 Environment variables:
 
 ```env
 HAIRVISION_DEFAULT_AI_PROVIDER=sample_image
-HAIRVISION_SAMPLE_IMAGE_3_MONTHS=sample-results/3-months.jpg
-HAIRVISION_SAMPLE_IMAGE_6_MONTHS=sample-results/6-months.jpg
-HAIRVISION_SAMPLE_IMAGE_12_MONTHS=sample-results/12-months.jpg
+HAIRVISION_SAMPLE_IMAGE_3_MONTHS=sample-results/two-weeks.jpg
+HAIRVISION_SAMPLE_IMAGE_6_MONTHS=sample-results/intermediate_regrowth.jpg
+HAIRVISION_SAMPLE_IMAGE_12_MONTHS=sample-results/final_result.jpg
 HAIRVISION_SAMPLE_IMAGE_FALLBACK=sample-results/hairvision-sample-result.jpg
 ```
 

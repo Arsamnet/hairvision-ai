@@ -27,7 +27,7 @@ npm run build
 Map the test tenant host:
 
 ```text
-127.0.0.1 clinic1.hairvision-ai.test
+127.0.0.1 aria.hairvision-ai.test
 127.0.0.1 hairvision-ai.test
 ```
 
@@ -42,7 +42,7 @@ php artisan horizon
 Open:
 
 ```text
-http://clinic1.hairvision-ai.test:8000
+http://aria.hairvision-ai.test:8000
 ```
 
 Admin dashboard:
@@ -58,9 +58,9 @@ Demo mobile numbers after `php artisan migrate:fresh --seed`:
 - Editor: `09120000001`
 - Viewer: `09120000002`
 
-The demo seed also prepares Clinic Aria (`clinic1`) for immediate use:
+The demo seed also prepares Clinic Aria (`aria`) for immediate use:
 
-- the tenant and both `clinic1.hairvision-ai.test` and `hairvision-ai.test`
+- the tenant and both `aria.hairvision-ai.test` and `hairvision-ai.test`
   domains are active;
 - `پلن شروع` is purchased through a seeded paid invoice/payment and has an
   active clinic subscription;

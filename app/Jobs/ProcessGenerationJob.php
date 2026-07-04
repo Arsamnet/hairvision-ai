@@ -6,6 +6,8 @@ use App\Actions\Ai\RunAiModelAction;
 use App\Data\Ai\AiModelResponseData;
 use App\Models\GeneratedAsset;
 use App\Models\GenerationJob;
+use App\Models\Lead;
+use App\Models\Upload;
 use App\Services\AI\Dtos\ImageGenerationRequest;
 use App\Services\AI\Dtos\ImageGenerationResponse;
 use App\Services\AI\Resolvers\ProviderResolver;
@@ -13,6 +15,7 @@ use App\Services\Billing\CreditLedgerService;
 use App\Services\Generation\FinalGenerationSmsService;
 use App\Services\Generation\GenerationStageCatalog;
 use App\Services\GenerationService;
+use App\Support\DebugStepLogger;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -22,325 +25,480 @@ use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
+use RuntimeException;
 use Throwable;
 
 /**
- * Processes one tenant- and lead-scoped generation stage.
- *
- * The job resolves provider adapters, stores one private output, and advances
- * the group to the next stage when this stage completes.
+ * Processes one generation stage.
  *
  * @since 1.0.0
  */
 class ProcessGenerationJob implements ShouldQueue
 {
-    use Dispatchable, InteractsWithQueue, Queueable, SerializesAndRestoresModelIdentifiers, SerializesModels;
+    use Dispatchable;
+    use InteractsWithQueue;
+    use Queueable;
+    use SerializesAndRestoresModelIdentifiers;
+    use SerializesModels;
 
     /**
-     * @param  GenerationJob  $generationJob  Stage job to process.
+     * Keep external image provider calls from being killed too early.
      */
+    public int $timeout = 300;
+
+    /**
+     * Avoid duplicate credit consumption and duplicate provider calls.
+     */
+    public int $tries = 1;
+
+    private int $debugStepCounter = 0;
+
     public function __construct(public GenerationJob $generationJob) {}
 
     /**
-     * Execute provider submission and persist one completed stage output.
-     *
-     * Side effects: updates generation status, writes generated assets, and
-     * stores provider metadata for internal review.
+     * Execute provider processing and persist the generated asset.
      */
     public function handle(): void
     {
-        $jobId = $this->generationJob->uuid;
-        $groupId = $this->generationJob->group->uuid;
-        $period = $this->generationJob->period;
-        
-        Log::info('Generation job started', [
-            'generation_job_id' => $jobId,
-            'generation_group_id' => $groupId,
-            'period' => $period,
-            'tenant_id' => $this->generationJob->tenant_id,
-            'lead_id' => $this->generationJob->lead_id,
-            'model_key' => $this->generationJob->model_name,
-        ]);
-        
-        $this->generationJob->refresh();
+        $scope = 'generation.job.process';
 
-        // Check if already completed or asset already exists
-        if ($this->generationJob->status === 'completed' || $this->generationJob->asset()->exists()) {
-            Log::info('Generation job already completed', [
-                'generation_job_id' => $jobId,
+        try {
+            $this->debugStep($scope, 'Job started', [
+                'period' => $this->generationJob->period,
+                'model_key' => $this->generationJob->model_name,
+            ]);
+
+            $this->generationJob->refresh();
+
+            $this->debugStep($scope, 'Generation job refreshed', [
                 'status' => $this->generationJob->status,
                 'has_asset' => $this->generationJob->asset()->exists(),
             ]);
-            
-            $this->generationJob->update([
-                'status' => 'completed',
-                'completed_at' => $this->generationJob->completed_at ?? now(),
-            ]);
-            $this->completeGroupOrDispatchNext();
 
-            return;
-        }
-
-        // Mark as processing
-        $this->generationJob->update([
-            'status' => 'processing',
-            'started_at' => now(),
-            'attempts' => $this->generationJob->attempts + 1,
-        ]);
-
-        Log::info('Generation job marked as processing', [
-            'generation_job_id' => $jobId,
-            'attempt' => $this->generationJob->attempts,
-        ]);
-
-        $resolver = new ProviderResolver;
-        $provider = $resolver->resolveForTenant($this->generationJob->tenant_id);
-
-        $upload = $this->generationJob->upload;
-        $lead = $this->generationJob->lead;
-
-        // Use new RunAiModelAction if model access is available
-        if ($this->generationJob->aiModelAccess) {
-            try {
-                Log::info('Executing AI model via RunAiModelAction', [
-                    'generation_job_id' => $jobId,
-                    'model_key' => $this->generationJob->aiModelAccess->model_key,
-                    'usage_category' => $this->generationJob->aiModelAccess->usage_category_key,
-                ]);
-                
-                $response = app(RunAiModelAction::class)->execute(
-                    clinic: $this->generationJob->tenant,
-                    usageCategoryKey: $this->generationJob->aiModelAccess->usage_category_key,
-                    payload: [
-                        'generation_job_id' => $this->generationJob->uuid,
-                        'upload_id' => $upload->uuid,
-                        'upload_disk' => $upload->original_disk,
-                        'upload_path' => $upload->original_path,
-                        'period' => $this->generationJob->period,
-                        'prompt' => $this->generationJob->prompt,
-                    ],
-                    selectedAccess: $this->generationJob->aiModelAccess,
-                );
-
-                Log::info('AI model execution completed', [
-                    'generation_job_id' => $jobId,
-                    'successful' => $response->successful,
-                    'status' => $response->status,
-                    'error_code' => $response->errorCode,
+            if ($this->generationJob->status === 'completed' || $this->generationJob->asset()->exists()) {
+                $this->debugStep($scope, 'Job already completed or asset already exists', [
+                    'status' => $this->generationJob->status,
+                    'has_asset' => $this->generationJob->asset()->exists(),
                 ]);
 
-                if (! $response->successful) {
-                    $errorMsg = $response->safeErrorMessage ?: __('ai_models.errors.provider_failed');
-                    Log::warning('AI model execution failed', [
-                        'generation_job_id' => $jobId,
-                        'error_code' => $response->errorCode,
-                        'error_message' => $errorMsg,
-                    ]);
-                    $this->markFailed($errorMsg);
-
-                    return;
-                }
-
-                if ($this->aiResponseHasImage($response)) {
-                    if (! $this->consumeServiceCredit()) {
-                        return;
-                    }
-
-                    Log::info('Generated image received, storing asset', [
-                        'generation_job_id' => $jobId,
-                        'period' => $period,
-                    ]);
-
-                    $this->storeGeneratedBinaryAsset($response);
-                    $this->markCompletedAndContinue();
-
-                    return;
-                }
-
-                Log::warning('AI model response missing image', [
-                    'generation_job_id' => $jobId,
-                    'response_keys' => array_keys($response->output),
+                $this->generationJob->update([
+                    'status' => 'completed',
+                    'completed_at' => $this->generationJob->completed_at ?? now(),
+                    'last_error' => null,
                 ]);
-                $this->markFailed(__('ai_models.errors.missing_generated_image'));
 
-                return;
-            } catch (Throwable $exception) {
-                Log::error('AI model execution exception', [
-                    'generation_job_id' => $jobId,
-                    'exception_class' => $exception::class,
-                    'exception_message' => $exception->getMessage(),
-                    'file' => $exception->getFile(),
-                    'line' => $exception->getLine(),
-                ]);
-                $this->markFailed(__('ai_models.errors.provider_failed'));
+                $this->completeGroupOrDispatchNext();
 
                 return;
             }
-        }
 
-        // Legacy: Use ProviderResolver (for sample provider)
-        Log::info('Using legacy provider via ProviderResolver', [
-            'generation_job_id' => $jobId,
-            'provider_class' => $provider::class,
-        ]);
-        
-        $request = new ImageGenerationRequest(
-            tenantUuid: $lead->tenant->uuid,
-            leadUuid: $lead->uuid,
-            uploadPath: $upload->original_path,
-            period: $this->generationJob->period,
-            prompt: $this->generationJob->prompt,
-            modelName: $this->generationJob->model_name,
-            settings: $this->generationJob->aiModelAccess?->settings ?? [],
-        );
+            $attempt = ((int) $this->generationJob->attempts) + 1;
 
-        $response = $provider->submit($request);
-
-        Log::info('Legacy provider response received', [
-            'generation_job_id' => $jobId,
-            'response_status' => $response->status,
-            'has_local_path' => ! empty($response->localPath),
-        ]);
-
-        if ($response->status !== 'completed' || ! $response->localPath) {
-            Log::warning('Legacy provider did not return completed', [
-                'generation_job_id' => $jobId,
-                'status' => $response->status,
-                'local_path' => $response->localPath,
+            $this->generationJob->update([
+                'status' => 'processing',
+                'started_at' => now(),
+                'attempts' => $attempt,
+                'last_error' => null,
             ]);
-            $this->markFailed('sample provider did not return completed');
 
-            return;
+            $this->debugStep($scope, 'Job marked as processing', [
+                'attempt' => $attempt,
+            ]);
+
+            $upload = $this->generationJob->upload;
+            $lead = $this->generationJob->lead;
+
+            $this->debugStep($scope, 'Related upload and lead resolved', [
+                'upload_id' => $upload?->id,
+                'upload_uuid' => $upload?->uuid,
+                'lead_id' => $lead?->id,
+                'lead_uuid' => $lead?->uuid,
+            ]);
+
+            if (! $upload instanceof Upload) {
+                throw new RuntimeException('Generation upload could not be resolved.');
+            }
+
+            if (! $lead instanceof Lead) {
+                throw new RuntimeException('Generation lead could not be resolved.');
+            }
+
+            if ($this->generationJob->aiModelAccess) {
+                $this->processWithAiModelAction($scope, $upload);
+
+                return;
+            }
+
+            $this->processWithLegacyProvider($scope, $upload, $lead);
+        } catch (Throwable $exception) {
+            $this->safelyMarkFailedFromException($exception);
+
+            throw $exception;
         }
-
-        if (! $this->consumeServiceCredit()) {
-            return;
-        }
-
-        $this->storeGeneratedLocalAsset($response);
-        $this->markCompletedAndContinue();
     }
 
     /**
-     * Mark the current stage as completed and advance the generation group.
+     * Laravel queue failure callback.
+     */
+    public function failed(Throwable $exception): void
+    {
+        $this->safelyMarkFailedFromException($exception);
+    }
+
+    /**
+     * Process the stage through the configured AI model action.
+     */
+    private function processWithAiModelAction(string $scope, Upload $upload): void
+    {
+        try {
+            $this->debugStep($scope, 'Executing AI model action', [
+                'ai_model_access_id' => $this->generationJob->aiModelAccess?->id,
+                'model_key' => $this->generationJob->aiModelAccess?->model_key,
+                'usage_category' => $this->generationJob->aiModelAccess?->usage_category_key,
+                'has_prompt' => $this->generationJob->prompt !== null && $this->generationJob->prompt !== '',
+                'prompt_length' => is_string($this->generationJob->prompt) ? strlen($this->generationJob->prompt) : 0,
+            ]);
+
+            $response = app(RunAiModelAction::class)->execute(
+                clinic: $this->generationJob->tenant,
+                usageCategoryKey: $this->generationJob->aiModelAccess->usage_category_key,
+                payload: [
+                    'generation_job_id' => $this->generationJob->uuid,
+                    'upload_id' => $upload->uuid,
+                    'upload_disk' => $upload->original_disk,
+                    'upload_path' => $upload->original_path,
+                    'period' => $this->generationJob->period,
+                    'prompt' => $this->generationJob->prompt,
+                ],
+                selectedAccess: $this->generationJob->aiModelAccess,
+            );
+
+            $this->debugStep($scope, 'AI model action completed', [
+                'successful' => $response->successful,
+                'status' => $response->status,
+                'error_code' => $response->errorCode,
+            ]);
+
+            if (! $response->successful) {
+                $this->debugStep($scope, 'AI model action returned failure', [
+                    'status' => $response->status,
+                    'error_code' => $response->errorCode,
+                    'has_safe_error_message' => $response->safeErrorMessage !== null,
+                ]);
+
+                $this->markFailed($response->safeErrorMessage ?: __('ai_models.errors.provider_failed'));
+
+                return;
+            }
+
+            if (! $this->aiResponseHasImage($response)) {
+                $this->debugStep($scope, 'AI model response missing generated image', [
+                    'output_keys' => array_keys($response->output),
+                ]);
+
+                $this->markFailed(__('ai_models.errors.missing_generated_image'));
+
+                return;
+            }
+
+            $this->debugStep($scope, 'Generated image response received', [
+                'has_binary_content' => true,
+                'mime' => $response->output['mime'] ?? null,
+                'extension' => $response->output['extension'] ?? null,
+            ]);
+
+            if (! $this->consumeServiceCredit()) {
+                return;
+            }
+
+            $this->storeGeneratedBinaryAsset($response);
+            $this->markCompletedAndContinue();
+        } catch (Throwable $exception) {
+            $this->debugStep($scope, 'AI model action exception', [
+                'exception' => $exception::class,
+                'message' => $exception->getMessage(),
+            ]);
+
+            $this->markFailed($this->safeFailureMessage($exception));
+        }
+    }
+
+    /**
+     * Process the stage through the legacy provider path.
+     */
+    private function processWithLegacyProvider(string $scope, Upload $upload, Lead $lead): void
+    {
+        try {
+            $resolver = new ProviderResolver();
+            $provider = $resolver->resolveForTenant($this->generationJob->tenant_id);
+
+            $this->debugStep($scope, 'Legacy provider resolved', [
+                'provider_class' => $provider::class,
+            ]);
+
+            $request = new ImageGenerationRequest(
+                tenantUuid: $lead->tenant->uuid,
+                leadUuid: $lead->uuid,
+                uploadPath: $upload->original_path,
+                period: $this->generationJob->period,
+                prompt: $this->generationJob->prompt,
+                modelName: $this->generationJob->model_name,
+                settings: $this->generationJob->aiModelAccess?->settings ?? [],
+            );
+
+            $this->debugStep($scope, 'Legacy provider request prepared', [
+                'period' => $this->generationJob->period,
+                'model_name' => $this->generationJob->model_name,
+                'has_prompt' => $this->generationJob->prompt !== null && $this->generationJob->prompt !== '',
+                'settings_count' => count($this->generationJob->aiModelAccess?->settings ?? []),
+            ]);
+
+            $response = $provider->submit($request);
+
+            $this->debugStep($scope, 'Legacy provider response received', [
+                'response_status' => $response->status,
+                'has_local_path' => ! empty($response->localPath),
+            ]);
+
+            if ($response->status !== 'completed' || ! $response->localPath) {
+                $this->debugStep($scope, 'Legacy provider did not complete', [
+                    'response_status' => $response->status,
+                    'has_local_path' => ! empty($response->localPath),
+                ]);
+
+                $this->markFailed('sample provider did not return completed');
+
+                return;
+            }
+
+            if (! $this->consumeServiceCredit()) {
+                return;
+            }
+
+            $this->storeGeneratedLocalAsset($response);
+            $this->markCompletedAndContinue();
+        } catch (Throwable $exception) {
+            $this->debugStep($scope, 'Legacy provider exception', [
+                'exception' => $exception::class,
+                'message' => $exception->getMessage(),
+            ]);
+
+            $this->markFailed($this->safeFailureMessage($exception));
+        }
+    }
+
+    /**
+     * Mark the stage as completed and continue the group.
      */
     private function markCompletedAndContinue(): void
     {
-        $jobId = $this->generationJob->uuid;
-        
-        Log::info('Marking generation job as completed', [
-            'generation_job_id' => $jobId,
+        $scope = 'generation.job.process';
+
+        $this->generationJob->refresh();
+
+        $this->debugStep($scope, 'Marking job as completed', [
             'period' => $this->generationJob->period,
         ]);
-        
+
         $this->generationJob->update([
             'status' => 'completed',
             'completed_at' => now(),
+            'last_error' => null,
         ]);
 
         $this->completeGroupOrDispatchNext();
     }
 
     /**
-     * Complete the batch once all stages are ready, otherwise start the next stage.
+     * Complete the group or dispatch the next stage.
      */
     private function completeGroupOrDispatchNext(): void
     {
+        $scope = 'generation.job.process';
+
         $group = $this->generationJob->group()->with('jobs')->firstOrFail();
-        $groupId = $group->uuid;
         $wasCompleted = $group->status === 'completed';
-        
-        $completedCount = $group->jobs->filter(fn (GenerationJob $job): bool => $job->status === 'completed')->count();
-        Log::info('Checking group completion status', [
-            'generation_group_id' => $groupId,
+
+        $completedCount = $group->jobs
+            ->filter(fn (GenerationJob $job): bool => $job->status === 'completed')
+            ->count();
+
+        $this->debugStep($scope, 'Checking group completion', [
+            'generation_group_id' => $group->id,
+            'generation_group_uuid' => $group->uuid,
+            'group_status' => $group->status,
             'total_jobs' => $group->jobs->count(),
             'completed_jobs' => $completedCount,
+            'failed_jobs' => $group->jobs->where('status', 'failed')->count(),
+            'pending_jobs' => $group->jobs->where('status', 'pending')->count(),
+            'processing_jobs' => $group->jobs->where('status', 'processing')->count(),
         ]);
 
-        if ($group->jobs->every(fn (GenerationJob $job): bool => $job->status === 'completed')) {
-            Log::info('All generation jobs completed, marking group as complete', [
-                'generation_group_id' => $groupId,
+        if ($group->jobs->contains(fn (GenerationJob $job): bool => $job->status === 'failed')) {
+            $group->update(['status' => 'failed']);
+
+            $this->debugStep($scope, 'Group marked as failed because at least one stage failed', [
+                'generation_group_id' => $group->id,
+                'generation_group_uuid' => $group->uuid,
             ]);
-            
+
+            return;
+        }
+
+        if ($group->jobs->every(fn (GenerationJob $job): bool => $job->status === 'completed')) {
             $group->update(['status' => 'completed']);
 
-            if (! $wasCompleted) {
-                Log::info('Sending completion SMS notification', [
-                    'generation_group_id' => $groupId,
-                ]);
-                app(FinalGenerationSmsService::class)->sendCompleted($group->refresh());
-            }
-        } else {
-            Log::info('More jobs pending, dispatching next stage', [
-                'generation_group_id' => $groupId,
-                'completed_jobs' => $completedCount,
-                'total_jobs' => $group->jobs->count(),
+            $this->debugStep($scope, 'Group marked as completed', [
+                'generation_group_id' => $group->id,
+                'generation_group_uuid' => $group->uuid,
+                'was_completed' => $wasCompleted,
             ]);
-            
-            $group->update(['status' => 'processing']);
-            app(GenerationService::class)->dispatchNextStage($group);
+
+            if (! $wasCompleted) {
+                $this->debugStep($scope, 'Sending final generation SMS', [
+                    'generation_group_id' => $group->id,
+                    'generation_group_uuid' => $group->uuid,
+                ]);
+
+                app(FinalGenerationSmsService::class)->sendCompleted($group->refresh());
+
+                $this->debugStep($scope, 'Final generation SMS dispatched', [
+                    'generation_group_id' => $group->id,
+                    'generation_group_uuid' => $group->uuid,
+                ]);
+            }
+
+            return;
         }
+
+        $group->update(['status' => 'processing']);
+
+        $this->debugStep($scope, 'Group still processing; dispatching next stage', [
+            'generation_group_id' => $group->id,
+            'generation_group_uuid' => $group->uuid,
+            'completed_jobs' => $completedCount,
+            'total_jobs' => $group->jobs->count(),
+        ]);
+
+        app(GenerationService::class)->dispatchNextStage($group);
+
+        $this->debugStep($scope, 'Next stage dispatch requested', [
+            'generation_group_id' => $group->id,
+            'generation_group_uuid' => $group->uuid,
+        ]);
     }
 
     /**
-     * Mark the current stage and group as safely failed.
+     * Mark the stage and group as failed.
      */
     private function markFailed(string $message): void
     {
-        $jobId = $this->generationJob->uuid;
-        $groupId = $this->generationJob->group->uuid;
-        
-        Log::error('Marking generation job as failed', [
-            'generation_job_id' => $jobId,
-            'generation_group_id' => $groupId,
+        $scope = 'generation.job.process';
+
+        $this->generationJob->refresh();
+
+        $this->debugStep($scope, 'Marking job as failed', [
             'period' => $this->generationJob->period,
-            'error_message' => $message,
             'attempt' => $this->generationJob->attempts,
+            'has_error_message' => $message !== '',
         ]);
-        
+
         $this->generationJob->update([
             'status' => 'failed',
             'last_error' => $message,
         ]);
 
-        $this->generationJob->group->update(['status' => 'failed']);
+        $group = $this->generationJob->group()->first();
+
+        if ($group) {
+            $group->update(['status' => 'failed']);
+        }
+
+        $this->debugStep($scope, 'Group marked as failed', [
+            'generation_group_id' => $this->generationJob->generation_group_id,
+        ]);
     }
 
+    /**
+     * Mark failed from an exception without leaving the job stuck in processing.
+     */
+    private function safelyMarkFailedFromException(Throwable $exception): void
+    {
+        try {
+            $this->debugStep('generation.job.process', 'Unhandled generation job exception', [
+                'exception' => $exception::class,
+                'message' => $exception->getMessage(),
+            ]);
+
+            $this->markFailed($this->safeFailureMessage($exception));
+        } catch (Throwable $failureException) {
+            Log::error('[generation.job.process] Could not mark generation job as failed', [
+                'generation_job_id' => $this->generationJob->id ?? null,
+                'generation_job_uuid' => $this->generationJob->uuid ?? null,
+                'generation_group_id' => $this->generationJob->generation_group_id ?? null,
+                'original_exception' => $exception::class,
+                'original_message' => $exception->getMessage(),
+                'failure_exception' => $failureException::class,
+                'failure_message' => $failureException->getMessage(),
+            ]);
+        }
+    }
+
+    /**
+     * Return a safe error message for DB/frontend storage.
+     */
+    private function safeFailureMessage(Throwable $exception): string
+    {
+        if (config('app.debug')) {
+            return $exception->getMessage() ?: __('ai_models.errors.provider_failed');
+        }
+
+        return __('ai_models.errors.provider_failed');
+    }
+
+    /**
+     * Consume one service credit before storing the generated output.
+     */
     private function consumeServiceCredit(): bool
     {
-        $jobId = $this->generationJob->uuid;
-        
+        $scope = 'generation.job.process';
+        $serviceKey = $this->generationJob->aiModelAccess?->usage_category_key ?? 'hair_transplant';
+
         try {
-            Log::info('Consuming service credit for generation', [
-                'generation_job_id' => $jobId,
-                'service_key' => $this->generationJob->aiModelAccess?->usage_category_key ?? 'hair_transplant',
+            $this->debugStep($scope, 'Consuming service credit', [
+                'service_key' => $serviceKey,
             ]);
-            
+
             app(CreditLedgerService::class)->consume(
                 tenant: $this->generationJob->tenant,
-                serviceKey: $this->generationJob->aiModelAccess?->usage_category_key ?? 'hair_transplant',
+                serviceKey: $serviceKey,
                 related: $this->generationJob,
-                description: __('credits.descriptions.ai_usage', ['period' => app(GenerationStageCatalog::class)->label($this->generationJob->period)]),
+                description: __('credits.descriptions.ai_usage', [
+                    'period' => app(GenerationStageCatalog::class)->label($this->generationJob->period),
+                ]),
             );
-            
-            Log::info('Service credit consumed successfully', [
-                'generation_job_id' => $jobId,
+
+            $this->debugStep($scope, 'Service credit consumed', [
+                'service_key' => $serviceKey,
             ]);
         } catch (ValidationException $exception) {
             $error = collect($exception->errors())->flatten()->first() ?: __('credits.errors.consume_failed');
-            Log::warning('Service credit consumption failed - validation error', [
-                'generation_job_id' => $jobId,
-                'error' => $error,
+
+            $this->debugStep($scope, 'Service credit validation failed', [
+                'service_key' => $serviceKey,
+                'has_error' => $error !== '',
             ]);
+
             $this->markFailed($error);
 
             return false;
         } catch (Throwable $exception) {
-            Log::error('Service credit consumption failed - exception', [
-                'generation_job_id' => $jobId,
-                'exception_class' => $exception::class,
-                'exception_message' => $exception->getMessage(),
+            $this->debugStep($scope, 'Service credit exception', [
+                'service_key' => $serviceKey,
+                'exception' => $exception::class,
+                'message' => $exception->getMessage(),
             ]);
+
             $this->markFailed(__('credits.errors.consume_failed'));
 
             return false;
@@ -349,6 +507,9 @@ class ProcessGenerationJob implements ShouldQueue
         return true;
     }
 
+    /**
+     * Check whether the AI response contains image bytes.
+     */
     private function aiResponseHasImage(AiModelResponseData $response): bool
     {
         return is_string($response->output['binary_content'] ?? null)
@@ -356,107 +517,128 @@ class ProcessGenerationJob implements ShouldQueue
     }
 
     /**
-     * Copy provider output into tenant/lead private storage and record metadata.
+     * Copy local provider output into private result storage.
      */
     private function storeGeneratedLocalAsset(ImageGenerationResponse $response): void
     {
-        $jobId = $this->generationJob->uuid;
-        
-        Log::info('Storing generated local asset', [
-            'generation_job_id' => $jobId,
-            'source_path' => $response->localPath,
-        ]);
-        
+        $scope = 'generation.job.process';
+
         $source = Storage::disk('local');
         $sourcePath = $response->localPath;
         $destination = $this->destinationPath('jpg');
 
+        $this->debugStep($scope, 'Storing local generated asset', [
+            'source_path' => $sourcePath,
+            'source_exists' => $source->exists($sourcePath),
+            'extension' => 'jpg',
+        ]);
+
+        if (! $source->exists($sourcePath)) {
+            throw new RuntimeException('Generated local provider file does not exist.');
+        }
+
         $source->makeDirectory(dirname($destination));
         $source->copy($sourcePath, $destination);
 
-        Log::info('Asset file copied to destination', [
-            'generation_job_id' => $jobId,
-            'destination_path' => $destination,
+        $size = $source->size($destination);
+        $mime = is_string($response->metadata['mime'] ?? null)
+            ? $response->metadata['mime']
+            : 'image/jpeg';
+
+        $this->debugStep($scope, 'Local generated asset stored', [
+            'disk' => 'local',
+            'path' => $destination,
+            'mime' => $mime,
+            'size' => $size,
         ]);
 
         $this->createAsset([
             'disk' => 'local',
             'path' => $destination,
-            'mime' => $response->metadata['mime'] ?? $source->mimeType($destination) ?: 'image/jpeg',
-            'size' => $response->metadata['size'] ?? $source->size($destination),
+            'mime' => $mime,
+            'size' => $response->metadata['size'] ?? $size,
             'provider_metadata_json' => $response->metadata,
         ]);
     }
 
     /**
-     * Persist generated bytes returned by a real image edit provider.
+     * Store binary provider output into private result storage.
      */
     private function storeGeneratedBinaryAsset(AiModelResponseData $response): void
     {
-        $jobId = $this->generationJob->uuid;
+        $scope = 'generation.job.process';
+
         $extension = (string) ($response->output['extension'] ?? 'jpg');
         $mime = (string) ($response->output['mime'] ?? 'image/jpeg');
-        
-        Log::info('Storing generated binary asset', [
-            'generation_job_id' => $jobId,
-            'extension' => $extension,
-            'mime' => $mime,
-        ]);
-        
         $disk = Storage::disk('local');
         $destination = $this->destinationPath($extension);
+
+        $this->debugStep($scope, 'Storing binary generated asset', [
+            'extension' => $extension,
+            'mime' => $mime,
+            'has_binary_content' => $this->aiResponseHasImage($response),
+        ]);
 
         $disk->makeDirectory(dirname($destination));
         $disk->put($destination, $response->output['binary_content']);
 
-        Log::info('Binary asset written to disk', [
-            'generation_job_id' => $jobId,
-            'destination_path' => $destination,
-            'file_size' => $disk->size($destination),
+        $size = $disk->size($destination);
+        $safeMime = str_starts_with($mime, 'image/') ? $mime : 'image/jpeg';
+
+        $this->debugStep($scope, 'Binary generated asset stored', [
+            'disk' => 'local',
+            'path' => $destination,
+            'mime' => $safeMime,
+            'size' => $size,
         ]);
 
         $this->createAsset([
             'disk' => 'local',
             'path' => $destination,
-            'mime' => str_starts_with($mime, 'image/') ? $mime : 'image/jpeg',
-            'size' => $disk->size($destination),
+            'mime' => $safeMime,
+            'size' => $size,
             'provider_metadata_json' => $response->metadata,
         ]);
     }
 
     /**
+     * Create the generated asset database record.
+     *
      * @param  array<string, mixed>  $attributes
      */
     private function createAsset(array $attributes): void
     {
-        $jobId = $this->generationJob->uuid;
-        
+        $scope = 'generation.job.process';
+
         if ($this->generationJob->asset()->exists()) {
-            Log::warning('Asset already exists for this job', [
-                'generation_job_id' => $jobId,
-            ]);
+            $this->debugStep($scope, 'Asset creation skipped because asset already exists');
+
             return;
         }
 
-        Log::info('Creating generated asset record', [
-            'generation_job_id' => $jobId,
-            'path' => $attributes['path'],
-            'disk' => $attributes['disk'],
+        $this->debugStep($scope, 'Creating generated asset record', [
+            'disk' => $attributes['disk'] ?? null,
+            'mime' => $attributes['mime'] ?? null,
+            'size' => $attributes['size'] ?? null,
         ]);
-        
-        GeneratedAsset::create([
+
+        $asset = GeneratedAsset::create([
             'generation_group_id' => $this->generationJob->generation_group_id,
             'generation_job_id' => $this->generationJob->id,
             'tenant_id' => $this->generationJob->tenant_id,
             'lead_id' => $this->generationJob->lead_id,
             'period' => $this->generationJob->period,
         ] + $attributes);
-        
-        Log::info('Generated asset record created', [
-            'generation_job_id' => $jobId,
+
+        $this->debugStep($scope, 'Generated asset record created', [
+            'asset_id' => $asset->id,
+            'asset_uuid' => $asset->uuid,
         ]);
     }
 
+    /**
+     * Build the private result storage path.
+     */
     private function destinationPath(string $extension): string
     {
         $extension = ltrim(strtolower($extension), '.');
@@ -466,5 +648,21 @@ class ProcessGenerationJob implements ShouldQueue
             .'/leads/'.$this->generationJob->lead->uuid
             .'/results/'.$this->generationJob->group->uuid
             .'/'.$this->generationJob->period.'.'.$extension;
+    }
+
+    /**
+     * Write a safe ordered debug step for this queued job.
+     *
+     * @param  array<string, mixed>  $context
+     */
+    private function debugStep(string $scope, string $message, array $context = []): void
+    {
+        DebugStepLogger::workflowStep($scope, ++$this->debugStepCounter, $message, [
+            'generation_job_id' => $this->generationJob->id,
+            'generation_job_uuid' => $this->generationJob->uuid,
+            'generation_group_id' => $this->generationJob->generation_group_id,
+            'tenant_id' => $this->generationJob->tenant_id,
+            'lead_id' => $this->generationJob->lead_id,
+        ] + $context);
     }
 }

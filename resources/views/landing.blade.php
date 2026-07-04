@@ -221,7 +221,7 @@
             <section class="relative isolate overflow-hidden px-4 py-6 sm:px-6 lg:py-8">
                 <div class="absolute inset-0 -z-10 bg-[linear-gradient(135deg,#ecfeff_0%,#f8fafc_32%,#eef2ff_68%,#faf5ff_100%)]"></div>
 
-                <div id="landingApp" class="mx-auto grid w-full max-w-6xl gap-5 lg:grid-cols-[.86fr_1.14fr]">
+                <div id="landingApp" class="mx-auto grid w-full max-w-6xl gap-5 lg:grid-cols-[2fr_3fr]">
                     <aside class="hv-hero-panel rounded-3xl p-5 text-white shadow-2xl shadow-indigo-950/20 lg:p-6">
                         <div class="flex h-full flex-col justify-between gap-8">
                             <div class="space-y-6">
@@ -358,7 +358,7 @@
                                             </div>
                                         </div>
                                         <div class="grid gap-3 lg:grid-cols-2">
-                                            <button id="upload" class="hv-primary-action w-full rounded-2xl px-5 py-3 text-sm font-bold text-white transition hover:-translate-y-0.5">دریافت پیش نمایش</button>
+                                            <button id="upload" class="hv-primary-action w-full rounded-2xl px-5 py-3 text-sm font-bold text-white transition hover:-translate-y-0.5">شروع</button>
                                             <button id="backToVerify" class="hv-lift w-full rounded-2xl bg-white px-5 py-3 text-sm font-bold text-zinc-700 ring-1 ring-zinc-200">بازگشت</button>
                                         </div>
                                     </div>
@@ -372,7 +372,6 @@
                                         <h2 class="mt-2 text-xl font-bold text-zinc-950">نتایج شما</h2>
                                         <p class="mt-2 text-sm leading-7 text-zinc-500">برای بزرگنمایی روی هر تصویر کلیک کنید.</p>
                                     </div>
-                                    <button id="newSession" class="hv-lift rounded-2xl bg-white px-4 py-2 text-sm font-bold text-zinc-700 ring-1 ring-zinc-200">ثبت تصویر جدید</button>
                                 </div>
                                 <div id="resultsStatusBox" class="hidden rounded-3xl p-px hv-ai-cast">
                                     <div class="rounded-3xl bg-white/90 p-4 backdrop-blur">
@@ -414,7 +413,7 @@
             <span class="fi fi-rr-arrow-small-right h-5 w-5" aria-hidden="true"></span>
         </button>
         <figure class="w-full max-w-5xl">
-            <div id="modalSkeleton" class="hv-skeleton mx-auto hidden aspect-[4/5] max-h-[82vh] w-full max-w-xl rounded-3xl shadow-2xl"></div>
+            <div id="modalSkeleton" class="hv-skeleton mx-auto hidden aspect-4/5 max-h-[82vh] w-full max-w-xl rounded-3xl shadow-2xl"></div>
             <img id="modalImage" alt="نمای بزرگ تصویر" class="hv-modal-image mx-auto max-h-[82vh] max-w-full rounded-3xl object-contain shadow-2xl" />
             <figcaption id="modalCaption" class="mt-4 text-center text-sm font-bold text-white"></figcaption>
         </figure>
@@ -869,26 +868,6 @@
             resetGenerationProgress();
             UI.clearError('uploadError');
             UI.showStep(2);
-        });
-
-        document.getElementById('newSession').addEventListener('click', () => {
-            STATE.uploadId = null;
-            STATE.generationGroupId = null;
-            document.getElementById('otp').value = '';
-            resetImageInput();
-            resetGenerationProgress();
-            UI.clearError('phoneError');
-            UI.clearError('otpError');
-            UI.clearError('uploadError');
-            document.getElementById('resultsContainer').innerHTML = '';
-            if (STATE.verified) {
-                UI.showStep(3);
-            } else if (STATE.phone) {
-                document.getElementById('displayPhone').textContent = toPersianDigits(STATE.phone);
-                UI.showStep(2);
-            } else {
-                UI.showStep(1);
-            }
         });
 
         document.getElementById('closeImageModal').addEventListener('click', closeImageModal);

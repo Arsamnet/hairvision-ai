@@ -5,12 +5,13 @@ namespace App\Services\Billing;
 use App\Models\Subscription;
 use App\Models\SubscriptionServiceEntitlement;
 use App\Models\Tenant;
+use App\Support\DebugStepLogger;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
 use Illuminate\Validation\ValidationException;
 
 /**
- * Resolves clinic subscription and service-level credit availability.
+ * Resolves subscription and service credit availability.
  *
  * @since 1.0.0
  */
@@ -19,15 +20,33 @@ class ServiceEntitlementService
     public function __construct(private readonly ServiceCatalog $services) {}
 
     /**
-     * Return the active base subscription for a clinic, expiring stale rows first.
+     * Return the active base subscription for a clinic.
      */
     public function activeBaseSubscriptionForTenant(?Tenant $tenant, bool $lock = false): ?Subscription
     {
+        $scope = 'billing.entitlement.active_base_subscription';
+        $step = 0;
+
+        $step = $this->workflowStep($scope, $step, 'Request received', [
+            'has_tenant' => $tenant !== null,
+            'tenant_id' => $tenant?->id,
+            'lock' => $lock,
+        ]);
+
         if (! $tenant) {
+            $this->workflowStep($scope, $step, 'Tenant missing', [
+                'has_tenant' => false,
+            ]);
+
             return null;
         }
 
-        $this->expireEndedSubscriptions($tenant);
+        $expiredCount = $this->expireEndedSubscriptions($tenant);
+
+        $step = $this->workflowStep($scope, $step, 'Expired subscriptions checked', [
+            'tenant_id' => $tenant->id,
+            'expired_count' => $expiredCount,
+        ]);
 
         $query = Subscription::query()
             ->with(['plan', 'serviceEntitlements'])
@@ -40,21 +59,51 @@ class ServiceEntitlementService
 
         if ($lock) {
             $query->lockForUpdate();
+
+            $step = $this->workflowStep($scope, $step, 'Lock applied to subscription query', [
+                'tenant_id' => $tenant->id,
+            ]);
         }
 
-        return $query->first();
+        $subscription = $query->first();
+
+        $this->workflowStep($scope, $step, 'Subscription lookup completed', [
+            'tenant_id' => $tenant->id,
+            'subscription_found' => $subscription !== null,
+            'subscription_id' => $subscription?->id,
+            'plan_id' => $subscription?->plan_id,
+            'status' => $subscription?->status,
+            'service_entitlements_count' => $subscription?->serviceEntitlements?->count(),
+        ]);
+
+        return $subscription;
     }
 
     /**
-     * Mark active subscriptions expired when their base duration has ended.
+     * Mark active subscriptions expired when their duration has ended.
      */
     public function expireEndedSubscriptions(?Tenant $tenant = null): int
     {
-        return Subscription::query()
+        $scope = 'billing.entitlement.expire_ended_subscriptions';
+        $step = 0;
+
+        $step = $this->workflowStep($scope, $step, 'Request received', [
+            'has_tenant' => $tenant !== null,
+            'tenant_id' => $tenant?->id,
+        ]);
+
+        $expiredCount = Subscription::query()
             ->when($tenant, fn (Builder $query) => $query->where('tenant_id', $tenant->id))
             ->where('status', 'active')
             ->where('ends_at', '<=', now())
             ->update(['status' => 'expired']);
+
+        $this->workflowStep($scope, $step, 'Expired subscriptions updated', [
+            'tenant_id' => $tenant?->id,
+            'expired_count' => $expiredCount,
+        ]);
+
+        return $expiredCount;
     }
 
     /**
@@ -62,11 +111,31 @@ class ServiceEntitlementService
      */
     public function activeEntitlement(Tenant $tenant, string $serviceKey, bool $lock = false): ?SubscriptionServiceEntitlement
     {
+        $scope = 'billing.entitlement.active_entitlement';
+        $step = 0;
+
+        $step = $this->workflowStep($scope, $step, 'Request received', [
+            'tenant_id' => $tenant->id,
+            'service_key' => $serviceKey,
+            'lock' => $lock,
+        ]);
+
         $subscription = $this->activeBaseSubscriptionForTenant($tenant, $lock);
 
         if (! $subscription) {
+            $this->workflowStep($scope, $step, 'Active subscription missing', [
+                'tenant_id' => $tenant->id,
+                'service_key' => $serviceKey,
+            ]);
+
             return null;
         }
+
+        $step = $this->workflowStep($scope, $step, 'Active subscription resolved', [
+            'tenant_id' => $tenant->id,
+            'subscription_id' => $subscription->id,
+            'service_key' => $serviceKey,
+        ]);
 
         $query = SubscriptionServiceEntitlement::query()
             ->where('tenant_id', $tenant->id)
@@ -79,9 +148,28 @@ class ServiceEntitlementService
 
         if ($lock) {
             $query->lockForUpdate();
+
+            $step = $this->workflowStep($scope, $step, 'Lock applied to entitlement query', [
+                'tenant_id' => $tenant->id,
+                'subscription_id' => $subscription->id,
+                'service_key' => $serviceKey,
+            ]);
         }
 
-        return $query->first();
+        $entitlement = $query->first();
+
+        $this->workflowStep($scope, $step, 'Entitlement lookup completed', [
+            'tenant_id' => $tenant->id,
+            'subscription_id' => $subscription->id,
+            'service_key' => $serviceKey,
+            'entitlement_found' => $entitlement !== null,
+            'entitlement_id' => $entitlement?->id,
+            'remaining_credit' => $entitlement?->remainingCredit(),
+            'used_credit' => $entitlement?->used_credit,
+            'total_credit' => $entitlement?->totalCredit(),
+        ]);
+
+        return $entitlement;
     }
 
     /**
@@ -91,23 +179,84 @@ class ServiceEntitlementService
      */
     public function stateFor(Tenant $tenant, string $serviceKey, int $amount = 1): array
     {
+        $scope = 'billing.entitlement.state_for';
+        $step = 0;
+
+        $step = $this->workflowStep($scope, $step, 'Request received', [
+            'tenant_id' => $tenant->id,
+            'service_key' => $serviceKey,
+            'amount' => $amount,
+        ]);
+
         $subscription = $this->activeBaseSubscriptionForTenant($tenant);
 
         if (! $subscription) {
+            $this->workflowStep($scope, $step, 'State resolved as subscription required', [
+                'tenant_id' => $tenant->id,
+                'service_key' => $serviceKey,
+                'amount' => $amount,
+                'status' => 'subscription_required',
+            ]);
+
             return $this->state(false, 'subscription_required', 'subscriptions.errors.required');
         }
+
+        $step = $this->workflowStep($scope, $step, 'Subscription resolved', [
+            'tenant_id' => $tenant->id,
+            'subscription_id' => $subscription->id,
+            'service_key' => $serviceKey,
+        ]);
 
         $entitlement = $this->activeEntitlement($tenant, $serviceKey);
 
         if (! $entitlement) {
+            $this->workflowStep($scope, $step, 'State resolved as service unavailable', [
+                'tenant_id' => $tenant->id,
+                'subscription_id' => $subscription->id,
+                'service_key' => $serviceKey,
+                'amount' => $amount,
+                'status' => 'service_unavailable',
+            ]);
+
             return $this->state(false, 'service_unavailable', 'subscriptions.errors.service_unavailable', $subscription);
         }
 
         $remainingCredit = $entitlement->remainingCredit();
 
+        $step = $this->workflowStep($scope, $step, 'Entitlement credit resolved', [
+            'tenant_id' => $tenant->id,
+            'subscription_id' => $subscription->id,
+            'entitlement_id' => $entitlement->id,
+            'service_key' => $serviceKey,
+            'amount' => $amount,
+            'remaining_credit' => $remainingCredit,
+            'used_credit' => $entitlement->used_credit,
+            'total_credit' => $entitlement->totalCredit(),
+        ]);
+
         if ($remainingCredit < $amount) {
+            $this->workflowStep($scope, $step, 'State resolved as credit finished', [
+                'tenant_id' => $tenant->id,
+                'subscription_id' => $subscription->id,
+                'entitlement_id' => $entitlement->id,
+                'service_key' => $serviceKey,
+                'amount' => $amount,
+                'remaining_credit' => $remainingCredit,
+                'status' => 'credit_finished',
+            ]);
+
             return $this->state(false, 'credit_finished', 'credits.errors.finished', $subscription, $entitlement, $remainingCredit);
         }
+
+        $this->workflowStep($scope, $step, 'State resolved as available', [
+            'tenant_id' => $tenant->id,
+            'subscription_id' => $subscription->id,
+            'entitlement_id' => $entitlement->id,
+            'service_key' => $serviceKey,
+            'amount' => $amount,
+            'remaining_credit' => $remainingCredit,
+            'status' => 'available',
+        ]);
 
         return $this->state(true, 'available', 'subscriptions.statuses.available', $subscription, $entitlement, $remainingCredit);
     }
@@ -119,15 +268,51 @@ class ServiceEntitlementService
      */
     public function assertCanUse(Tenant $tenant, string $serviceKey, int $amount = 1): SubscriptionServiceEntitlement
     {
+        $scope = 'billing.entitlement.assert_can_use';
+        $step = 0;
+
+        $step = $this->workflowStep($scope, $step, 'Request received', [
+            'tenant_id' => $tenant->id,
+            'service_key' => $serviceKey,
+            'amount' => $amount,
+        ]);
+
         $state = $this->stateFor($tenant, $serviceKey, $amount);
 
+        $step = $this->workflowStep($scope, $step, 'State resolved', [
+            'tenant_id' => $tenant->id,
+            'service_key' => $serviceKey,
+            'amount' => $amount,
+            'available' => $state['available'],
+            'status' => $state['status'],
+            'subscription_id' => $state['subscription']?->id,
+            'entitlement_id' => $state['entitlement']?->id,
+            'remaining_credit' => $state['remaining_credit'],
+        ]);
+
         if (! $state['available'] || ! $state['entitlement']) {
+            $this->workflowStep($scope, $step, 'Service usage rejected', [
+                'tenant_id' => $tenant->id,
+                'service_key' => $serviceKey,
+                'amount' => $amount,
+                'status' => $state['status'],
+                'message_key' => $state['message_key'],
+            ]);
+
             throw ValidationException::withMessages([
                 'service_access' => __($state['message_key'], [
                     'service' => $this->services->label($serviceKey),
                 ]),
             ]);
         }
+
+        $this->workflowStep($scope, $step, 'Service usage allowed', [
+            'tenant_id' => $tenant->id,
+            'service_key' => $serviceKey,
+            'amount' => $amount,
+            'entitlement_id' => $state['entitlement']->id,
+            'remaining_credit' => $state['remaining_credit'],
+        ]);
 
         return $state['entitlement'];
     }
@@ -139,11 +324,24 @@ class ServiceEntitlementService
      */
     public function summaryForSubscription(?Subscription $subscription): Collection
     {
+        $scope = 'billing.entitlement.summary_for_subscription';
+        $step = 0;
+
+        $step = $this->workflowStep($scope, $step, 'Request received', [
+            'has_subscription' => $subscription !== null,
+            'subscription_id' => $subscription?->id,
+            'tenant_id' => $subscription?->tenant_id,
+        ]);
+
         if (! $subscription) {
+            $this->workflowStep($scope, $step, 'Subscription missing, empty summary returned', [
+                'has_subscription' => false,
+            ]);
+
             return collect();
         }
 
-        return $subscription->serviceEntitlements()
+        $summary = $subscription->serviceEntitlements()
             ->orderBy('service_key')
             ->get()
             ->map(fn (SubscriptionServiceEntitlement $entitlement): array => [
@@ -154,9 +352,20 @@ class ServiceEntitlementService
                 'total_credit' => $entitlement->totalCredit(),
                 'status' => $entitlement->is_active && $entitlement->remainingCredit() > 0 ? 'available' : 'credit_finished',
             ]);
+
+        $this->workflowStep($scope, $step, 'Subscription summary prepared', [
+            'subscription_id' => $subscription->id,
+            'tenant_id' => $subscription->tenant_id,
+            'items_count' => $summary->count(),
+            'service_keys' => $summary->pluck('service_key')->values()->all(),
+        ]);
+
+        return $summary;
     }
 
     /**
+     * Build a normalized entitlement state.
+     *
      * @return array{available: bool, status: string, message_key: string, subscription: ?Subscription, entitlement: ?SubscriptionServiceEntitlement, remaining_credit: int}
      */
     private function state(
@@ -175,5 +384,19 @@ class ServiceEntitlementService
             'entitlement' => $entitlement,
             'remaining_credit' => $remainingCredit,
         ];
+    }
+
+    /**
+     * Write a safe ordered debug step.
+     *
+     * @param  array<string, mixed>  $context
+     */
+    private function workflowStep(string $scope, int $step, string $message, array $context = []): int
+    {
+        $step++;
+
+        DebugStepLogger::workflowStep($scope, $step, $message, $context);
+
+        return $step;
     }
 }

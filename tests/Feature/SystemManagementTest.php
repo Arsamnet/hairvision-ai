@@ -2,7 +2,11 @@
 
 namespace Tests\Feature;
 
+use App\Models\AiProvider;
 use App\Models\CreditTransaction;
+use App\Models\GeneratedAsset;
+use App\Models\GenerationGroup;
+use App\Models\GenerationJob;
 use App\Models\Invoice;
 use App\Models\Lead;
 use App\Models\Payment;
@@ -69,14 +73,14 @@ class SystemManagementTest extends TestCase
         $this->assertGreaterThan(0, SystemSetting::query()->count('*'));
         $this->assertGreaterThan(0, Plan::query()->count('*'));
 
-        $tenant = Tenant::query()->where('slug', 'clinic1')->firstOrFail();
+        $tenant = Tenant::query()->where('slug', 'aria')->firstOrFail();
         $activeSubscription = Subscription::query()->where('tenant_id', $tenant->id)->where('status', 'active')->firstOrFail();
         $seededServiceCount = count(config('hairvision.ai_services', [])) ?: 1;
 
         $this->assertSame('پلن شروع', $activeSubscription->plan->name);
         $this->assertSame(1, Subscription::query()->where('tenant_id', $tenant->id)->where('status', 'active')->count());
-        $this->assertSame(1, Invoice::query()->where('tenant_id', $tenant->id)->where('status', 'paid')->where('number', 'HV-SEED-CLINIC1-STARTER')->count());
-        $this->assertSame(1, Payment::query()->where('tenant_id', $tenant->id)->where('status', 'paid')->where('idempotency_key', 'seed-clinic1-starter-plan-paid')->count());
+        $this->assertSame(1, Invoice::query()->where('tenant_id', $tenant->id)->where('status', 'paid')->where('number', 'HV-SEED-aria-STARTER')->count());
+        $this->assertSame(1, Payment::query()->where('tenant_id', $tenant->id)->where('status', 'paid')->where('idempotency_key', 'seed-aria-starter-plan-paid')->count());
         $this->assertSame($seededServiceCount, $activeSubscription->serviceEntitlements()->where('is_active', true)->count());
         $this->assertSame($seededServiceCount * 100, $activeSubscription->serviceEntitlements()->sum('included_credit'));
     }
@@ -160,7 +164,7 @@ class SystemManagementTest extends TestCase
 
     public function test_lead_json_pagination_supports_standard_parameters_only(): void
     {
-        $tenant = $this->createTenant('Clinic One', 'clinic1', 'clinic1.hairvision-ai.test');
+        $tenant = $this->createTenant('Clinic One', 'aria', 'aria.hairvision-ai.test');
         $user = $this->createUserForTenant($tenant, 'clinic_admin', '09121111111');
         $this->activateSubscription($user);
         $this->createLead($tenant, '09120000001', 'Alpha Lead');
@@ -192,7 +196,7 @@ class SystemManagementTest extends TestCase
     {
         $this->seed(DatabaseSeeder::class);
 
-        $tenant = Tenant::query()->where('slug', 'clinic1')->firstOrFail();
+        $tenant = Tenant::query()->where('slug', 'aria')->firstOrFail();
         $superAdmin = User::query()->where('role', 'super_admin')->firstOrFail();
 
         $this->actingAs($superAdmin)
@@ -284,7 +288,7 @@ class SystemManagementTest extends TestCase
 
     public function test_users_without_permissions_cannot_access_user_management_actions(): void
     {
-        $tenant = $this->createTenant('Clinic One', 'clinic1', 'clinic1.hairvision-ai.test');
+        $tenant = $this->createTenant('Clinic One', 'aria', 'aria.hairvision-ai.test');
         $viewer = $this->createUserForTenant($tenant, 'viewer', '09121111111');
         $target = $this->createUserForTenant($tenant, 'editor', '09122222222');
         $this->activateSubscription($viewer);
@@ -573,7 +577,7 @@ class SystemManagementTest extends TestCase
 
     public function test_private_sms_gateway_settings_are_single_panel_and_scoped_to_owner(): void
     {
-        $tenant = $this->createTenant('Clinic One', 'clinic1', 'clinic1.hairvision-ai.test');
+        $tenant = $this->createTenant('Clinic One', 'aria', 'aria.hairvision-ai.test');
         $owner = $this->createUserForTenant($tenant, 'clinic_admin', '09121111111');
         $other = $this->createUserForTenant($tenant, 'clinic_admin', '09122222222');
         $this->activateSubscription($owner);
@@ -791,7 +795,7 @@ class SystemManagementTest extends TestCase
             ->assertDontSee(__('payments.active_subscription'));
 
         $this->actingAs($user)
-            ->forHost('clinic1.hairvision-ai.test')
+            ->forHost('aria.hairvision-ai.test')
             ->get('/admin/billing')
             ->assertOk()
             ->assertSee('data-active-subscription-card', false)
@@ -1076,7 +1080,7 @@ class SystemManagementTest extends TestCase
 
     public function test_crm_follow_up_creation_timeline_visibility_and_tenant_scope(): void
     {
-        $tenantA = $this->createTenant('Clinic One', 'clinic1', 'clinic1.hairvision-ai.test');
+        $tenantA = $this->createTenant('Clinic One', 'aria', 'aria.hairvision-ai.test');
         $tenantB = $this->createTenant('Clinic Two', 'clinic2', 'clinic2.hairvision-ai.test');
         $userA = $this->createUserForTenant($tenantA, 'clinic_admin', '09121111111');
         $userB = $this->createUserForTenant($tenantB, 'clinic_admin', '09122222222');
@@ -1130,7 +1134,7 @@ class SystemManagementTest extends TestCase
     {
         Storage::fake('local');
 
-        $tenantA = $this->createTenant('Clinic One', 'clinic1', 'clinic1.hairvision-ai.test');
+        $tenantA = $this->createTenant('Clinic One', 'aria', 'aria.hairvision-ai.test');
         $tenantB = $this->createTenant('Clinic Two', 'clinic2', 'clinic2.hairvision-ai.test');
         $userA = $this->createUserForTenant($tenantA, 'clinic_admin', '09121111111');
         $userB = $this->createUserForTenant($tenantB, 'clinic_admin', '09122222222');
@@ -1149,6 +1153,41 @@ class SystemManagementTest extends TestCase
             'size' => 16,
             'status' => 'validated',
         ]);
+        $provider = AiProvider::query()->create([
+            'code' => 'sample_image',
+            'name' => 'Sample Image',
+            'type' => 'local',
+            'is_active' => true,
+        ]);
+        $group = GenerationGroup::query()->create([
+            'tenant_id' => $tenantA->id,
+            'lead_id' => $lead->id,
+            'upload_id' => $upload->id,
+            'status' => 'completed',
+        ]);
+        $job = GenerationJob::query()->create([
+            'generation_group_id' => $group->id,
+            'tenant_id' => $tenantA->id,
+            'lead_id' => $lead->id,
+            'upload_id' => $upload->id,
+            'provider_id' => $provider->id,
+            'period' => 'two_weeks',
+            'status' => 'completed',
+            'completed_at' => now(),
+        ]);
+        $assetPath = 'tenants/'.$tenantA->uuid.'/leads/'.$lead->uuid.'/results/'.$group->uuid.'/two_weeks.jpg';
+        Storage::disk('local')->put($assetPath, 'fake-generated-image-bytes');
+        $asset = GeneratedAsset::query()->create([
+            'generation_group_id' => $group->id,
+            'generation_job_id' => $job->id,
+            'tenant_id' => $tenantA->id,
+            'lead_id' => $lead->id,
+            'period' => 'two_weeks',
+            'disk' => 'local',
+            'path' => $assetPath,
+            'mime' => 'image/jpeg',
+            'size' => 26,
+        ]);
 
         $this->actingAs($userA)
             ->withSession(['admin_active_tenant_id' => $tenantA->id])
@@ -1156,6 +1195,7 @@ class SystemManagementTest extends TestCase
             ->get('/admin/leads/'.$lead->id)
             ->assertOk()
             ->assertSee(route('admin.leads.uploads.show', [$lead, $upload]))
+            ->assertSee(route('admin.leads.assets.show', [$lead, $asset]))
             ->assertSee(__('leads.uploads.title'));
 
         $this->actingAs($userA)
@@ -1165,10 +1205,23 @@ class SystemManagementTest extends TestCase
             ->assertOk()
             ->assertHeader('Content-Type', 'image/jpeg');
 
+        $this->actingAs($userA)
+            ->withSession(['admin_active_tenant_id' => $tenantA->id])
+            ->forHost('hairvision-ai.test')
+            ->get('/admin/leads/'.$lead->id.'/assets/'.$asset->id)
+            ->assertOk()
+            ->assertHeader('Content-Type', 'image/jpeg');
+
         $this->actingAs($userB)
             ->withSession(['admin_active_tenant_id' => $tenantB->id])
             ->forHost('hairvision-ai.test')
             ->get('/admin/leads/'.$lead->id.'/uploads/'.$upload->id)
+            ->assertForbidden();
+
+        $this->actingAs($userB)
+            ->withSession(['admin_active_tenant_id' => $tenantB->id])
+            ->forHost('hairvision-ai.test')
+            ->get('/admin/leads/'.$lead->id.'/assets/'.$asset->id)
             ->assertForbidden();
     }
 
@@ -1176,7 +1229,7 @@ class SystemManagementTest extends TestCase
     {
         $this->seed(DatabaseSeeder::class);
 
-        $tenant = Tenant::query()->where('slug', 'clinic1')->firstOrFail();
+        $tenant = Tenant::query()->where('slug', 'aria')->firstOrFail();
         $superAdmin = User::query()->where('role', 'super_admin')->firstOrFail();
 
         $this->actingAs($superAdmin)
@@ -1202,7 +1255,7 @@ class SystemManagementTest extends TestCase
 
     public function test_normal_user_dashboard_is_scoped_to_own_tenant_data(): void
     {
-        $tenantA = $this->createTenant('Clinic One', 'clinic1', 'clinic1.hairvision-ai.test');
+        $tenantA = $this->createTenant('Clinic One', 'aria', 'aria.hairvision-ai.test');
         $tenantB = $this->createTenant('Clinic Two', 'clinic2', 'clinic2.hairvision-ai.test');
         $user = $this->createUserForTenant($tenantA, 'clinic_admin', '09121111111');
         $this->activateSubscription($user);
@@ -1401,7 +1454,7 @@ class SystemManagementTest extends TestCase
 
     private function deactivateSeededClinicPlan(string $status = 'expired'): void
     {
-        $tenant = Tenant::query()->where('slug', 'clinic1')->first();
+        $tenant = Tenant::query()->where('slug', 'aria')->first();
 
         if (! $tenant) {
             return;

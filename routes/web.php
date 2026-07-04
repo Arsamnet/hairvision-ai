@@ -6,6 +6,7 @@ use App\Http\Controllers\Admin\AuthController;
 use App\Http\Controllers\Admin\BillingController;
 use App\Http\Controllers\Admin\ClinicAiModelAccessController;
 use App\Http\Controllers\Admin\DashboardController;
+use App\Http\Controllers\Admin\LeadGeneratedAssetController;
 use App\Http\Controllers\Admin\LeadController;
 use App\Http\Controllers\Admin\LeadFollowUpController;
 use App\Http\Controllers\Admin\LeadUploadController;
@@ -70,6 +71,7 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
         Route::post('/leads', [LeadController::class, 'store'])->name('leads.store');
         Route::get('/leads/{lead}', [LeadController::class, 'show'])->name('leads.show');
         Route::get('/leads/{lead}/uploads/{upload}', [LeadUploadController::class, 'show'])->name('leads.uploads.show');
+        Route::get('/leads/{lead}/assets/{generatedAsset}', [LeadGeneratedAssetController::class, 'show'])->name('leads.assets.show');
         Route::post('/leads/{lead}/follow-ups', [LeadFollowUpController::class, 'store'])->name('leads.follow-ups.store');
         Route::patch('/leads/{lead}/follow-ups/{leadNote}', [LeadFollowUpController::class, 'update'])->name('leads.follow-ups.update');
         Route::get('/leads/{lead}/edit', [LeadController::class, 'edit'])->name('leads.edit');

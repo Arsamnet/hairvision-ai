@@ -208,7 +208,7 @@
 
 ## 1.2.0
 
-### Added
+### Added (1.2.0)
 
 - Native Super Admin system-management area under `/admin/system`.
 - Database-backed roles, permissions, role-permission assignments, and access
@@ -225,7 +225,7 @@
 - Management reports separated from user reports.
 - Focused system-management feature tests.
 
-### Changed
+### Changed (1.2.0)
 
 - Admin menu visibility is now permission-aware for leads, users, plans,
   billing, reports, settings, and system management.
@@ -236,7 +236,7 @@
 - Database seeding is idempotent for demo users, tenants, domains, providers,
   theme settings, roles, permissions, gateways, settings, plans, and demo leads.
 
-### Security
+### Security (1.2.0)
 
 - System-management routes use backend `permission:*` middleware.
 - SMS and payment credentials use encrypted casts and are hidden from model
@@ -246,7 +246,7 @@
   permission is present.
 - Payment verification is idempotent before activating subscriptions.
 
-### Documentation
+### Documentation (1.2.0)
 
 - Added `docs/system-management.md`.
 - Updated README, API, database, dashboard, roles/permissions, security,
@@ -254,7 +254,7 @@
 
 ## 1.1.0
 
-### Added
+### Added (1.1.0)
 
 - SEO-friendly primary-domain landing page for HairVision AI.
 - Admin dashboard entry point under `/admin`.
@@ -269,17 +269,17 @@
 - Limited editor mode for operational lead updates.
 - Read-only viewer behavior.
 - User list, reports, and settings pages.
-- Demo seed users and clinic1 sample leads in multiple CRM states.
+- Demo seed users and aria sample leads in multiple CRM states.
 - Dashboard, authentication, tenancy, roles, security, and performance docs.
 
-### Changed
+### Changed (1.1.0)
 
 - Primary `/` on `hairvision-ai.test` now renders the HairVision AI product
   landing page; tenant hosts still render the visitor flow.
 - Visitor OTP verification now rejects already-used OTP rows.
 - README documentation index now links the dashboard documentation set.
 
-### Security
+### Security (1.1.0)
 
 - Admin OTP values are hashed, expiring, single-use, attempt-limited, and
   rate-limited.
@@ -287,7 +287,7 @@
 - Active clinic selection validates authenticated user membership.
 - OTP security events are logged without plain OTP values.
 
-### Documentation
+### Documentation (1.1.0)
 
 - Added `docs/authentication.md`, `docs/tenancy.md`,
   `docs/roles-permissions.md`, `docs/dashboard.md`, `docs/security.md`, and

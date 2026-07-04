@@ -53,7 +53,7 @@ class AiModelAccessManagementTest extends TestCase
         $this->seed(DatabaseSeeder::class);
 
         $superAdmin = User::query()->where('role', 'super_admin')->firstOrFail();
-        $tenant = Tenant::query()->where('slug', 'clinic1')->firstOrFail();
+        $tenant = Tenant::query()->where('slug', 'aria')->firstOrFail();
         $demo = AiModelAccess::query()->where('model_key', 'sample_image')->where('is_demo', true)->firstOrFail();
         $gapGpt = AiModelAccess::query()->where('model_key', 'gapgpt')->where('usage_category_key', 'hair_transplant')->firstOrFail();
         $rawGapGptCredentials = DB::table('ai_model_accesses')->where('id', $gapGpt->id)->value('credentials');
@@ -91,7 +91,7 @@ class AiModelAccessManagementTest extends TestCase
 
         $this->seed(DatabaseSeeder::class);
 
-        $tenant = Tenant::query()->where('slug', 'clinic1')->firstOrFail();
+        $tenant = Tenant::query()->where('slug', 'aria')->firstOrFail();
         $gapGpt = AiModelAccess::query()->where('model_key', 'gapgpt')->where('usage_category_key', 'hair_transplant')->firstOrFail();
         $rawCredentials = DB::table('ai_model_accesses')->where('id', $gapGpt->id)->value('credentials');
 
@@ -207,7 +207,7 @@ class AiModelAccessManagementTest extends TestCase
         $this->seed(DatabaseSeeder::class);
         $this->seedSampleImages();
 
-        $tenant = Tenant::query()->where('slug', 'clinic1')->firstOrFail();
+        $tenant = Tenant::query()->where('slug', 'aria')->firstOrFail();
         $superAdmin = User::query()->where('role', 'super_admin')->firstOrFail();
         $this->activateSubscription(User::query()->where('role', 'clinic_admin')->firstOrFail());
         $gapGpt = AiModelAccess::query()->where('model_key', 'gapgpt')->firstOrFail();
@@ -234,9 +234,9 @@ class AiModelAccessManagementTest extends TestCase
             ])
             ->assertRedirect();
 
-        $uploadId = $this->createVerifiedUploadViaApi('clinic1.hairvision-ai.test');
+        $uploadId = $this->createVerifiedUploadViaApi('aria.hairvision-ai.test');
 
-        $groupId = $this->forHost('clinic1.hairvision-ai.test')
+        $groupId = $this->forHost('aria.hairvision-ai.test')
             ->postJson('/api/v1/generations', ['upload_id' => $uploadId])
             ->assertOk()
             ->assertJsonPath('generation_group.status', 'completed')
@@ -249,13 +249,13 @@ class AiModelAccessManagementTest extends TestCase
 
     public function test_unassigned_inactive_and_finished_credit_models_cannot_be_used(): void
     {
-        $tenant = $this->createTenant('Clinic One', 'clinic1', 'clinic1.hairvision-ai.test');
+        $tenant = $this->createTenant('Clinic One', 'aria', 'aria.hairvision-ai.test');
         $this->activateTenantSubscription($tenant);
         $upload = $this->createVerifiedUpload($tenant);
         $access = $this->createAccess(['credit_limit' => null]);
 
         $this->withSession(['lead_id' => $upload->lead_id])
-            ->forHost('clinic1.hairvision-ai.test')
+            ->forHost('aria.hairvision-ai.test')
             ->postJson('/api/v1/generations', ['upload_id' => $upload->uuid])
             ->assertStatus(422)
             ->assertJsonValidationErrors('ai_model_access');
@@ -263,7 +263,7 @@ class AiModelAccessManagementTest extends TestCase
         $tenant->aiModelAccesses()->attach($access->id, ['is_active' => false]);
 
         $this->withSession(['lead_id' => $upload->lead_id])
-            ->forHost('clinic1.hairvision-ai.test')
+            ->forHost('aria.hairvision-ai.test')
             ->postJson('/api/v1/generations', ['upload_id' => $upload->uuid])
             ->assertStatus(422)
             ->assertJsonValidationErrors('ai_model_access');
@@ -272,7 +272,7 @@ class AiModelAccessManagementTest extends TestCase
         $access->forceFill(['is_active' => false])->save();
 
         $this->withSession(['lead_id' => $upload->lead_id])
-            ->forHost('clinic1.hairvision-ai.test')
+            ->forHost('aria.hairvision-ai.test')
             ->postJson('/api/v1/generations', ['upload_id' => $upload->uuid])
             ->assertStatus(422)
             ->assertJsonValidationErrors('ai_model_access');
@@ -280,7 +280,7 @@ class AiModelAccessManagementTest extends TestCase
         $access->forceFill(['is_active' => true, 'credit_limit' => 0, 'credit_used' => 0])->save();
 
         $this->withSession(['lead_id' => $upload->lead_id])
-            ->forHost('clinic1.hairvision-ai.test')
+            ->forHost('aria.hairvision-ai.test')
             ->postJson('/api/v1/generations', ['upload_id' => $upload->uuid])
             ->assertStatus(422)
             ->assertJsonValidationErrors('ai_model_access');
@@ -288,7 +288,7 @@ class AiModelAccessManagementTest extends TestCase
 
     public function test_failed_provider_response_does_not_consume_credit(): void
     {
-        $tenant = $this->createTenant('Clinic One', 'clinic1', 'clinic1.hairvision-ai.test');
+        $tenant = $this->createTenant('Clinic One', 'aria', 'aria.hairvision-ai.test');
         $access = $this->createAccess([
             'credit_limit' => 1,
             'settings' => ['force_failure' => true],
@@ -308,7 +308,7 @@ class AiModelAccessManagementTest extends TestCase
 
     public function test_active_demo_model_returns_predefined_image_for_each_stage(): void
     {
-        $tenant = $this->createTenant('Clinic One', 'clinic1', 'clinic1.hairvision-ai.test');
+        $tenant = $this->createTenant('Clinic One', 'aria', 'aria.hairvision-ai.test');
         $this->seedSampleImages();
 
         $access = $this->createAccess([
@@ -338,7 +338,7 @@ class AiModelAccessManagementTest extends TestCase
     {
         $this->seed(DatabaseSeeder::class);
 
-        $tenant = Tenant::query()->where('slug', 'clinic1')->firstOrFail();
+        $tenant = Tenant::query()->where('slug', 'aria')->firstOrFail();
         $otherTenant = $this->createTenant('Clinic Two', 'clinic2', 'clinic2.hairvision-ai.test');
         $clinicManager = User::query()->where('role', 'clinic_admin')->firstOrFail();
         $this->activateSubscription($clinicManager);
@@ -508,7 +508,7 @@ class AiModelAccessManagementTest extends TestCase
 
     private function seedSampleImages(): void
     {
-        foreach (['3-months.jpg', '6-months.jpg', '12-months.jpg'] as $filename) {
+        foreach (['two-weeks.jpg', 'intermediate_regrowth.jpg', 'final_result.jpg'] as $filename) {
             Storage::disk('local')->put('sample-results/'.$filename, base64_decode(self::TEST_JPEG_BASE64));
         }
     }

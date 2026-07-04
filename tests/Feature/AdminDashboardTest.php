@@ -46,7 +46,7 @@ class AdminDashboardTest extends TestCase
 
     public function test_admin_otp_login_stores_hash_and_authenticates_user(): void
     {
-        $tenant = $this->createTenant('Clinic One', 'clinic1', 'clinic1.hairvision-ai.test');
+        $tenant = $this->createTenant('Clinic One', 'aria', 'aria.hairvision-ai.test');
         $user = $this->createUserForTenant($tenant, 'clinic_admin', '09217359491');
         $this->enableIppanelOtpGateway();
 
@@ -153,7 +153,7 @@ class AdminDashboardTest extends TestCase
 
         $this->seed(\Database\Seeders\DatabaseSeeder::class);
 
-        $tenant = Tenant::query()->where('slug', 'clinic1')->firstOrFail();
+        $tenant = Tenant::query()->where('slug', 'aria')->firstOrFail();
 
         $this->assertDatabaseHas('users', [
             'email' => 'superadmin@example.com',
@@ -191,7 +191,7 @@ class AdminDashboardTest extends TestCase
 
     public function test_admin_lead_list_is_scoped_to_active_tenant(): void
     {
-        $tenantA = $this->createTenant('Clinic One', 'clinic1', 'clinic1.hairvision-ai.test');
+        $tenantA = $this->createTenant('Clinic One', 'aria', 'aria.hairvision-ai.test');
         $tenantB = $this->createTenant('Clinic Two', 'clinic2', 'clinic2.hairvision-ai.test');
         $user = $this->createUserForTenant($tenantA, 'clinic_admin', '09121111111');
         $this->activateSubscription($user);
@@ -215,7 +215,7 @@ class AdminDashboardTest extends TestCase
 
     public function test_viewer_cannot_edit_leads_and_editor_can_only_update_limited_fields(): void
     {
-        $tenant = $this->createTenant('Clinic One', 'clinic1', 'clinic1.hairvision-ai.test');
+        $tenant = $this->createTenant('Clinic One', 'aria', 'aria.hairvision-ai.test');
         $viewer = $this->createUserForTenant($tenant, 'viewer', '09122222222');
         $editor = $this->createUserForTenant($tenant, 'editor', '09123333333');
         $this->activateSubscription($viewer);

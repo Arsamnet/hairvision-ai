@@ -3,8 +3,8 @@
 namespace App\Services\Generation;
 
 use App\Models\GenerationGroup;
+use App\Support\DebugStepLogger;
 use App\Services\Sms\SmsGatewayService;
-use Illuminate\Support\Facades\Log;
 use Throwable;
 
 /**
@@ -14,28 +14,68 @@ use Throwable;
  */
 class FinalGenerationSmsService
 {
+    private int $debugStepCounter = 0;
+
     public function __construct(private readonly SmsGatewayService $smsGateways) {}
 
     public function sendCompleted(GenerationGroup $group): void
     {
+        $scope = 'generation.final_sms';
+
+        $this->debugStep($scope, 'Final generation SMS workflow started.', [
+            'generation_group_id' => $group->id,
+            'tenant_id' => $group->tenant_id,
+            'lead_id' => $group->lead_id,
+        ]);
+
         $lead = $group->lead;
 
         if (! $lead?->phone_normalized) {
+            $this->debugStep($scope, 'Final generation SMS skipped because lead phone is missing.', [
+                'generation_group_id' => $group->id,
+                'tenant_id' => $group->tenant_id,
+                'lead_id' => $group->lead_id,
+                'lead_loaded' => $lead !== null,
+            ]);
+
             return;
         }
+
+        $message = __('ai.generation.sms.completed');
+
+        $this->debugStep($scope, 'Final generation SMS message prepared.', [
+            'generation_group_id' => $group->id,
+            'tenant_id' => $group->tenant_id,
+            'lead_id' => $group->lead_id,
+            'phone_hash' => hash('sha256', $lead->phone_normalized),
+            'message_length' => mb_strlen($message),
+        ]);
 
         try {
             $this->smsGateways->sendSystemMessage(
                 $lead->phone_normalized,
-                __('ai.generation.sms.completed')
+                $message
             );
-        } catch (Throwable $exception) {
-            Log::warning('Final generation SMS could not be sent.', [
+
+            $this->debugStep($scope, 'Final generation SMS sent successfully.', [
                 'generation_group_id' => $group->id,
                 'tenant_id' => $group->tenant_id,
                 'lead_id' => $group->lead_id,
-                'error' => $exception::class,
+                'phone_hash' => hash('sha256', $lead->phone_normalized),
+            ]);
+        } catch (Throwable $exception) {
+            $this->debugStep($scope, 'Final generation SMS could not be sent.', [
+                'generation_group_id' => $group->id,
+                'tenant_id' => $group->tenant_id,
+                'lead_id' => $group->lead_id,
+                'phone_hash' => hash('sha256', $lead->phone_normalized),
+                'exception_class' => $exception::class,
             ]);
         }
+    }
+
+    private function debugStep(string $scope, string $message, array $context = []): void
+    {
+        DebugStepLogger::workflowStep($scope, ++$this->debugStepCounter, $message, $context);
     }
 }
