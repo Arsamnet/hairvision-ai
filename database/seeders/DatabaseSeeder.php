@@ -72,10 +72,18 @@ class DatabaseSeeder extends Seeder
             'viewer'
         );
 
-        $tenant = Tenant::query()->updateOrCreate(
+        $ariatenant = Tenant::query()->updateOrCreate(
             ['slug' => 'aria'],
             [
                 'name' => 'کلینیک آریا',
+                'status' => 'active',
+            ]
+        );
+
+        $nojaTenant = Tenant::query()->updateOrCreate(
+            ['slug' => 'noja'],
+            [
+                'name' => 'کلینیک نوژا',
                 'status' => 'active',
             ]
         );
@@ -84,7 +92,17 @@ class DatabaseSeeder extends Seeder
         TenantDomain::query()->updateOrCreate(
             ['domain' => 'aria.hairvision-ai.test'],
             [
-                'tenant_id' => $tenant->id,
+                'tenant_id' => $ariatenant->id,
+                'type' => 'tenant_subdomain',
+                'status' => 'active',
+                'ssl_status' => 'unknown',
+            ]
+        );
+
+        TenantDomain::query()->updateOrCreate(
+            ['domain' => 'noja.hairvision-ai.test'],
+            [
+                'tenant_id' => $nojaTenant->id,
                 'type' => 'tenant_subdomain',
                 'status' => 'active',
                 'ssl_status' => 'unknown',
@@ -95,7 +113,7 @@ class DatabaseSeeder extends Seeder
         TenantDomain::query()->updateOrCreate(
             ['domain' => 'hairvision-ai.test'],
             [
-                'tenant_id' => $tenant->id,
+                'tenant_id' => $ariatenant->id,
                 'type' => 'platform',
                 'status' => 'active',
                 'ssl_status' => 'unknown',
@@ -126,7 +144,12 @@ class DatabaseSeeder extends Seeder
         );
 
         TenantAiSetting::query()->updateOrCreate(
-            ['tenant_id' => $tenant->id, 'provider_id' => $provider->id],
+            ['tenant_id' => $ariatenant->id, 'provider_id' => $provider->id],
+            ['is_default' => true]
+        );
+
+        TenantAiSetting::query()->updateOrCreate(
+            ['tenant_id' => $nojaTenant->id, 'provider_id' => $provider->id],
             ['is_default' => true]
         );
 
@@ -186,7 +209,18 @@ class DatabaseSeeder extends Seeder
             ]
         );
 
-        $tenant->aiModelAccesses()->syncWithoutDetaching([
+        $ariatenant->aiModelAccesses()->syncWithoutDetaching([
+            $demoAccess->id => [
+                'is_active' => true,
+                'assigned_by' => $superAdmin->id,
+            ],
+            $gapGptAccess->id => [
+                'is_active' => $gapGptIsActive,
+                'assigned_by' => $superAdmin->id,
+            ],
+        ]);
+
+        $nojaTenant->aiModelAccesses()->syncWithoutDetaching([
             $demoAccess->id => [
                 'is_active' => true,
                 'assigned_by' => $superAdmin->id,
@@ -206,7 +240,7 @@ class DatabaseSeeder extends Seeder
         );
 
         TenantThemeSetting::query()->updateOrCreate(
-            ['tenant_id' => $tenant->id],
+            ['tenant_id' => $ariatenant->id],
             [
                 'template_id' => $template->id,
                 'favicon_path' => null,
@@ -224,11 +258,30 @@ class DatabaseSeeder extends Seeder
             ]
         );
 
-        $this->syncTenantRole($tenant, $admin, 'clinic_admin');
-        $this->syncTenantRole($tenant, $editor, 'editor');
-        $this->syncTenantRole($tenant, $viewer, 'viewer');
+        TenantThemeSetting::query()->updateOrCreate(
+            ['tenant_id' => $nojaTenant->id],
+            [
+                'template_id' => $template->id,
+                'favicon_path' => null,
+                'primary_color' => '#7c3aed',
+                'hero_title' => 'پیش نمایش هوشمند مسیر کاشت مو',
+                'hero_subtitle' => 'با تایید شماره و بارگذاری یک تصویر واضح، مسیر رشد مو را در سه بازه زمانی ببینید.',
+                'cta_text' => 'شروع پیش نمایش',
+                'consent_text' => 'با انتخاب تصویر، اجازه می‌دهم پیش‌نمایش اختصاصی برای شروع مشاوره بهتر آماده شود.',
+                'footer_text' => 'یک پیش‌نمایش الهام‌بخش برای شروع گفت‌وگوی دقیق‌تر با کلینیک نوژا.',
+                'header_html' => '<div class="mx-auto flex w-full max-w-6xl flex-wrap items-center justify-between gap-4 px-4 py-5 sm:px-6"><div><p class="text-sm font-bold text-violet-700">کلینیک نوژا</p><h1 class="mt-1 text-xl font-bold text-zinc-950">مشاوره و پیش‌نمایش اختصاصی کاشت مو</h1></div><nav class="flex items-center gap-4 text-sm font-bold text-zinc-600"><span>مشاوره</span><span>کاشت مو</span><span>پیگیری</span></nav></div>',
+                'body_html' => null,
+                'footer_html' => '<div class="mx-auto flex w-full max-w-6xl flex-wrap items-center justify-between gap-3 px-4 py-5 text-sm text-zinc-500 sm:px-6"><p>کلینیک نوژا - مشاوره، طراحی خط رویش و پیگیری درمان</p><p class="flex items-center gap-2"><img src="/theme/logo.svg" alt="" class="h-8"></p></div>',
+                'back_link_title' => 'بازگشت به سایت کلینیک',
+                'back_link_url' => 'https://hairvision.ir',
+            ]
+        );
 
-        $this->seedActiveClinicPlan($tenant, $admin);
+        $this->syncTenantRole($ariatenant, $admin, 'clinic_admin');
+        $this->syncTenantRole($ariatenant, $editor, 'editor');
+        $this->syncTenantRole($ariatenant, $viewer, 'viewer');
+
+        $this->seedActiveClinicPlan($ariatenant, $admin);
 
         $demoLeads = [
             [
@@ -285,7 +338,7 @@ class DatabaseSeeder extends Seeder
 
         foreach ($demoLeads as $leadData) {
             $lead = Lead::query()->updateOrCreate(
-                ['tenant_id' => $tenant->id, 'phone_normalized' => $leadData['phone']],
+                ['tenant_id' => $ariatenant->id, 'phone_normalized' => $leadData['phone']],
                 [
                     'full_name' => $leadData['full_name'],
                     'phone' => $leadData['phone'],
@@ -305,7 +358,7 @@ class DatabaseSeeder extends Seeder
 
             $note = LeadNote::query()->firstOrCreate(
                 [
-                    'tenant_id' => $tenant->id,
+                    'tenant_id' => $ariatenant->id,
                     'lead_id' => $lead->id,
                     'note' => $leadData['note'],
                 ],
@@ -477,14 +530,14 @@ class DatabaseSeeder extends Seeder
             ->update(['is_active' => false]);
     }
 
-    private function seedActiveClinicPlan(Tenant $tenant, User $admin): void
+    private function seedActiveClinicPlan(Tenant $ariatenant, User $admin): void
     {
         $starterPlan = Plan::query()
             ->with('serviceEntitlements')
             ->where('name', 'پلن شروع')
             ->firstOrFail();
 
-        $activeStarter = $this->activeStarterSubscription($tenant, $starterPlan);
+        $activeStarter = $this->activeStarterSubscription($ariatenant, $starterPlan);
         $now = now();
 
         $invoice = Invoice::query()->firstOrNew([
@@ -492,7 +545,7 @@ class DatabaseSeeder extends Seeder
         ]);
 
         $invoice->fill([
-            'tenant_id' => $tenant->id,
+            'tenant_id' => $ariatenant->id,
             'user_id' => $admin->id,
             'plan_id' => $starterPlan->id,
             'status' => 'paid',
@@ -524,7 +577,7 @@ class DatabaseSeeder extends Seeder
             Payment::query()->updateOrCreate(
                 ['idempotency_key' => 'seed-aria-starter-plan-paid'],
                 [
-                    'tenant_id' => $tenant->id,
+                    'tenant_id' => $ariatenant->id,
                     'user_id' => $admin->id,
                     'invoice_id' => $invoice->id,
                     'payment_gateway_id' => $gateway->id,
@@ -554,7 +607,7 @@ class DatabaseSeeder extends Seeder
         }
 
         $subscription->forceFill([
-            'tenant_id' => $tenant->id,
+            'tenant_id' => $ariatenant->id,
             'user_id' => $admin->id,
             'plan_id' => $starterPlan->id,
             'invoice_id' => $subscription->invoice_id ?? $invoice->id,
@@ -562,13 +615,13 @@ class DatabaseSeeder extends Seeder
             'usage_limit' => array_sum($starterPlan->serviceCredits()),
         ])->save();
 
-        $this->syncSeededSubscriptionEntitlements($tenant, $admin, $starterPlan, $subscription->refresh(), $invoice->refresh());
+        $this->syncSeededSubscriptionEntitlements($ariatenant, $admin, $starterPlan, $subscription->refresh(), $invoice->refresh());
     }
 
-    private function activeStarterSubscription(Tenant $tenant, Plan $starterPlan): ?Subscription
+    private function activeStarterSubscription(Tenant $ariatenant, Plan $starterPlan): ?Subscription
     {
         return Subscription::query()
-            ->where('tenant_id', $tenant->id)
+            ->where('tenant_id', $ariatenant->id)
             ->where('plan_id', $starterPlan->id)
             ->where('status', 'active')
             ->where('ends_at', '>', now())
@@ -578,7 +631,7 @@ class DatabaseSeeder extends Seeder
     }
 
     private function syncSeededSubscriptionEntitlements(
-        Tenant $tenant,
+        Tenant $ariatenant,
         User $admin,
         Plan $starterPlan,
         Subscription $subscription,
@@ -592,7 +645,7 @@ class DatabaseSeeder extends Seeder
                     'source_type' => 'base_plan',
                 ],
                 [
-                    'tenant_id' => $tenant->id,
+                    'tenant_id' => $ariatenant->id,
                     'plan_id' => $starterPlan->id,
                     'source_id' => $starterPlan->id,
                     'included_credit' => $credit,
@@ -605,7 +658,7 @@ class DatabaseSeeder extends Seeder
 
             CreditTransaction::query()->updateOrCreate(
                 [
-                    'tenant_id' => $tenant->id,
+                    'tenant_id' => $ariatenant->id,
                     'subscription_id' => $subscription->id,
                     'subscription_service_entitlement_id' => $entitlement->id,
                     'service_key' => $serviceKey,
@@ -876,16 +929,16 @@ PROMPT,
         return $user;
     }
 
-    private function syncTenantRole(Tenant $tenant, User $user, string $role): void
+    private function syncTenantRole(Tenant $ariatenant, User $user, string $role): void
     {
-        $tenant->users()->syncWithoutDetaching([
+        $ariatenant->users()->syncWithoutDetaching([
             $user->id => [
                 'role' => $role,
                 'status' => 'active',
             ],
         ]);
 
-        $tenant->users()->updateExistingPivot($user->id, [
+        $ariatenant->users()->updateExistingPivot($user->id, [
             'role' => $role,
             'status' => 'active',
         ]);

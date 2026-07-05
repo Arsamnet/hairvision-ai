@@ -41,28 +41,28 @@
                 @endif
             </div>
 
-            <div class="border-t border-teal-100 bg-linear-to-br from-teal-50 via-white to-amber-50 p-5 sm:p-6 lg:border-r lg:border-t-0">
+            <div class="border-t border-teal-100 p-5 sm:p-6 lg:border-r lg:border-t-0 bg-white dark:bg-zinc-950">
                 @if($activeSubscription)
-                    <p class="text-sm font-bold text-zinc-500">{{ $activeSubscription->plan?->name }}</p>
-                    <p class="mt-3 text-2xl font-bold text-zinc-950">{{ __('dashboard.plan.remaining_credit', ['count' => number_format($remainingCredit)]) }}</p>
-                    <p class="mt-2 text-sm text-zinc-600">{{ __('dashboard.plan.active_until', ['date' => $activeSubscription->ends_at?->toDateString()]) }}</p>
+                    <p class="text-sm font-bold text-zinc-500 dark:text-zinc-400">{{ $activeSubscription->plan?->name }}</p>
+                    <p class="mt-3 text-2xl font-bold text-zinc-950 dark:text-zinc-100">{{ __('dashboard.plan.remaining_credit', ['count' => number_format($remainingCredit)]) }}</p>
+                    <p class="mt-2 text-sm text-zinc-600 dark:text-zinc-300">{{ __('dashboard.plan.active_until', ['date' => $activeSubscription->ends_at?->toDateString()]) }}</p>
                     <div class="mt-4 space-y-2">
-                        <p class="text-xs font-bold text-zinc-500">{{ __('dashboard.plan.service_credits') }}</p>
+                        <p class="text-xs font-bold text-zinc-500 dark:text-zinc-400">{{ __('dashboard.plan.service_credits') }}</p>
                         @forelse($serviceSummaries as $service)
-                            <div class="rounded-lg bg-white/80 px-3 py-2 text-xs ring-1 ring-zinc-100">
+                            <div class="rounded-lg bg-white/80 px-3 py-2 text-xs ring-1 ring-zinc-100 dark:bg-white/[0.04] dark:ring-white/10">
                                 <div class="flex items-center justify-between gap-3">
-                                    <span class="font-bold text-zinc-800">{{ $service['label'] }}</span>
-                                    <span class="text-zinc-600">{{ number_format($service['remaining_credit']) }} / {{ number_format($service['total_credit']) }}</span>
+                                    <span class="font-bold text-zinc-800 dark:text-zinc-100">{{ $service['label'] }}</span>
+                                    <span class="text-zinc-600 dark:text-zinc-300">{{ number_format($service['remaining_credit']) }} / {{ number_format($service['total_credit']) }}</span>
                                 </div>
                             </div>
                         @empty
-                            <p class="rounded-lg bg-amber-50 px-3 py-2 text-xs font-bold text-amber-800">{{ __('dashboard.plan.no_service_credit') }}</p>
+                            <p class="rounded-lg bg-amber-50 px-3 py-2 text-xs font-bold text-amber-800 dark:bg-amber-300/10 dark:text-amber-200 dark:ring-1 dark:ring-amber-300/15">{{ __('dashboard.plan.no_service_credit') }}</p>
                         @endforelse
                     </div>
                 @else
-                    <p class="text-sm font-bold text-zinc-500">{{ $tenant?->name ?? __('dashboard.platform_overview') }}</p>
-                    <p class="mt-3 text-2xl font-bold text-zinc-950">{{ __('dashboard.plan.'.($planStatus === 'exempt' ? 'exempt' : 'status_title')) }}</p>
-                    <p class="mt-2 text-sm text-zinc-600">{{ $tenant?->name ?? __('dashboard.all_clinics') }}</p>
+                    <p class="text-sm font-bold text-zinc-500 dark:text-zinc-400">{{ $tenant?->name ?? __('dashboard.platform_overview') }}</p>
+                    <p class="mt-3 text-2xl font-bold text-zinc-950 dark:text-zinc-100">{{ __('dashboard.plan.'.($planStatus === 'exempt' ? 'exempt' : 'status_title')) }}</p>
+                    <p class="mt-2 text-sm text-zinc-600 dark:text-zinc-300">{{ $tenant?->name ?? __('dashboard.all_clinics') }}</p>
                 @endif
             </div>
         </div>
@@ -97,7 +97,7 @@
         </div>
 
         <div data-admin-table-container class="mt-5 hidden overflow-visible lg:block">
-            <table class="w-full min-w-[42rem] text-right text-sm">
+            <table class="w-full min-w-2xl text-right text-sm">
                 <thead class="border-b border-zinc-200 text-xs text-zinc-500">
                     <tr>
                         <th class="w-14 py-3 font-bold">{{ __('messages.actions') }}</th>
