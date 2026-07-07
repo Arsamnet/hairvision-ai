@@ -44,6 +44,7 @@ relative Markdown link.
 - [Setup Guide](docs/setup.md)
 - [Development Guide](docs/development-guide.md)
 - [Database](docs/database.md)
+- [Jalali Dates](docs/dates.md)
 - [API Documentation](docs/api.md)
 - [AI Models](docs/ai-models.md)
 - [AI Model Security](docs/ai-model-security.md)

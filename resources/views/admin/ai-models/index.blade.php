@@ -96,7 +96,7 @@
                                 <p>{{ number_format($access->credit_used) }}</p>
                                 <p class="mt-1 text-xs text-zinc-500">{{ $access->remainingCredit() === null ? __('ai_models.unlimited_credit') : number_format($access->remainingCredit()) }}</p>
                             </td>
-                            <td class="px-4 py-3 text-zinc-500">{{ $access->last_used_at?->diffForHumans() ?? __('messages.none') }}</td>
+                            <td class="px-4 py-3 text-zinc-500"><x-jalali-date-time :value="$access->last_used_at" /></td>
                         </tr>
                     @empty
                         <tr>
@@ -147,7 +147,7 @@
                             <span dir="ltr">{{ number_format($access->credit_used) }} / {{ $access->remainingCredit() === null ? __('ai_models.unlimited_credit') : number_format($access->remainingCredit()) }}</span>
                         </x-admin.mobile-list.field>
                         <x-admin.mobile-list.field :label="__('ai_models.last_used_at')">
-                            {{ $access->last_used_at?->diffForHumans() ?? __('messages.none') }}
+                            <x-jalali-date-time :value="$access->last_used_at" />
                         </x-admin.mobile-list.field>
                     </dl>
                 </x-admin.mobile-list.card>

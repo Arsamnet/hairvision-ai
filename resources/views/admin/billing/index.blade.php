@@ -6,7 +6,7 @@
 @php
     $payableStatuses = ['pending', 'failed'];
     $invoiceStatusTone = fn (string $status): string => $status === 'paid' ? 'emerald' : ($status === 'failed' ? 'rose' : 'zinc');
-    $formatDateTime = fn ($date): string => $date ? $date->toDateTimeString() : __('messages.none');
+    $formatDateTime = fn ($date): string => \App\Support\JalaliDate::toJalaliDateTime($date) ?? __('messages.none');
     $maskAuthority = fn ($authority): string => filled($authority) ? '•••• '.substr((string) $authority, -8) : __('messages.none');
 @endphp
 
@@ -22,7 +22,7 @@
             @if($activeSubscription)
                 <div class="mt-4 grid gap-3 lg:grid-cols-4">
                     <p class="rounded-lg bg-zinc-50 p-3"><span class="text-zinc-500">{{ __('payments.plan') }}:</span> <strong>{{ $activeSubscription->plan?->name }}</strong></p>
-                    <p class="rounded-lg bg-zinc-50 p-3"><span class="text-zinc-500">{{ __('payments.ends_at') }}:</span> <strong>{{ $activeSubscription->ends_at?->toDateString() }}</strong></p>
+                    <p class="rounded-lg bg-zinc-50 p-3"><span class="text-zinc-500">{{ __('payments.ends_at') }}:</span> <strong><x-jalali-date :value="$activeSubscription->ends_at" /></strong></p>
                     <p class="rounded-lg bg-zinc-50 p-3"><span class="text-zinc-500">{{ __('payments.credit') }}:</span> <strong>{{ number_format($serviceSummaries->sum('remaining_credit')) }}</strong></p>
                     <p class="rounded-lg bg-zinc-50 p-3"><span class="text-zinc-500">{{ __('payments.status') }}:</span> <strong>{{ __('payments.subscription_statuses.'.$activeSubscription->status) }}</strong></p>
                 </div>

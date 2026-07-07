@@ -55,7 +55,7 @@
                     <figure class="mt-4 overflow-hidden rounded-lg border border-zinc-100 bg-zinc-50">
                         <img src="{{ route('admin.leads.uploads.show', [$lead, $primaryUpload]) }}" alt="{{ __('leads.uploads.alt') }}" class="max-h-128 w-full object-contain">
                         <figcaption class="border-t border-zinc-100 px-4 py-3 text-xs font-bold text-zinc-500">
-                            {{ __('leads.uploads.uploaded_at', ['date' => $primaryUpload->created_at?->diffForHumans()]) }}
+                            {{ __('leads.uploads.uploaded_at', ['date' => \App\Support\JalaliDate::toJalaliDateTime($primaryUpload->created_at)]) }}
                         </figcaption>
                     </figure>
                 @else
@@ -131,7 +131,10 @@
                         </div>
                         <div>
                             <label class="text-xs font-bold text-zinc-500">{{ __('crm.next_follow_up_at') }}</label>
-                            <input name="next_follow_up_at" type="datetime-local" class="mt-1 h-11 w-full rounded-lg border border-zinc-200 px-3 text-sm outline-none transition focus:border-teal-500">
+                            <div class="relative mt-1">
+                                <x-admin.icon name="calendar" class="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
+                                <input name="next_follow_up_at" type="text" value="{{ old('next_follow_up_at') }}" placeholder="{{ __('dates.placeholders.datetime') }}" inputmode="numeric" dir="ltr" data-jalali-datetime class="h-11 w-full rounded-lg border border-zinc-200 py-0 pr-10 pl-3 text-sm outline-none transition focus:border-teal-500">
+                            </div>
                         </div>
                         <div>
                             <label class="text-xs font-bold text-zinc-500">{{ __('crm.note') }}</label>
@@ -161,9 +164,9 @@
                             </div>
                             <p class="mt-3 text-sm leading-7 text-zinc-700">{{ $note->note }}</p>
                             <div class="mt-3 space-y-1 text-xs text-zinc-500">
-                                <p>{{ $note->user?->name ?? __('leads.system_user') }} - {{ $note->created_at?->diffForHumans() }}</p>
+                                <p>{{ $note->user?->name ?? __('leads.system_user') }} - <x-jalali-date-time :value="$note->created_at" /></p>
                                 @if($note->next_follow_up_at)
-                                    <p>{{ __('crm.next_follow_up_at') }}: {{ $note->next_follow_up_at?->toDateTimeString() }}</p>
+                                    <p>{{ __('crm.next_follow_up_at') }}: <x-jalali-date-time :value="$note->next_follow_up_at" /></p>
                                 @endif
                                 @if($note->completed_at)
                                     <p class="font-bold text-emerald-700">{{ __('crm.completed') }}</p>

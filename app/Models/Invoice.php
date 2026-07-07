@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Casts\JalaliDateTimeCast;
 use App\Models\Concerns\HasUuid;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -33,10 +34,10 @@ class Invoice extends Model
     ];
 
     protected $casts = [
-        'due_at' => 'datetime',
-        'paid_at' => 'datetime',
-        'expires_at' => 'datetime',
-        'activated_at' => 'datetime',
+        'due_at' => JalaliDateTimeCast::class,
+        'paid_at' => JalaliDateTimeCast::class,
+        'expires_at' => JalaliDateTimeCast::class,
+        'activated_at' => JalaliDateTimeCast::class,
         'metadata_json' => 'array',
         'created_at' => 'datetime',
         'updated_at' => 'datetime',

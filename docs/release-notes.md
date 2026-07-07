@@ -79,9 +79,18 @@
   result states, message bubbles, and modal navigation from the uploaded image.
 - Scoped session cookies for public lead generation, tenant clinic dashboards,
   and the primary platform dashboard.
+- Jalali/Shamsi date support through `morilog/jalali`,
+  `App\Support\JalaliDate`, Jalali validation rules, Jalali Blade date
+  components, and `lang/fa/dates.php`.
+- Bundled local Jalali dashboard datepicker support through
+  `@majidh1/jalalidatepicker`.
 
 ### Changed
 
+- Business/user-facing CRM, billing, payment, subscription, and service
+  entitlement dates now store zero-padded Jalali `char(19)` values while
+  Laravel system timestamps remain Gregorian in storage.
+- Dashboard date displays and list date filters now use Jalali/Shamsi format.
 - HairVision demo AI access now returns configured local sample image bytes
   through the AI model provider path instead of relying on a metadata-only mock.
 - GapGPT image edits now send the verified multipart request shape with
@@ -188,9 +197,12 @@
   authorization.
 - Payment gateway failures are logged through Laravel logs and shown to users
   only as generic localized messages.
+- IPPanel and GapGPT failed provider responses log safe warning context without
+  OTP codes, credentials, payloads, or private paths.
 
 ### Documentation
 
+- Added `docs/dates.md`.
 - Added `docs/ai-models.md`, `docs/ai-model-security.md`, and
   `docs/permissions.md`.
 - Added `docs/plans.md`, `docs/subscriptions.md`, `docs/credits.md`,
@@ -205,6 +217,9 @@
   rules, and testing expectations.
 - Documented the user-facing error-handling rule: catch operational failures,
   log safe context, and avoid exposing raw errors to users.
+- Documented Jalali date storage, validation, display, filter, migration, and
+  testing rules across README, API, database, frontend, development, testing,
+  release notes, and agent instructions.
 
 ## 1.2.0
 

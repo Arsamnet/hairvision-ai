@@ -28,7 +28,7 @@
             <div class="rounded-lg bg-zinc-50 p-3"><dt class="text-sm text-zinc-500">{{ __('system.mobile') }}</dt><dd class="mt-1 font-bold" dir="ltr">{{ $dashboardUser->phone_normalized ?? __('messages.none') }}</dd></div>
             <div class="rounded-lg bg-zinc-50 p-3"><dt class="text-sm text-zinc-500">{{ __('system.role') }}</dt><dd class="mt-1 font-bold">{{ __('system.roles.'.$dashboardUser->role) }}</dd></div>
             <div class="rounded-lg bg-zinc-50 p-3"><dt class="text-sm text-zinc-500">{{ __('system.status') }}</dt><dd class="mt-1 font-bold">{{ __('system.statuses.'.$dashboardUser->status) }}</dd></div>
-            <div class="rounded-lg bg-zinc-50 p-3"><dt class="text-sm text-zinc-500">{{ __('messages.created_at') }}</dt><dd class="mt-1 font-bold">{{ $dashboardUser->created_at?->diffForHumans() }}</dd></div>
+            <div class="rounded-lg bg-zinc-50 p-3"><dt class="text-sm text-zinc-500">{{ __('messages.created_at') }}</dt><dd class="mt-1 font-bold"><x-jalali-date-time :value="$dashboardUser->created_at" /></dd></div>
         </dl>
     </section>
 

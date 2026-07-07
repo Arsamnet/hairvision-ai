@@ -79,7 +79,7 @@
                             <td class="px-4 py-3">
                                 <x-admin.badge tone="teal">{{ __('leads.crm_stages.'.$lead->crm_stage) }}</x-admin.badge>
                             </td>
-                            <td class="px-4 py-3 text-zinc-500">{{ $lead->created_at?->diffForHumans() }}</td>
+                            <td class="px-4 py-3 text-zinc-500"><x-jalali-date-time :value="$lead->created_at" /></td>
                         </tr>
                     @empty
                         <tr>
@@ -118,7 +118,7 @@
                             <x-admin.badge tone="teal">{{ __('leads.crm_stages.'.$lead->crm_stage) }}</x-admin.badge>
                         </x-admin.mobile-list.field>
                         <x-admin.mobile-list.field :label="__('leads.fields.created_at')">
-                            {{ $lead->created_at?->diffForHumans() }}
+                            <x-jalali-date-time :value="$lead->created_at" />
                         </x-admin.mobile-list.field>
                     </dl>
                 </x-admin.mobile-list.card>

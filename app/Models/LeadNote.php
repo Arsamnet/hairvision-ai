@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Casts\JalaliDateTimeCast;
 use App\Models\Concerns\HasUuid;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -30,8 +31,8 @@ class LeadNote extends Model
     ];
 
     protected $casts = [
-        'next_follow_up_at' => 'datetime',
-        'completed_at' => 'datetime',
+        'next_follow_up_at' => JalaliDateTimeCast::class,
+        'completed_at' => JalaliDateTimeCast::class,
         'metadata_json' => 'array',
         'created_at' => 'datetime',
         'updated_at' => 'datetime',

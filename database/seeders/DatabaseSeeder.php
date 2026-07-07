@@ -14,9 +14,9 @@ use App\Models\Permission;
 use App\Models\Plan;
 use App\Models\Role;
 use App\Models\SmsGateway;
-use App\Models\SystemSetting;
 use App\Models\Subscription;
 use App\Models\SubscriptionServiceEntitlement;
+use App\Models\SystemSetting;
 use App\Models\Template;
 use App\Models\Tenant;
 use App\Models\TenantAiSetting;
@@ -27,6 +27,7 @@ use App\Services\Auth\PermissionCatalog;
 use App\Services\Auth\PermissionService;
 use App\Services\Billing\SubscriptionActivationService;
 use App\Services\Payment\PaymentGatewayService;
+use App\Support\JalaliDate;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
@@ -624,7 +625,7 @@ class DatabaseSeeder extends Seeder
             ->where('tenant_id', $ariatenant->id)
             ->where('plan_id', $starterPlan->id)
             ->where('status', 'active')
-            ->where('ends_at', '>', now())
+            ->where('ends_at', '>', JalaliDate::nowDateTimeString())
             ->latest('starts_at')
             ->latest('id')
             ->first();

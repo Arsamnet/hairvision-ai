@@ -127,6 +127,13 @@ Core constraints:
   normalization, query-filter, pagination, or permission logic.
 - Use `App\Support\NumberNormalizer` plus `App\Rules\SupportedDigits` for
   Persian/Arabic/Latin digit normalization and validation.
+- Use `App\Support\JalaliDate`, `App\Rules\JalaliDate`, and
+  `App\Rules\JalaliDateTime` for Jalali/Shamsi conversion and validation. Do
+  not duplicate date conversion logic.
+- Store business/user-facing date-time fields as zero-padded Jalali strings in
+  `YYYY/MM/DD HH:mm:ss` format where the schema marks them as business dates.
+  Keep Laravel system timestamps Gregorian in storage and convert them only for
+  display.
 - Use `App\Support\Query\SearchFilter` with `PaginationParameters` for reusable
   dashboard table search/sort/filter behavior.
 - Dashboard Blade must use shared components for cards, badges, empty states,

@@ -7,6 +7,7 @@ use App\Models\Subscription;
 use App\Models\Tenant;
 use App\Models\User;
 use App\Support\DebugStepLogger;
+use App\Support\JalaliDate;
 
 /**
  * Resolves dashboard feature access from the user's current subscription state.
@@ -117,10 +118,10 @@ class PlanAccessService
             'subscription_status' => $subscription->status,
             'plan_id' => $subscription->plan?->getKey(),
             'ends_at_present' => $subscription->ends_at !== null,
-            'ends_at_past' => $subscription->ends_at ? $subscription->ends_at <= now() : null,
+            'ends_at_past' => $subscription->ends_at ? JalaliDate::compareDateTime($subscription->ends_at, now()) <= 0 : null,
         ]);
 
-        if ($subscription->status === 'active' && $subscription->ends_at <= now()) {
+        if ($subscription->status === 'active' && JalaliDate::compareDateTime($subscription->ends_at, now()) <= 0) {
             $this->debugStep($scope, 'Active subscription is past its end time; marking expired', [
                 'subscription_id' => $subscription->getKey(),
                 'previous_status' => $subscription->status,

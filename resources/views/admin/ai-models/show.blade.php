@@ -78,7 +78,7 @@
                 </div>
                 <div class="rounded-lg bg-zinc-50 p-3">
                     <p class="text-xs font-bold text-zinc-500">{{ __('ai_models.last_used_at') }}</p>
-                    <p class="mt-1 font-bold">{{ $aiModelAccess->last_used_at?->diffForHumans() ?? __('messages.none') }}</p>
+                    <p class="mt-1 font-bold"><x-jalali-date-time :value="$aiModelAccess->last_used_at" /></p>
                 </div>
             </div>
         </x-admin.card>
@@ -134,7 +134,7 @@
                                     <a class="text-teal-700 hover:text-teal-900" href="{{ route('admin.clinics.ai-models.index', $clinic) }}">{{ $clinic->name }}</a>
                                 </td>
                                 <td class="px-4 py-3"><x-admin.badge :tone="$clinic->pivot->is_active ? 'emerald' : 'zinc'">{{ $clinic->pivot->is_active ? __('ai_models.statuses.active') : __('ai_models.statuses.inactive') }}</x-admin.badge></td>
-                                <td class="px-4 py-3 text-zinc-500">{{ $clinic->pivot->created_at?->diffForHumans() }}</td>
+                                <td class="px-4 py-3 text-zinc-500"><x-jalali-date-time :value="$clinic->pivot->created_at" /></td>
                             </tr>
                         @empty
                             <tr>
@@ -153,7 +153,7 @@
                         <div class="admin-mobile-list-card-header">
                             <div class="min-w-0">
                                 <a class="admin-mobile-list-card-title hover:text-teal-700" href="{{ route('admin.clinics.ai-models.index', $clinic) }}">{{ $clinic->name }}</a>
-                                <p class="admin-mobile-list-card-subtitle">{{ $clinic->pivot->created_at?->diffForHumans() }}</p>
+                                <p class="admin-mobile-list-card-subtitle"><x-jalali-date-time :value="$clinic->pivot->created_at" /></p>
                             </div>
                             <x-admin.badge :tone="$clinic->pivot->is_active ? 'emerald' : 'zinc'">{{ $clinic->pivot->is_active ? __('ai_models.statuses.active') : __('ai_models.statuses.inactive') }}</x-admin.badge>
                         </div>
@@ -184,7 +184,7 @@
                                 <td class="px-4 py-3 font-bold">{{ $log->clinic?->name }}</td>
                                 <td class="px-4 py-3"><x-admin.badge :tone="$log->status === 'completed' ? 'emerald' : ($log->status === 'failed' ? 'rose' : 'zinc')">{{ __('ai_models.statuses.'.$log->status) }}</x-admin.badge></td>
                                 <td class="px-4 py-3" dir="ltr">{{ number_format($log->credit_consumed) }}</td>
-                                <td class="px-4 py-3 text-zinc-500">{{ $log->created_at?->diffForHumans() }}</td>
+                                <td class="px-4 py-3 text-zinc-500"><x-jalali-date-time :value="$log->created_at" /></td>
                             </tr>
                         @empty
                             <tr>
@@ -202,7 +202,7 @@
                         <div class="admin-mobile-list-card-header">
                             <div class="min-w-0">
                                 <p class="admin-mobile-list-card-title">{{ $log->clinic?->name }}</p>
-                                <p class="admin-mobile-list-card-subtitle">{{ $log->created_at?->diffForHumans() }}</p>
+                                <p class="admin-mobile-list-card-subtitle"><x-jalali-date-time :value="$log->created_at" /></p>
                             </div>
                             <x-admin.badge :tone="$log->status === 'completed' ? 'emerald' : ($log->status === 'failed' ? 'rose' : 'zinc')">{{ __('ai_models.statuses.'.$log->status) }}</x-admin.badge>
                         </div>

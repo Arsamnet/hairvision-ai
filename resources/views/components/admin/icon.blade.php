@@ -9,6 +9,7 @@
         'users' => 'users',
         'shield' => 'shield',
         'building' => 'building',
+        'calendar' => 'calendar',
         'contact' => 'address-book',
         'credit-card' => 'credit-card',
         'message' => 'message-sms',

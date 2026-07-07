@@ -149,12 +149,6 @@ class SmsGatewayService
             'default_provider' => $defaultProvider,
         ]);
 
-        if ($defaultProvider === 'local') {
-            $this->debugStep($scope, 'System IPPanel resolution redirected to local config provider.');
-
-            return $this->systemDefaultFromConfig();
-        }
-
         $gateways = SmsGateway::query()
             ->system()
             ->enabled()
@@ -179,6 +173,12 @@ class SmsGatewayService
             ]);
 
             return $gateway;
+        }
+
+        if ($defaultProvider === 'local') {
+            $this->debugStep($scope, 'No database IPPanel gateway found; system IPPanel resolution redirected to local config provider.');
+
+            return $this->systemDefaultFromConfig();
         }
 
         $this->debugStep($scope, 'No database IPPanel gateway with credentials found; checking config fallback.');

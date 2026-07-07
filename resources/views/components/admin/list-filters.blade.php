@@ -118,10 +118,12 @@
                 @php
                     $name = $filter['name'];
                     $type = $filter['type'] ?? 'text';
+                    $inputType = $type === 'number' ? 'number' : 'text';
                     $label = $filter['label'] ?? $name;
                     $placeholder = $filter['placeholder'] ?? $label;
                     $value = request($name);
                     $options = $filter['options'] ?? [];
+                    $isDateInput = in_array($type, ['date', 'datetime'], true);
                 @endphp
 
                 @if($type === 'select')
@@ -135,15 +137,20 @@
                         </select>
                     </label>
                 @else
-                    <label class="admin-list-primary-filter min-w-0">
+                    <label class="admin-list-primary-filter relative min-w-0">
                         <span class="sr-only">{{ $label }}</span>
+                        @if($isDateInput)
+                            <x-admin.icon name="calendar" class="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
+                        @endif
                         <input
-                            type="{{ in_array($type, ['date', 'number'], true) ? $type : 'text' }}"
+                            type="{{ $inputType }}"
                             name="{{ $name }}"
                             value="{{ $value }}"
                             placeholder="{{ $placeholder }}"
-                            @if(($filter['dir'] ?? null) === 'ltr') dir="ltr" @endif
-                            class="h-11 w-full rounded-lg border border-zinc-200 bg-white px-3 text-sm outline-none transition focus:border-teal-500"
+                            @if(($filter['dir'] ?? null) === 'ltr' || $isDateInput) dir="ltr" @endif
+                            @if($type === 'date') inputmode="numeric" data-jalali-date @endif
+                            @if($type === 'datetime') inputmode="numeric" data-jalali-datetime @endif
+                            class="h-11 w-full rounded-lg border border-zinc-200 bg-white py-0 pl-3 {{ $isDateInput ? 'pr-10' : 'pr-3' }} text-sm outline-none transition focus:border-teal-500"
                         >
                     </label>
                 @endif
@@ -175,10 +182,12 @@
                         @php
                             $name = $filter['name'] ?? null;
                             $type = $filter['type'] ?? 'text';
+                            $inputType = $type === 'number' ? 'number' : 'text';
                             $label = $filter['label'] ?? $name;
                             $placeholder = $filter['placeholder'] ?? $label;
                             $value = $name ? request($name) : null;
                             $options = $filter['options'] ?? [];
+                            $isDateInput = in_array($type, ['date', 'datetime'], true);
                         @endphp
                         @continue(! $name)
 
@@ -192,14 +201,21 @@
                                     @endforeach
                                 </select>
                             @else
-                                <input
-                                    type="{{ in_array($type, ['date', 'number'], true) ? $type : 'text' }}"
-                                    name="{{ $name }}"
-                                    value="{{ $value }}"
-                                    placeholder="{{ $placeholder }}"
-                                    @if(($filter['dir'] ?? null) === 'ltr') dir="ltr" @endif
-                                    class="h-11 w-full rounded-lg border border-zinc-200 px-3 text-sm outline-none transition focus:border-teal-500"
-                                >
+                                <span class="relative block">
+                                    @if($isDateInput)
+                                        <x-admin.icon name="calendar" class="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
+                                    @endif
+                                    <input
+                                        type="{{ $inputType }}"
+                                        name="{{ $name }}"
+                                        value="{{ $value }}"
+                                        placeholder="{{ $placeholder }}"
+                                        @if(($filter['dir'] ?? null) === 'ltr' || $isDateInput) dir="ltr" @endif
+                                        @if($type === 'date') inputmode="numeric" data-jalali-date @endif
+                                        @if($type === 'datetime') inputmode="numeric" data-jalali-datetime @endif
+                                        class="h-11 w-full rounded-lg border border-zinc-200 py-0 pl-3 {{ $isDateInput ? 'pr-10' : 'pr-3' }} text-sm outline-none transition focus:border-teal-500"
+                                    >
+                                </span>
                             @endif
                         </label>
                     @endforeach
@@ -207,11 +223,17 @@
                     @if($showDates)
                         <label class="space-y-1 text-sm font-bold text-zinc-700">
                             <span>{{ __('messages.created_from') }}</span>
-                            <input type="date" name="created_from" value="{{ request('created_from') }}" class="h-11 w-full rounded-lg border border-zinc-200 px-3 text-sm outline-none transition focus:border-teal-500" dir="ltr">
+                            <span class="relative block">
+                                <x-admin.icon name="calendar" class="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
+                                <input type="text" name="created_from" value="{{ request('created_from') }}" placeholder="{{ __('dates.placeholders.date') }}" inputmode="numeric" class="h-11 w-full rounded-lg border border-zinc-200 py-0 pr-10 pl-3 text-sm outline-none transition focus:border-teal-500" dir="ltr" data-jalali-date>
+                            </span>
                         </label>
                         <label class="space-y-1 text-sm font-bold text-zinc-700">
                             <span>{{ __('messages.created_until') }}</span>
-                            <input type="date" name="created_until" value="{{ request('created_until') }}" class="h-11 w-full rounded-lg border border-zinc-200 px-3 text-sm outline-none transition focus:border-teal-500" dir="ltr">
+                            <span class="relative block">
+                                <x-admin.icon name="calendar" class="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
+                                <input type="text" name="created_until" value="{{ request('created_until') }}" placeholder="{{ __('dates.placeholders.date') }}" inputmode="numeric" class="h-11 w-full rounded-lg border border-zinc-200 py-0 pr-10 pl-3 text-sm outline-none transition focus:border-teal-500" dir="ltr" data-jalali-date>
+                            </span>
                         </label>
                     @endif
 

@@ -162,6 +162,21 @@ Controllers must still validate allowed sort columns through
 `PaginationParameters::fromRequest`. Filtering in Blade is only the UI layer;
 backend queries remain authoritative.
 
+Date filters shown to users must accept Jalali/Shamsi input. Use the shared
+list-filter date controls and the `App\Support\JalaliDate` backend parser
+instead of browser-native Gregorian date inputs.
+
+Dashboard datepicker inputs must use the bundled `@majidh1/jalalidatepicker`
+initializer through `data-jalali-date` or `data-jalali-datetime`. Do not add a
+second datepicker library or load datepicker assets from outside the app.
+
+## Date Display
+
+Every date shown in dashboard Blade must be Jalali. Use
+`<x-jalali-date :value="$value" />` or
+`<x-jalali-date-time :value="$value" />` instead of raw `diffForHumans()`,
+`toDateString()`, or `toDateTimeString()` output.
+
 ## Create Forms
 
 Create-capable list pages should expose a colored button above the list. The

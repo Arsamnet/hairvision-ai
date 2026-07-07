@@ -73,6 +73,7 @@
 .fi-rr-box-open::before { content: "\f2b3"; }
 .fi-rr-sparkles::before { content: "\fc84"; }
 .fi-rr-building::before { content: "\f303"; }
+.fi-rr-calendar::before { content: "\f339"; }
 .fi-rr-chart-histogram::before { content: "\f3a2"; }
 .fi-rr-check::before { content: "\f3c8"; }
 .fi-rr-menu-dots-vertical::before { content: "\f926"; }

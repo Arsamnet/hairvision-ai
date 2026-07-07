@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Casts\JalaliDateTimeCast;
 use App\Models\Concerns\HasUuid;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -30,8 +31,8 @@ class Subscription extends Model
     ];
 
     protected $casts = [
-        'starts_at' => 'datetime',
-        'ends_at' => 'datetime',
+        'starts_at' => JalaliDateTimeCast::class,
+        'ends_at' => JalaliDateTimeCast::class,
         'usage_limit' => 'integer',
         'usage_used' => 'integer',
         'created_at' => 'datetime',

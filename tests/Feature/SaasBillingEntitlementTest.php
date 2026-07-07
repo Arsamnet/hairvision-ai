@@ -16,6 +16,7 @@ use App\Models\Upload;
 use App\Models\User;
 use App\Services\Billing\BillingService;
 use App\Services\Billing\CreditLedgerService;
+use App\Support\JalaliDate;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Validation\ValidationException;
 use Tests\TestCase;
@@ -61,7 +62,7 @@ class SaasBillingEntitlementTest extends TestCase
         $billing = app(BillingService::class);
         $base = $this->plan('پلن پایه کاشت مو', 'base_subscription', ['hair_transplant' => 10]);
         $subscription = $billing->activatePlan($user, $base, $billing->invoiceForPlan($user, $base, $tenant), $tenant);
-        $originalEndsAt = $subscription->ends_at->copy();
+        $originalEndsAt = $subscription->ends_at;
 
         $addOn = $this->plan('افزودن کاشت ابرو', 'service_add_on', ['eyebrow_transplant' => 5]);
         $billing->activatePlan($user, $addOn, $billing->invoiceForPlan($user, $addOn, $tenant), $tenant);
@@ -83,7 +84,7 @@ class SaasBillingEntitlementTest extends TestCase
         $billing = app(BillingService::class);
         $base = $this->plan('پلن پایه کاشت مو', 'base_subscription', ['hair_transplant' => 10]);
         $subscription = $billing->activatePlan($user, $base, $billing->invoiceForPlan($user, $base, $tenant), $tenant);
-        $originalEndsAt = $subscription->ends_at->copy();
+        $originalEndsAt = $subscription->ends_at;
 
         $topUp = $this->plan('بسته اعتبار کاشت مو', 'credit_top_up', ['hair_transplant' => 25], durationDays: null);
         $billing->activatePlan($user, $topUp, $billing->invoiceForPlan($user, $topUp, $tenant), $tenant);
@@ -95,7 +96,12 @@ class SaasBillingEntitlementTest extends TestCase
 
         $this->assertSame(25, $entitlement->purchased_credit);
         $this->assertSame(35, $entitlement->remainingCredit());
-        $this->assertTrue($originalEndsAt->equalTo($subscription->refresh()->ends_at));
+        $this->assertSame($originalEndsAt, $subscription->refresh()->ends_at);
+        $this->assertDatabaseHas('subscriptions', [
+            'id' => $subscription->id,
+            'starts_at' => JalaliDate::normalizeDateTime($subscription->starts_at),
+            'ends_at' => JalaliDate::normalizeDateTime($subscription->ends_at),
+        ]);
         $this->assertDatabaseHas('credit_transactions', [
             'tenant_id' => $tenant->id,
             'service_key' => 'hair_transplant',

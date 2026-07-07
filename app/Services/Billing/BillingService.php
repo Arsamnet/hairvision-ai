@@ -10,6 +10,7 @@ use App\Models\Tenant;
 use App\Models\User;
 use App\Services\Payment\PaymentGatewayService;
 use App\Support\DebugStepLogger;
+use App\Support\JalaliDate;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -551,7 +552,7 @@ class BillingService
                             ->orWhereHas('plan', fn (Builder $query) => $query->where('plan_type', 'base_subscription'));
                     })
                     ->where('status', 'active')
-                    ->where('ends_at', '>', now())
+                    ->where('ends_at', '>', JalaliDate::nowDateTimeString())
                     ->latest('starts_at')
                     ->lockForUpdate()
                     ->first();
@@ -655,7 +656,7 @@ class BillingService
         $query = $user->subscriptions()
             ->with('plan')
             ->where('status', 'active')
-            ->where('ends_at', '>', now())
+            ->where('ends_at', '>', JalaliDate::nowDateTimeString())
             ->whereHas('plan', fn (Builder $query) => $query->where('plan_type', 'base_subscription'));
 
         if ($tenant) {

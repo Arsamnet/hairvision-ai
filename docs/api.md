@@ -32,6 +32,25 @@ Accept: application/json
 Content-Type: multipart/form-data
 ```
 
+## Date Format
+
+User-facing API responses and dashboard-backed filters use Jalali/Shamsi dates.
+Business date-time values use:
+
+```text
+1405/01/31 23:59:59
+```
+
+Date-only filters use:
+
+```text
+1405/01/31
+```
+
+Persian, Arabic, and Latin digits are accepted and normalized server-side.
+Technical/internal timestamps may remain Gregorian internally, but must be
+converted before being displayed to users.
+
 ## Tenant Bootstrap
 
 ```http

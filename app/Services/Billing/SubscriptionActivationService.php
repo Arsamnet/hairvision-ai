@@ -12,6 +12,7 @@ use App\Models\SubscriptionServiceEntitlement;
 use App\Models\Tenant;
 use App\Models\User;
 use App\Support\DebugStepLogger;
+use App\Support\JalaliDate;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -364,7 +365,7 @@ class SubscriptionActivationService
             ->whereHas('plan', fn (Builder $query) => $query->where('plan_type', 'base_subscription'))
             ->update([
                 'status' => 'replaced',
-                'ends_at' => now(),
+                'ends_at' => JalaliDate::nowDateTimeString(),
             ]);
 
         $this->debugStep($scope, 'Existing active base subscriptions replaced.', [

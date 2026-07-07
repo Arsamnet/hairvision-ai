@@ -2,6 +2,7 @@
 
 namespace App\Support\Query;
 
+use App\Support\JalaliDate;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
@@ -35,6 +36,10 @@ class DateRangeFilter
         }
 
         try {
+            if (JalaliDate::isValidJalaliDate((string) $value)) {
+                return CarbonImmutable::instance(JalaliDate::fromJalaliDate((string) $value))->startOfDay();
+            }
+
             return CarbonImmutable::createFromFormat('Y-m-d', trim($value))->startOfDay();
         } catch (\Throwable) {
             return null;

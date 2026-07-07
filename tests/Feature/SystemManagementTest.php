@@ -26,6 +26,7 @@ use App\Services\Auth\PermissionService;
 use App\Services\Billing\BillingService;
 use App\Services\Payment\PaymentGatewayService;
 use App\Services\Sms\SmsGatewayService;
+use App\Support\JalaliDate;
 use Database\Seeders\DatabaseSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Client\ConnectionException;
@@ -1088,6 +1089,7 @@ class SystemManagementTest extends TestCase
         $this->activateSubscription($userB);
         $leadA = $this->createLead($tenantA, '09120000001', 'Tenant A Lead');
         $leadB = $this->createLead($tenantB, '09120000002', 'Tenant B Lead');
+        $nextFollowUpAt = JalaliDate::toJalaliDateTime(now()->addDay());
 
         $this->actingAs($userA)
             ->withSession(['admin_active_tenant_id' => $tenantA->id])
@@ -1096,7 +1098,7 @@ class SystemManagementTest extends TestCase
                 'status' => 'contacted',
                 'communication_channel' => 'phone',
                 'note' => 'تماس اولیه انجام شد و نیاز به پیگیری دارد.',
-                'next_follow_up_at' => now()->addDay()->format('Y-m-d H:i:s'),
+                'next_follow_up_at' => $nextFollowUpAt,
             ])
             ->assertRedirect();
 
@@ -1108,6 +1110,11 @@ class SystemManagementTest extends TestCase
             'communication_channel' => 'phone',
         ]);
         $this->assertSame('contacted', $leadA->refresh()->crm_stage);
+        $this->assertDatabaseHas('lead_notes', [
+            'tenant_id' => $tenantA->id,
+            'lead_id' => $leadA->id,
+            'next_follow_up_at' => $nextFollowUpAt,
+        ]);
 
         $this->actingAs($userA)
             ->withSession(['admin_active_tenant_id' => $tenantA->id])
@@ -1115,7 +1122,9 @@ class SystemManagementTest extends TestCase
             ->get('/admin/leads/'.$leadA->id)
             ->assertOk()
             ->assertSee('تماس اولیه انجام شد')
-            ->assertSee(__('crm.timeline_title'));
+            ->assertSee(__('crm.timeline_title'))
+            ->assertSee('data-jalali-datetime', false)
+            ->assertSee('data-menu-icon="calendar"', false);
 
         $this->actingAs($userA)
             ->withSession(['admin_active_tenant_id' => $tenantA->id])
@@ -1310,11 +1319,12 @@ class SystemManagementTest extends TestCase
         $actionMenus = resource_path('js/admin/action-menus.js');
         $modals = resource_path('js/admin/modals.js');
         $confirmationModal = resource_path('js/admin/confirmation-modal.js');
+        $jalaliDatepickers = resource_path('js/admin/jalali-datepickers.js');
         $mobileMenu = resource_path('js/admin/mobile-menu.js');
         $responsiveControls = resource_path('js/admin/responsive-controls.js');
         $theme = resource_path('js/admin/theme.js');
 
-        foreach ([$entrypoint, $adminIndex, $actionMenus, $modals, $confirmationModal, $mobileMenu, $responsiveControls, $theme] as $path) {
+        foreach ([$entrypoint, $adminIndex, $actionMenus, $modals, $confirmationModal, $jalaliDatepickers, $mobileMenu, $responsiveControls, $theme] as $path) {
             $this->assertFileExists($path);
         }
 
@@ -1327,6 +1337,8 @@ class SystemManagementTest extends TestCase
         $this->assertStringContainsString('export const closeModal', file_get_contents($modals));
         $this->assertStringContainsString('preserveScrollPosition', file_get_contents($modals));
         $this->assertStringContainsString('export const bootConfirmationModal', file_get_contents($confirmationModal));
+        $this->assertStringContainsString('data-jdp-init-date', file_get_contents($jalaliDatepickers));
+        $this->assertStringContainsString("initDate: 'attr'", file_get_contents($jalaliDatepickers));
         $this->assertStringContainsString('export const bootMobileMenu', file_get_contents($mobileMenu));
         $this->assertStringContainsString('export const bootResponsiveControls', file_get_contents($responsiveControls));
         $this->assertStringContainsString('localStorage.setItem', file_get_contents($theme));
@@ -1350,6 +1362,8 @@ class SystemManagementTest extends TestCase
             ->assertSee(__('messages.edit_filters'))
             ->assertSee(__('messages.active_filters'))
             ->assertSee(__('messages.remove_filters'))
+            ->assertSee('data-jalali-date', false)
+            ->assertSee('data-menu-icon="calendar"', false)
             ->assertSee('aria-sort="ascending"', false)
             ->assertSee('data-menu-icon="arrow-up"', false)
             ->assertSee('h-3.5 w-3.5', false)
@@ -1368,6 +1382,11 @@ class SystemManagementTest extends TestCase
             ->assertSee(__('messages.edit_filters'))
             ->assertSee(__('system.status').': '.__('system.statuses.enabled'))
             ->assertSee('data-menu-icon="arrow-up"', false);
+
+        $this->assertStringContainsString(
+            'window.jalaliDatepicker.startWatch',
+            file_get_contents(resource_path('js/admin/jalali-datepickers.js'))
+        );
     }
 
     public function test_admin_logos_have_light_and_dark_variants(): void

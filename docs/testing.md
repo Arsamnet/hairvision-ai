@@ -36,6 +36,8 @@ Add focused tests for changed behavior. Examples:
   ledger rows, and atomic credit consumption.
 - AI generation blocking for expired subscriptions, missing service access, and
   exhausted service credit.
+- Jalali date conversion, validation, digit normalization, business-date string
+  storage, user-facing timestamp display, and Jalali date range filters.
 - Shared table filter behavior, active filter chips, sortable heading state,
   and disabled pagination-footer state for one-page results.
 - Mobile/tablet drawer markup, permission-aware drawer links, and drawer

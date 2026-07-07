@@ -50,8 +50,8 @@ return new class extends Migration
             $table->string('status')->default('new_lead');
             $table->string('communication_channel')->nullable();
             $table->text('note');
-            $table->timestamp('next_follow_up_at')->nullable();
-            $table->timestamp('completed_at')->nullable();
+            $table->char('next_follow_up_at', 19)->nullable();
+            $table->char('completed_at', 19)->nullable();
             $table->json('metadata_json')->nullable();
             $table->timestamps();
             $table->index(['tenant_id', 'lead_id']);

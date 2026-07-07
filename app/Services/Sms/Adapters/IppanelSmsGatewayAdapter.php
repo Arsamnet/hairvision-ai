@@ -9,6 +9,7 @@ use App\Support\NumberNormalizer;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
 
 /**
@@ -359,15 +360,18 @@ class IppanelSmsGatewayAdapter implements SmsGatewayAdapter
         int $step
     ): int {
         $body = $response->json() ?? [];
-
-        return $this->workflowStep($scope, $step, 'IPPanel request failed', [
+        $context = [
             'gateway_id' => $gateway->id,
             'endpoint_host' => $this->endpointHost($endpoint),
             'http_status' => $response->status(),
             'ippanel_status' => data_get($body, 'meta.status'),
             'ippanel_message' => $this->safeContextText(data_get($body, 'meta.message')),
             'sending_type' => is_string($sendingType) ? $sendingType : null,
-        ]);
+        ];
+
+        Log::warning('IPPanel SMS gateway request failed.', $context);
+
+        return $this->workflowStep($scope, $step, 'IPPanel request failed', $context);
     }
 
     /**

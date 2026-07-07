@@ -3,6 +3,11 @@
 This document defines the Phase 1 HairVision data model and tenant-scoping
 invariants.
 
+Business/user-facing dates use the Jalali storage and display contract described
+in [Jalali Dates](dates.md). Laravel system timestamps such as `created_at`,
+`updated_at`, and `deleted_at` remain Gregorian timestamps in storage and are
+converted only when displayed to users.
+
 ## Phase 1 Tables
 
 ### `tenants`
@@ -106,6 +111,9 @@ so clinic users can add timeline history without changing the lead record every
 time. `status` stores the CRM stage key, `communication_channel` stores values
 such as `phone`, `sms`, `whatsapp`, `in_person`, or `other`, and completion is
 tracked through `completed_at`.
+
+`next_follow_up_at` and `completed_at` are Jalali `char(19)` business date-time
+fields in `YYYY/MM/DD HH:mm:ss` format.
 
 ### `users`
 
@@ -363,10 +371,16 @@ Stores user- and clinic-owned invoices connected to plans and payment
 transactions. Clinic purchases include `tenant_id`, and paid invoices are
 activated exactly once through `activated_at`.
 
+Business date fields `due_at`, `paid_at`, `expires_at`, and `activated_at` are
+stored as zero-padded Jalali `char(19)` strings.
+
 ### `payments`
 
 Stores payment attempts, authority/reference ids, safe gateway response payloads,
 and verification status. Clinic-owned payments include `tenant_id`.
+
+`verified_at` is stored as a zero-padded Jalali `char(19)` business date-time
+because it is shown as payment business data.
 
 ### `subscriptions`
 
@@ -376,6 +390,10 @@ the previous active base subscription without carrying remaining time or service
 credit. The same active base plan cannot be purchased again while it is active.
 Renewal is allowed after expiration by time or any non-active current
 subscription state.
+
+`starts_at` and `ends_at` are stored as zero-padded Jalali `char(19)` business
+date-time fields. Subscription comparisons use zero-padded Jalali strings through
+`App\Support\JalaliDate`.
 
 ### `subscription_service_entitlements`
 
@@ -395,6 +413,9 @@ Required fields:
 - `is_active`
 - `starts_at`
 - `ends_at`
+
+`starts_at` and `ends_at` are stored as zero-padded Jalali `char(19)` business
+date-time fields.
 
 ### `credit_transactions`
 

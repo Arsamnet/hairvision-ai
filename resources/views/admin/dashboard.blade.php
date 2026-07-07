@@ -45,7 +45,7 @@
                 @if($activeSubscription)
                     <p class="text-sm font-bold text-zinc-500 dark:text-zinc-400">{{ $activeSubscription->plan?->name }}</p>
                     <p class="mt-3 text-2xl font-bold text-zinc-950 dark:text-zinc-100">{{ __('dashboard.plan.remaining_credit', ['count' => number_format($remainingCredit)]) }}</p>
-                    <p class="mt-2 text-sm text-zinc-600 dark:text-zinc-300">{{ __('dashboard.plan.active_until', ['date' => $activeSubscription->ends_at?->toDateString()]) }}</p>
+                    <p class="mt-2 text-sm text-zinc-600 dark:text-zinc-300">{{ __('dashboard.plan.active_until', ['date' => \App\Support\JalaliDate::toJalaliDate($activeSubscription->ends_at)]) }}</p>
                     <div class="mt-4 space-y-2">
                         <p class="text-xs font-bold text-zinc-500 dark:text-zinc-400">{{ __('dashboard.plan.service_credits') }}</p>
                         @forelse($serviceSummaries as $service)
@@ -124,7 +124,7 @@
                                 <span class="rounded-full bg-teal-50 px-3 py-1 text-xs font-bold text-teal-700">{{ __('leads.crm_stages.'.$lead->crm_stage) }}</span>
                             </td>
                             <td class="py-3 text-zinc-600">{{ $lead->tenant?->name }}</td>
-                            <td class="py-3 text-zinc-500">{{ $lead->created_at?->diffForHumans() }}</td>
+                            <td class="py-3 text-zinc-500"><x-jalali-date-time :value="$lead->created_at" /></td>
                         </tr>
                     @empty
                         <tr>
@@ -158,7 +158,7 @@
                             <span class="truncate">{{ $lead->tenant?->name }}</span>
                         </x-admin.mobile-list.field>
                         <x-admin.mobile-list.field :label="__('leads.fields.registered_at')">
-                            {{ $lead->created_at?->diffForHumans() }}
+                            <x-jalali-date-time :value="$lead->created_at" />
                         </x-admin.mobile-list.field>
                     </dl>
                 </x-admin.mobile-list.card>

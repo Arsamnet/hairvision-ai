@@ -58,6 +58,12 @@ Use focused overview/statistics services, such as
 `App\Services\Admin\SystemOverviewService`, when dashboard and report pages need
 overlapping metrics.
 
+Use `App\Support\JalaliDate`, `App\Rules\JalaliDate`, and
+`App\Rules\JalaliDateTime` for all Jalali/Shamsi date conversion and validation.
+Do not duplicate date conversion logic. User-facing business dates are stored as
+zero-padded Jalali `char(19)` strings, while Laravel system timestamps remain
+Gregorian in storage and are converted only for display.
+
 ## Phase 1 Implementation Checklist
 
 1. Migrations and models exist for the Phase 1 data model.
@@ -191,6 +197,7 @@ php artisan test
   filters for clinic-owned data.
 - Normal-user dashboard data scoping.
 - Persian language-file presence and required keys.
+- Jalali CRM follow-up input storage and Jalali date localization keys.
 
 `tests/Feature/AiModelAccessManagementTest.php` covers:
 

@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Casts\JalaliDateTimeCast;
 use App\Models\Concerns\HasUuid;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -43,7 +44,7 @@ class Payment extends Model
 
     protected $casts = [
         'gateway_response_json' => 'array',
-        'verified_at' => 'datetime',
+        'verified_at' => JalaliDateTimeCast::class,
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
     ];

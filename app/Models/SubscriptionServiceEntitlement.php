@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Casts\JalaliDateTimeCast;
 use App\Models\Concerns\HasUuid;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -37,8 +38,8 @@ class SubscriptionServiceEntitlement extends Model
         'purchased_credit' => 'integer',
         'used_credit' => 'integer',
         'is_active' => 'boolean',
-        'starts_at' => 'datetime',
-        'ends_at' => 'datetime',
+        'starts_at' => JalaliDateTimeCast::class,
+        'ends_at' => JalaliDateTimeCast::class,
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
     ];

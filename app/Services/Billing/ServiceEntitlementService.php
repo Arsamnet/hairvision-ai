@@ -6,6 +6,7 @@ use App\Models\Subscription;
 use App\Models\SubscriptionServiceEntitlement;
 use App\Models\Tenant;
 use App\Support\DebugStepLogger;
+use App\Support\JalaliDate;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
 use Illuminate\Validation\ValidationException;
@@ -52,7 +53,7 @@ class ServiceEntitlementService
             ->with(['plan', 'serviceEntitlements'])
             ->where('tenant_id', $tenant->id)
             ->where('status', 'active')
-            ->where('ends_at', '>', now())
+            ->where('ends_at', '>', JalaliDate::nowDateTimeString())
             ->whereHas('plan', fn (Builder $query) => $query->where('plan_type', 'base_subscription'))
             ->latest('starts_at')
             ->latest('id');
@@ -95,7 +96,7 @@ class ServiceEntitlementService
         $expiredCount = Subscription::query()
             ->when($tenant, fn (Builder $query) => $query->where('tenant_id', $tenant->id))
             ->where('status', 'active')
-            ->where('ends_at', '<=', now())
+            ->where('ends_at', '<=', JalaliDate::nowDateTimeString())
             ->update(['status' => 'expired']);
 
         $this->workflowStep($scope, $step, 'Expired subscriptions updated', [
@@ -143,7 +144,7 @@ class ServiceEntitlementService
             ->where('service_key', $serviceKey)
             ->where('is_active', true)
             ->where(function (Builder $query): void {
-                $query->whereNull('ends_at')->orWhere('ends_at', '>', now());
+                $query->whereNull('ends_at')->orWhere('ends_at', '>', JalaliDate::nowDateTimeString());
             });
 
         if ($lock) {

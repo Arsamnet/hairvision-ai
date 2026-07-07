@@ -8,6 +8,7 @@ use App\Data\Ai\AiModelResponseData;
 use App\Support\DebugStepLogger;
 use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Throwable;
@@ -106,13 +107,18 @@ class GapGptImageEditProvider implements AiModelProviderInterface
         ]);
 
         if (! $response->successful()) {
-            $this->debugStep($scope, 'GapGPT image edit request failed', [
+            $context = [
                 'provider' => 'gapgpt',
                 'stage_key' => $stageKey,
                 'http_status' => $response->status(),
                 'request_id' => $this->requestId($response),
+                'endpoint_host' => $this->endpointHost($request),
                 'response_body_length' => strlen($response->body()),
-            ]);
+            ];
+
+            Log::warning('GapGPT image edit request failed with HTTP error.', $context);
+
+            $this->debugStep($scope, 'GapGPT image edit request failed', $context);
 
             return $this->failed(
                 'provider_http_error',

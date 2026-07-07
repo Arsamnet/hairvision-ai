@@ -127,10 +127,10 @@ return new class extends Migration
             $table->string('status')->default('pending');
             $table->unsignedBigInteger('amount');
             $table->string('currency')->default('IRR');
-            $table->timestamp('due_at')->nullable();
-            $table->timestamp('paid_at')->nullable();
-            $table->timestamp('expires_at')->nullable();
-            $table->timestamp('activated_at')->nullable();
+            $table->char('due_at', 19)->nullable();
+            $table->char('paid_at', 19)->nullable();
+            $table->char('expires_at', 19)->nullable();
+            $table->char('activated_at', 19)->nullable();
             $table->json('metadata_json')->nullable();
             $table->timestamps();
 
@@ -153,7 +153,7 @@ return new class extends Migration
             $table->string('reference_id')->nullable()->index();
             $table->string('idempotency_key')->nullable()->unique();
             $table->json('gateway_response_json')->nullable();
-            $table->timestamp('verified_at')->nullable();
+            $table->char('verified_at', 19)->nullable();
             $table->timestamps();
 
             $table->index(['tenant_id', 'status']);
@@ -169,8 +169,8 @@ return new class extends Migration
             $table->foreignId('plan_id')->constrained('plans')->cascadeOnDelete();
             $table->foreignId('invoice_id')->nullable()->constrained('invoices')->nullOnDelete();
             $table->string('status')->default('active');
-            $table->timestamp('starts_at');
-            $table->timestamp('ends_at');
+            $table->char('starts_at', 19);
+            $table->char('ends_at', 19);
             $table->unsignedInteger('usage_limit');
             $table->unsignedInteger('usage_used')->default(0);
             $table->timestamps();
@@ -193,8 +193,8 @@ return new class extends Migration
             $table->unsignedInteger('purchased_credit')->default(0);
             $table->unsignedInteger('used_credit')->default(0);
             $table->boolean('is_active')->default(true);
-            $table->timestamp('starts_at');
-            $table->timestamp('ends_at')->nullable();
+            $table->char('starts_at', 19);
+            $table->char('ends_at', 19)->nullable();
             $table->timestamps();
 
             $table->unique(
