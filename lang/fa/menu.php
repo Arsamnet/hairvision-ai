@@ -17,6 +17,7 @@ return [
         'dashboard' => 'پیشخوان',
         'system_dashboard' => 'داشبورد سیستم',
         'leads' => 'لیدها',
+        'clinics' => 'کلینیک‌ها',
         'users' => 'کاربران',
         'access' => 'تخصیص دسترسی',
         'roles' => 'سطوح دسترسی',

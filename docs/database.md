@@ -117,13 +117,52 @@ fields in `YYYY/MM/DD HH:mm:ss` format.
 
 ### `users`
 
-Stores dashboard users authenticated by mobile OTP.
+Legacy dashboard users authenticated by mobile OTP.
+
+This table is still used by the current dashboard auth flow for compatibility,
+but the target identity model separates platform and clinic users into
+`platform_users` and `clinic_users`.
 
 Dashboard fields:
 
 - `phone_normalized`
 - `role`
 - `status`
+
+### `platform_users`
+
+Stores system-level dashboard users. These users have platform-scoped roles and
+permissions and are not tenant-owned.
+
+Required fields:
+
+- `uuid`
+- `name`
+- `email`
+- `phone_normalized`
+- `role`
+- `status`
+
+### `clinic_users`
+
+Stores clinic-level users owned by one tenant.
+
+Required fields:
+
+- `tenant_id`
+- `uuid`
+- `name`
+- `email`
+- `phone_normalized`
+- `role`
+- `status`
+
+Unique rule:
+
+```text
+tenant_id + phone_normalized
+tenant_id + email
+```
 
 ### `tenant_user`
 
@@ -201,6 +240,11 @@ Required fields:
 - `assigned_by`
 
 A clinic can use only active assigned access records.
+
+Only one assignment should be active for the same clinic and
+`usage_category_key` at a time. The assignment service enforces this by
+deactivating other active assignments in the same category when a new active
+access is attached.
 
 ### `ai_model_usage_logs`
 
@@ -290,6 +334,12 @@ Reserved for tenant activity tracking.
 ### `roles`
 
 Stores dashboard access levels by stable `code`.
+
+Roles have a `scope`:
+
+- `platform`: system-level roles that permitted platform managers can manage.
+- `clinic`: predefined clinic roles that can be assigned to clinic users but
+  whose permissions are not editable from dashboard role management.
 
 Default codes:
 

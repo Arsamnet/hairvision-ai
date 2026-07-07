@@ -3,6 +3,7 @@
 namespace App\Services\Admin;
 
 use App\Models\SmsGateway;
+use App\Models\Tenant;
 use App\Models\User;
 use App\Services\Sms\SmsGatewayService;
 use App\Support\Pagination\PaginationParameters;
@@ -74,6 +75,21 @@ class SmsGatewayManagementService
             ?? SmsGateway::query()
                 ->where('owner_scope', 'user')
                 ->where('user_id', $user->id)
+                ->orderBy('id')
+            ->first();
+    }
+
+    public function clinicSettings(Tenant $tenant): ?SmsGateway
+    {
+        return SmsGateway::query()
+            ->where('owner_scope', 'tenant')
+            ->where('tenant_id', $tenant->id)
+            ->where('is_default', true)
+            ->orderBy('id')
+            ->first()
+            ?? SmsGateway::query()
+                ->where('owner_scope', 'tenant')
+                ->where('tenant_id', $tenant->id)
                 ->orderBy('id')
                 ->first();
     }
@@ -240,6 +256,31 @@ class SmsGatewayManagementService
 
     /**
      * @param  array<string, mixed>  $data
+     */
+    public function saveClinicSettings(Tenant $tenant, array $data, SmsGatewayService $gateways): SmsGateway
+    {
+        $gateway = $this->clinicSettings($tenant);
+
+        $attributes = $this->attributes($data + [
+            'name' => $data['name'] ?? __('sms.dedicated_panel_name'),
+            'provider_code' => $data['provider_code'] ?? 'ippanel',
+            'status' => $data['status'] ?? 'disabled',
+            'is_default' => true,
+            'owner_scope' => 'tenant',
+            'tenant_id' => $tenant->id,
+        ], $gateway, true);
+
+        if ($gateway) {
+            $gateway->update($attributes);
+        } else {
+            $gateway = SmsGateway::create($attributes);
+        }
+
+        return $gateways->markDefault($gateway);
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
      * @return array<string, mixed>
      */
     private function attributes(array $data, ?SmsGateway $gateway, bool $includeOwner): array
@@ -285,6 +326,7 @@ class SmsGatewayManagementService
         if ($includeOwner) {
             $attributes['owner_scope'] = $data['owner_scope'];
             $attributes['user_id'] = ($data['owner_scope'] ?? null) === 'user' ? (int) $data['user_id'] : null;
+            $attributes['tenant_id'] = ($data['owner_scope'] ?? null) === 'tenant' ? (int) $data['tenant_id'] : null;
         }
 
         return $attributes;

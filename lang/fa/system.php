@@ -21,6 +21,8 @@ return [
     'name' => 'نام',
     'mobile' => 'موبایل',
     'role' => 'نقش',
+    'scope' => 'سطح',
+    'all_scopes' => 'همه سطح‌ها',
     'global_role' => 'نقش سراسری',
     'clinic' => 'کلینیک',
     'clinic_role' => 'نقش کلینیک',
@@ -41,6 +43,10 @@ return [
         'clinic_admin' => 'مدیر کلینیک',
         'editor' => 'ویرایشگر',
         'viewer' => 'مشاهده‌گر',
+    ],
+    'role_scopes' => [
+        'platform' => 'کل سیستم',
+        'clinic' => 'کلینیک',
     ],
     'role_descriptions' => [
         'super_admin' => 'دسترسی کامل به همه کلینیک‌ها و ماژول‌های مدیریتی سیستم.',

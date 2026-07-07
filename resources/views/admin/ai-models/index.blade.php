@@ -16,7 +16,7 @@
                         @csrf
                         @include('admin.ai-models.form', [
                             'access' => null,
-                            'models' => $models,
+                            'models' => $creatableModels,
                             'usageCategories' => $usageCategories,
                             'resolver' => $resolver,
                             'formKey' => 'create_ai_model_access',
@@ -66,7 +66,7 @@
                             <td class="px-4 py-3 align-top">
                                 <x-admin.table.action-menu>
                                     @can('view', $access)
-                                        <x-admin.table.action-item :href="route('admin.ai-models.show', $access)" icon="eye">{{ __('ai_models.details') }}</x-admin.table.action-item>
+                                        <x-admin.table.action-item :href="route('admin.ai-models.show', $access)" icon="edit">{{ __('ai_models.edit') }}</x-admin.table.action-item>
                                     @endcan
                                     @can('toggle', $access)
                                         <x-admin.table.action-item :action="route('admin.ai-models.toggle', $access)" method="PATCH" icon="check">{{ __('ai_models.toggle') }}</x-admin.table.action-item>
@@ -119,7 +119,7 @@
                         </div>
                         <x-admin.table.action-menu>
                             @can('view', $access)
-                                <x-admin.table.action-item :href="route('admin.ai-models.show', $access)" icon="eye">{{ __('ai_models.details') }}</x-admin.table.action-item>
+                                <x-admin.table.action-item :href="route('admin.ai-models.show', $access)" icon="edit">{{ __('ai_models.edit') }}</x-admin.table.action-item>
                             @endcan
                             @can('toggle', $access)
                                 <x-admin.table.action-item :action="route('admin.ai-models.toggle', $access)" method="PATCH" icon="check">{{ __('ai_models.toggle') }}</x-admin.table.action-item>
@@ -159,4 +159,33 @@
         </x-admin.mobile-list>
         <x-admin.table.pagination-footer :paginator="$aiModelAccesses" />
     </x-admin.card>
+
+    @can('assignToClinic', App\Models\AiModelAccess::class)
+        <x-admin.card class="mt-5">
+            <div class="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                    <h2 class="text-lg font-bold">{{ __('ai_models.clinic_models') }}</h2>
+                    <p class="mt-1 text-sm text-zinc-500">{{ __('ai_models.clinic_models_hint') }}</p>
+                </div>
+            </div>
+
+            <div class="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                @forelse($clinics as $clinic)
+                    <div class="rounded-lg border border-zinc-100 bg-zinc-50 p-3">
+                        <div class="flex items-start justify-between gap-3">
+                            <div class="min-w-0">
+                                <p class="truncate text-sm font-bold">{{ $clinic->name }}</p>
+                                <p class="mt-1 text-xs text-zinc-500" dir="ltr">{{ $clinic->slug }}</p>
+                            </div>
+                            <x-admin.button :href="route('admin.clinics.ai-models.index', $clinic)" variant="secondary" size="sm" icon="sparkles">
+                                <span>{{ __('ai_models.manage_clinic_models') }}</span>
+                            </x-admin.button>
+                        </div>
+                    </div>
+                @empty
+                    <x-admin.empty-state icon="building">{{ __('ai_models.empty.clinics') }}</x-admin.empty-state>
+                @endforelse
+            </div>
+        </x-admin.card>
+    @endcan
 @endsection

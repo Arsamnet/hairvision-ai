@@ -45,16 +45,19 @@
   protected `sample_image` demo model for `کاشت مو`.
 - Config-backed `gapgpt` image edit model for staged hair-transplant generation,
   using encrypted AI model access credentials and a configurable endpoint.
-- Seeded GapGPT hair-transplant access with encrypted default/env-backed
-  credentials and stage-specific prompts for the two-week, intermediate, and
-  final images.
+- Seeded GapGPT hair-transplant access with dashboard-managed request settings
+  and stage-specific prompts for the two-week, intermediate, and final images.
 - Seeded Clinic Aria starter subscription, paid invoice/payment, service
   entitlements, and credit ledger rows so `migrate:fresh --seed` is immediately
   usable.
 - Admin AI model access management under `/admin/ai-models` with encrypted
   credentials, prompts, active status, credit limits, protected/demo flags,
   backend filters, masked credential display, and usage logs.
+- Super Admin clinic management under `/admin/clinics` with create, edit,
+  delete, search/filter, domain editing, and direct clinic AI model links.
 - Clinic AI model assignment under `/admin/clinics/{clinic}/ai-models`.
+- Clinic AI model assignments now expose add, status-edit, and delete actions
+  from the admin UI and enforce one active access per clinic and usage category.
 - `AiModelResolver`, `AiModelManager`, `RunAiModelAction`,
   `AssignAiModelToClinicAction`, and `AiModelProviderInterface` for separated
   AI model access logic.
@@ -95,7 +98,10 @@
   through the AI model provider path instead of relying on a metadata-only mock.
 - GapGPT image edits now send the verified multipart request shape with
   `image`, `model`, `prompt`, `n`, `response_format`, and `size` form fields.
-- Seeded GapGPT access is inactive unless `GAPGPT_API_KEY` is configured.
+- GapGPT access is configured from the admin AI model dashboard instead of
+  GapGPT-specific `.env` values.
+- The demo AI model is toggle-only, while GapGPT is the dashboard-creatable and
+  editable access model for current hair and eyebrow usage categories.
 - Super Admin dashboard starts in global platform context instead of selecting a
   clinic by default.
 - Dashboard header no longer renders a global clinic filter; clinic filters live
@@ -158,11 +164,12 @@
 - Public generation now checks active base subscription, service entitlement,
   remaining service credit, and AI model assignment before creating period jobs.
 - Public generation now creates semantic stages (`two_weeks`,
-  `intermediate_regrowth`, `final_result`), queues only the next pending stage,
-  reveals ready assets through polling, and sends a final SMS after all stages
-  complete.
-- Clinic Aria seeding now activates all configured service entitlements and the
-  seeded GapGPT assignment by default.
+  `intermediate_regrowth`, `final_result`), queues the next pending stage for
+  the default flow, dispatches all three GapGPT stages together, reveals ready
+  assets through polling, and sends a final SMS after all stages complete.
+- Clinic Aria seeding now activates all configured service entitlements and
+  keeps the seeded GapGPT assignment inactive until it is configured in the
+  dashboard.
 - The public visitor UI now uses localized rotating progress messages, a
   three-stage RTL generation progress component, and modal toasts while later
   stages are still processing.
@@ -172,8 +179,10 @@
 ### Security
 
 - Removed the hardcoded GapGPT API key fallback from database seeding; GapGPT
-  credentials now come from encrypted access records or environment-backed
-  service config.
+  credentials now come only from encrypted access records.
+- Removed GapGPT-specific environment configuration; credentials and request
+  settings now come from the encrypted AI model access record and its dashboard
+  settings.
 - Plan-restricted routes are blocked server-side for inactive, expired, or
   credit-finished normal users.
 - Same active plan repurchase is blocked server-side until the active

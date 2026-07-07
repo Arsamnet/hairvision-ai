@@ -176,8 +176,7 @@ class DatabaseSeeder extends Seeder
             ]
         );
 
-        $gapGptApiKey = config('services.gapgpt.api_key');
-        $gapGptIsActive = filled($gapGptApiKey);
+        $gapGptModelConfig = config('ai-models.models.gapgpt', []);
         $gapGptAccess = AiModelAccess::query()->updateOrCreate(
             [
                 'model_key' => 'gapgpt',
@@ -186,14 +185,14 @@ class DatabaseSeeder extends Seeder
             ],
             [
                 'description' => __('ai_models.seed.gapgpt_access_description'),
-                'credentials' => filled($gapGptApiKey) ? ['api_key' => $gapGptApiKey] : [],
+                'credentials' => [],
                 'settings' => [
-                    'endpoint_url' => config('services.gapgpt.image_edit_endpoint'),
-                    'model' => config('services.gapgpt.image_model'),
-                    'size' => config('services.gapgpt.image_size'),
-                    'response_format' => config('services.gapgpt.image_response_format'),
-                    'timeout_seconds' => config('ai-models.models.gapgpt.default_timeout'),
-                    'connect_timeout_seconds' => config('ai-models.models.gapgpt.default_connect_timeout'),
+                    'endpoint_url' => $gapGptModelConfig['endpoint'] ?? 'https://api.gapgpt.app/v1/images/edits',
+                    'model' => $gapGptModelConfig['default_model'] ?? 'gpt-image-2',
+                    'size' => $gapGptModelConfig['default_size'] ?? '1024x1024',
+                    'response_format' => $gapGptModelConfig['default_response_format'] ?? 'url',
+                    'timeout_seconds' => $gapGptModelConfig['default_timeout'] ?? 300,
+                    'connect_timeout_seconds' => $gapGptModelConfig['default_connect_timeout'] ?? 15,
                     'retry_attempts' => 1,
                     'retry_sleep_ms' => 750,
                     'stage_prompts' => $this->gapGptStagePrompts(),
@@ -201,10 +200,10 @@ class DatabaseSeeder extends Seeder
                 'prompt' => '{stage_prompt}',
                 'credit_limit' => null,
                 'credit_used' => 0,
-                'is_active' => $gapGptIsActive,
+                'is_active' => false,
                 'is_demo' => false,
                 'is_protected' => false,
-                'priority' => $gapGptIsActive ? 0 : 10,
+                'priority' => 10,
                 'created_by' => $superAdmin->id,
                 'updated_by' => $superAdmin->id,
             ]
@@ -216,7 +215,7 @@ class DatabaseSeeder extends Seeder
                 'assigned_by' => $superAdmin->id,
             ],
             $gapGptAccess->id => [
-                'is_active' => $gapGptIsActive,
+                'is_active' => false,
                 'assigned_by' => $superAdmin->id,
             ],
         ]);
@@ -227,7 +226,7 @@ class DatabaseSeeder extends Seeder
                 'assigned_by' => $superAdmin->id,
             ],
             $gapGptAccess->id => [
-                'is_active' => $gapGptIsActive,
+                'is_active' => false,
                 'assigned_by' => $superAdmin->id,
             ],
         ]);
@@ -401,6 +400,7 @@ class DatabaseSeeder extends Seeder
                 [
                     'name' => $roleDefinition['name'],
                     'description' => $roleDefinition['description'],
+                    'scope' => $roleDefinition['scope'],
                     'is_system' => true,
                     'status' => 'active',
                 ]

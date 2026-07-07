@@ -32,8 +32,18 @@ class ClinicAiModelAccessController extends Controller
             'models' => $resolver->models(),
             'usageCategories' => $resolver->usageCategories(),
             'resolver' => $resolver,
-            'assignedAccesses' => $clinic->aiModelAccesses()->withPivot(['is_active', 'assigned_by'])->orderBy('name')->get(),
-            'availableAccesses' => AiModelAccess::query()->orderBy('name')->get(),
+            'assignedAccesses' => $clinic->aiModelAccesses()
+                ->withPivot(['is_active', 'assigned_by'])
+                ->orderBy('usage_category_key')
+                ->orderBy('name')
+                ->get(),
+            'availableAccesses' => AiModelAccess::query()
+                ->active()
+                ->where('is_demo', false)
+                ->where('is_protected', false)
+                ->orderBy('usage_category_key')
+                ->orderBy('name')
+                ->get(),
         ]);
     }
 
@@ -48,6 +58,19 @@ class ClinicAiModelAccessController extends Controller
         $assign->execute($clinic, $access, $request->user(), $request->boolean('is_active', true));
 
         return back()->with('status', __('ai_models.messages.assigned'));
+    }
+
+    public function update(
+        StoreClinicAiModelAccessRequest $request,
+        Tenant $clinic,
+        AiModelAccess $aiModelAccess,
+        AssignAiModelToClinicAction $assign
+    ): RedirectResponse {
+        $this->authorizeClinicVisibility($request, $clinic);
+
+        $assign->execute($clinic, $aiModelAccess, $request->user(), $request->boolean('is_active'));
+
+        return back()->with('status', __('ai_models.messages.assignment_updated'));
     }
 
     public function destroy(Request $request, Tenant $clinic, AiModelAccess $aiModelAccess): RedirectResponse

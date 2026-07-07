@@ -25,6 +25,7 @@ class UpdateUserRequest extends FormRequest
     public function rules(): array
     {
         $roles = $this->allowedRoleCodes();
+        $clinicRoles = $this->clinicRoleCodes();
         $userId = $this->route('user')?->id;
 
         return [
@@ -36,7 +37,7 @@ class UpdateUserRequest extends FormRequest
             'tenant_ids' => ['array'],
             'tenant_ids.*' => ['integer', Rule::exists('tenants', 'id')],
             'tenant_roles' => ['array'],
-            'tenant_roles.*' => [Rule::in(array_values(array_diff($roles, ['super_admin'])))],
+            'tenant_roles.*' => [Rule::in($clinicRoles)],
             'tenant_statuses' => ['array'],
             'tenant_statuses.*' => [Rule::in(['active', 'inactive'])],
         ];
@@ -63,5 +64,17 @@ class UpdateUserRequest extends FormRequest
         }
 
         return $query->pluck('code')->all();
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private function clinicRoleCodes(): array
+    {
+        return Role::query()
+            ->where('status', 'active')
+            ->clinic()
+            ->pluck('code')
+            ->all();
     }
 }

@@ -67,7 +67,8 @@ The demo seed also prepares Clinic Aria (`aria`) for immediate use:
 - all configured AI service entitlements are active with seed credit;
 - `sample_image` is active and assigned to the clinic for demo generation;
 - GapGPT hair-transplant access is seeded and assigned, but remains inactive
-  until `GAPGPT_API_KEY` is configured.
+  until its encrypted credential is entered and activated in the admin AI model
+  dashboard.
 
 ## Configuration Baseline
 
@@ -101,11 +102,6 @@ HAIRVISION_IPPANEL_TIMEOUT_SECONDS=8
 HAIRVISION_IPPANEL_CONNECT_TIMEOUT_SECONDS=3
 HAIRVISION_GENERATION_MESSAGE_INTERVAL_MS=10000
 HAIRVISION_GENERATION_POLL_INTERVAL_MS=5000
-GAPGPT_API_KEY=
-GAPGPT_IMAGE_EDIT_ENDPOINT=https://api.gapgpt.app/v1/images/edits
-GAPGPT_IMAGE_MODEL=gpt-image-2
-GAPGPT_IMAGE_SIZE=1024x1024
-GAPGPT_IMAGE_RESPONSE_FORMAT=url
 ```
 
 Tests may override queues and sessions to `sync` and `array` through

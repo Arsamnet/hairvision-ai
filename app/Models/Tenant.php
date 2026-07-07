@@ -48,6 +48,16 @@ class Tenant extends Model
     }
 
     /**
+     * Clinic-auth users owned directly by this tenant.
+     *
+     * @return HasMany<ClinicUser, $this>
+     */
+    public function clinicUsers(): HasMany
+    {
+        return $this->hasMany(ClinicUser::class);
+    }
+
+    /**
      * Verified leads owned by this tenant.
      *
      * @return HasMany<Lead, $this>
@@ -137,6 +147,16 @@ class Tenant extends Model
     public function invoices(): HasMany
     {
         return $this->hasMany(Invoice::class);
+    }
+
+    /**
+     * SMS gateways configured for this clinic.
+     *
+     * @return HasMany<SmsGateway, $this>
+     */
+    public function smsGateways(): HasMany
+    {
+        return $this->hasMany(SmsGateway::class);
     }
 
     /**

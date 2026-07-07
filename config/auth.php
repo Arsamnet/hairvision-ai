@@ -42,6 +42,14 @@ return [
             'driver' => 'session',
             'provider' => 'users',
         ],
+        'platform' => [
+            'driver' => 'session',
+            'provider' => 'platform_users',
+        ],
+        'clinic' => [
+            'driver' => 'session',
+            'provider' => 'clinic_users',
+        ],
     ],
 
     /*
@@ -65,6 +73,14 @@ return [
         'users' => [
             'driver' => 'eloquent',
             'model' => env('AUTH_MODEL', User::class),
+        ],
+        'platform_users' => [
+            'driver' => 'eloquent',
+            'model' => App\Models\PlatformUser::class,
+        ],
+        'clinic_users' => [
+            'driver' => 'eloquent',
+            'model' => App\Models\ClinicUser::class,
         ],
 
         // 'users' => [

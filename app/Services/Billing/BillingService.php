@@ -103,6 +103,99 @@ class BillingService
     }
 
     /**
+     * Create or return a pending clinic-owned invoice for a plan without tying it to a user.
+     */
+    public function invoiceForClinicPlan(Plan $plan, Tenant $tenant, ?User $actor = null): Invoice
+    {
+        $this->resetDebugSteps();
+
+        $scope = 'billing.invoice_for_clinic_plan';
+
+        $this->debugStep($scope, 'Clinic plan invoice workflow started.', [
+            'actor_id' => $actor?->id,
+            'tenant_id' => $tenant->id,
+            'plan' => $this->planContext($plan),
+        ]);
+
+        try {
+            $this->activation->validatePurchase($actor, $plan, $tenant);
+
+            $invoice = Invoice::query()->firstOrCreate(
+                [
+                    'tenant_id' => $tenant->id,
+                    'user_id' => null,
+                    'plan_id' => $plan->id,
+                    'status' => 'pending',
+                ],
+                [
+                    'number' => $this->nextInvoiceNumber(),
+                    'amount' => $plan->price,
+                    'currency' => $plan->currency,
+                    'due_at' => now()->addDays(7),
+                    'expires_at' => now()->addDays(7),
+                    'metadata_json' => [
+                        'plan_type' => $plan->plan_type->value,
+                        'service_key' => $plan->service_key,
+                        'created_by' => $actor?->id,
+                        'source' => 'clinic_manual_assignment',
+                    ],
+                ]
+            );
+
+            $this->debugStep($scope, 'Clinic plan invoice resolved.', [
+                'invoice' => $this->invoiceContext($invoice),
+                'was_recently_created' => $invoice->wasRecentlyCreated,
+            ]);
+
+            return $invoice;
+        } catch (Throwable $exception) {
+            $this->debugStep($scope, 'Clinic plan invoice workflow failed.', [
+                'actor_id' => $actor?->id,
+                'tenant_id' => $tenant->id,
+                'plan_id' => $plan->id,
+                'exception_class' => $exception::class,
+            ]);
+
+            throw $exception;
+        }
+    }
+
+    /**
+     * Mark a clinic-owned plan invoice paid and activate its linked plan.
+     */
+    public function activateClinicPlanInvoice(Invoice $invoice, ?User $actor = null): ?Subscription
+    {
+        $this->resetDebugSteps();
+
+        $scope = 'billing.activate_clinic_plan_invoice';
+
+        $this->debugStep($scope, 'Clinic plan invoice activation workflow started.', [
+            'invoice' => $this->invoiceContext($invoice),
+            'actor_id' => $actor?->id,
+        ]);
+
+        try {
+            $invoice->forceFill([
+                'status' => 'paid',
+                'paid_at' => $invoice->paid_at ?? now(),
+                'metadata_json' => array_replace($invoice->metadata_json ?? [], [
+                    'approved_by' => $actor?->id,
+                ]),
+            ])->save();
+
+            return $this->activation->activateInvoice($invoice);
+        } catch (Throwable $exception) {
+            $this->debugStep($scope, 'Clinic plan invoice activation workflow failed.', [
+                'invoice_id' => $invoice->id,
+                'actor_id' => $actor?->id,
+                'exception_class' => $exception::class,
+            ]);
+
+            throw $exception;
+        }
+    }
+
+    /**
      * Start payment for an unpaid invoice.
      */
     public function initiatePayment(Invoice $invoice): Payment

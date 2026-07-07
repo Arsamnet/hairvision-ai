@@ -133,6 +133,11 @@ class UserController extends Controller
                 ->when(! $actor->isSuperAdmin(), fn ($query) => $query->whereIn('code', ['clinic_admin', 'editor', 'viewer']))
                 ->orderBy('name')
                 ->get(),
+            'clinicRoles' => Role::query()
+                ->where('status', 'active')
+                ->clinic()
+                ->orderBy('name')
+                ->get(),
             'tenants' => $actor->isSuperAdmin()
                 ? Tenant::query()->where('status', 'active')->orderBy('name')->get()
                 : $actor->tenants()->wherePivot('status', 'active')->where('tenants.status', 'active')->orderBy('tenants.name')->get(),

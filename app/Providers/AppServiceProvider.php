@@ -5,10 +5,12 @@ namespace App\Providers;
 use App\Models\Lead;
 use App\Models\AiModelAccess;
 use App\Models\SmsGateway;
+use App\Models\Tenant;
 use App\Models\User;
 use App\Policies\LeadPolicy;
 use App\Policies\AiModelAccessPolicy;
 use App\Policies\SmsGatewayPolicy;
+use App\Policies\TenantPolicy;
 use App\Policies\UserPolicy;
 use App\Services\Auth\PermissionService;
 use App\Services\Otp\LocalOtpSender;
@@ -33,6 +35,7 @@ class AppServiceProvider extends ServiceProvider
         Gate::policy(Lead::class, LeadPolicy::class);
         Gate::policy(AiModelAccess::class, AiModelAccessPolicy::class);
         Gate::policy(SmsGateway::class, SmsGatewayPolicy::class);
+        Gate::policy(Tenant::class, TenantPolicy::class);
         Gate::policy(User::class, UserPolicy::class);
 
         Gate::define('permission', function ($user, string $permission, ?int $tenantId = null): bool {

@@ -1,5 +1,6 @@
 @php
     $formKey = $formKey ?? ($dashboardUser ? 'edit_user' : 'create_user');
+    $clinicRoles = $clinicRoles ?? $roles->where('scope', 'clinic');
     $selectedTenantIds = collect(old('tenant_ids', $dashboardUser?->tenants->pluck('id')->all() ?? ($tenant ? [$tenant->id] : [])))
         ->map(fn ($tenantId) => (int) $tenantId)
         ->all();
@@ -56,10 +57,10 @@
                 <label class="flex items-center gap-2 text-sm font-bold text-zinc-700">
                     <input type="checkbox" name="tenant_ids[]" value="{{ $tenantOption->id }}" @checked(in_array($tenantOption->id, $selectedTenantIds, true))>
                     <span>{{ $tenantOption->name }}</span>
-                </label>
+                    </label>
                 <div class="mt-3 grid grid-cols-2 gap-2">
                     <select name="tenant_roles[{{ $tenantOption->id }}]" class="h-10 rounded-lg border border-zinc-200 bg-white px-2 text-xs font-bold">
-                        @foreach($roles->where('code', '!=', 'super_admin') as $role)
+                        @foreach($clinicRoles as $role)
                             <option value="{{ $role->code }}" @selected($tenantRole === $role->code)>{{ __('system.roles.'.$role->code) }}</option>
                         @endforeach
                     </select>

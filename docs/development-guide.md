@@ -69,8 +69,8 @@ Gregorian in storage and are converted only for display.
 1. Migrations and models exist for the Phase 1 data model.
 2. Tenant resolution middleware uses request host.
 3. Seeder creates one ready-to-use Clinic Aria tenant, active domains, an active
-   purchased starter plan, service credits, `sample_image`, and active GapGPT
-   model access.
+   purchased starter plan, service credits, active `sample_image` access, and an
+   assigned inactive GapGPT model access ready to be configured in the dashboard.
 4. `/api/v1` routes exist for bootstrap, OTP, upload, generation, status,
    results, and assets.
 5. OTP request stores hashes and is rate-limited.
@@ -79,7 +79,8 @@ Gregorian in storage and are converted only for display.
 8. Generation requires the current tenant and current session lead.
 9. `SampleImageProvider` returns local sample paths only.
 10. Generation creates staged jobs for `two_weeks`, `intermediate_regrowth`,
-    and `final_result`; only the next pending stage is queued.
+    and `final_result`; the default flow queues the next pending stage, while
+    GapGPT queues all three pending stages together.
 11. Jobs copy samples or real provider output into private tenant/lead result
     paths.
 12. Blade is Persian RTL and calls `/api/v1`.
@@ -147,8 +148,10 @@ php artisan test
 - Invalid uploads are rejected.
 - Sample generation creates three staged jobs.
 - Sample generation creates three generated assets.
-- The public API starts only the first queued stage when the queue is faked.
-- GapGPT generation sends three independent image edit requests with `n = 1`.
+- The default sample-image flow starts only the first queued stage when the
+  queue is faked.
+- GapGPT generation dispatches all three stages initially and sends three
+  independent image edit requests with `n = 1`.
 - Generation auth failures return JSON messages suitable for the Blade frontend.
 - Generated assets are stored privately.
 - `SampleImageProvider` sends no external HTTP requests.
@@ -187,6 +190,8 @@ php artisan test
   responsive-control JavaScript, and localization keys for new UI labels.
 - Backend route blocking for inactive-plan users while plans, billing, and
   settings remain accessible.
+- Super Admin clinic management CRUD for creating, editing, deleting, searching,
+  and linking clinics to their AI model assignment screen.
 - Super Admin plan-definition management and normal-user denial.
 - Plan definitions render as an admin management table, while clinic users use
   the dashboard and purchase/upgrade flow without a plan table.
@@ -203,8 +208,15 @@ php artisan test
 
 - AI model config and Persian usage category loading.
 - Protected demo model seeding and Super Admin permissions.
-- Seeded GapGPT access stores three stage prompts and an encrypted default
-  credential and is active for Clinic Aria after seeding.
+- Seeded GapGPT access stores the endpoint/model/size/response settings and
+  three stage prompts in the dashboard-managed access record, without environment
+  credentials.
+- The demo AI model is toggle-only in the dashboard, while GapGPT is the
+  dashboard-creatable/editable access model for hair-transplant and
+  eyebrow-transplant usage categories.
+- Clinic AI model assignment keeps only one active access per clinic and usage
+  category, so a clinic can have separate active hair and eyebrow models but not
+  two active hair models.
 - AI model access CRUD, credential encryption, masking, toggling, and protected
   delete denial.
 - Clinic assignment and generation credit/log creation.

@@ -11,8 +11,10 @@ use App\Models\Invoice;
 use App\Models\Lead;
 use App\Models\Payment;
 use App\Models\PaymentGateway;
+use App\Models\ClinicUser;
 use App\Models\Permission;
 use App\Models\Plan;
+use App\Models\PlatformUser;
 use App\Models\Role;
 use App\Models\SmsGateway;
 use App\Models\Subscription;
@@ -120,24 +122,70 @@ class SystemManagementTest extends TestCase
             ->assertDontSee('پنل پیامک اختصاصی');
     }
 
-    public function test_role_permission_assignment_changes_backend_access(): void
+    public function test_clinic_role_permissions_are_predefined_and_do_not_accept_system_permission_overrides(): void
     {
         $this->seed(DatabaseSeeder::class);
 
         $role = Role::query()->where('code', 'viewer')->firstOrFail();
         $permission = Permission::query()->where('code', 'settings.manage')->firstOrFail();
         $viewer = User::query()->where('role', 'viewer')->firstOrFail();
+        $superAdmin = User::query()->where('role', 'super_admin')->firstOrFail();
 
+        $this->assertSame('clinic', $role->scope);
         $this->assertFalse($viewer->hasPermission('settings.manage'));
+
+        $this->actingAs($superAdmin)
+            ->forHost('hairvision-ai.test')
+            ->put('/admin/system/roles/'.$role->id, [
+                'name' => $role->name,
+                'description' => $role->description,
+                'status' => 'active',
+                'permissions' => [$permission->id],
+            ])
+            ->assertSessionHasErrors('role');
 
         $role->permissions()->attach($permission);
         app(PermissionService::class)->forgetRole($role->code);
 
-        $this->assertTrue($viewer->hasPermission('settings.manage'));
+        $this->assertFalse($viewer->hasPermission('settings.manage'));
         $this->actingAs($viewer)
             ->forHost('hairvision-ai.test')
             ->get('/admin/system/settings')
-            ->assertOk();
+            ->assertForbidden();
+    }
+
+    public function test_platform_and_clinic_user_tables_are_separate_identity_boundaries(): void
+    {
+        $tenant = $this->createTenant('Clinic One', 'aria', 'aria.hairvision-ai.test');
+        $otherTenant = $this->createTenant('Clinic Two', 'clinic-two', 'clinic-two.hairvision-ai.test');
+
+        $platformUser = PlatformUser::factory()->create([
+            'phone_normalized' => '09125550000',
+            'role' => 'super_admin',
+        ]);
+
+        $clinicUser = ClinicUser::factory()->create([
+            'tenant_id' => $tenant->id,
+            'phone_normalized' => '09125550001',
+            'role' => 'clinic_admin',
+        ]);
+
+        $this->assertDatabaseHas('platform_users', [
+            'id' => $platformUser->id,
+            'phone_normalized' => '09125550000',
+            'role' => 'super_admin',
+        ]);
+        $this->assertDatabaseHas('clinic_users', [
+            'id' => $clinicUser->id,
+            'tenant_id' => $tenant->id,
+            'phone_normalized' => '09125550001',
+            'role' => 'clinic_admin',
+        ]);
+        $this->assertDatabaseMissing('clinic_users', [
+            'phone_normalized' => '09125550000',
+        ]);
+        $this->assertTrue($clinicUser->canAccessTenant($tenant->id));
+        $this->assertFalse($clinicUser->canAccessTenant($otherTenant->id));
     }
 
     public function test_system_settings_are_validated_updated_and_cached(): void
@@ -983,6 +1031,274 @@ class SystemManagementTest extends TestCase
                 'duration_days' => 10,
                 'usage_limit' => 5,
                 'status' => 'active',
+            ])
+            ->assertForbidden();
+    }
+
+    public function test_super_admin_can_manage_clinics_and_normal_user_cannot(): void
+    {
+        $this->seed(DatabaseSeeder::class);
+
+        $superAdmin = User::query()->where('role', 'super_admin')->firstOrFail();
+        $normalUser = User::query()->where('role', 'clinic_admin')->firstOrFail();
+        $this->activateSubscription($normalUser);
+
+        $this->assertTrue($superAdmin->hasPermission('tenants.list'));
+        $this->assertTrue($superAdmin->hasPermission('tenants.create'));
+        $this->assertTrue($superAdmin->hasPermission('tenants.edit'));
+        $this->assertTrue($superAdmin->hasPermission('tenants.delete'));
+
+        $this->actingAs($superAdmin)
+            ->forHost('hairvision-ai.test')
+            ->get('/admin/clinics')
+            ->assertOk()
+            ->assertSee(__('clinics.create'))
+            ->assertSee(__('menu.items.clinics'));
+
+        $this->actingAs($superAdmin)
+            ->forHost('hairvision-ai.test')
+            ->post('/admin/clinics', [
+                '_form' => 'create_clinic',
+                'name' => 'کلینیک تست',
+                'slug' => 'test-clinic',
+                'status' => 'active',
+                'domain' => 'test-clinic.hairvision-ai.test',
+                'domain_type' => 'tenant_subdomain',
+                'domain_status' => 'active',
+            ])
+            ->assertRedirect();
+
+        $clinic = Tenant::query()->where('slug', 'test-clinic')->firstOrFail();
+        $this->assertDatabaseHas('tenant_domains', [
+            'tenant_id' => $clinic->id,
+            'domain' => 'test-clinic.hairvision-ai.test',
+            'status' => 'active',
+        ]);
+
+        $this->actingAs($superAdmin)
+            ->forHost('hairvision-ai.test')
+            ->get('/admin/clinics/'.$clinic->id.'/edit')
+            ->assertOk()
+            ->assertSee('test-clinic.hairvision-ai.test')
+            ->assertDontSee(__('clinics.manage_models'));
+
+        $this->actingAs($superAdmin)
+            ->forHost('hairvision-ai.test')
+            ->get('/admin/clinics/'.$clinic->id)
+            ->assertOk()
+            ->assertSee('test-clinic.hairvision-ai.test')
+            ->assertSee(__('clinics.manage_models'))
+            ->assertSee(__('clinics.assign_plan'))
+            ->assertSee(__('clinics.leads_count'));
+
+        $this->actingAs($superAdmin)
+            ->forHost('hairvision-ai.test')
+            ->put('/admin/clinics/'.$clinic->id, [
+                '_form' => 'edit_clinic',
+                'name' => 'کلینیک تست ویرایش',
+                'slug' => 'test-clinic-updated',
+                'status' => 'inactive',
+                'domain' => 'updated-clinic.hairvision-ai.test',
+                'domain_type' => 'tenant_subdomain',
+                'domain_status' => 'inactive',
+            ])
+            ->assertRedirect(route('admin.clinics.edit', $clinic));
+
+        $this->assertDatabaseHas('tenants', [
+            'id' => $clinic->id,
+            'name' => 'کلینیک تست ویرایش',
+            'slug' => 'test-clinic-updated',
+            'status' => 'inactive',
+        ]);
+        $this->assertDatabaseHas('tenant_domains', [
+            'tenant_id' => $clinic->id,
+            'domain' => 'updated-clinic.hairvision-ai.test',
+            'status' => 'inactive',
+        ]);
+
+        $this->actingAs($superAdmin)
+            ->forHost('hairvision-ai.test')
+            ->post('/admin/clinics', [
+                '_form' => 'create_clinic',
+                'name' => 'کلینیک تکراری',
+                'slug' => 'duplicate-clinic',
+                'status' => 'active',
+                'domain' => 'updated-clinic.hairvision-ai.test',
+                'domain_type' => 'tenant_subdomain',
+                'domain_status' => 'active',
+            ])
+            ->assertSessionHasErrors('domain');
+
+        $this->actingAs($normalUser)
+            ->withSession(['admin_active_tenant_id' => $normalUser->tenants()->firstOrFail()->id])
+            ->forHost('hairvision-ai.test')
+            ->get('/admin/clinics')
+            ->assertForbidden();
+
+        $this->actingAs($superAdmin)
+            ->forHost('hairvision-ai.test')
+            ->delete('/admin/clinics/'.$clinic->id)
+            ->assertRedirect(route('admin.clinics.index'));
+
+        $this->assertDatabaseMissing('tenants', ['id' => $clinic->id]);
+    }
+
+    public function test_super_admin_can_view_and_assign_clinic_plans_from_clinic_list(): void
+    {
+        $this->seed(DatabaseSeeder::class);
+
+        $superAdmin = User::query()->where('role', 'super_admin')->firstOrFail();
+        $clinic = Tenant::query()->where('slug', 'aria')->firstOrFail();
+        $clinicUser = $clinic->users()->wherePivot('status', 'active')->where('users.role', 'clinic_admin')->firstOrFail();
+        $currentSubscription = Subscription::query()
+            ->with('plan')
+            ->where('tenant_id', $clinic->id)
+            ->where('status', 'active')
+            ->firstOrFail();
+
+        $upgrade = Plan::query()->create([
+            'name' => 'پلن ویژه کلینیک‌ها',
+            'description' => 'پلن اختصاصی برای تست انتساب مستقیم',
+            'plan_type' => 'base_subscription',
+            'service_key' => 'hair_transplant',
+            'price' => 25000000,
+            'currency' => 'IRR',
+            'duration_days' => 45,
+            'usage_limit' => 250,
+            'status' => 'active',
+        ]);
+        $upgrade->serviceEntitlements()->create([
+            'service_key' => 'hair_transplant',
+            'credit_amount' => 250,
+            'is_active' => true,
+        ]);
+
+        $this->actingAs($superAdmin)
+            ->forHost('hairvision-ai.test')
+            ->get('/admin/clinics')
+            ->assertOk()
+            ->assertSee(__('clinics.plan_status'))
+            ->assertSee($currentSubscription->plan->name)
+            ->assertSee(__('subscriptions.remaining_credit'))
+            ->assertDontSee(__('clinics.assign_plan'))
+            ->assertDontSee(__('clinics.manage_models'));
+
+        $this->actingAs($superAdmin)
+            ->forHost('hairvision-ai.test')
+            ->get('/admin/clinics/'.$clinic->id)
+            ->assertOk()
+            ->assertSee(__('clinics.assign_plan'))
+            ->assertSee(__('clinics.manage_models'))
+            ->assertSee(__('clinics.leads_count'))
+            ->assertSee(__('clinics.models_count'));
+
+        $this->actingAs($superAdmin)
+            ->forHost('hairvision-ai.test')
+            ->post('/admin/clinics/'.$clinic->id.'/plans', [
+                '_form' => 'assign_clinic_plan_'.$clinic->id,
+                'plan_id' => $upgrade->id,
+            ])
+            ->assertRedirect(route('admin.clinics.show', $clinic))
+            ->assertSessionHasNoErrors();
+
+        $this->assertSame('active', $currentSubscription->refresh()->status);
+        $invoice = Invoice::query()
+            ->where('tenant_id', $clinic->id)
+            ->whereNull('user_id')
+            ->where('plan_id', $upgrade->id)
+            ->where('status', 'pending')
+            ->firstOrFail();
+
+        $this->actingAs($superAdmin)
+            ->forHost('hairvision-ai.test')
+            ->patch('/admin/clinics/'.$clinic->id.'/invoices/'.$invoice->id.'/approve')
+            ->assertRedirect(route('admin.clinics.show', $clinic));
+
+        $this->assertSame('replaced', $currentSubscription->refresh()->status);
+        $this->assertDatabaseHas('subscriptions', [
+            'tenant_id' => $clinic->id,
+            'user_id' => null,
+            'plan_id' => $upgrade->id,
+            'status' => 'active',
+            'usage_limit' => 250,
+        ]);
+        $this->assertNotNull($invoice->refresh()->activated_at);
+
+        $this->actingAs($superAdmin)
+            ->forHost('hairvision-ai.test')
+            ->post('/admin/clinics/'.$clinic->id.'/invoices', [
+                '_form' => 'create_clinic_invoice',
+                'plan_id' => $upgrade->id,
+                'amount' => 990000,
+                'currency' => 'IRR',
+                'status' => 'pending',
+                'note' => 'فاکتور دستی تست',
+            ])
+            ->assertRedirect(route('admin.clinics.show', $clinic))
+            ->assertSessionHasNoErrors();
+
+        $manualInvoice = Invoice::query()
+            ->where('tenant_id', $clinic->id)
+            ->where('plan_id', $upgrade->id)
+            ->where('amount', 990000)
+            ->firstOrFail();
+
+        $this->actingAs($superAdmin)
+            ->forHost('hairvision-ai.test')
+            ->put('/admin/clinics/'.$clinic->id.'/invoices/'.$manualInvoice->id, [
+                '_form' => 'edit_clinic_invoice_'.$manualInvoice->id,
+                'plan_id' => $upgrade->id,
+                'user_id' => $clinicUser->id,
+                'amount' => 1290000,
+                'currency' => 'IRR',
+                'status' => 'failed',
+                'note' => 'ویرایش دستی تست',
+            ])
+            ->assertRedirect(route('admin.clinics.show', $clinic))
+            ->assertSessionHasNoErrors();
+
+        $this->assertDatabaseHas('invoices', [
+            'id' => $manualInvoice->id,
+            'tenant_id' => $clinic->id,
+            'user_id' => $clinicUser->id,
+            'plan_id' => $upgrade->id,
+            'amount' => 1290000,
+            'status' => 'failed',
+        ]);
+
+        $this->actingAs($superAdmin)
+            ->forHost('hairvision-ai.test')
+            ->post('/admin/clinics/'.$clinic->id.'/sms-gateway', [
+                '_form' => 'clinic_sms_gateway',
+                'provider_code' => 'local',
+                'api_key' => 'clinic-secret-key',
+                'from_number' => '10002000',
+                'is_active' => '1',
+            ])
+            ->assertRedirect(route('admin.clinics.show', $clinic))
+            ->assertSessionHasNoErrors();
+
+        $this->assertDatabaseHas('sms_gateways', [
+            'tenant_id' => $clinic->id,
+            'owner_scope' => 'tenant',
+            'provider_code' => 'local',
+            'status' => 'enabled',
+            'is_default' => true,
+        ]);
+
+        $this->actingAs($superAdmin)
+            ->forHost('hairvision-ai.test')
+            ->get('/admin/clinics')
+            ->assertOk()
+            ->assertSee('پلن ویژه کلینیک‌ها')
+            ->assertSee(__('payments.subscription_statuses.active'));
+
+        $this->actingAs($clinicUser)
+            ->withSession(['admin_active_tenant_id' => $clinic->id])
+            ->forHost('hairvision-ai.test')
+            ->post('/admin/clinics/'.$clinic->id.'/plans', [
+                '_form' => 'assign_clinic_plan_'.$clinic->id,
+                'plan_id' => $upgrade->id,
             ])
             ->assertForbidden();
     }

@@ -31,11 +31,13 @@
             preset-key="admin.system.roles.index"
             :search-placeholder="__('system.roles_search_placeholder')"
             :filters="[
+                ['name' => 'scope', 'label' => __('system.scope'), 'type' => 'select', 'placeholder' => __('system.all_scopes'), 'options' => collect(['platform', 'clinic'])->mapWithKeys(fn ($scope) => [$scope => __('system.role_scopes.'.$scope)])->all()],
                 ['name' => 'status', 'label' => __('system.status'), 'type' => 'select', 'placeholder' => __('system.users.all_statuses'), 'options' => collect(['active', 'inactive'])->mapWithKeys(fn ($status) => [$status => __('system.statuses.'.$status)])->all()],
             ]"
             :sorts="[
                 'name' => __('system.name'),
                 'code' => __('system.code'),
+                'scope' => __('system.scope'),
                 'status' => __('system.status'),
                 'created_at' => __('messages.created_at'),
             ]"
@@ -48,6 +50,7 @@
                         <th class="w-14 px-4 py-3">{{ __('messages.actions') }}</th>
                         <th class="px-4 py-3"><x-admin.table.sortable-heading sort="name" :label="__('system.name')" /></th>
                         <th class="px-4 py-3"><x-admin.table.sortable-heading sort="code" :label="__('system.code')" /></th>
+                        <th class="px-4 py-3"><x-admin.table.sortable-heading sort="scope" :label="__('system.scope')" /></th>
                         <th class="px-4 py-3">{{ __('system.permissions') }}</th>
                         <th class="px-4 py-3"><x-admin.table.sortable-heading sort="status" :label="__('system.status')" /></th>
                     </tr>
@@ -64,6 +67,7 @@
                             </td>
                             <td class="px-4 py-3 font-bold">{{ $role->name }}</td>
                             <td class="px-4 py-3 text-zinc-600" dir="ltr">{{ $role->code }}</td>
+                            <td class="px-4 py-3 text-zinc-600">{{ __('system.role_scopes.'.$role->scope) }}</td>
                             <td class="px-4 py-3 text-zinc-600">{{ number_format($role->permissions_count) }}</td>
                             <td class="px-4 py-3">
                                 <x-admin.badge :tone="$role->status === 'active' ? 'emerald' : 'zinc'">{{ __('system.statuses.'.$role->status) }}</x-admin.badge>
@@ -71,7 +75,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="5" class="px-4 py-12">
+                            <td colspan="6" class="px-4 py-12">
                                 <x-admin.empty-state icon="shield">{{ __('system.empty_roles') }}</x-admin.empty-state>
                             </td>
                         </tr>
@@ -98,6 +102,9 @@
                     <dl class="admin-mobile-list-fields">
                         <x-admin.mobile-list.field :label="__('system.permissions')">
                             {{ number_format($role->permissions_count) }}
+                        </x-admin.mobile-list.field>
+                        <x-admin.mobile-list.field :label="__('system.scope')">
+                            {{ __('system.role_scopes.'.$role->scope) }}
                         </x-admin.mobile-list.field>
                         <x-admin.mobile-list.field :label="__('system.status')">
                             <x-admin.badge :tone="$role->status === 'active' ? 'emerald' : 'zinc'">{{ __('system.statuses.'.$role->status) }}</x-admin.badge>

@@ -34,6 +34,14 @@ class PermissionCatalog
                 ['code' => 'ai_models.manage_prompt', 'name' => 'مدیریت پرامپت مدل هوش مصنوعی'],
                 ['code' => 'ai_models.manage_credit', 'name' => 'مدیریت اعتبار مدل هوش مصنوعی'],
             ],
+            'tenants' => [
+                ['code' => 'tenants.list', 'name' => 'فهرست کلینیک‌ها'],
+                ['code' => 'tenants.search', 'name' => 'جستجوی کلینیک‌ها'],
+                ['code' => 'tenants.view', 'name' => 'مشاهده کلینیک'],
+                ['code' => 'tenants.create', 'name' => 'ایجاد کلینیک'],
+                ['code' => 'tenants.edit', 'name' => 'ویرایش کلینیک'],
+                ['code' => 'tenants.delete', 'name' => 'حذف کلینیک'],
+            ],
             'users' => [
                 ['code' => 'users.list', 'name' => 'فهرست کاربران'],
                 ['code' => 'users.search', 'name' => 'جستجوی کاربران'],
@@ -111,7 +119,7 @@ class PermissionCatalog
     /**
      * Return default access levels and their permissions.
      *
-     * @return array<string, array{name: string, description: string, permissions: array<int, string>}>
+     * @return array<string, array{name: string, description: string, scope: string, permissions: array<int, string>}>
      */
     public function roles(): array
     {
@@ -121,11 +129,13 @@ class PermissionCatalog
             'super_admin' => [
                 'name' => __('system.roles.super_admin'),
                 'description' => __('system.role_descriptions.super_admin'),
+                'scope' => 'platform',
                 'permissions' => $allPermissions,
             ],
             'clinic_admin' => [
                 'name' => __('system.roles.clinic_admin'),
                 'description' => __('system.role_descriptions.clinic_admin'),
+                'scope' => 'clinic',
                 'permissions' => [
                     'leads.list',
                     'leads.search',
@@ -149,6 +159,7 @@ class PermissionCatalog
             'editor' => [
                 'name' => __('system.roles.editor'),
                 'description' => __('system.role_descriptions.editor'),
+                'scope' => 'clinic',
                 'permissions' => [
                     'leads.list',
                     'leads.search',
@@ -163,6 +174,7 @@ class PermissionCatalog
             'viewer' => [
                 'name' => __('system.roles.viewer'),
                 'description' => __('system.role_descriptions.viewer'),
+                'scope' => 'clinic',
                 'permissions' => [
                     'leads.list',
                     'leads.search',

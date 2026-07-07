@@ -7,6 +7,7 @@ use App\Models\ClinicAiModelAccess;
 use App\Models\Tenant;
 use App\Models\User;
 use App\Support\DebugStepLogger;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
 use Throwable;
 
@@ -40,6 +41,21 @@ class AssignAiModelToClinicAction
                     'actor_id' => $actor->id,
                     'is_active' => $isActive,
                 ]);
+
+                if ($isActive) {
+                    ClinicAiModelAccess::query()
+                        ->where('clinic_id', $clinic->id)
+                        ->where('is_active', true)
+                        ->whereHas('aiModelAccess', fn (Builder $query) => $query
+                            ->where('usage_category_key', $access->usage_category_key)
+                            ->whereKeyNot($access->id))
+                        ->update(['is_active' => false]);
+
+                    $this->debugStep($scope, 'Other active clinic assignments for this usage category were deactivated.', [
+                        'clinic_id' => $clinic->id,
+                        'usage_category_key' => $access->usage_category_key,
+                    ]);
+                }
 
                 $assignment = ClinicAiModelAccess::query()->updateOrCreate(
                     [

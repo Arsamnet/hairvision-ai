@@ -64,6 +64,7 @@
                 'label' => __('menu.groups.system_management'),
                 'icon' => 'settings',
                 'items' => [
+                    ['label' => __('menu.items.clinics'), 'route' => 'admin.clinics.index', 'active' => ['admin.clinics.index', 'admin.clinics.edit'], 'icon' => 'building', 'permissions' => ['tenants.list']],
                     ['label' => __('menu.items.ai_models'), 'route' => 'admin.ai-models.index', 'active' => ['admin.ai-models.*', 'admin.clinics.ai-models.*'], 'icon' => 'sparkles', 'permissions' => ['ai_models.list']],
                 ],
             ],

@@ -223,10 +223,12 @@ Response:
 }
 ```
 
-The backend queues only the first pending stage. Each completed stage stores a
-private asset and queues the next stage. Clients should poll the status endpoint
-and reveal each job as soon as `asset_url` is present. Re-posting the same
-`upload_id` returns the existing group instead of creating duplicate jobs.
+The backend queues only the first pending stage for the default staged flow.
+GapGPT access records dispatch all three pending stages together because the
+three image edit requests are independent. Each completed stage stores a private
+asset. Clients should poll the status endpoint and reveal each job as soon as
+`asset_url` is present. Re-posting the same `upload_id` returns the existing
+group instead of creating duplicate jobs.
 
 ## Generation Status
 

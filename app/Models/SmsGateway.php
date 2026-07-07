@@ -20,6 +20,7 @@ class SmsGateway extends Model
 
     protected $fillable = [
         'user_id',
+        'tenant_id',
         'name',
         'provider_code',
         'owner_scope',
@@ -49,6 +50,16 @@ class SmsGateway extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    /**
+     * Clinic that owns a tenant-scoped gateway.
+     *
+     * @return BelongsTo<Tenant, $this>
+     */
+    public function tenant(): BelongsTo
+    {
+        return $this->belongsTo(Tenant::class);
     }
 
     /**

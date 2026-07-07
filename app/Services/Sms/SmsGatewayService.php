@@ -417,7 +417,8 @@ class SmsGatewayService
         $updatedPeers = SmsGateway::query()
             ->where('owner_scope', $gateway->owner_scope)
             ->when($gateway->owner_scope === 'user', fn ($query) => $query->where('user_id', $gateway->user_id))
-            ->when($gateway->owner_scope === 'system', fn ($query) => $query->whereNull('user_id'))
+            ->when($gateway->owner_scope === 'tenant', fn ($query) => $query->where('tenant_id', $gateway->tenant_id))
+            ->when($gateway->owner_scope === 'system', fn ($query) => $query->whereNull('user_id')->whereNull('tenant_id'))
             ->whereKeyNot($gateway->id)
             ->update(['is_default' => false]);
 

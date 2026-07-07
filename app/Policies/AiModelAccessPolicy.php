@@ -14,7 +14,7 @@ class AiModelAccessPolicy
 {
     public function before(User $user, string $ability): ?bool
     {
-        if ($ability === 'delete') {
+        if (in_array($ability, ['delete', 'update'], true)) {
             return null;
         }
 
@@ -38,7 +38,12 @@ class AiModelAccessPolicy
 
     public function update(User $user, AiModelAccess $access): bool
     {
-        return $user->hasPermission('ai_models.edit');
+        if ($access->is_demo || $access->is_protected) {
+            return false;
+        }
+
+        return $user->hasPermission('ai_models.edit')
+            && (bool) config("ai-models.models.{$access->model_key}.access_editable", true);
     }
 
     public function delete(User $user, AiModelAccess $access): bool

@@ -16,21 +16,27 @@
                 </x-admin.button>
             </div>
 
-            <form method="POST" action="{{ route('admin.clinics.ai-models.store', $clinic) }}" class="mt-5 grid gap-3 lg:grid-cols-[1fr_10rem_8rem]">
-                @csrf
-                <select name="ai_model_access_id" class="h-11 rounded-lg border border-zinc-200 px-3 text-sm outline-none focus:border-teal-500">
-                    @foreach($availableAccesses as $access)
-                        <option value="{{ $access->id }}">{{ $access->name }} - {{ $resolver->usageCategoryLabel($access->usage_category_key) }}</option>
-                    @endforeach
-                </select>
-                <label class="flex h-11 items-center gap-2 rounded-lg bg-zinc-50 px-3 text-sm font-bold">
-                    <input type="checkbox" name="is_active" value="1" checked>
-                    <span>{{ __('ai_models.statuses.active') }}</span>
-                </label>
-                <x-admin.button type="submit" icon="plus">
-                    <span>{{ __('ai_models.assign') }}</span>
-                </x-admin.button>
-            </form>
+            @if($availableAccesses->isNotEmpty())
+                <form method="POST" action="{{ route('admin.clinics.ai-models.store', $clinic) }}" class="mt-5 grid gap-3 lg:grid-cols-[1fr_10rem_8rem]">
+                    @csrf
+                    <select name="ai_model_access_id" class="h-11 rounded-lg border border-zinc-200 px-3 text-sm outline-none focus:border-teal-500">
+                        @foreach($availableAccesses as $access)
+                            <option value="{{ $access->id }}">{{ $access->name }} - {{ $resolver->usageCategoryLabel($access->usage_category_key) }}</option>
+                        @endforeach
+                    </select>
+                    <label class="flex h-11 items-center gap-2 rounded-lg bg-zinc-50 px-3 text-sm font-bold">
+                        <input type="checkbox" name="is_active" value="1" checked>
+                        <span>{{ __('ai_models.statuses.active') }}</span>
+                    </label>
+                    <x-admin.button type="submit" icon="plus">
+                        <span>{{ __('ai_models.assign') }}</span>
+                    </x-admin.button>
+                </form>
+            @else
+                <div class="mt-5">
+                    <x-admin.empty-state icon="sparkles">{{ __('ai_models.empty.available_accesses') }}</x-admin.empty-state>
+                </div>
+            @endif
         </x-admin.card>
 
         <x-admin.card>
@@ -51,7 +57,13 @@
                             <tr class="transition hover:bg-zinc-50/80">
                                 <td class="px-4 py-3 align-top">
                                     <x-admin.table.action-menu>
-                                        <x-admin.table.action-item :href="route('admin.ai-models.show', $access)" icon="eye">{{ __('ai_models.details') }}</x-admin.table.action-item>
+                                        <x-admin.table.action-item :href="route('admin.ai-models.show', $access)" icon="edit">{{ __('ai_models.edit') }}</x-admin.table.action-item>
+                                        <x-admin.table.action-item
+                                            :action="route('admin.clinics.ai-models.update', [$clinic, $access])"
+                                            method="PATCH"
+                                            icon="check"
+                                            :inputs="['ai_model_access_id' => $access->id, 'is_active' => $access->pivot->is_active ? '0' : '1']"
+                                        >{{ __('ai_models.toggle_assignment') }}</x-admin.table.action-item>
                                         <x-admin.table.action-item :action="route('admin.clinics.ai-models.destroy', [$clinic, $access])" method="DELETE" icon="trash" danger :confirm="__('messages.confirm_delete')">{{ __('ai_models.unassign') }}</x-admin.table.action-item>
                                     </x-admin.table.action-menu>
                                 </td>
@@ -80,7 +92,13 @@
                                 <p class="admin-mobile-list-card-subtitle">{{ $resolver->modelLabel($access->model_key) }}</p>
                             </div>
                             <x-admin.table.action-menu>
-                                <x-admin.table.action-item :href="route('admin.ai-models.show', $access)" icon="eye">{{ __('ai_models.details') }}</x-admin.table.action-item>
+                                <x-admin.table.action-item :href="route('admin.ai-models.show', $access)" icon="edit">{{ __('ai_models.edit') }}</x-admin.table.action-item>
+                                <x-admin.table.action-item
+                                    :action="route('admin.clinics.ai-models.update', [$clinic, $access])"
+                                    method="PATCH"
+                                    icon="check"
+                                    :inputs="['ai_model_access_id' => $access->id, 'is_active' => $access->pivot->is_active ? '0' : '1']"
+                                >{{ __('ai_models.toggle_assignment') }}</x-admin.table.action-item>
                                 <x-admin.table.action-item :action="route('admin.clinics.ai-models.destroy', [$clinic, $access])" method="DELETE" icon="trash" danger :confirm="__('messages.confirm_delete')">{{ __('ai_models.unassign') }}</x-admin.table.action-item>
                             </x-admin.table.action-menu>
                         </div>

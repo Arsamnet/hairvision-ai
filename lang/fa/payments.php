@@ -33,6 +33,12 @@ return [
     'callback_url' => 'نشانی بازگشت',
     'empty_invoices' => 'هنوز فاکتوری برای این محدوده ثبت نشده است.',
     'empty_gateways' => 'درگاه پرداختی برای نمایش وجود ندارد.',
+    'manual_invoice_hint' => 'صورتحساب‌های کلینیک را می‌توانید دستی بسازید، ویرایش کنید، به پلن وصل کنید و تایید کنید.',
+    'create_manual_invoice' => 'صورتحساب جدید',
+    'approve_invoice' => 'تایید صورتحساب',
+    'manual_invoice_created' => 'صورتحساب :number ثبت شد.',
+    'manual_invoice_updated' => 'صورتحساب :number به‌روزرسانی شد.',
+    'manual_invoice_approved' => 'صورتحساب :number تایید شد.',
 
     'fields' => [
         'number' => 'شماره',
@@ -41,6 +47,7 @@ return [
         'tenant' => 'کلینیک',
         'plan_type' => 'نوع',
         'amount' => 'مبلغ',
+        'currency' => 'واحد',
         'status' => 'وضعیت',
         'created_at' => 'زمان ثبت',
         'due_at' => 'مهلت پرداخت',

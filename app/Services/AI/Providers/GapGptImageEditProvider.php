@@ -42,7 +42,7 @@ class GapGptImageEditProvider implements AiModelProviderInterface
             'payload_keys' => array_keys($request->payload),
         ]);
 
-        $apiKey = data_get($request->credentials, 'api_key') ?: config('services.gapgpt.api_key');
+        $apiKey = data_get($request->credentials, 'api_key');
 
         if (! is_string($apiKey) || trim($apiKey) === '') {
             $this->debugStep($scope, 'API key missing', [
@@ -202,7 +202,7 @@ class GapGptImageEditProvider implements AiModelProviderInterface
     ): Response {
         $settings = $request->settings;
         $modelConfig = $request->modelConfig;
-        $endpoint = (string) ($settings['endpoint_url'] ?? config('services.gapgpt.image_edit_endpoint') ?? $modelConfig['endpoint']);
+        $endpoint = (string) ($settings['endpoint_url'] ?? $modelConfig['endpoint']);
         $timeout = $this->positiveInt($settings['timeout_seconds'] ?? $modelConfig['default_timeout'] ?? 90, 90);
         $connectTimeout = $this->positiveInt($settings['connect_timeout_seconds'] ?? $modelConfig['default_connect_timeout'] ?? 10, 10);
         $retryAttempts = max(1, $this->positiveInt($settings['retry_attempts'] ?? 1, 1));
@@ -391,7 +391,6 @@ class GapGptImageEditProvider implements AiModelProviderInterface
     private function modelName(AiModelRequestData $request): string
     {
         return (string) ($request->settings['model']
-            ?? config('services.gapgpt.image_model')
             ?? $request->modelConfig['default_model']
             ?? 'gpt-image-2');
     }
@@ -402,7 +401,6 @@ class GapGptImageEditProvider implements AiModelProviderInterface
     private function imageSize(AiModelRequestData $request): string
     {
         return (string) ($request->settings['size']
-            ?? config('services.gapgpt.image_size')
             ?? $request->modelConfig['default_size']
             ?? '1024x1024');
     }
@@ -413,7 +411,6 @@ class GapGptImageEditProvider implements AiModelProviderInterface
     private function responseFormat(AiModelRequestData $request): string
     {
         return (string) ($request->settings['response_format']
-            ?? config('services.gapgpt.image_response_format')
             ?? $request->modelConfig['default_response_format']
             ?? 'url');
     }

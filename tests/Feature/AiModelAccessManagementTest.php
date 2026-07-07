@@ -44,7 +44,6 @@ class AiModelAccessManagementTest extends TestCase
             'hairvision.default_ai_provider' => 'sample_image',
             'hairvision.otp.max_requests' => 10,
             'hairvision.otp.decay_seconds' => 600,
-            'services.gapgpt.api_key' => null,
         ]);
     }
 
@@ -72,9 +71,14 @@ class AiModelAccessManagementTest extends TestCase
         $this->assertSame([], $gapGpt->credentials);
         $this->assertIsString($rawGapGptCredentials);
         $this->assertSame('{stage_prompt}', $gapGpt->prompt);
+        $this->assertSame('https://api.gapgpt.app/v1/images/edits', data_get($gapGpt->settings, 'endpoint_url'));
         $this->assertSame('gpt-image-2', data_get($gapGpt->settings, 'model'));
         $this->assertSame('1024x1024', data_get($gapGpt->settings, 'size'));
         $this->assertSame('url', data_get($gapGpt->settings, 'response_format'));
+        $this->assertSame(300, data_get($gapGpt->settings, 'timeout_seconds'));
+        $this->assertSame(15, data_get($gapGpt->settings, 'connect_timeout_seconds'));
+        $this->assertSame(1, data_get($gapGpt->settings, 'retry_attempts'));
+        $this->assertSame(750, data_get($gapGpt->settings, 'retry_sleep_ms'));
         $this->assertIsArray($stagePrompts);
         $this->assertSame(['two_weeks', 'intermediate_regrowth', 'final_result'], array_keys($stagePrompts));
         $this->assertStringContainsString('two weeks after a complete and successful hair transplant', $stagePrompts['two_weeks']);
@@ -85,21 +89,20 @@ class AiModelAccessManagementTest extends TestCase
         $this->assertTrue($tenant->aiModelAccesses()->whereKey($gapGpt->id)->wherePivot('is_active', false)->exists());
     }
 
-    public function test_gapgpt_seeded_access_uses_env_key_without_plaintext_storage(): void
+    public function test_gapgpt_seeded_access_uses_dashboard_settings_without_env_credentials(): void
     {
-        config(['services.gapgpt.api_key' => 'test-gapgpt-secret']);
-
         $this->seed(DatabaseSeeder::class);
 
         $tenant = Tenant::query()->where('slug', 'aria')->firstOrFail();
         $gapGpt = AiModelAccess::query()->where('model_key', 'gapgpt')->where('usage_category_key', 'hair_transplant')->firstOrFail();
         $rawCredentials = DB::table('ai_model_accesses')->where('id', $gapGpt->id)->value('credentials');
 
-        $this->assertTrue($gapGpt->is_active);
-        $this->assertSame('test-gapgpt-secret', $gapGpt->credentials['api_key']);
+        $this->assertFalse($gapGpt->is_active);
+        $this->assertSame([], $gapGpt->credentials);
+        $this->assertSame('https://api.gapgpt.app/v1/images/edits', data_get($gapGpt->settings, 'endpoint_url'));
+        $this->assertSame('gpt-image-2', data_get($gapGpt->settings, 'model'));
         $this->assertIsString($rawCredentials);
-        $this->assertStringNotContainsString('test-gapgpt-secret', $rawCredentials);
-        $this->assertTrue($tenant->aiModelAccesses()->whereKey($gapGpt->id)->wherePivot('is_active', true)->exists());
+        $this->assertTrue($tenant->aiModelAccesses()->whereKey($gapGpt->id)->wherePivot('is_active', false)->exists());
     }
 
     public function test_super_admin_crud_masks_credentials_and_protects_demo_delete(): void
@@ -113,11 +116,17 @@ class AiModelAccessManagementTest extends TestCase
         $this->actingAs($superAdmin)
             ->forHost('hairvision-ai.test')
             ->post('/admin/ai-models', [
-                'model_key' => 'sample_image',
+                'model_key' => 'gapgpt',
                 'usage_category_key' => 'hair_transplant',
                 'name' => 'دسترسی امن تست',
                 'description' => 'برای تست مدیریت مدل',
                 'credentials' => ['api_key' => 'super-secret-ai-key'],
+                'settings' => [
+                    'endpoint_url' => 'https://api.gapgpt.app/v1/images/edits',
+                    'model' => 'gpt-image-2',
+                    'size' => '1024x1024',
+                    'response_format' => 'url',
+                ],
                 'prompt' => 'Prompt',
                 'credit_limit' => 5,
                 'priority' => 5,
@@ -132,6 +141,13 @@ class AiModelAccessManagementTest extends TestCase
         $this->assertStringNotContainsString('super-secret-ai-key', $rawCredentials);
         $this->assertSame('super-secret-ai-key', $access->credentials['api_key']);
         $this->assertArrayNotHasKey('credentials', $access->toArray());
+
+        $this->actingAs($superAdmin)
+            ->forHost('hairvision-ai.test')
+            ->get('/admin/ai-models')
+            ->assertOk()
+            ->assertSee(__('ai_models.edit'))
+            ->assertDontSee(__('ai_models.details'));
 
         $this->actingAs($superAdmin)
             ->forHost('hairvision-ai.test')
@@ -168,7 +184,7 @@ class AiModelAccessManagementTest extends TestCase
         $this->actingAs($superAdmin)
             ->forHost('hairvision-ai.test')
             ->put('/admin/ai-models/'.$access->id, [
-                'model_key' => 'sample_image',
+                'model_key' => 'gapgpt',
                 'usage_category_key' => 'hair_transplant',
                 'name' => 'دسترسی امن ویرایش',
                 'description' => 'ویرایش شد',
@@ -183,6 +199,16 @@ class AiModelAccessManagementTest extends TestCase
 
         $this->actingAs($superAdmin)
             ->forHost('hairvision-ai.test')
+            ->post('/admin/ai-models', [
+                'model_key' => 'sample_image',
+                'usage_category_key' => 'hair_transplant',
+                'name' => 'دسترسی نمونه غیرمجاز',
+                'is_active' => '1',
+            ])
+            ->assertSessionHasErrors('model_key');
+
+        $this->actingAs($superAdmin)
+            ->forHost('hairvision-ai.test')
             ->patch('/admin/ai-models/'.$access->id.'/toggle')
             ->assertRedirect();
 
@@ -193,6 +219,16 @@ class AiModelAccessManagementTest extends TestCase
         $this->actingAs($superAdmin)
             ->forHost('hairvision-ai.test')
             ->delete('/admin/ai-models/'.$demo->id)
+            ->assertForbidden();
+
+        $this->actingAs($superAdmin)
+            ->forHost('hairvision-ai.test')
+            ->put('/admin/ai-models/'.$demo->id, [
+                'model_key' => 'sample_image',
+                'usage_category_key' => 'hair_transplant',
+                'name' => 'ویرایش غیرمجاز دمو',
+                'is_active' => '1',
+            ])
             ->assertForbidden();
 
         $this->actingAs($clinicUser)
@@ -245,6 +281,82 @@ class AiModelAccessManagementTest extends TestCase
         $this->assertSame(3, $access->refresh()->credit_used);
         $this->assertSame(3, AiModelUsageLog::query()->where('ai_model_access_id', $access->id)->where('status', 'completed')->count());
         $this->assertSame(3, GenerationGroup::query()->where('uuid', $groupId)->firstOrFail()->jobs()->where('ai_model_access_id', $access->id)->count());
+    }
+
+    public function test_clinic_can_have_only_one_active_model_assignment_per_usage_category(): void
+    {
+        $this->seed(DatabaseSeeder::class);
+
+        $tenant = Tenant::query()->where('slug', 'aria')->firstOrFail();
+        $superAdmin = User::query()->where('role', 'super_admin')->firstOrFail();
+
+        $hairAccessA = $this->createAccess([
+            'model_key' => 'gapgpt',
+            'usage_category_key' => 'hair_transplant',
+            'name' => 'GapGPT Hair A',
+            'credentials' => ['api_key' => 'gap-a'],
+            'is_demo' => false,
+            'is_protected' => false,
+            'priority' => 0,
+        ]);
+
+        $hairAccessB = $this->createAccess([
+            'model_key' => 'gapgpt',
+            'usage_category_key' => 'hair_transplant',
+            'name' => 'GapGPT Hair B',
+            'credentials' => ['api_key' => 'gap-b'],
+            'is_demo' => false,
+            'is_protected' => false,
+            'priority' => 0,
+        ]);
+
+        $eyebrowAccess = $this->createAccess([
+            'model_key' => 'gapgpt',
+            'usage_category_key' => 'eyebrow_transplant',
+            'name' => 'GapGPT Eyebrow',
+            'credentials' => ['api_key' => 'gap-eyebrow'],
+            'is_demo' => false,
+            'is_protected' => false,
+            'priority' => 0,
+        ]);
+
+        $this->actingAs($superAdmin)
+            ->forHost('hairvision-ai.test')
+            ->post('/admin/clinics/'.$tenant->id.'/ai-models', [
+                'ai_model_access_id' => $hairAccessA->id,
+                'is_active' => '1',
+            ])
+            ->assertRedirect();
+
+        $this->actingAs($superAdmin)
+            ->forHost('hairvision-ai.test')
+            ->post('/admin/clinics/'.$tenant->id.'/ai-models', [
+                'ai_model_access_id' => $hairAccessB->id,
+                'is_active' => '1',
+            ])
+            ->assertRedirect();
+
+        $this->actingAs($superAdmin)
+            ->forHost('hairvision-ai.test')
+            ->post('/admin/clinics/'.$tenant->id.'/ai-models', [
+                'ai_model_access_id' => $eyebrowAccess->id,
+                'is_active' => '1',
+            ])
+            ->assertRedirect();
+
+        $this->assertFalse((bool) $tenant->aiModelAccesses()->whereKey($hairAccessA->id)->firstOrFail()->pivot->is_active);
+        $this->assertTrue((bool) $tenant->aiModelAccesses()->whereKey($hairAccessB->id)->firstOrFail()->pivot->is_active);
+        $this->assertTrue((bool) $tenant->aiModelAccesses()->whereKey($eyebrowAccess->id)->firstOrFail()->pivot->is_active);
+
+        $this->actingAs($superAdmin)
+            ->forHost('hairvision-ai.test')
+            ->patch('/admin/clinics/'.$tenant->id.'/ai-models/'.$hairAccessB->id, [
+                'ai_model_access_id' => $hairAccessB->id,
+                'is_active' => '0',
+            ])
+            ->assertRedirect();
+
+        $this->assertFalse((bool) $tenant->aiModelAccesses()->whereKey($hairAccessB->id)->firstOrFail()->pivot->is_active);
     }
 
     public function test_unassigned_inactive_and_finished_credit_models_cannot_be_used(): void

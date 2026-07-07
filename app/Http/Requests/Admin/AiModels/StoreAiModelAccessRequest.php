@@ -26,7 +26,7 @@ class StoreAiModelAccessRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'model_key' => ['required', 'string', Rule::in(array_keys(config('ai-models.models', [])))],
+            'model_key' => ['required', 'string', Rule::in($this->creatableModelKeys())],
             'usage_category_key' => ['required', 'string', Rule::in(array_keys(config('ai-models.usage_categories', [])))],
             'name' => ['required', 'string', 'max:150'],
             'description' => ['nullable', 'string', 'max:1000'],
@@ -52,6 +52,10 @@ class StoreAiModelAccessRequest extends FormRequest
 
             if (! is_array($model)) {
                 return;
+            }
+
+            if (! (bool) ($model['access_creatable'] ?? true)) {
+                $validator->errors()->add('model_key', __('ai_models.errors.model_not_creatable'));
             }
 
             if (! in_array($usageCategoryKey, $model['supported_usage_categories'] ?? [], true)) {
@@ -100,5 +104,17 @@ class StoreAiModelAccessRequest extends FormRequest
         }
 
         return true;
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private function creatableModelKeys(): array
+    {
+        return collect(config('ai-models.models', []))
+            ->filter(fn (array $model): bool => (bool) ($model['access_creatable'] ?? true))
+            ->keys()
+            ->values()
+            ->all();
     }
 }

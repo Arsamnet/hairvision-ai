@@ -587,6 +587,82 @@ class HairVisionMvpTest extends TestCase
         $this->assertSame(3, $access->refresh()->credit_used);
     }
 
+    public function test_gapgpt_generation_dispatches_all_three_stages_initially(): void
+    {
+        $tenant = $this->createTenant('Clinic One', 'aria', 'aria.hairvision-ai.test');
+        $this->activateTenantSubscription($tenant, 10);
+        Queue::fake();
+
+        AiProvider::query()->firstOrCreate(
+            ['code' => 'gapgpt'],
+            [
+                'name' => 'GapGPT',
+                'type' => 'external',
+                'base_url' => 'https://api.gapgpt.app/v1/images/edits',
+                'auth_type' => 'bearer',
+                'is_active' => true,
+                'supports_async' => false,
+            ]
+        );
+
+        $access = AiModelAccess::create([
+            'model_key' => 'gapgpt',
+            'usage_category_key' => 'hair_transplant',
+            'name' => 'GapGPT Concurrent Access',
+            'credentials' => ['api_key' => 'gap-secret'],
+            'settings' => [
+                'endpoint_url' => 'https://api.gapgpt.app/v1/images/edits',
+                'model' => 'gpt-image-2',
+                'size' => '1024x1024',
+                'response_format' => 'url',
+            ],
+            'prompt' => '{stage_prompt}',
+            'credit_limit' => 3,
+            'is_active' => true,
+            'priority' => 0,
+        ]);
+
+        $tenant->aiModelAccesses()->syncWithoutDetaching([
+            $access->id => ['is_active' => true],
+        ]);
+
+        $lead = Lead::create([
+            'tenant_id' => $tenant->id,
+            'phone' => '09124443333',
+            'phone_normalized' => '09124443333',
+            'phone_verified_at' => now(),
+            'status' => 'verified',
+        ]);
+
+        $uploadId = $this->withSession(['lead_id' => $lead->id])
+            ->forHost('aria.hairvision-ai.test')
+            ->post('/api/v1/uploads', [
+                'image' => $this->fakeImageUpload(),
+                'consent' => '1',
+            ])
+            ->assertOk()
+            ->json('upload.id');
+
+        $groupId = $this->withSession(['lead_id' => $lead->id])
+            ->forHost('aria.hairvision-ai.test')
+            ->postJson('/api/v1/generations', ['upload_id' => $uploadId])
+            ->assertOk()
+            ->assertJsonPath('generation_group.status', 'processing')
+            ->assertJsonPath('jobs.0.status', 'processing')
+            ->assertJsonPath('jobs.1.status', 'processing')
+            ->assertJsonPath('jobs.2.status', 'processing')
+            ->json('generation_group.id');
+
+        $group = GenerationGroup::query()->where('uuid', $groupId)->firstOrFail();
+
+        $this->assertSame(3, $group->jobs()->where('status', 'processing')->count());
+        $this->assertSame(0, $group->jobs()->where('status', 'pending')->count());
+        Queue::assertPushed(ProcessGenerationJob::class, 3);
+        foreach (['two_weeks', 'intermediate_regrowth', 'final_result'] as $period) {
+            Queue::assertPushed(ProcessGenerationJob::class, fn (ProcessGenerationJob $job): bool => $job->generationJob->period === $period);
+        }
+    }
+
     public function test_gapgpt_http_errors_are_written_to_laravel_log(): void
     {
         $tenant = $this->createTenant('Clinic One', 'aria', 'aria.hairvision-ai.test');
@@ -654,7 +730,9 @@ class HairVisionMvpTest extends TestCase
             ->postJson('/api/v1/generations', ['upload_id' => $uploadId])
             ->assertOk()
             ->assertJsonPath('generation_group.status', 'failed')
-            ->assertJsonPath('jobs.0.status', 'failed');
+            ->assertJsonPath('jobs.0.status', 'failed')
+            ->assertJsonPath('jobs.1.status', 'failed')
+            ->assertJsonPath('jobs.2.status', 'failed');
 
         Log::shouldHaveReceived('warning')
             ->withArgs(fn (string $message, array $context): bool => $message === 'GapGPT image edit request failed with HTTP error.'
@@ -663,7 +741,7 @@ class HairVisionMvpTest extends TestCase
                 && ($context['request_id'] ?? null) === 'gap-error-request'
                 && ($context['endpoint_host'] ?? null) === 'api.gapgpt.app'
                 && ! str_contains(json_encode($context, JSON_THROW_ON_ERROR), 'gap-secret'))
-            ->once();
+            ->times(3);
     }
 
     public function test_generation_dispatches_only_the_first_stage_initially(): void

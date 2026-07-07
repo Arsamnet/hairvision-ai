@@ -25,7 +25,7 @@ class UpdateAiModelAccessRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'model_key' => ['required', 'string', Rule::in(array_keys(config('ai-models.models', [])))],
+            'model_key' => ['required', 'string', Rule::in($this->editableModelKeys())],
             'usage_category_key' => ['required', 'string', Rule::in(array_keys(config('ai-models.usage_categories', [])))],
             'name' => ['required', 'string', 'max:150'],
             'description' => ['nullable', 'string', 'max:1000'],
@@ -51,6 +51,10 @@ class UpdateAiModelAccessRequest extends FormRequest
 
             if (! is_array($model)) {
                 return;
+            }
+
+            if (! (bool) ($model['access_editable'] ?? true)) {
+                $validator->errors()->add('model_key', __('ai_models.errors.model_not_editable'));
             }
 
             if (! in_array($usageCategoryKey, $model['supported_usage_categories'] ?? [], true)) {
@@ -102,5 +106,17 @@ class UpdateAiModelAccessRequest extends FormRequest
         }
 
         return true;
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private function editableModelKeys(): array
+    {
+        return collect(config('ai-models.models', []))
+            ->filter(fn (array $model): bool => (bool) ($model['access_editable'] ?? true))
+            ->keys()
+            ->values()
+            ->all();
     }
 }

@@ -14,6 +14,7 @@ use App\Services\Billing\ServiceEntitlementService;
 use App\Services\Generation\GenerationStageCatalog;
 use App\Support\DebugStepLogger;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 
 /**
  * Creates generation groups and dispatches staged jobs.
@@ -172,7 +173,7 @@ class GenerationService
             'status' => $group->status,
         ]);
 
-        $group->load('jobs');
+        $group->load('jobs.aiModelAccess');
 
         $this->debugStep($request, $scope, 'Generation jobs loaded', [
             'generation_group_id' => $group->id,
@@ -210,10 +211,17 @@ class GenerationService
             return;
         }
 
-        $nextJob = $group->jobs
+        $pendingJobs = $group->jobs
             ->where('status', 'pending')
-            ->sortBy(fn (GenerationJob $job): int => $this->stages->order($job->period))
-            ->first();
+            ->sortBy(fn (GenerationJob $job): int => $this->stages->order($job->period));
+
+        if ($this->usesConcurrentStageDispatch($group) && $pendingJobs->isNotEmpty()) {
+            $this->dispatchPendingStages($group, $pendingJobs, $request);
+
+            return;
+        }
+
+        $nextJob = $pendingJobs->first();
 
         if (! $nextJob) {
             $this->debugStep($request, $scope, 'No pending job found', [
@@ -257,6 +265,51 @@ class GenerationService
             'generation_job_uuid' => $nextJob->uuid,
             'period' => $nextJob->period,
         ]);
+    }
+
+    /**
+     * Dispatch every pending stage together for providers that benefit from parallel requests.
+     *
+     * @param  Collection<int, GenerationJob>  $pendingJobs
+     */
+    private function dispatchPendingStages(GenerationGroup $group, Collection $pendingJobs, ?Request $request = null): void
+    {
+        $scope = 'generation.service.dispatch_pending_stages';
+
+        $this->debugStep($request, $scope, 'Concurrent stage dispatch selected', [
+            'generation_group_id' => $group->id,
+            'generation_group_uuid' => $group->uuid,
+            'jobs_count' => $pendingJobs->count(),
+            'periods' => $pendingJobs->pluck('period')->values()->all(),
+        ]);
+
+        $group->update(['status' => 'processing']);
+
+        $pendingJobs->each(function (GenerationJob $job): void {
+            $job->update(['status' => 'processing']);
+        });
+
+        $pendingJobs->each(function (GenerationJob $job) use ($request, $scope, $group): void {
+            dispatch(new ProcessGenerationJob($job->refresh()));
+
+            $this->debugStep($request, $scope, 'Processing job dispatched', [
+                'generation_group_id' => $group->id,
+                'generation_job_id' => $job->id,
+                'generation_job_uuid' => $job->uuid,
+                'period' => $job->period,
+            ]);
+        });
+    }
+
+    /**
+     * Determine whether all pending stages should be sent to the queue together.
+     */
+    private function usesConcurrentStageDispatch(GenerationGroup $group): bool
+    {
+        return $group->jobs->contains(function (GenerationJob $job): bool {
+            return $job->aiModelAccess?->model_key === 'gapgpt'
+                || $job->model_name === 'gapgpt';
+        });
     }
 
     /**

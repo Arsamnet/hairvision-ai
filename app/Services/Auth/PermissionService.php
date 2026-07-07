@@ -3,7 +3,6 @@
 namespace App\Services\Auth;
 
 use App\Models\Role;
-use App\Models\User;
 use Illuminate\Support\Facades\Cache;
 
 /**
@@ -18,7 +17,7 @@ class PermissionService
     /**
      * Determine whether a user has a permission in the active tenant context.
      */
-    public function can(User $user, string $permission, ?int $tenantId = null): bool
+    public function can(mixed $user, string $permission, ?int $tenantId = null): bool
     {
         if (! $user->isActive()) {
             return false;
@@ -49,10 +48,16 @@ class PermissionService
     private function permissionsForRole(string $roleCode): array
     {
         return Cache::remember($this->cacheKey($roleCode), 300, function () use ($roleCode): array {
-            return Role::query()
+            $role = Role::query()
                 ->where('code', $roleCode)
                 ->where('status', 'active')
-                ->first()
+                ->first();
+
+            if ($role instanceof Role && $role->isClinicRole() && array_key_exists($roleCode, $this->catalog->roles())) {
+                return $this->catalog->roles()[$roleCode]['permissions'];
+            }
+
+            return $role
                 ?->permissions()
                 ->pluck('code')
                 ->all() ?? $this->catalog->roles()[$roleCode]['permissions'] ?? [];

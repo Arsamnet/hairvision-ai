@@ -3,6 +3,15 @@
 HairVision uses internal role-based access control rather than an external
 permissions package.
 
+Roles are scoped:
+
+- `platform`: system/dashboard-level roles.
+- `clinic`: predefined clinic-level roles.
+
+Clinic roles are fixed access levels. They can be assigned to clinic users, but
+their permission set is read from the catalog and is not editable through system
+role management.
+
 Roles:
 
 - `super_admin`: platform-level user, can access all clinics and all leads.
@@ -14,6 +23,7 @@ Current dashboard enforcement:
 
 - Permissions are stored in `permissions`.
 - Access levels are stored in `roles`.
+- `roles.scope` separates platform roles from predefined clinic roles.
 - Role permission assignments are stored in `permission_role`.
 - `users.role` stores the global/default access level.
 - `tenant_user.role` stores the tenant-context access level.

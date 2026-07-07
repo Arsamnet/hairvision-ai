@@ -36,8 +36,13 @@ returns one configured local sample image:
 - `intermediate_regrowth`
 - `final_result`
 
+The demo access is not editable from the dashboard. Admins may only toggle its
+active state.
+
 The `gapgpt` model is displayed in Persian as `ویرایش تصویر GapGPT`. It is a
 real web-service provider and requires credentials before it can be activated.
+It is the only dashboard-creatable access model in the current release and
+supports `hair_transplant` and `eyebrow_transplant` usage categories.
 
 ## Access Records
 
@@ -50,26 +55,17 @@ priority, optional credit limit, consumed credit, and creator/updater ids.
 Admins can create multiple access records for the same configured model. Stored
 credentials can be replaced, but they are never displayed in plain text.
 
-Credential precedence for GapGPT:
+GapGPT credentials and request settings are stored on the selected access
+record. The encrypted credential lives in
+`ai_model_accesses.credentials.api_key`, and endpoint/model/size/response
+format/timeouts/retry values live in `ai_model_accesses.settings`. The provider
+does not read GapGPT-specific environment variables.
 
-1. Encrypted `ai_model_accesses.credentials.api_key` on the selected access
-   record.
-2. `config('services.gapgpt.api_key')`, backed by `GAPGPT_API_KEY`.
-
-The demo seeder creates a GapGPT hair-transplant access record with three
-stage-specific prompts under `settings.stage_prompts`. It never seeds a real API
-key. The seeded GapGPT record is active only when `GAPGPT_API_KEY` is configured;
-otherwise it is assigned to Clinic Aria but inactive.
-
-GapGPT environment values:
-
-```env
-GAPGPT_API_KEY=<GAPGPT_API_KEY>
-GAPGPT_IMAGE_EDIT_ENDPOINT=https://api.gapgpt.app/v1/images/edits
-GAPGPT_IMAGE_MODEL=gpt-image-2
-GAPGPT_IMAGE_SIZE=1024x1024
-GAPGPT_IMAGE_RESPONSE_FORMAT=url
-```
+The demo seeder creates a GapGPT hair-transplant access record with default
+request settings and three stage-specific prompts under
+`settings.stage_prompts`. It never seeds a real API key, and the seeded GapGPT
+record stays inactive until an admin enters the encrypted credential and
+activates the access from the AI model dashboard.
 
 ## GapGPT Multipart Request
 
@@ -78,7 +74,7 @@ GapGPT image edits must use multipart form data, not JSON:
 ```text
 POST https://api.gapgpt.app/v1/images/edits
 Accept: application/json
-Authorization: Bearer <GAPGPT_API_KEY>
+Authorization: Bearer <encrypted access credential>
 ```
 
 Required multipart fields:
@@ -104,6 +100,11 @@ to that clinic. Inactive model records, inactive assignments, unassigned records
 and finished-credit records are blocked by backend services before provider
 execution.
 
+For each clinic and usage category, only one assigned access may be active at a
+time. Assigning an active model access for `hair_transplant`, for example,
+deactivates other active `hair_transplant` assignments for that clinic while
+leaving active `eyebrow_transplant` assignments untouched.
+
 ## Usage Flow
 
 Public generation still uses `/api/v1/generations`. The request payload did not
@@ -116,12 +117,14 @@ Server-side flow:
 3. Resolve the upload by tenant and lead.
 4. Resolve an active assigned AI model access record for `hair_transplant`.
 5. Create one generation group and three period jobs.
-6. Each period job runs through `RunAiModelAction`.
-7. The action validates assignment, active state, and credit.
-8. The configured provider class runs through `AiModelProviderInterface`.
-9. Successful limited-credit executions increment credit by one per period job.
-10. A safe usage log is written.
-11. The existing local `SampleImageProvider` copies private sample assets.
+6. For GapGPT, all three pending period jobs are dispatched together; the
+   default staged flow dispatches the next pending job.
+7. Each period job runs through `RunAiModelAction`.
+8. The action validates assignment, active state, and credit.
+9. The configured provider class runs through `AiModelProviderInterface`.
+10. Successful limited-credit executions increment credit by one per period job.
+11. A safe usage log is written.
+12. The existing local `SampleImageProvider` copies private sample assets.
 
 ## Admin Dashboard
 
@@ -138,8 +141,8 @@ AI model management routes:
 - `DELETE /admin/clinics/{clinic}/ai-models/{aiModelAccess}`
 
 The dashboard supports backend search, filters, pagination, masked credentials,
-status badges, protected/demo badges, credit summaries, usage logs, and clinic
-assignment links.
+status badges, protected/demo badges, credit summaries, usage logs, dashboard
+creation/editing for editable configured models, and clinic assignment links.
 
 Protected demo records cannot be deleted. They can be disabled.
 

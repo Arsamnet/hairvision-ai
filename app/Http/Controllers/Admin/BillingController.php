@@ -40,7 +40,12 @@ class BillingController extends Controller
 
         $invoices = Invoice::query()
             ->with(['tenant', 'user', 'plan', 'payments.gateway'])
-            ->when(! $canManage, fn ($query) => $query->where('user_id', $user->id))
+            ->when(! $canManage, fn ($query) => $query->where(function ($query) use ($user, $tenant): void {
+                $query->where('user_id', $user->id)
+                    ->when($tenant, fn ($query) => $query->orWhere(function ($query) use ($tenant): void {
+                        $query->whereNull('user_id')->where('tenant_id', $tenant->id);
+                    }));
+            }))
             ->when(! $canManage && $tenant, fn ($query) => $query->where('tenant_id', $tenant->id))
             ->when($canManage && $tenant, fn ($query) => $query->where('tenant_id', $tenant->id))
             ->when($request->filled('status'), fn ($query) => $query->where('status', $request->string('status')->toString()));
@@ -149,7 +154,7 @@ class BillingController extends Controller
 
         $tenant = $request->attributes->get('adminTenant');
 
-        return $invoice->user_id === $user->id
+        return ($invoice->user_id === $user->id || ($invoice->user_id === null && $tenant && $invoice->tenant_id === $tenant->id))
             && (! $invoice->tenant_id || ($tenant && $invoice->tenant_id === $tenant->id));
     }
 

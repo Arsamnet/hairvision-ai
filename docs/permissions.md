@@ -24,6 +24,18 @@ AI model permission additions.
 Super Admin receives all permissions. Default clinic/customer roles do not
 receive global AI model management permissions.
 
+## Clinic Permissions
+
+- `tenants.list`
+- `tenants.search`
+- `tenants.view`
+- `tenants.create`
+- `tenants.edit`
+- `tenants.delete`
+
+These permissions control Super Admin clinic management under `/admin/clinics`.
+Default clinic roles do not receive global clinic CRUD permissions.
+
 Clinic managers can create users inside their own clinic through existing
 `users.create` and `users.edit` permissions, but non-super admins can assign only
 clinic-level role codes:

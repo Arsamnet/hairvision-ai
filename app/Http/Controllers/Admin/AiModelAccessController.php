@@ -111,6 +111,9 @@ class AiModelAccessController extends Controller
             'tenant' => $request->attributes->get('adminTenant'),
             'availableTenants' => $request->attributes->get('adminTenants'),
             'models' => $resolver->models(),
+            'creatableModels' => collect($resolver->models())
+                ->filter(fn (array $model): bool => (bool) ($model['access_creatable'] ?? true))
+                ->all(),
             'usageCategories' => $resolver->usageCategories(),
             'resolver' => $resolver,
             'clinics' => Tenant::query()->where('status', 'active')->orderBy('name')->get(),

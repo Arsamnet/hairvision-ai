@@ -26,12 +26,13 @@ class RoleController extends Controller
     {
         $pagination = PaginationParameters::fromRequest(
             $request,
-            ['name', 'code', 'status', 'created_at'],
+            ['name', 'code', 'scope', 'status', 'created_at'],
             'name',
             'asc'
         );
         $query = Role::query()
             ->withCount('permissions')
+            ->when($request->filled('scope'), fn ($query) => $query->where('scope', $request->string('scope')->toString()))
             ->when($request->filled('status'), fn ($query) => $query->where('status', $request->string('status')->toString()));
         SearchFilter::apply($query, $pagination->search, ['name', 'code']);
         DateRangeFilter::apply($query, $request);
@@ -58,6 +59,7 @@ class RoleController extends Controller
             'name' => $validated['name'],
             'code' => $validated['code'] ?? Str::slug($validated['name'], '_'),
             'description' => $validated['description'] ?? null,
+            'scope' => 'platform',
             'is_system' => false,
             'status' => 'active',
         ]);
@@ -77,6 +79,12 @@ class RoleController extends Controller
 
     public function update(Request $request, Role $role, PermissionService $permissions): RedirectResponse
     {
+        if ($role->isClinicRole()) {
+            return back()->withErrors([
+                'role' => __('permissions.clinic_role_permissions_locked'),
+            ]);
+        }
+
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:120'],
             'description' => ['nullable', 'string', 'max:500'],

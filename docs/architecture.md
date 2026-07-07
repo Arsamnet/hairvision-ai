@@ -117,7 +117,7 @@ credentials.
 
 GapGPT image edits call `POST https://api.gapgpt.app/v1/images/edits` as
 multipart form data through Laravel's HTTP client. The request uses
-`Authorization: Bearer <GAPGPT_API_KEY>`, `Accept: application/json`, file field
+`Authorization: Bearer <encrypted access credential>`, `Accept: application/json`, file field
 `image`, and text fields `model = gpt-image-2`, `prompt`, `n = 1`,
 `response_format = url`, and `size = 1024x1024`. Do not send this request as
 JSON and do not manually force `Content-Type: application/json`.
@@ -152,10 +152,13 @@ Each generation stage is a separate job:
 - `intermediate_regrowth`
 - `final_result`
 
-Only the first pending stage is queued when the group is created. A completed
-stage saves its private asset and then dispatches the next stage, so the public
-UI can reveal each image as soon as it is ready while later stages continue.
-This keeps retries, failures, timing, and provider costs isolated per stage.
+The default flow queues only the first pending stage when the group is created.
+A completed stage saves its private asset and then dispatches the next stage, so
+the public UI can reveal each image as soon as it is ready while later stages
+continue. GapGPT is the exception: because its image edits are independent, all
+three pending GapGPT stages are marked processing and dispatched together to
+reduce total wait time. Each stage still remains a separate job for retries,
+failures, logs, assets, and provider/service credit accounting.
 
 ## Sample Image Provider
 

@@ -38,14 +38,14 @@ class SubscriptionActivationService
      *
      * @throws ValidationException
      */
-    public function validatePurchase(User $user, Plan $plan, ?Tenant $tenant): void
+    public function validatePurchase(?User $user, Plan $plan, ?Tenant $tenant): void
     {
         $this->resetDebugSteps();
 
         $scope = 'billing.subscription_activation.validate_purchase';
 
         $this->debugStep($scope, 'Subscription purchase validation started.', [
-            'user_id' => $user->id,
+            'user_id' => $user?->id,
             'tenant_id' => $tenant?->id,
             'plan' => $this->planContext($plan),
         ]);
@@ -53,7 +53,7 @@ class SubscriptionActivationService
         try {
             if ($plan->status !== 'active') {
                 $this->debugStep($scope, 'Subscription purchase validation failed because plan is inactive.', [
-                    'user_id' => $user->id,
+                    'user_id' => $user?->id,
                     'tenant_id' => $tenant?->id,
                     'plan_id' => $plan->id,
                     'plan_status' => $plan->status,
@@ -66,7 +66,7 @@ class SubscriptionActivationService
 
             if (! $tenant) {
                 $this->debugStep($scope, 'Subscription purchase validation failed because tenant is missing.', [
-                    'user_id' => $user->id,
+                    'user_id' => $user?->id,
                     'plan_id' => $plan->id,
                     'plan_type' => $this->planTypeValue($plan),
                 ]);
@@ -77,7 +77,7 @@ class SubscriptionActivationService
             }
 
             $this->debugStep($scope, 'Dispatching validation by plan type.', [
-                'user_id' => $user->id,
+                'user_id' => $user?->id,
                 'tenant_id' => $tenant->id,
                 'plan_id' => $plan->id,
                 'plan_type' => $this->planTypeValue($plan),
@@ -90,14 +90,14 @@ class SubscriptionActivationService
             };
 
             $this->debugStep($scope, 'Subscription purchase validation completed successfully.', [
-                'user_id' => $user->id,
+                'user_id' => $user?->id,
                 'tenant_id' => $tenant->id,
                 'plan_id' => $plan->id,
                 'plan_type' => $this->planTypeValue($plan),
             ]);
         } catch (Throwable $exception) {
             $this->debugStep($scope, 'Subscription purchase validation workflow failed.', [
-                'user_id' => $user->id,
+                'user_id' => $user?->id,
                 'tenant_id' => $tenant?->id,
                 'plan_id' => $plan->id,
                 'plan_type' => $this->planTypeValue($plan),
@@ -338,10 +338,10 @@ class SubscriptionActivationService
         ]);
     }
 
-    private function activateBasePlan(User $user, ?Tenant $tenant, Plan $plan, Invoice $invoice, string $scope = 'billing.subscription_activation.activate_base_plan'): Subscription
+    private function activateBasePlan(?User $user, ?Tenant $tenant, Plan $plan, Invoice $invoice, string $scope = 'billing.subscription_activation.activate_base_plan'): Subscription
     {
         $this->debugStep($scope, 'Base plan activation started.', [
-            'user_id' => $user->id,
+            'user_id' => $user?->id,
             'tenant_id' => $tenant?->id,
             'plan' => $this->planContext($plan),
             'invoice_id' => $invoice->id,
@@ -349,7 +349,7 @@ class SubscriptionActivationService
 
         if (! $tenant) {
             $this->debugStep($scope, 'Base plan activation failed because tenant is missing.', [
-                'user_id' => $user->id,
+                'user_id' => $user?->id,
                 'plan_id' => $plan->id,
                 'invoice_id' => $invoice->id,
             ]);
@@ -387,7 +387,7 @@ class SubscriptionActivationService
 
         $subscription = Subscription::create([
             'tenant_id' => $tenant->id,
-            'user_id' => $user->id,
+            'user_id' => $user?->id,
             'plan_id' => $plan->id,
             'invoice_id' => $invoice->id,
             'status' => 'active',
@@ -437,7 +437,7 @@ class SubscriptionActivationService
                 'subscription_id' => $subscription->id,
                 'entitlement_id' => $entitlement->id,
                 'invoice_id' => $invoice->id,
-                'user_id' => $user->id,
+                'user_id' => $user?->id,
                 'service_key' => $serviceKey,
                 'credit_amount' => $credit,
                 'transaction_type' => CreditTransactionType::Grant->value,
@@ -454,10 +454,10 @@ class SubscriptionActivationService
         return $subscription;
     }
 
-    private function activateServiceAddOn(User $user, ?Tenant $tenant, Plan $plan, Invoice $invoice, string $scope = 'billing.subscription_activation.activate_service_add_on'): Subscription
+    private function activateServiceAddOn(?User $user, ?Tenant $tenant, Plan $plan, Invoice $invoice, string $scope = 'billing.subscription_activation.activate_service_add_on'): Subscription
     {
         $this->debugStep($scope, 'Service add-on activation started.', [
-            'user_id' => $user->id,
+            'user_id' => $user?->id,
             'tenant_id' => $tenant?->id,
             'plan' => $this->planContext($plan),
             'invoice_id' => $invoice->id,
@@ -465,7 +465,7 @@ class SubscriptionActivationService
 
         if (! $tenant) {
             $this->debugStep($scope, 'Service add-on activation failed because tenant is missing.', [
-                'user_id' => $user->id,
+                'user_id' => $user?->id,
                 'plan_id' => $plan->id,
                 'invoice_id' => $invoice->id,
             ]);
@@ -531,7 +531,7 @@ class SubscriptionActivationService
                 'subscription_id' => $subscription->id,
                 'entitlement_id' => $entitlement->id,
                 'invoice_id' => $invoice->id,
-                'user_id' => $user->id,
+                'user_id' => $user?->id,
                 'service_key' => $serviceKey,
                 'credit_amount' => $credit,
                 'transaction_type' => CreditTransactionType::Grant->value,
@@ -548,10 +548,10 @@ class SubscriptionActivationService
         return $subscription;
     }
 
-    private function activateCreditTopUp(User $user, ?Tenant $tenant, Plan $plan, Invoice $invoice, string $scope = 'billing.subscription_activation.activate_credit_top_up'): Subscription
+    private function activateCreditTopUp(?User $user, ?Tenant $tenant, Plan $plan, Invoice $invoice, string $scope = 'billing.subscription_activation.activate_credit_top_up'): Subscription
     {
         $this->debugStep($scope, 'Credit top-up activation started.', [
-            'user_id' => $user->id,
+            'user_id' => $user?->id,
             'tenant_id' => $tenant?->id,
             'plan' => $this->planContext($plan),
             'invoice_id' => $invoice->id,
@@ -559,7 +559,7 @@ class SubscriptionActivationService
 
         if (! $tenant) {
             $this->debugStep($scope, 'Credit top-up activation failed because tenant is missing.', [
-                'user_id' => $user->id,
+                'user_id' => $user?->id,
                 'plan_id' => $plan->id,
                 'invoice_id' => $invoice->id,
             ]);
@@ -636,7 +636,7 @@ class SubscriptionActivationService
                 'subscription_id' => $subscription->id,
                 'entitlement_id' => $entitlement->id,
                 'invoice_id' => $invoice->id,
-                'user_id' => $user->id,
+                'user_id' => $user?->id,
                 'service_key' => $serviceKey,
                 'credit_amount' => $credit,
             ]);

@@ -41,6 +41,7 @@ documentation file lives directly inside `/docs` and is linked here with a
 relative Markdown link.
 
 - [Architecture](docs/architecture.md)
+- [Business Rules FA](docs/business-rules-fa.md)
 - [Setup Guide](docs/setup.md)
 - [Development Guide](docs/development-guide.md)
 - [Database](docs/database.md)
