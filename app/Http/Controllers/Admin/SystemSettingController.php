@@ -42,7 +42,7 @@ class SystemSettingController extends Controller
                 ['value' => $this->ruleFor($setting)]
             )->validate();
 
-            $settings->set($setting->key, $submitted[$setting->key]);
+            $settings->set($setting->key, $this->normalizeValue($setting, $submitted[$setting->key]));
         }
 
         return back()->with('status', __('settings.saved'));
@@ -58,7 +58,16 @@ class SystemSettingController extends Controller
         return match ($setting->type) {
             'integer' => ['required', 'integer', 'min:1', 'max:1000'],
             'boolean' => ['required', 'boolean'],
+            'json' => ['required', 'json'],
             default => ['nullable', 'string', 'max:500'],
+        };
+    }
+
+    private function normalizeValue(SystemSetting $setting, mixed $value): mixed
+    {
+        return match ($setting->type) {
+            'json' => json_decode((string) $value, true, flags: JSON_THROW_ON_ERROR),
+            default => $value,
         };
     }
 }

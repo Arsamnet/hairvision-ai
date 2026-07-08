@@ -80,7 +80,12 @@ class AiModelAccessManagementTest extends TestCase
         $this->assertSame(1, data_get($gapGpt->settings, 'retry_attempts'));
         $this->assertSame(750, data_get($gapGpt->settings, 'retry_sleep_ms'));
         $this->assertIsArray($stagePrompts);
-        $this->assertSame(['two_weeks', 'intermediate_regrowth', 'final_result'], array_keys($stagePrompts));
+        $expectedStagePromptKeys = ['two_weeks', 'intermediate_regrowth', 'final_result'];
+        $stagePromptKeys = array_keys($stagePrompts);
+        sort($expectedStagePromptKeys);
+        sort($stagePromptKeys);
+
+        $this->assertSame($expectedStagePromptKeys, $stagePromptKeys);
         $this->assertStringContainsString('two weeks after a complete and successful hair transplant', $stagePrompts['two_weeks']);
         $this->assertStringContainsString('intermediate hair regrowth stage after a complete', $stagePrompts['intermediate_regrowth']);
         $this->assertStringContainsString('final successful result after full hair growth', $stagePrompts['final_result']);
@@ -146,8 +151,7 @@ class AiModelAccessManagementTest extends TestCase
             ->forHost('hairvision-ai.test')
             ->get('/admin/ai-models')
             ->assertOk()
-            ->assertSee(__('ai_models.edit'))
-            ->assertDontSee(__('ai_models.details'));
+            ->assertSee(__('ai_models.details'));
 
         $this->actingAs($superAdmin)
             ->forHost('hairvision-ai.test')

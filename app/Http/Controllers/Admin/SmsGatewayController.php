@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\SmsGateways\StoreSmsGatewayRequest;
 use App\Http\Requests\Admin\SmsGateways\UpdateSmsGatewayRequest;
 use App\Models\SmsGateway;
+use App\Models\Tenant;
 use App\Models\User;
 use App\Services\Admin\SmsGatewayManagementService;
 use App\Services\Sms\SmsGatewayService;
@@ -15,7 +16,7 @@ use Illuminate\Support\Facades\Gate;
 use Illuminate\View\View;
 
 /**
- * Manages platform SMS gateways and user-private gateway records.
+ * Manages platform and clinic SMS gateway records.
  *
  * @since 1.0.0
  */
@@ -57,7 +58,7 @@ class SmsGatewayController extends Controller
         return view('admin.system.sms-gateways.show', [
             'tenant' => $request->attributes->get('adminTenant'),
             'availableTenants' => $request->attributes->get('adminTenants'),
-            'gateway' => $smsGateway->load('user'),
+            'gateway' => $smsGateway->load(['user', 'tenant']),
         ]);
     }
 
@@ -66,7 +67,7 @@ class SmsGatewayController extends Controller
         Gate::authorize('update', $smsGateway);
 
         return view('admin.system.sms-gateways.edit', $this->formData($request, $manager, $smsGateway) + [
-            'gateway' => $smsGateway->load('user'),
+            'gateway' => $smsGateway->load(['user', 'tenant']),
         ]);
     }
 
@@ -97,6 +98,7 @@ class SmsGatewayController extends Controller
             'tenant' => $request->attributes->get('adminTenant'),
             'availableTenants' => $request->attributes->get('adminTenants'),
             'users' => User::query()->orderBy('name')->get(),
+            'tenants' => Tenant::query()->where('status', 'active')->orderBy('name')->get(),
             'providerOptions' => $manager->providerOptionsForSystem($gateway),
         ];
     }

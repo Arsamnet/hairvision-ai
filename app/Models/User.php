@@ -17,7 +17,7 @@ use Illuminate\Notifications\Notifiable;
  *
  * @since 1.0.0
  */
-#[Fillable(['name', 'email', 'phone_normalized', 'password', 'role', 'status'])]
+#[Fillable(['name', 'email', 'phone_normalized', 'access_scope', 'password', 'role', 'status'])]
 #[Hidden(['password', 'remember_token'])]
 class User extends Authenticatable
 {
@@ -60,7 +60,7 @@ class User extends Authenticatable
     }
 
     /**
-     * Private SMS gateways configured by this user for customer messages.
+     * Legacy SMS gateways that may still reference this user.
      *
      * @return HasMany<SmsGateway, $this>
      */
@@ -118,6 +118,14 @@ class User extends Authenticatable
     }
 
     /**
+     * Determine whether the user belongs to system-level access scope.
+     */
+    public function isSystemScoped(): bool
+    {
+        return $this->access_scope === 'system' || $this->isSuperAdmin();
+    }
+
+    /**
      * Determine whether the user is active and may authenticate.
      */
     public function isActive(): bool
@@ -132,6 +140,10 @@ class User extends Authenticatable
     {
         if ($this->isSuperAdmin()) {
             return true;
+        }
+
+        if ($this->isSystemScoped()) {
+            return false;
         }
 
         if (! $tenantId) {
@@ -151,6 +163,10 @@ class User extends Authenticatable
     {
         if ($this->isSuperAdmin()) {
             return 'super_admin';
+        }
+
+        if ($this->isSystemScoped()) {
+            return $this->role;
         }
 
         if (! $tenantId) {

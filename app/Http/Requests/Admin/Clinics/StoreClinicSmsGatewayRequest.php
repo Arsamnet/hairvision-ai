@@ -15,7 +15,11 @@ class StoreClinicSmsGatewayRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return $this->user()?->hasAnyPermission(['sms_gateways.manage', 'sms_gateways.edit']) ?? false;
+        $user = $this->user();
+        $clinic = $this->route('clinic');
+
+        return ($user?->hasAnyPermission(['sms_gateways.manage', 'sms_gateways.edit']) ?? false)
+            && ($user?->isSuperAdmin() || $user?->canAccessTenant($clinic?->id));
     }
 
     /**
@@ -42,7 +46,7 @@ class StoreClinicSmsGatewayRequest extends FormRequest
 
         $this->merge([
             '_form' => $this->input('_form', 'clinic_sms_gateway'),
-            'name' => $this->input('name') ?: __('sms.dedicated_panel_name'),
+            'name' => $this->input('name') ?: __('sms.clinic_gateway_name'),
             'provider_code' => $this->input('provider_code') ?: ($providerCodes[0] ?? 'ippanel'),
             'status' => $this->boolean('is_active') ? 'enabled' : 'disabled',
             'is_default' => true,

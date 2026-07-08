@@ -33,7 +33,7 @@ class UserManagementService
     {
         $pagination = PaginationParameters::fromRequest(
             $request,
-            ['created_at', 'name', 'email', 'phone_normalized', 'role', 'status'],
+            ['created_at', 'name', 'email', 'phone_normalized', 'access_scope', 'role', 'status'],
             'created_at'
         );
 
@@ -54,9 +54,12 @@ class UserManagementService
         $query = $this->baseQuery($actor, $clinicFilter)->with('tenants');
         SearchFilter::apply($query, $pagination->search, ['name', 'email', 'phone_normalized']);
 
+        $status = $request->string('status')->toString();
+
         $query
+            ->when($request->filled('access_scope'), fn (Builder $query) => $query->where('access_scope', $request->string('access_scope')->toString()))
             ->when($request->filled('role'), fn (Builder $query) => $query->where('role', $request->string('role')->toString()))
-            ->when($request->filled('status'), fn (Builder $query) => $query->where('status', $request->string('status')->toString()));
+            ->when(in_array($status, ['active', 'inactive'], true), fn (Builder $query) => $query->where('status', $status));
 
         DateRangeFilter::apply($query, $request);
 
@@ -72,13 +75,15 @@ class UserManagementService
     public function create(array $data, User $actor, ?Tenant $currentTenant = null): User
     {
         return DB::transaction(function () use ($data, $actor, $currentTenant): User {
-            $role = $this->authorizedGlobalRole((string) $data['role'], $actor);
+            $scope = $this->authorizedScope((string) $data['access_scope'], $actor);
+            $role = $this->authorizedRole((string) $data['role'], $scope, $actor);
 
             $user = User::create([
                 'name' => $data['name'],
                 'email' => $data['email'],
                 'phone_normalized' => $data['phone_normalized'] ?? null,
                 'password' => Hash::make(Str::random(40)),
+                'access_scope' => $scope,
                 'role' => $role,
                 'status' => $data['status'],
             ]);
@@ -97,7 +102,8 @@ class UserManagementService
     public function update(User $user, array $data, User $actor, ?Tenant $currentTenant = null): User
     {
         return DB::transaction(function () use ($user, $data, $actor, $currentTenant): User {
-            $role = $this->authorizedGlobalRole((string) $data['role'], $actor);
+            $scope = $this->authorizedScope((string) $data['access_scope'], $actor);
+            $role = $this->authorizedRole((string) $data['role'], $scope, $actor);
 
             $this->guardLastActiveSuperAdmin($user, $role, (string) $data['status']);
 
@@ -105,6 +111,7 @@ class UserManagementService
                 'name' => $data['name'],
                 'email' => $data['email'],
                 'phone_normalized' => $data['phone_normalized'] ?? null,
+                'access_scope' => $scope,
                 'role' => $role,
                 'status' => $data['status'],
             ]);
@@ -175,15 +182,43 @@ class UserManagementService
             ->all();
     }
 
-    private function authorizedGlobalRole(string $role, User $actor): string
+    private function authorizedScope(string $scope, User $actor): string
     {
-        if ($role === 'super_admin' && ! $actor->isSuperAdmin()) {
+        if (! in_array($scope, ['system', 'clinic'], true)) {
+            throw ValidationException::withMessages([
+                'access_scope' => __('permissions.denied'),
+            ]);
+        }
+
+        if ($scope === 'system' && ! $actor->isSuperAdmin()) {
+            throw ValidationException::withMessages([
+                'access_scope' => __('permissions.denied'),
+            ]);
+        }
+
+        return $scope;
+    }
+
+    private function authorizedRole(string $role, string $scope, User $actor): string
+    {
+        $roleQuery = \App\Models\Role::query()
+            ->where('code', $role)
+            ->where('status', 'active')
+            ->where('scope', $scope === 'system' ? 'platform' : 'clinic');
+
+        if (! $roleQuery->exists()) {
             throw ValidationException::withMessages([
                 'role' => __('permissions.denied'),
             ]);
         }
 
-        if (! $actor->isSuperAdmin() && ! in_array($role, self::CLINIC_ROLE_CODES, true)) {
+        if ($scope === 'system' && ! $actor->isSuperAdmin()) {
+            throw ValidationException::withMessages([
+                'role' => __('permissions.denied'),
+            ]);
+        }
+
+        if ($scope === 'clinic' && ! in_array($role, self::CLINIC_ROLE_CODES, true)) {
             throw ValidationException::withMessages([
                 'role' => __('permissions.denied'),
             ]);
@@ -197,15 +232,40 @@ class UserManagementService
      */
     private function syncTenantAccess(User $user, array $data, User $actor, ?Tenant $currentTenant): void
     {
-        $tenantIds = collect($data['tenant_ids'] ?? [])
+        if (($data['access_scope'] ?? 'clinic') === 'system') {
+            if ($actor->isSuperAdmin()) {
+                $user->tenants()->sync([]);
+
+                return;
+            }
+
+            $allowedExisting = $user->tenants()
+                ->whereIn('tenants.id', $this->allowedTenantIds($actor))
+                ->pluck('tenants.id')
+                ->all();
+            $user->tenants()->detach($allowedExisting);
+
+            return;
+        }
+
+        $tenantIds = collect(array_filter([(int) ($data['tenant_id'] ?? 0)]))
+            ->merge($data['tenant_ids'] ?? [])
             ->filter(fn (mixed $tenantId): bool => filled($tenantId))
             ->map(fn (mixed $tenantId): int => (int) $tenantId)
             ->unique()
             ->values();
 
-        if ($tenantIds->isEmpty() && $currentTenant && $user->role !== 'super_admin') {
+        if ($tenantIds->isEmpty() && $currentTenant) {
             $tenantIds = collect([$currentTenant->id]);
         }
+
+        if ($tenantIds->isEmpty()) {
+            throw ValidationException::withMessages([
+                'tenant_id' => __('permissions.tenant_denied'),
+            ]);
+        }
+
+        $tenantIds = $tenantIds->take(1);
 
         $allowedTenantIds = $this->allowedTenantIds($actor);
         $sync = [];
@@ -219,11 +279,7 @@ class UserManagementService
 
             $tenantRole = (string) data_get($data, "tenant_roles.$tenantId", $user->role);
 
-            if ($tenantRole === 'super_admin') {
-                $tenantRole = 'clinic_admin';
-            }
-
-            if (! $actor->isSuperAdmin() && ! in_array($tenantRole, self::CLINIC_ROLE_CODES, true)) {
+            if (! in_array($tenantRole, self::CLINIC_ROLE_CODES, true)) {
                 throw ValidationException::withMessages([
                     'tenant_roles' => __('permissions.denied'),
                 ]);

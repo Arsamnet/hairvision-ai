@@ -12,17 +12,24 @@ return new class extends Migration
             $table->id();
             $table->uuid('uuid')->unique();
             $table->foreignId('tenant_id')->constrained('tenants')->cascadeOnDelete();
+            $table->string('full_name')->nullable();
             $table->string('phone');
             $table->string('phone_normalized');
+            $table->string('source')->nullable();
             $table->timestamp('phone_verified_at')->nullable();
             $table->string('status')->default('new');
             $table->string('crm_stage')->default('new_lead');
             $table->timestamp('crm_last_note_at')->nullable();
+            $table->foreignId('assigned_user_id')->nullable()->constrained('users')->nullOnDelete();
             $table->timestamp('last_seen_at')->nullable();
             $table->string('ip_address', 45)->nullable();
             $table->text('user_agent')->nullable();
             $table->timestamps();
             $table->unique(['tenant_id', 'phone_normalized']);
+            $table->index(['tenant_id', 'status']);
+            $table->index(['tenant_id', 'crm_stage']);
+            $table->index(['tenant_id', 'created_at']);
+            $table->index(['tenant_id', 'assigned_user_id']);
         });
 
         Schema::create('otp_codes', function (Blueprint $table) {

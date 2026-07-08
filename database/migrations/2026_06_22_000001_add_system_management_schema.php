@@ -12,6 +12,7 @@ return new class extends Migration
             $table->id();
             $table->uuid('uuid')->unique();
             $table->string('code')->unique();
+            $table->string('scope')->default('clinic')->index();
             $table->string('name');
             $table->text('description')->nullable();
             $table->boolean('is_system')->default(false);
@@ -58,6 +59,7 @@ return new class extends Migration
             $table->id();
             $table->uuid('uuid')->unique();
             $table->foreignId('user_id')->nullable()->constrained('users')->cascadeOnDelete();
+            $table->foreignId('tenant_id')->nullable()->constrained('tenants')->cascadeOnDelete();
             $table->string('name');
             $table->string('provider_code');
             $table->string('owner_scope')->default('system');
@@ -69,6 +71,7 @@ return new class extends Migration
 
             $table->index(['owner_scope', 'status']);
             $table->index(['user_id', 'status']);
+            $table->index(['tenant_id', 'status']);
         });
 
         Schema::create('payment_gateways', function (Blueprint $table): void {
@@ -121,7 +124,7 @@ return new class extends Migration
             $table->id();
             $table->uuid('uuid')->unique();
             $table->foreignId('tenant_id')->nullable()->constrained('tenants')->nullOnDelete();
-            $table->foreignId('user_id')->constrained('users')->cascadeOnDelete();
+            $table->foreignId('user_id')->nullable()->constrained('users')->nullOnDelete();
             $table->foreignId('plan_id')->nullable()->constrained('plans')->nullOnDelete();
             $table->string('number')->unique();
             $table->string('status')->default('pending');
@@ -143,7 +146,7 @@ return new class extends Migration
             $table->id();
             $table->uuid('uuid')->unique();
             $table->foreignId('tenant_id')->nullable()->constrained('tenants')->nullOnDelete();
-            $table->foreignId('user_id')->constrained('users')->cascadeOnDelete();
+            $table->foreignId('user_id')->nullable()->constrained('users')->nullOnDelete();
             $table->foreignId('invoice_id')->constrained('invoices')->cascadeOnDelete();
             $table->foreignId('payment_gateway_id')->constrained('payment_gateways')->restrictOnDelete();
             $table->string('status')->default('pending');
@@ -165,7 +168,7 @@ return new class extends Migration
             $table->id();
             $table->uuid('uuid')->unique();
             $table->foreignId('tenant_id')->nullable()->constrained('tenants')->cascadeOnDelete();
-            $table->foreignId('user_id')->constrained('users')->cascadeOnDelete();
+            $table->foreignId('user_id')->nullable()->constrained('users')->nullOnDelete();
             $table->foreignId('plan_id')->constrained('plans')->cascadeOnDelete();
             $table->foreignId('invoice_id')->nullable()->constrained('invoices')->nullOnDelete();
             $table->string('status')->default('active');

@@ -7,6 +7,7 @@ use App\Models\OtpCode;
 use App\Models\Plan;
 use App\Models\SmsGateway;
 use App\Models\Subscription;
+use App\Models\SystemSetting;
 use App\Models\Tenant;
 use App\Models\TenantDomain;
 use App\Models\User;
@@ -40,7 +41,7 @@ class AdminDashboardTest extends TestCase
         $this->forHost('hairvision-ai.test')
             ->get('/')
             ->assertOk()
-            ->assertSee('HairVision AI')
+            ->assertSee('HairVision')
             ->assertSee('/admin');
     }
 
@@ -99,6 +100,7 @@ class AdminDashboardTest extends TestCase
         $this->assertStringContainsString('.admin-auth-shell', $css);
         $this->assertStringContainsString('.hover\\:bg-zinc-50\\/80:hover', $css);
         $this->assertStringContainsString('[data-admin-table-container] tbody tr:hover', $css);
+        $this->assertStringContainsString('[data-admin-table-container] tbody tr[data-clickable-table-row="true"]', $css);
 
         $this->forHost('hairvision-ai.test')
             ->get('/admin')
@@ -147,6 +149,20 @@ class AdminDashboardTest extends TestCase
         }
     }
 
+    public function test_table_view_actions_make_dashboard_rows_clickable(): void
+    {
+        $viewAction = Blade::render('<x-admin.table.action-item href="/admin/leads/1" icon="eye">مشاهده</x-admin.table.action-item>');
+        $editAction = Blade::render('<x-admin.table.action-item href="/admin/leads/1/edit" icon="edit">ویرایش</x-admin.table.action-item>');
+        $actionMenus = file_get_contents(resource_path('js/admin/action-menus.js'));
+
+        $this->assertStringContainsString('data-table-row-view-action', $viewAction);
+        $this->assertStringNotContainsString('data-table-row-view-action', $editAction);
+        $this->assertStringContainsString('data-clickable-table-row', $actionMenus);
+        $this->assertStringContainsString('window.location.assign(href)', $actionMenus);
+        $this->assertStringContainsString('viewAction.click()', $actionMenus);
+        $this->assertStringContainsString('[data-table-action-menu]', $actionMenus);
+    }
+
     public function test_database_seeder_creates_super_admin_and_clinic_demo_data(): void
     {
         config(['hairvision.super_admin.phone' => '09129999999']);
@@ -173,9 +189,24 @@ class AdminDashboardTest extends TestCase
             'status' => 'active',
         ]);
 
-        $this->assertSame(5, $tenant->leads()->count());
+        $this->assertSame(count(__('leads.crm_stages')), $tenant->leads()->count());
         $this->assertSame(1, $tenant->leads()->where('crm_stage', 'converted')->count());
-        $this->assertSame(1, $tenant->leads()->where('status', 'archived')->count());
+        $this->assertSame(2, $tenant->leads()->where('status', 'archived')->count());
+        $expectedCrmStages = collect(array_keys(__('leads.crm_stages')))->sort()->values()->all();
+        $seededCrmStages = $tenant->leads()->pluck('crm_stage')->sort()->values()->all();
+
+        $this->assertSame($expectedCrmStages, $seededCrmStages);
+
+        $leadStatusCatalog = SystemSetting::query()
+            ->where('key', 'catalog.states.leads.statuses')
+            ->firstOrFail()
+            ->value_json['value'];
+
+        $expectedLeadStatusCatalog = __('leads.statuses');
+        ksort($expectedLeadStatusCatalog);
+        ksort($leadStatusCatalog);
+
+        $this->assertSame($expectedLeadStatusCatalog, $leadStatusCatalog);
 
         $activeSubscription = Subscription::query()
             ->with(['plan', 'serviceEntitlements'])

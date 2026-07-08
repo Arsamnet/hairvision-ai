@@ -54,7 +54,6 @@ class EnsureActivePlanAccess
             'admin.dashboard',
             'admin.plans.*',
             'admin.billing.*',
-            'admin.settings',
             'admin.tenant.switch',
             'admin.filter-presets.store',
             'admin.logout',

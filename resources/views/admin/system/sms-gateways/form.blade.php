@@ -1,6 +1,7 @@
 @php
     $formKey = $formKey ?? ($gateway ? 'edit_system_sms_gateway' : 'create_system_sms_gateway');
     $providerOptions = $providerOptions ?? ['local' => __('sms.providers.local'), 'ippanel' => __('sms.providers.ippanel')];
+    $selectedOwnerScope = old('owner_scope', $gateway?->owner_scope ?? 'system');
 @endphp
 
 <input type="hidden" name="_form" value="{{ $formKey }}">
@@ -25,18 +26,18 @@
     </label>
     <label class="block">
         <span class="text-sm font-bold text-zinc-600">{{ __('system.owner') }}</span>
-        <select name="owner_scope" class="mt-2 h-11 w-full rounded-lg border border-zinc-200 px-3 text-sm outline-none focus:border-teal-500">
-            @foreach(['system', 'user'] as $owner)
-                <option value="{{ $owner }}" @selected(old('owner_scope', $gateway?->owner_scope ?? 'system') === $owner)>{{ __('system.owners.'.$owner) }}</option>
+        <select name="owner_scope" data-sms-owner-scope class="mt-2 h-11 w-full rounded-lg border border-zinc-200 px-3 text-sm outline-none focus:border-teal-500">
+            @foreach(['system', 'tenant'] as $owner)
+                <option value="{{ $owner }}" @selected($selectedOwnerScope === $owner)>{{ __('system.owners.'.$owner) }}</option>
             @endforeach
         </select>
     </label>
-    <label class="block">
-        <span class="text-sm font-bold text-zinc-600">{{ __('sms.private_user') }}</span>
-        <select name="user_id" class="mt-2 h-11 w-full rounded-lg border border-zinc-200 px-3 text-sm outline-none focus:border-teal-500">
-            <option value="">{{ __('system.no_private_user') }}</option>
-            @foreach($users as $userOption)
-                <option value="{{ $userOption->id }}" @selected((string) old('user_id', $gateway?->user_id) === (string) $userOption->id)>{{ $userOption->name }}</option>
+    <label class="block" data-sms-tenant-field>
+        <span class="text-sm font-bold text-zinc-600">{{ __('system.clinic') }}</span>
+        <select name="tenant_id" class="mt-2 h-11 w-full rounded-lg border border-zinc-200 px-3 text-sm outline-none focus:border-teal-500">
+            <option value="">{{ __('sms.select_clinic') }}</option>
+            @foreach($tenants as $tenantOption)
+                <option value="{{ $tenantOption->id }}" @selected((string) old('tenant_id', $gateway?->tenant_id) === (string) $tenantOption->id)>{{ $tenantOption->name }}</option>
             @endforeach
         </select>
     </label>
@@ -80,3 +81,25 @@
     </x-admin.button>
     <x-admin.button :href="route('admin.system.sms-gateways.index')" variant="secondary" size="compact-md">{{ __('messages.cancel') }}</x-admin.button>
 </div>
+
+@once
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            document.querySelectorAll('[data-sms-owner-scope]').forEach((scopeSelect) => {
+                const form = scopeSelect.closest('form');
+                const tenantField = form?.querySelector('[data-sms-tenant-field]');
+
+                if (!tenantField) {
+                    return;
+                }
+
+                const sync = () => {
+                    tenantField.classList.toggle('hidden', scopeSelect.value !== 'tenant');
+                };
+
+                scopeSelect.addEventListener('change', sync);
+                sync();
+            });
+        });
+    </script>
+@endonce

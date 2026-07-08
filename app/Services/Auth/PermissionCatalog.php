@@ -75,8 +75,6 @@ class PermissionCatalog
                 ['code' => 'permissions.manage', 'name' => 'مدیریت مجوزها'],
             ],
             'settings' => [
-                ['code' => 'settings.view', 'name' => 'مشاهده تنظیمات'],
-                ['code' => 'settings.edit', 'name' => 'ویرایش تنظیمات'],
                 ['code' => 'settings.manage', 'name' => 'مدیریت تنظیمات سیستم'],
             ],
             'sms_gateways' => [
@@ -153,7 +151,8 @@ class PermissionCatalog
                     'plans.list',
                     'plans.view',
                     'reports.user.view',
-                    'settings.view',
+                    'sms_gateways.view',
+                    'sms_gateways.edit',
                 ],
             ],
             'editor' => [

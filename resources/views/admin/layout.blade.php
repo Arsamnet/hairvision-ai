@@ -39,7 +39,6 @@
                 'icon' => 'users',
                 'items' => [
                     ['label' => __('menu.items.users'), 'route' => 'admin.users.index', 'active' => ['admin.users.*'], 'icon' => 'users', 'permissions' => ['users.list'], 'planRestricted' => true],
-                    ['label' => __('menu.items.access'), 'route' => 'admin.system.access.index', 'active' => ['admin.system.access.*'], 'icon' => 'users', 'permissions' => ['users.manage']],
                     ['label' => __('menu.items.roles'), 'route' => 'admin.system.roles.index', 'active' => ['admin.system.roles.*'], 'icon' => 'shield', 'permissions' => ['roles.list']],
                     ['label' => __('menu.items.permissions'), 'route' => 'admin.system.permissions.index', 'active' => ['admin.system.permissions.*'], 'icon' => 'shield', 'permissions' => ['permissions.list']],
                 ],
@@ -51,13 +50,6 @@
                     ['label' => __('menu.items.plans'), 'route' => 'admin.plans.index', 'active' => ['admin.plans.*'], 'icon' => 'package', 'permissions' => ['plans.list']],
                     ['label' => __('menu.items.billing'), 'route' => 'admin.billing.index', 'active' => ['admin.billing.*'], 'icon' => 'invoice', 'permissions' => ['billing.list']],
                     ['label' => __('menu.items.payment_gateways'), 'route' => 'admin.system.payment-gateways.index', 'active' => ['admin.system.payment-gateways.*'], 'icon' => 'credit-card', 'permissions' => ['payment_gateways.list']],
-                ],
-            ],
-            [
-                'label' => __('menu.groups.sms'),
-                'icon' => 'message',
-                'items' => [
-                    ['label' => __('menu.items.system_sms_gateways'), 'route' => 'admin.system.sms-gateways.index', 'active' => ['admin.system.sms-gateways.*'], 'icon' => 'message', 'permissions' => ['sms_gateways.list']],
                 ],
             ],
             [
@@ -80,8 +72,7 @@
                 'label' => __('menu.groups.settings'),
                 'icon' => 'settings',
                 'items' => [
-                    ['label' => __('menu.items.settings'), 'route' => 'admin.settings', 'active' => ['admin.settings'], 'icon' => 'settings', 'permissions' => ['settings.view']],
-                    ['label' => __('menu.items.my_sms_gateways'), 'route' => 'admin.sms-gateways.index', 'active' => ['admin.sms-gateways.*'], 'icon' => 'message', 'planRestricted' => true, 'clinicOnly' => true],
+                    ['label' => __('menu.items.system_sms_gateways'), 'route' => 'admin.system.sms-gateways.index', 'active' => ['admin.system.sms-gateways.*'], 'icon' => 'message', 'permissions' => ['sms_gateways.list']],
                     ['label' => __('menu.items.system_settings'), 'route' => 'admin.system.settings.edit', 'active' => ['admin.system.settings.*'], 'icon' => 'settings', 'permissions' => ['settings.manage']],
                 ],
             ],

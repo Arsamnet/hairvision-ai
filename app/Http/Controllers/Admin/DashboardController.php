@@ -16,7 +16,7 @@ use Illuminate\View\View;
 /**
  * Renders admin dashboard pages.
  *
- * @since 1.1.0
+ * @since 1.0.0
  */
 class DashboardController extends Controller
 {
@@ -173,32 +173,6 @@ class DashboardController extends Controller
             'availableTenants' => $availableTenants,
             'stageCounts' => $stageCounts,
             'tenantCounts' => $tenantCounts,
-        ]);
-    }
-
-    /**
-     * Show dashboard settings.
-     */
-    public function settings(Request $request): View
-    {
-        $scope = 'admin.dashboard.settings';
-
-        $tenant = $request->attributes->get('adminTenant');
-        $availableTenants = $request->attributes->get('adminTenants');
-
-        DebugStepLogger::step($request, $scope, 'Request received', [
-            'user_id' => $request->user()?->id,
-            'tenant_id' => $this->tenantId($tenant),
-            'available_tenants_count' => $this->countValue($availableTenants),
-        ]);
-
-        DebugStepLogger::step($request, $scope, 'Settings view rendered', [
-            'view' => 'admin.settings',
-        ]);
-
-        return view('admin.settings', [
-            'tenant' => $tenant,
-            'availableTenants' => $availableTenants,
         ]);
     }
 

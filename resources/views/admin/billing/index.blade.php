@@ -90,6 +90,7 @@
                                         role="button"
                                         tabindex="0"
                                         data-table-action-item
+                                        data-table-row-view-action
                                         data-admin-modal-trigger="{{ $modalId }}"
                                     >
                                         <x-admin.icon name="eye" class="h-4 w-4" />
@@ -147,6 +148,7 @@
                                 role="button"
                                 tabindex="0"
                                 data-table-action-item
+                                data-table-row-view-action
                                 data-admin-modal-trigger="{{ $modalId }}"
                             >
                                 <x-admin.icon name="eye" class="h-4 w-4" />

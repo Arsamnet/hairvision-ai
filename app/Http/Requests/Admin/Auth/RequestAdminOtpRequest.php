@@ -9,7 +9,7 @@ use Illuminate\Foundation\Http\FormRequest;
 /**
  * Validates dashboard mobile OTP request input.
  *
- * @since 1.1.0
+ * @since 1.0.0
  */
 class RequestAdminOtpRequest extends FormRequest
 {

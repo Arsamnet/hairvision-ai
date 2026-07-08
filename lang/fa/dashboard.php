@@ -1,8 +1,8 @@
 <?php
 
 return [
-    'admin_title' => 'پنل مدیریت HairVision AI',
-    'product_name' => 'HairVision AI',
+    'admin_title' => 'پنل مدیریت HairVision',
+    'product_name' => 'HairVision',
     'clinic_panel' => 'پنل کلینیک',
     'management_panel' => 'پنل مدیریت',
     'dashboard' => 'پیشخوان',

@@ -9,7 +9,7 @@ use Illuminate\Validation\Rule;
 /**
  * Validates dashboard lead updates while LeadPolicy gates the target record.
  *
- * @since 1.1.0
+ * @since 1.0.0
  */
 class UpdateLeadRequest extends FormRequest
 {

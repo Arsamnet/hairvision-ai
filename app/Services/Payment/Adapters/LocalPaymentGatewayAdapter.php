@@ -7,7 +7,7 @@ use App\Models\PaymentGateway;
 use App\Services\Payment\Contracts\PaymentGatewayAdapter;
 
 /**
- * Local deterministic payment adapter for tests and non-external MVP flows.
+ * Local deterministic payment adapter for tests and non-external flows.
  *
  * @since 1.0.0
  */

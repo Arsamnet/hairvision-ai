@@ -26,8 +26,15 @@ class UpdateSmsGatewayRequest extends FormRequest
         return [
             'name' => ['required', 'string', 'max:120'],
             'provider_code' => ['required', 'alpha_dash', 'max:80', Rule::in($this->providerCodes())],
-            'owner_scope' => ['required', Rule::in(['system', 'user'])],
-            'user_id' => ['nullable', 'required_if:owner_scope,user', Rule::exists('users', 'id')],
+            'owner_scope' => ['required', Rule::in(['system', 'tenant'])],
+            'tenant_id' => [
+                'nullable',
+                'required_if:owner_scope,tenant',
+                Rule::exists('tenants', 'id'),
+                Rule::unique('sms_gateways', 'tenant_id')
+                    ->where(fn ($query) => $query->where('owner_scope', 'tenant'))
+                    ->ignore($this->route('smsGateway')?->id),
+            ],
             'status' => ['required', Rule::in(['enabled', 'disabled'])],
             'is_default' => ['nullable', 'boolean'],
             'api_key' => ['nullable', 'string', 'max:500'],

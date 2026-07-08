@@ -3,7 +3,6 @@
 namespace App\Services\Sms;
 
 use App\Models\SmsGateway;
-use App\Models\User;
 use App\Services\Sms\Adapters\IppanelSmsGatewayAdapter;
 use App\Services\Sms\Adapters\LocalSmsGatewayAdapter;
 use App\Services\Sms\Contracts\SmsGatewayAdapter;
@@ -11,7 +10,7 @@ use App\Support\DebugStepLogger;
 use Illuminate\Validation\ValidationException;
 
 /**
- * Resolves system and user-private SMS gateways and dispatches messages.
+ * Resolves system SMS gateways and dispatches messages.
  *
  * @since 1.0.0
  */
@@ -195,53 +194,6 @@ class SmsGatewayService
     }
 
     /**
-     * Return the user's private default gateway for their own customer messages.
-     */
-    public function userDefault(User $user): ?SmsGateway
-    {
-        $scope = 'sms.gateway.user_default';
-
-        $this->debugStep($scope, 'User default SMS gateway resolution started.', [
-            'user_id' => $user->id,
-        ]);
-
-        $gateway = SmsGateway::query()
-            ->where('owner_scope', 'user')
-            ->where('user_id', $user->id)
-            ->enabled()
-            ->where('is_default', true)
-            ->first();
-
-        if ($gateway instanceof SmsGateway) {
-            $this->debugStep($scope, 'Default user SMS gateway found.', [
-                'user_id' => $user->id,
-                'gateway' => $this->gatewayContext($gateway),
-            ]);
-
-            return $gateway;
-        }
-
-        $this->debugStep($scope, 'Default user SMS gateway was not found; checking first enabled user gateway.', [
-            'user_id' => $user->id,
-        ]);
-
-        $gateway = SmsGateway::query()
-            ->where('owner_scope', 'user')
-            ->where('user_id', $user->id)
-            ->enabled()
-            ->orderBy('id')
-            ->first();
-
-        $this->debugStep($scope, 'User SMS gateway resolution completed.', [
-            'user_id' => $user->id,
-            'resolved' => $gateway instanceof SmsGateway,
-            'gateway' => $gateway instanceof SmsGateway ? $this->gatewayContext($gateway) : null,
-        ]);
-
-        return $gateway;
-    }
-
-    /**
      * Send a platform/system message through the system default gateway.
      *
      * @throws ValidationException
@@ -340,62 +292,6 @@ class SmsGatewayService
             'gateway' => $this->gatewayContext($gateway),
             'phone_hash' => $this->phoneHash($phoneNormalized),
             'code_length' => mb_strlen($code),
-        ]);
-
-        return $gateway;
-    }
-
-    /**
-     * Send a user's customer message through their private gateway when active,
-     * otherwise fall back to the system gateway.
-     *
-     * @throws ValidationException
-     */
-    public function sendUserCustomerMessage(User $user, string $phoneNormalized, string $message): SmsGateway
-    {
-        $this->resetDebugSteps();
-        $this->debugSms = null;
-
-        $scope = 'sms.user_customer_message';
-
-        $this->debugStep($scope, 'User customer SMS message send workflow started.', [
-            'user_id' => $user->id,
-            'phone_hash' => $this->phoneHash($phoneNormalized),
-            'message_length' => mb_strlen($message),
-        ]);
-
-        $userGateway = $this->userDefault($user);
-        $gateway = $userGateway ?? $this->systemDefault();
-
-        if (! $gateway) {
-            $this->debugStep($scope, 'User customer SMS message send failed because no gateway is available.', [
-                'user_id' => $user->id,
-                'phone_hash' => $this->phoneHash($phoneNormalized),
-                'message_length' => mb_strlen($message),
-                'user_gateway_resolved' => $userGateway instanceof SmsGateway,
-            ]);
-
-            throw ValidationException::withMessages([
-                'sms_gateway' => __('sms.no_available_gateway'),
-            ]);
-        }
-
-        $this->debugStep($scope, 'SMS gateway resolved for user customer message.', [
-            'user_id' => $user->id,
-            'source' => $userGateway instanceof SmsGateway ? 'user' : 'system',
-            'gateway' => $this->gatewayContext($gateway),
-            'phone_hash' => $this->phoneHash($phoneNormalized),
-            'message_length' => mb_strlen($message),
-        ]);
-
-        $this->adapterFor($gateway)->send($gateway, $phoneNormalized, $message);
-
-        $this->debugStep($scope, 'User customer SMS message sent successfully.', [
-            'user_id' => $user->id,
-            'source' => $userGateway instanceof SmsGateway ? 'user' : 'system',
-            'gateway' => $this->gatewayContext($gateway),
-            'phone_hash' => $this->phoneHash($phoneNormalized),
-            'message_length' => mb_strlen($message),
         ]);
 
         return $gateway;

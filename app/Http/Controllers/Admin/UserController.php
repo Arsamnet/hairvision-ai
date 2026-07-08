@@ -33,7 +33,7 @@ class UserController extends Controller
         if ($request->expectsJson()) {
             $pagination = PaginationParameters::fromRequest(
                 $request,
-                ['created_at', 'name', 'email', 'phone_normalized', 'role', 'status'],
+                ['created_at', 'name', 'email', 'phone_normalized', 'access_scope', 'role', 'status'],
                 'created_at'
             );
             if ($pagination->search && ! $request->user()->hasPermission('users.search', $clinicFilter?->id)) {
@@ -131,6 +131,12 @@ class UserController extends Controller
             'roles' => Role::query()
                 ->where('status', 'active')
                 ->when(! $actor->isSuperAdmin(), fn ($query) => $query->whereIn('code', ['clinic_admin', 'editor', 'viewer']))
+                ->orderBy('name')
+                ->get(),
+            'systemRoles' => Role::query()
+                ->where('status', 'active')
+                ->platform()
+                ->when(! $actor->isSuperAdmin(), fn ($query) => $query->whereRaw('1 = 0'))
                 ->orderBy('name')
                 ->get(),
             'clinicRoles' => Role::query()

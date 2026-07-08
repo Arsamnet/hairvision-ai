@@ -16,7 +16,7 @@ use Illuminate\Http\Request;
 /**
  * Builds tenant-scoped lead queries and dashboard mutations.
  *
- * @since 1.1.0
+ * @since 1.0.0
  */
 class LeadDashboardService
 {

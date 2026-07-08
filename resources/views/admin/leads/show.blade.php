@@ -133,7 +133,7 @@
                             <label class="text-xs font-bold text-zinc-500">{{ __('crm.next_follow_up_at') }}</label>
                             <div class="relative mt-1">
                                 <x-admin.icon name="calendar" class="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
-                                <input name="next_follow_up_at" type="text" value="{{ old('next_follow_up_at') }}" placeholder="{{ __('dates.placeholders.datetime') }}" inputmode="numeric" dir="ltr" data-jalali-datetime class="h-11 w-full rounded-lg border border-zinc-200 py-0 pr-10 pl-3 text-sm outline-none transition focus:border-teal-500">
+                                <input name="next_follow_up_at" type="text" value="{{ old('next_follow_up_at') }}" placeholder="{{ __('dates.placeholders.datetime') }}" inputmode="numeric" dir="ltr" autocomplete="off" data-jalali-datetime class="h-11 w-full rounded-lg border border-zinc-200 py-0 pr-10 pl-3 text-sm outline-none transition focus:border-teal-500">
                             </div>
                         </div>
                         <div>

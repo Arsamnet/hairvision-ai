@@ -25,18 +25,21 @@ class StoreUserRequest extends FormRequest
     public function rules(): array
     {
         $roles = $this->allowedRoleCodes();
-        $clinicRoles = $this->clinicRoleCodes();
 
         return [
             'name' => ['required', 'string', 'max:120'],
+            'first_name' => ['nullable', 'string', 'max:60'],
+            'last_name' => ['nullable', 'string', 'max:60'],
             'email' => ['required', 'email', 'max:190', Rule::unique('users', 'email')],
             'phone_normalized' => ['nullable', 'digits:11', Rule::unique('users', 'phone_normalized')],
+            'access_scope' => ['required', Rule::in($this->allowedScopes())],
             'role' => ['required', Rule::in($roles)],
-            'status' => ['required', Rule::in(['active', 'inactive', 'blocked', 'suspended', 'disabled'])],
+            'status' => ['required', Rule::in(['active', 'inactive'])],
+            'tenant_id' => ['nullable', 'required_if:access_scope,clinic', 'integer', Rule::exists('tenants', 'id')],
             'tenant_ids' => ['array'],
             'tenant_ids.*' => ['integer', Rule::exists('tenants', 'id')],
             'tenant_roles' => ['array'],
-            'tenant_roles.*' => [Rule::in($clinicRoles)],
+            'tenant_roles.*' => [Rule::in($this->clinicRoleCodes())],
             'tenant_statuses' => ['array'],
             'tenant_statuses.*' => [Rule::in(['active', 'inactive'])],
         ];
@@ -49,6 +52,27 @@ class StoreUserRequest extends FormRequest
                 'phone_normalized' => NumberNormalizer::digitsOnly((string) $this->input('phone_normalized')),
             ]);
         }
+
+        $role = (string) $this->input('role', 'viewer');
+        $scope = $this->input('access_scope') ?: ($role === 'super_admin' ? 'system' : 'clinic');
+        $tenantId = $this->input('tenant_id') ?: collect($this->input('tenant_ids', []))->first();
+        $firstName = trim((string) $this->input('first_name', ''));
+        $lastName = trim((string) $this->input('last_name', ''));
+        $name = trim((string) $this->input('name', ''));
+
+        $this->merge([
+            'name' => $name !== '' ? $name : trim($firstName.' '.$lastName),
+            'access_scope' => $scope,
+            'tenant_id' => $tenantId,
+        ]);
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private function allowedScopes(): array
+    {
+        return $this->user()?->isSuperAdmin() ? ['system', 'clinic'] : ['clinic'];
     }
 
     /**
@@ -56,7 +80,8 @@ class StoreUserRequest extends FormRequest
      */
     private function allowedRoleCodes(): array
     {
-        $query = Role::query()->where('status', 'active');
+        $scope = $this->input('access_scope') === 'system' ? 'platform' : 'clinic';
+        $query = Role::query()->where('status', 'active')->where('scope', $scope);
 
         if (! $this->user()?->isSuperAdmin()) {
             $query->whereIn('code', ['clinic_admin', 'editor', 'viewer']);

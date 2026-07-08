@@ -31,8 +31,8 @@ class RoleController extends Controller
             'asc'
         );
         $query = Role::query()
+            ->platform()
             ->withCount('permissions')
-            ->when($request->filled('scope'), fn ($query) => $query->where('scope', $request->string('scope')->toString()))
             ->when($request->filled('status'), fn ($query) => $query->where('status', $request->string('status')->toString()));
         SearchFilter::apply($query, $pagination->search, ['name', 'code']);
         DateRangeFilter::apply($query, $request);
@@ -69,6 +69,8 @@ class RoleController extends Controller
 
     public function edit(Request $request, Role $role): View
     {
+        abort_if($role->isClinicRole(), 404);
+
         return view('admin.system.roles.edit', [
             'tenant' => $request->attributes->get('adminTenant'),
             'availableTenants' => $request->attributes->get('adminTenants'),
@@ -102,5 +104,20 @@ class RoleController extends Controller
         $permissions->forgetRole($role->code);
 
         return redirect()->route('admin.system.roles.edit', $role)->with('status', __('permissions.role_updated'));
+    }
+
+    public function destroy(Role $role, PermissionService $permissions): RedirectResponse
+    {
+        if ($role->isClinicRole() || $role->is_system) {
+            return back()->withErrors([
+                'role' => __('permissions.protected_role_delete_denied'),
+            ]);
+        }
+
+        $roleCode = $role->code;
+        $role->delete();
+        $permissions->forgetRole($roleCode);
+
+        return redirect()->route('admin.system.roles.index')->with('status', __('permissions.role_deleted'));
     }
 }

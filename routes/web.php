@@ -1,6 +1,5 @@
 <?php
 
-use App\Http\Controllers\Admin\AccessAssignmentController;
 use App\Http\Controllers\Admin\AiModelAccessController;
 use App\Http\Controllers\Admin\AuthController;
 use App\Http\Controllers\Admin\BillingController;
@@ -12,7 +11,6 @@ use App\Http\Controllers\Admin\LeadController;
 use App\Http\Controllers\Admin\LeadFollowUpController;
 use App\Http\Controllers\Admin\LeadUploadController;
 use App\Http\Controllers\Admin\ManagementReportController;
-use App\Http\Controllers\Admin\MySmsGatewayController;
 use App\Http\Controllers\Admin\PaymentGatewayController;
 use App\Http\Controllers\Admin\PermissionController;
 use App\Http\Controllers\Admin\PlanController;
@@ -106,29 +104,19 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
         Route::put('/clinics/{clinic}', [ClinicController::class, 'update'])->middleware('permission:tenants.edit')->name('clinics.update');
         Route::delete('/clinics/{clinic}', [ClinicController::class, 'destroy'])->middleware('permission:tenants.delete')->name('clinics.destroy');
         Route::get('/reports', [DashboardController::class, 'reports'])->middleware('permission:reports.user.view')->name('reports');
-        Route::get('/settings', [DashboardController::class, 'settings'])->middleware('permission:settings.view')->name('settings');
         Route::get('/plans', [PlanController::class, 'index'])->middleware('permission:plans.list')->name('plans.index');
         Route::post('/plans/{plan}/purchase', [PlanController::class, 'purchase'])->middleware('permission:billing.pay')->name('plans.purchase');
         Route::get('/billing', [BillingController::class, 'index'])->middleware('permission:billing.list')->name('billing.index');
         Route::match(['get', 'post'], '/billing/invoices/{invoice}/pay', [BillingController::class, 'pay'])->middleware('permission:billing.pay')->name('billing.pay');
         Route::match(['get', 'post'], '/billing/payments/{payment}/verify', [BillingController::class, 'verify'])->middleware('permission:billing.pay')->name('billing.verify');
-        Route::get('/my-sms-gateways', [MySmsGatewayController::class, 'index'])->name('sms-gateways.index');
-        Route::get('/my-sms-gateways/create', [MySmsGatewayController::class, 'create'])->name('sms-gateways.create');
-        Route::post('/my-sms-gateways', [MySmsGatewayController::class, 'store'])->name('sms-gateways.store');
-        Route::get('/my-sms-gateways/{smsGateway}', [MySmsGatewayController::class, 'show'])->name('sms-gateways.show');
-        Route::get('/my-sms-gateways/{smsGateway}/edit', [MySmsGatewayController::class, 'edit'])->name('sms-gateways.edit');
-        Route::put('/my-sms-gateways/{smsGateway}', [MySmsGatewayController::class, 'update'])->name('sms-gateways.update');
-        Route::delete('/my-sms-gateways/{smsGateway}', [MySmsGatewayController::class, 'destroy'])->name('sms-gateways.destroy');
-
         Route::prefix('system')->name('system.')->group(function (): void {
             Route::get('/', SystemDashboardController::class)->middleware('permission:system.dashboard')->name('dashboard');
             Route::get('/roles', [RoleController::class, 'index'])->middleware('permission:roles.list')->name('roles.index');
             Route::post('/roles', [RoleController::class, 'store'])->middleware('permission:roles.create')->name('roles.store');
             Route::get('/roles/{role}/edit', [RoleController::class, 'edit'])->middleware('permission:roles.view')->name('roles.edit');
             Route::put('/roles/{role}', [RoleController::class, 'update'])->middleware('permission:roles.edit')->name('roles.update');
+            Route::delete('/roles/{role}', [RoleController::class, 'destroy'])->middleware('permission:roles.delete')->name('roles.destroy');
             Route::get('/permissions', PermissionController::class)->middleware('permission:permissions.list')->name('permissions.index');
-            Route::get('/access', [AccessAssignmentController::class, 'index'])->middleware('permission:users.manage')->name('access.index');
-            Route::put('/access/{user}', [AccessAssignmentController::class, 'update'])->middleware('permission:users.manage')->name('access.update');
             Route::get('/settings', [SystemSettingController::class, 'edit'])->middleware('permission:settings.manage')->name('settings.edit');
             Route::put('/settings', [SystemSettingController::class, 'update'])->middleware('permission:settings.manage')->name('settings.update');
             Route::get('/sms-gateways', [SmsGatewayController::class, 'index'])->middleware('permission:sms_gateways.list')->name('sms-gateways.index');

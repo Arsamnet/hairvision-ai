@@ -26,6 +26,7 @@ return new class extends Migration
             $table->foreignId('lead_id')->constrained('leads')->cascadeOnDelete();
             $table->foreignId('upload_id')->constrained('uploads')->cascadeOnDelete();
             $table->foreignId('provider_id')->constrained('ai_providers')->cascadeOnDelete();
+            $table->foreignId('ai_model_access_id')->nullable()->constrained('ai_model_accesses')->nullOnDelete();
             $table->string('period');
             $table->string('model_name')->nullable();
             $table->text('prompt')->nullable();

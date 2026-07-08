@@ -1,0 +1,77 @@
+<?php
+
+namespace Database\Seeders;
+
+use App\Models\User;
+use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Str;
+
+class UserSeeder extends Seeder
+{
+    public function run(): void
+    {
+        foreach ($this->users() as $user) {
+            $this->upsertUser($user['name'], $user['email'], $user['phone'], $user['role']);
+        }
+    }
+
+    /**
+     * @return array<int, array{name: string, email: string, phone: string, role: string}>
+     */
+    private function users(): array
+    {
+        return [
+            [
+                'name' => config('hairvision.super_admin.name'),
+                'email' => config('hairvision.super_admin.email'),
+                'phone' => config('hairvision.super_admin.phone'),
+                'role' => 'super_admin',
+            ],
+            [
+                'name' => 'مدیر کلینیک آریا',
+                'email' => 'test@example.com',
+                'phone' => '09217359491',
+                'role' => 'clinic_admin',
+            ],
+            [
+                'name' => 'کارشناس پذیرش آریا',
+                'email' => 'editor@example.com',
+                'phone' => '09120000001',
+                'role' => 'editor',
+            ],
+            [
+                'name' => 'گزارش‌گیر آریا',
+                'email' => 'viewer@example.com',
+                'phone' => '09120000002',
+                'role' => 'viewer',
+            ],
+        ];
+    }
+
+    private function upsertUser(string $name, string $email, string $phone, string $role): User
+    {
+        $user = User::query()
+            ->where('phone_normalized', $phone)
+            ->orWhere('email', $email)
+            ->when($role === 'super_admin', fn ($query) => $query->orWhere('role', 'super_admin'))
+            ->first();
+
+        if (! $user) {
+            $user = new User([
+                'password' => Hash::make(Str::random(40)),
+            ]);
+        }
+
+        $user->forceFill([
+            'name' => $name,
+            'email' => $email,
+            'phone_normalized' => $phone,
+            'access_scope' => $role === 'super_admin' ? 'system' : 'clinic',
+            'role' => $role,
+            'status' => 'active',
+        ])->save();
+
+        return $user;
+    }
+}

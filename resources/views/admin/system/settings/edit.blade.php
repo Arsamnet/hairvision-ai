@@ -13,9 +13,19 @@
                     <h2 class="font-bold">{{ $group }}</h2>
                     <div class="mt-4 space-y-4">
                         @foreach($groupSettings as $setting)
+                            @php
+                                $value = old('settings.'.$setting->key, $setting->value_json['value'] ?? '');
+                                $displayValue = is_array($value)
+                                    ? json_encode($value, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT)
+                                    : (string) $value;
+                            @endphp
                             <label class="block">
                                 <span class="text-sm font-bold text-zinc-600">{{ $setting->label }}</span>
-                                <input name="settings[{{ $setting->key }}]" value="{{ old('settings.'.$setting->key, $setting->value_json['value'] ?? '') }}" class="mt-2 w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm" dir="ltr">
+                                @if($setting->type === 'json')
+                                    <textarea name="settings[{{ $setting->key }}]" rows="6" class="mt-2 w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm" dir="ltr">{{ $displayValue }}</textarea>
+                                @else
+                                    <input name="settings[{{ $setting->key }}]" value="{{ $displayValue }}" class="mt-2 w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm" dir="ltr">
+                                @endif
                                 <span class="mt-1 block text-xs text-zinc-500">{{ $setting->description }}</span>
                             </label>
                         @endforeach

@@ -867,3 +867,7 @@ html[data-admin-theme='dark'] .theme-icon-sun {
 :where(.admin-shell, .admin-auth-shell) [data-admin-table-container] tbody tr:hover {
     background-color: var(--admin-surface-hover) !important;
 }
+
+:where(.admin-shell, .admin-auth-shell) [data-admin-table-container] tbody tr[data-clickable-table-row="true"] {
+    cursor: pointer;
+}

@@ -48,7 +48,7 @@
             ]"
         />
 
-        <div data-admin-table-container class="mt-5 hidden overflow-visible rounded-lg border border-zinc-100 lg:block">
+        <div data-admin-table-container class="mt-5 hidden overflow-x-auto overflow-y-hidden rounded-lg border border-zinc-100 lg:block">
             <table class="w-full min-w-216 text-right text-sm">
                 <thead class="bg-zinc-50 text-xs text-zinc-500">
                     <tr>
@@ -66,7 +66,7 @@
                             <td class="px-4 py-3 align-top">
                                 <x-admin.table.action-menu>
                                     @can('view', $access)
-                                        <x-admin.table.action-item :href="route('admin.ai-models.show', $access)" icon="edit">{{ __('ai_models.edit') }}</x-admin.table.action-item>
+                                        <x-admin.table.action-item :href="route('admin.ai-models.show', $access)" icon="eye">{{ __('ai_models.details') }}</x-admin.table.action-item>
                                     @endcan
                                     @can('toggle', $access)
                                         <x-admin.table.action-item :action="route('admin.ai-models.toggle', $access)" method="PATCH" icon="check">{{ __('ai_models.toggle') }}</x-admin.table.action-item>
@@ -119,7 +119,7 @@
                         </div>
                         <x-admin.table.action-menu>
                             @can('view', $access)
-                                <x-admin.table.action-item :href="route('admin.ai-models.show', $access)" icon="edit">{{ __('ai_models.edit') }}</x-admin.table.action-item>
+                                <x-admin.table.action-item :href="route('admin.ai-models.show', $access)" icon="eye">{{ __('ai_models.details') }}</x-admin.table.action-item>
                             @endcan
                             @can('toggle', $access)
                                 <x-admin.table.action-item :action="route('admin.ai-models.toggle', $access)" method="PATCH" icon="check">{{ __('ai_models.toggle') }}</x-admin.table.action-item>

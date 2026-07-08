@@ -8,7 +8,7 @@ use App\Models\User;
 /**
  * Authorizes dashboard access to tenant-owned leads.
  *
- * @since 1.1.0
+ * @since 1.0.0
  */
 class LeadPolicy
 {
@@ -84,7 +84,7 @@ class LeadPolicy
     }
 
     /**
-     * Lead deletion is intentionally disabled in the MVP dashboard.
+     * Lead deletion requires explicit permission and tenant access.
      */
     public function delete(User $user, Lead $lead): bool
     {

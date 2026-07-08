@@ -18,8 +18,12 @@ class UserPolicy
 
     public function viewAny(User $user): bool
     {
-        return $user->hasPermission('users.list')
-            && $user->tenants()->wherePivot('status', 'active')->exists();
+        if (! $user->hasPermission('users.list')) {
+            return false;
+        }
+
+        return $user->isSystemScoped()
+            || $user->tenants()->wherePivot('status', 'active')->exists();
     }
 
     public function view(User $user, User $target): bool
@@ -48,6 +52,10 @@ class UserPolicy
 
     private function sharesActiveTenant(User $user, User $target): bool
     {
+        if ($user->isSystemScoped()) {
+            return true;
+        }
+
         $tenantIds = $user->tenants()
             ->wherePivot('status', 'active')
             ->pluck('tenants.id')

@@ -1,5 +1,5 @@
 @php
-    $formKey = $formKey ?? ($gateway ? 'edit_private_sms_gateway' : 'create_private_sms_gateway');
+    $formKey = $formKey ?? ($gateway ? 'edit_clinic_sms_gateway' : 'create_clinic_sms_gateway');
     $providerOptions = $providerOptions ?? ['local' => __('sms.providers.local'), 'ippanel' => __('sms.providers.ippanel')];
 @endphp
 
@@ -11,7 +11,7 @@
 <x-admin.validation-summary :for="$formKey" class="mb-4" />
 
 <div class="grid gap-4 md:grid-cols-2">
-    <input type="hidden" name="name" value="{{ old('name', $gateway?->name ?? __('sms.dedicated_panel_name')) }}">
+    <input type="hidden" name="name" value="{{ old('name', $gateway?->name ?? __('sms.clinic_gateway_name')) }}">
 
     <label class="block md:col-span-2">
         <span class="text-sm font-bold text-zinc-600">{{ __('system.provider') }}</span>
@@ -33,7 +33,7 @@
     <label class="flex min-h-11 items-center gap-2 rounded-lg bg-zinc-50 px-3 text-sm font-bold md:col-span-2">
         <input type="hidden" name="is_active" value="0">
         <input type="checkbox" name="is_active" value="1" @checked(old('is_active', ($gateway?->status ?? 'disabled') === 'enabled'))>
-        <span>{{ __('sms.activate_private_gateway') }}</span>
+        <span>{{ __('sms.activate_clinic_gateway') }}</span>
     </label>
 </div>
 

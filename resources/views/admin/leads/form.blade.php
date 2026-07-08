@@ -19,7 +19,7 @@
 </div>
 <div>
     <label class="block text-sm font-bold text-zinc-800">{{ __('leads.fields.source') }}</label>
-    <input name="source" value="{{ old('source', 'dashboard') }}" class="mt-2 h-11 w-full rounded-lg border border-zinc-200 px-3 outline-none focus:border-teal-500">
+    <input name="source" value="{{ old('source', 'داشبورد') }}" class="mt-2 h-11 w-full rounded-lg border border-zinc-200 px-3 outline-none focus:border-teal-500">
 </div>
 <div>
     <label class="block text-sm font-bold text-zinc-800">{{ __('leads.fields.owner') }}</label>

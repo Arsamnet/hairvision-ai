@@ -10,7 +10,7 @@ use Illuminate\Http\Request;
 /**
  * Handles active clinic switching for dashboard users.
  *
- * @since 1.1.0
+ * @since 1.0.0
  */
 class TenantSwitchController extends Controller
 {

@@ -1,96 +1,94 @@
-# AGENTS.md - HairVision Agent Instructions
+# AGENTS.md - HairVision Agent Guide
 
-This file is the primary operating guide for Codex, ChatGPT Agent, Copilot Agent,
-Cursor Agent, or any other AI agent working inside the HairVision repository.
+This is the first file AI agents should read in the HairVision repository.
 
-## Project Identity
+Project: `HairVision`
 
-Project name: `HairVision`
+Version: `1.0.0`
 
-Current release target: `1.0.0`
-
-HairVision is a Laravel 13 multi-tenant SaaS MVP for hair transplant clinics.
-Visitors enter through a tenant-specific subdomain or custom domain, verify their
-phone number with OTP, become a lead for that tenant, upload a face/scalp photo,
-and receive staged preview images for two weeks after transplant, intermediate
-regrowth, and the final result.
+HairVision is a complete Laravel 13 multi-tenant SaaS for hair-transplant
+clinics. Public visitors use a tenant host, verify a phone number by OTP, upload
+a private face/scalp image, and receive three staged preview results through the
+versioned API.
 
 ## Must Read First
 
 Before editing code, read these files in order:
 
-- `docs/agent-instructions.md`
-- `docs/architecture.md`
-- `docs/api.md`
-- `docs/database.md`
-- `docs/setup.md`
-- `docs/development-guide.md`
-- `docs/coding-standards.md`
-- `docs/auth-roadmap.md`
-- `docs/release-notes.md`
+1. `docs/agent-instructions.md`
+2. `docs/business-rules-fa.md`
+3. `docs/architecture.md`
+4. `docs/api.md`
+5. `docs/release-notes.md`
+
+Do not reopen deleted legacy docs or recreate them. New documentation belongs in
+one of the files above unless a separate audience or lifecycle is unavoidable.
 
 ## Non-Negotiable Rules
 
-1. Use Laravel 13 conventions.
-2. Use API-first architecture.
-3. Blade pages must call `/api/v1` endpoints instead of duplicating business logic.
-4. The public product UI is Persian, right-to-left, and uses the embedded Vazirmatn font.
-5. The visitor page has three sections: tenant header, HairVision app body, and tenant footer.
-6. Do not show testing, deployment, or setup copy in the visitor-facing template.
-7. The app must not depend on external frontend resources; only tenant logos or theme images may be loaded from the primary HairVision domain.
-8. Never put AI provider logic inside controllers.
-9. Always resolve tenant from the request host, never from user input.
-10. Every tenant-owned record must include `tenant_id`.
-11. Never store OTP codes in plain text; store only hashes.
-12. Never store uploaded user photos in the public webroot.
-13. In MVP, use `SampleImageProvider` as the default AI provider.
-14. `SampleImageProvider` must not call external AI services and must not generate images.
-15. Queue-heavy processing must use Redis Queue and Horizon outside tests.
-16. Do not introduce React, Vue, Inertia, Livewire, or Next.js into the MVP unless explicitly requested.
-17. After every behavior change, run the full test suite and add or update tests for the changed behavior.
+1. Use Laravel 13 conventions and keep controllers thin.
+2. Keep the product API-first: Blade shells call `/api/v1` for public behavior.
+3. Public UI is Persian, RTL, and uses the embedded Vazirmatn font.
+4. The visitor page contains tenant header, HairVision app body, and tenant
+   footer.
+5. No testing, setup, deployment, or debugging copy may appear in visitor-facing
+   templates.
+6. Public frontend assets must be local; tenant logos/theme images may only come
+   from the primary HairVision domain.
+7. Resolve tenant from request host only. Never trust `tenant_id`, slug, or
+   domain from visitor input.
+8. Every tenant-owned record must include `tenant_id`; visitor-owned resources
+   must also be scoped by the verified lead session.
+9. Store OTP codes only as hashes.
+10. Store uploads and generated assets privately, never in the public webroot.
+11. Never put AI provider logic in controllers.
+12. Use `SampleImageProvider` as the default provider for `1.0.0`; it must not
+    call external services, generate images, or use random external URLs.
+13. Real providers stay behind assigned AI model access records, encrypted
+    credentials, provider adapters, jobs, and service-credit checks.
+14. Queue-heavy processing uses Redis Queue and Horizon outside tests.
+15. Do not introduce React, Vue, Inertia, Livewire, Next.js, CDN CSS/JS/fonts, or
+    external dashboard icon packs unless explicitly requested.
+16. After every behavior change, add/update tests and run the full suite.
 
-## Preferred Implementation Order
+## Development Priorities
 
-1. Keep dependencies and configuration aligned with Laravel 13, Sanctum, Horizon, and Redis.
-2. Maintain migrations and models for the Phase 1 data model.
-3. Maintain host-based tenant resolution middleware.
-4. Maintain OTP APIs and lead session flow.
-5. Maintain private upload APIs.
-6. Maintain the AI provider interface and `SampleImageProvider`.
-7. Maintain generation jobs and result APIs.
-8. Maintain Persian RTL Blade screens that call the APIs.
-9. Add focused tests before or with every behavior change.
-10. Prepare changes for a clean GitHub commit.
+1. Preserve host-based tenant resolution and tenant isolation.
+2. Preserve OTP, verified-lead session, private upload, generation, result, and
+   asset APIs.
+3. Preserve admin dashboard authentication, roles, permissions, tenant context,
+   active-plan gating, and policy-backed authorization.
+4. Preserve AI model access, provider adapter, service entitlement, and credit
+   ledger boundaries.
+5. Preserve Persian localization, Jalali business dates, reusable dashboard
+   components, and local frontend assets.
 
 ## Coding Style
 
-- Prefer service classes over fat controllers.
-- Controllers should validate request data, call a service/action, and return JSON or a view shell.
-- Use FormRequest and API Resources when the endpoint grows beyond simple MVP validation/serialization.
-- Use enums for statuses when practical.
-- Use policies or scoped queries for tenant admin access.
-- Add tests for every public API endpoint and every tenant-isolation rule.
+- Prefer services, actions, jobs, policies, Form Requests, API Resources, and
+  scoped queries over fat controllers.
+- Reuse shared utilities for digit normalization, Jalali dates, pagination,
+  search/filtering, tenant filters, billing, credits, and provider execution.
+- Add useful PHPDoc to public classes/methods and complex protected/private
+  methods. Use native types where safe and `@since 1.0.0` for version history.
+- Keep comments concise and explain non-obvious intent, side effects, security
+  decisions, or integration constraints.
+- Never expose private storage paths, OTP codes, credentials, bearer tokens,
+  raw provider/gateway payloads, stack traces, or sensitive user data in logs,
+  JSON, or Blade.
 
-## Do Not Do
+## Quality Gate
 
-- Do not create a separate frontend app yet.
-- Do not hard-code provider behavior in controllers.
-- Do not build provider-specific database columns.
-- Do not expose storage paths directly.
-- Do not trust `tenant_id` from request bodies.
-- Do not make synchronous real AI calls from the HTTP lifecycle.
-- Do not use fake generated images from random external URLs.
-- Do not add untested behavior changes.
+Run after behavior changes:
 
-## Expected Current Task Shape
+```bash
+php artisan test
+```
 
-For version `1.0.0`, keep the project focused on Phase 1:
+Also run after frontend asset changes:
 
-- One test tenant can be resolved by host.
-- OTP request/verify creates a verified lead.
-- Upload requires a verified lead session and stores files privately.
-- Generation creates the three staged jobs and uses `SampleImageProvider` by
-  default.
-- Generated assets are tenant- and lead-scoped.
-- The Persian RTL Blade page drives the flow through `/api/v1`.
-- Tests pass before the work is considered complete.
+```bash
+npm run build
+```
+
+Report changed files, commands run, and test results at the end of the task.

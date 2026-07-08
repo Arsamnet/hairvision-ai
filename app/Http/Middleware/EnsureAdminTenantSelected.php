@@ -9,7 +9,7 @@ use Illuminate\Http\Request;
 /**
  * Resolves the active admin tenant for authenticated dashboard routes.
  *
- * @since 1.1.0
+ * @since 1.0.0
  */
 class EnsureAdminTenantSelected
 {

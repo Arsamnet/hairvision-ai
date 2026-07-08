@@ -4,6 +4,10 @@
 @section('page_title', __('system.users.details'))
 
 @section('content')
+    @php
+        $isSystemPanel = auth()->user()?->isSuperAdmin() && blank($tenant ?? null);
+    @endphp
+
     <section class="rounded-lg bg-white p-5 shadow-sm ring-1 ring-zinc-200">
         <div class="flex flex-wrap items-start justify-between gap-3">
             <div>
@@ -26,6 +30,9 @@
 
         <dl class="mt-5 grid gap-3 md:grid-cols-4">
             <div class="rounded-lg bg-zinc-50 p-3"><dt class="text-sm text-zinc-500">{{ __('system.mobile') }}</dt><dd class="mt-1 font-bold" dir="ltr">{{ $dashboardUser->phone_normalized ?? __('messages.none') }}</dd></div>
+            @if($isSystemPanel)
+                <div class="rounded-lg bg-zinc-50 p-3"><dt class="text-sm text-zinc-500">{{ __('system.access_scope') }}</dt><dd class="mt-1 font-bold">{{ __('system.user_access_scopes.'.$dashboardUser->access_scope) }}</dd></div>
+            @endif
             <div class="rounded-lg bg-zinc-50 p-3"><dt class="text-sm text-zinc-500">{{ __('system.role') }}</dt><dd class="mt-1 font-bold">{{ __('system.roles.'.$dashboardUser->role) }}</dd></div>
             <div class="rounded-lg bg-zinc-50 p-3"><dt class="text-sm text-zinc-500">{{ __('system.status') }}</dt><dd class="mt-1 font-bold">{{ __('system.statuses.'.$dashboardUser->status) }}</dd></div>
             <div class="rounded-lg bg-zinc-50 p-3"><dt class="text-sm text-zinc-500">{{ __('messages.created_at') }}</dt><dd class="mt-1 font-bold"><x-jalali-date-time :value="$dashboardUser->created_at" /></dd></div>
@@ -35,7 +42,7 @@
     <section class="mt-5 rounded-lg bg-white p-5 shadow-sm ring-1 ring-zinc-200">
         <h2 class="text-lg font-bold">{{ __('system.users.clinic_access') }}</h2>
         <div data-admin-table-container class="mt-4 hidden overflow-visible rounded-lg border border-zinc-100 lg:block">
-            <table class="w-full min-w-[36rem] text-right text-sm">
+            <table class="w-full min-w-xl text-right text-sm">
                 <thead class="bg-zinc-50 text-xs text-zinc-500">
                     <tr>
                         <th class="px-4 py-3">{{ __('system.clinic') }}</th>

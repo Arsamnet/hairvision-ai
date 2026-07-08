@@ -8,7 +8,7 @@ namespace App\Services\Otp;
  * A real SMS provider should implement OtpSenderInterface and be bound in the
  * service container without changing authentication controllers.
  *
- * @since 1.1.0
+ * @since 1.0.0
  */
 class LocalOtpSender implements OtpSenderInterface
 {

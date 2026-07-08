@@ -15,7 +15,7 @@ use Random\RandomException;
 /**
  * Creates and verifies hashed OTP codes for dashboard session login.
  *
- * @since 1.1.0
+ * @since 1.0.0
  */
 class AdminOtpService
 {

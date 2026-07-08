@@ -10,7 +10,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Str;
 
 /**
- * SMS gateway configuration for platform messages or a user's own customers.
+ * SMS gateway configuration for platform messages or a clinic.
  *
  * @since 1.0.0
  */
@@ -43,7 +43,7 @@ class SmsGateway extends Model
     ];
 
     /**
-     * User that owns a private gateway, when owner scope is `user`.
+     * Legacy user owner relation for older gateway rows.
      *
      * @return BelongsTo<User, $this>
      */
@@ -69,7 +69,7 @@ class SmsGateway extends Model
      */
     public function scopeSystem(Builder $query): Builder
     {
-        return $query->where('owner_scope', 'system')->whereNull('user_id');
+        return $query->where('owner_scope', 'system')->whereNull('user_id')->whereNull('tenant_id');
     }
 
     /**

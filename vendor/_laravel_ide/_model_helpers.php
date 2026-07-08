@@ -1770,9 +1770,33 @@ namespace App\Models {
     /**
      * App\Models\ClinicUser
      *
+     * @property \Illuminate\Support\Carbon|null $updated_at
+     * @property \Illuminate\Support\Carbon|null $created_at
+     * @property string|null $remember_token
+     * @property string $password
+     * @property string $status
+     * @property string $role
+     * @property string $phone_normalized
+     * @property string|null $email
+     * @property string $name
+     * @property int $tenant_id
+     * @property string $uuid
+     * @property int $id
      * @property-read \App\Models\Tenant $tenant
      * @property-read \Illuminate\Database\Eloquent\Collection<int, \Illuminate\Notifications\DatabaseNotification> $notifications
      * @property-read int|null $notifications_count
+     * @method static \Illuminate\Database\Eloquent\Builder<ClinicUser>|ClinicUser whereId($value)
+     * @method static \Illuminate\Database\Eloquent\Builder<ClinicUser>|ClinicUser whereUuid($value)
+     * @method static \Illuminate\Database\Eloquent\Builder<ClinicUser>|ClinicUser whereTenantId($value)
+     * @method static \Illuminate\Database\Eloquent\Builder<ClinicUser>|ClinicUser whereName($value)
+     * @method static \Illuminate\Database\Eloquent\Builder<ClinicUser>|ClinicUser whereEmail($value)
+     * @method static \Illuminate\Database\Eloquent\Builder<ClinicUser>|ClinicUser wherePhoneNormalized($value)
+     * @method static \Illuminate\Database\Eloquent\Builder<ClinicUser>|ClinicUser whereRole($value)
+     * @method static \Illuminate\Database\Eloquent\Builder<ClinicUser>|ClinicUser whereStatus($value)
+     * @method static \Illuminate\Database\Eloquent\Builder<ClinicUser>|ClinicUser wherePassword($value)
+     * @method static \Illuminate\Database\Eloquent\Builder<ClinicUser>|ClinicUser whereRememberToken($value)
+     * @method static \Illuminate\Database\Eloquent\Builder<ClinicUser>|ClinicUser whereCreatedAt($value)
+     * @method static \Illuminate\Database\Eloquent\Builder<ClinicUser>|ClinicUser whereUpdatedAt($value)
      * @method static \Illuminate\Database\Eloquent\Builder<ClinicUser>|ClinicUser newModelQuery()
      * @method static \Illuminate\Database\Eloquent\Builder<ClinicUser>|ClinicUser newQuery()
      * @method static \Illuminate\Database\Eloquent\Builder<ClinicUser>|ClinicUser query()
@@ -6676,8 +6700,30 @@ namespace App\Models {
     /**
      * App\Models\PlatformUser
      *
+     * @property \Illuminate\Support\Carbon|null $updated_at
+     * @property \Illuminate\Support\Carbon|null $created_at
+     * @property string|null $remember_token
+     * @property string $password
+     * @property string $status
+     * @property string $role
+     * @property string|null $phone_normalized
+     * @property string $email
+     * @property string $name
+     * @property string $uuid
+     * @property int $id
      * @property-read \Illuminate\Database\Eloquent\Collection<int, \Illuminate\Notifications\DatabaseNotification> $notifications
      * @property-read int|null $notifications_count
+     * @method static \Illuminate\Database\Eloquent\Builder<PlatformUser>|PlatformUser whereId($value)
+     * @method static \Illuminate\Database\Eloquent\Builder<PlatformUser>|PlatformUser whereUuid($value)
+     * @method static \Illuminate\Database\Eloquent\Builder<PlatformUser>|PlatformUser whereName($value)
+     * @method static \Illuminate\Database\Eloquent\Builder<PlatformUser>|PlatformUser whereEmail($value)
+     * @method static \Illuminate\Database\Eloquent\Builder<PlatformUser>|PlatformUser wherePhoneNormalized($value)
+     * @method static \Illuminate\Database\Eloquent\Builder<PlatformUser>|PlatformUser whereRole($value)
+     * @method static \Illuminate\Database\Eloquent\Builder<PlatformUser>|PlatformUser whereStatus($value)
+     * @method static \Illuminate\Database\Eloquent\Builder<PlatformUser>|PlatformUser wherePassword($value)
+     * @method static \Illuminate\Database\Eloquent\Builder<PlatformUser>|PlatformUser whereRememberToken($value)
+     * @method static \Illuminate\Database\Eloquent\Builder<PlatformUser>|PlatformUser whereCreatedAt($value)
+     * @method static \Illuminate\Database\Eloquent\Builder<PlatformUser>|PlatformUser whereUpdatedAt($value)
      * @method static \Illuminate\Database\Eloquent\Builder<PlatformUser>|PlatformUser newModelQuery()
      * @method static \Illuminate\Database\Eloquent\Builder<PlatformUser>|PlatformUser newQuery()
      * @method static \Illuminate\Database\Eloquent\Builder<PlatformUser>|PlatformUser query()
@@ -7006,6 +7052,7 @@ namespace App\Models {
      * @property boolean $is_system
      * @property string|null $description
      * @property string $name
+     * @property string $scope
      * @property string $code
      * @property string $uuid
      * @property int $id
@@ -7014,6 +7061,7 @@ namespace App\Models {
      * @method static \Illuminate\Database\Eloquent\Builder<Role>|Role whereId($value)
      * @method static \Illuminate\Database\Eloquent\Builder<Role>|Role whereUuid($value)
      * @method static \Illuminate\Database\Eloquent\Builder<Role>|Role whereCode($value)
+     * @method static \Illuminate\Database\Eloquent\Builder<Role>|Role whereScope($value)
      * @method static \Illuminate\Database\Eloquent\Builder<Role>|Role whereName($value)
      * @method static \Illuminate\Database\Eloquent\Builder<Role>|Role whereDescription($value)
      * @method static \Illuminate\Database\Eloquent\Builder<Role>|Role whereIsSystem($value)
@@ -11216,6 +11264,7 @@ namespace App\Models {
      * @property \Illuminate\Support\Carbon|null $email_verified_at
      * @property string $status
      * @property string $role
+     * @property string $access_scope
      * @property string|null $phone_normalized
      * @property string $email
      * @property string $name
@@ -11240,6 +11289,7 @@ namespace App\Models {
      * @method static \Illuminate\Database\Eloquent\Builder<User>|User whereName($value)
      * @method static \Illuminate\Database\Eloquent\Builder<User>|User whereEmail($value)
      * @method static \Illuminate\Database\Eloquent\Builder<User>|User wherePhoneNormalized($value)
+     * @method static \Illuminate\Database\Eloquent\Builder<User>|User whereAccessScope($value)
      * @method static \Illuminate\Database\Eloquent\Builder<User>|User whereRole($value)
      * @method static \Illuminate\Database\Eloquent\Builder<User>|User whereStatus($value)
      * @method static \Illuminate\Database\Eloquent\Builder<User>|User whereEmailVerifiedAt($value)

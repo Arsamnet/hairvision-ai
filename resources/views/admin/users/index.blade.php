@@ -21,14 +21,22 @@
         </div>
 
         @php
-            $userFilters = [
-                ['name' => 'role', 'label' => __('system.role'), 'type' => 'select', 'placeholder' => __('system.users.all_roles'), 'options' => $roles->mapWithKeys(fn ($role) => [$role->code => __('system.roles.'.$role->code)])->all()],
-                ['name' => 'status', 'label' => __('system.status'), 'type' => 'select', 'placeholder' => __('system.users.all_statuses'), 'options' => collect(['active', 'inactive', 'blocked', 'suspended', 'disabled'])->mapWithKeys(fn ($status) => [$status => __('system.statuses.'.$status)])->all()],
-            ];
+            $isSystemPanel = auth()->user()?->isSuperAdmin() && blank($tenant ?? null);
+            $statusOptions = collect(['active', 'inactive'])->mapWithKeys(fn ($status) => [$status => __('system.statuses.'.$status)])->all();
+            $userFilters = [];
 
-            if (($availableTenants?->count() ?? 0) > 1) {
+            if ($isSystemPanel && ($availableTenants?->count() ?? 0) > 1) {
                 $userFilters[] = ['name' => 'clinic_id', 'label' => __('system.clinic'), 'type' => 'select', 'placeholder' => __('dashboard.all_clinics'), 'options' => $availableTenants->pluck('name', 'id')->all()];
             }
+
+            $userFilters[] = ['name' => 'status', 'label' => __('system.status'), 'type' => 'select', 'placeholder' => __('system.users.all_statuses'), 'options' => $statusOptions];
+
+            if ($isSystemPanel) {
+                $userFilters[] = ['name' => 'access_scope', 'label' => __('system.access_scope'), 'type' => 'select', 'placeholder' => __('system.all_scopes'), 'options' => collect(['system', 'clinic'])->mapWithKeys(fn ($scope) => [$scope => __('system.user_access_scopes.'.$scope)])->all()];
+            }
+
+            $userFilters[] = ['name' => 'role', 'label' => __('system.role'), 'type' => 'select', 'placeholder' => __('system.users.all_roles'), 'options' => $roles->mapWithKeys(fn ($role) => [$role->code => __('system.roles.'.$role->code)])->all()];
+            $primaryFilterCount = $isSystemPanel && ($availableTenants?->count() ?? 0) > 1 ? 2 : 1;
         @endphp
 
         <x-admin.list-filters
@@ -36,26 +44,31 @@
             :can-search="auth()->user()?->hasPermission('users.search', $clinicFilter?->id) ?? false"
             :search-placeholder="__('system.users.search_placeholder')"
             :filters="$userFilters"
+            :primary-filter-count="$primaryFilterCount"
             :sorts="[
                 'created_at' => __('messages.created_at'),
-                'name' => __('system.name'),
+                'name' => __('system.user_name'),
                 'email' => __('system.users.email'),
                 'phone_normalized' => __('system.mobile'),
+                ...($isSystemPanel ? ['access_scope' => __('system.access_scope')] : []),
                 'role' => __('system.role'),
                 'status' => __('system.status'),
             ]"
         />
 
-        <div data-admin-table-container class="mt-5 hidden overflow-visible rounded-lg border border-zinc-100 lg:block">
-            <table class="w-full min-w-[50rem] text-right text-sm">
+        <div data-admin-table-container class="mt-5 hidden overflow-x-auto overflow-y-hidden rounded-lg border border-zinc-100 lg:block">
+            <table class="w-full min-w-200 text-right text-sm">
                 <thead class="bg-zinc-50 text-xs text-zinc-500">
                     <tr>
                         <th class="w-14 px-4 py-3 font-bold">{{ __('messages.actions') }}</th>
-                        <th class="px-4 py-3"><x-admin.table.sortable-heading sort="name" :label="__('system.name')" /></th>
+                        <th class="px-4 py-3"><x-admin.table.sortable-heading sort="name" :label="__('system.user_name')" /></th>
                         <th class="px-4 py-3"><x-admin.table.sortable-heading sort="phone_normalized" :label="__('system.mobile')" /></th>
+                        @if($isSystemPanel)
+                            <th class="px-4 py-3"><x-admin.table.sortable-heading sort="access_scope" :label="__('system.access_scope')" /></th>
+                        @endif
                         <th class="px-4 py-3"><x-admin.table.sortable-heading sort="role" :label="__('system.role')" /></th>
-                        <th class="px-4 py-3"><x-admin.table.sortable-heading sort="status" :label="__('system.status')" /></th>
                         <th class="px-4 py-3 font-bold">{{ __('system.clinic') }}</th>
+                        <th class="px-4 py-3"><x-admin.table.sortable-heading sort="status" :label="__('system.status')" /></th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-zinc-100">
@@ -79,11 +92,13 @@
                                 <p class="mt-1 text-xs text-zinc-500" dir="ltr">{{ $dashboardUser->email }}</p>
                             </td>
                             <td class="px-4 py-3 text-zinc-600" dir="ltr">{{ $dashboardUser->phone_normalized ?? __('messages.none') }}</td>
+                            @if($isSystemPanel)
+                                <td class="px-4 py-3">
+                                    <x-admin.badge :tone="$dashboardUser->access_scope === 'system' ? 'amber' : 'teal'">{{ __('system.user_access_scopes.'.$dashboardUser->access_scope) }}</x-admin.badge>
+                                </td>
+                            @endif
                             <td class="px-4 py-3">
                                 <x-admin.badge tone="teal">{{ __('system.roles.'.$dashboardUser->role) }}</x-admin.badge>
-                            </td>
-                            <td class="px-4 py-3">
-                                <x-admin.badge :tone="$dashboardUser->status === 'active' ? 'emerald' : 'zinc'">{{ __('system.statuses.'.$dashboardUser->status) }}</x-admin.badge>
                             </td>
                             <td class="px-4 py-3 text-zinc-600">
                                 @forelse($dashboardUser->tenants as $userTenant)
@@ -92,10 +107,13 @@
                                     {{ __('messages.none') }}
                                 @endforelse
                             </td>
+                            <td class="px-4 py-3">
+                                <x-admin.badge :tone="$dashboardUser->status === 'active' ? 'emerald' : 'rose'">{{ __('system.statuses.'.$dashboardUser->status) }}</x-admin.badge>
+                            </td>
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="6" class="px-4 py-12">
+                            <td colspan="{{ $isSystemPanel ? 7 : 6 }}" class="px-4 py-12">
                                 <x-admin.empty-state icon="users">{{ __('system.empty_users') }}</x-admin.empty-state>
                             </td>
                         </tr>
@@ -132,11 +150,16 @@
                         <x-admin.mobile-list.field :label="__('system.role')">
                             <x-admin.badge tone="teal">{{ __('system.roles.'.$dashboardUser->role) }}</x-admin.badge>
                         </x-admin.mobile-list.field>
-                        <x-admin.mobile-list.field :label="__('system.status')">
-                            <x-admin.badge :tone="$dashboardUser->status === 'active' ? 'emerald' : 'zinc'">{{ __('system.statuses.'.$dashboardUser->status) }}</x-admin.badge>
-                        </x-admin.mobile-list.field>
+                        @if($isSystemPanel)
+                            <x-admin.mobile-list.field :label="__('system.access_scope')">
+                                <x-admin.badge :tone="$dashboardUser->access_scope === 'system' ? 'amber' : 'teal'">{{ __('system.user_access_scopes.'.$dashboardUser->access_scope) }}</x-admin.badge>
+                            </x-admin.mobile-list.field>
+                        @endif
                         <x-admin.mobile-list.field :label="__('system.clinic')">
                             <span class="truncate">{{ $dashboardUser->tenants->pluck('name')->join('، ') ?: __('messages.none') }}</span>
+                        </x-admin.mobile-list.field>
+                        <x-admin.mobile-list.field :label="__('system.status')">
+                            <x-admin.badge :tone="$dashboardUser->status === 'active' ? 'emerald' : 'rose'">{{ __('system.statuses.'.$dashboardUser->status) }}</x-admin.badge>
                         </x-admin.mobile-list.field>
                     </dl>
                 </x-admin.mobile-list.card>

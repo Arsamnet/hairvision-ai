@@ -25,7 +25,7 @@
             :search-placeholder="__('sms.search_placeholder')"
             :filters="[
                 ['name' => 'status', 'label' => __('system.status'), 'type' => 'select', 'placeholder' => __('sms.all_statuses'), 'options' => collect(['enabled', 'disabled'])->mapWithKeys(fn ($status) => [$status => __('system.statuses.'.$status)])->all()],
-                ['name' => 'owner_scope', 'label' => __('system.owner'), 'type' => 'select', 'placeholder' => __('sms.all_owners'), 'options' => collect(['system', 'user'])->mapWithKeys(fn ($owner) => [$owner => __('system.owners.'.$owner)])->all()],
+                ['name' => 'owner_scope', 'label' => __('system.owner'), 'type' => 'select', 'placeholder' => __('sms.all_owners'), 'options' => collect(['system', 'tenant'])->mapWithKeys(fn ($owner) => [$owner => __('system.owners.'.$owner)])->all()],
                 ['name' => 'provider_code', 'label' => __('system.provider'), 'placeholder' => __('system.provider'), 'dir' => 'ltr'],
             ]"
             :sorts="[
@@ -37,8 +37,8 @@
             ]"
         />
 
-        <div data-admin-table-container class="mt-5 hidden overflow-visible rounded-lg border border-zinc-100 lg:block">
-            <table class="w-full min-w-[46rem] text-right text-sm">
+        <div data-admin-table-container class="mt-5 hidden overflow-x-auto overflow-y-hidden rounded-lg border border-zinc-100 lg:block">
+            <table class="w-full min-w-184 text-right text-sm">
                 <thead class="bg-zinc-50 text-xs text-zinc-500">
                     <tr>
                         <th class="w-14 px-4 py-3">{{ __('messages.actions') }}</th>
@@ -67,7 +67,7 @@
                             </td>
                             <td class="px-4 py-3 font-bold">{{ $gateway->name }}</td>
                             <td class="px-4 py-3" dir="ltr">{{ $gateway->provider_code }}</td>
-                            <td class="px-4 py-3">{{ $gateway->owner_scope === 'user' ? $gateway->user?->name : __('system.owners.system') }}</td>
+                            <td class="px-4 py-3">{{ $gateway->owner_scope === 'tenant' ? $gateway->tenant?->name : __('system.owners.system') }}</td>
                             <td class="px-4 py-3"><x-admin.badge :tone="$gateway->status === 'enabled' ? 'emerald' : 'zinc'">{{ __('system.statuses.'.$gateway->status) }}</x-admin.badge></td>
                             <td class="px-4 py-3">{{ $gateway->is_default ? __('messages.yes') : __('messages.no') }}</td>
                         </tr>
@@ -105,7 +105,7 @@
 
                     <dl class="admin-mobile-list-fields">
                         <x-admin.mobile-list.field :label="__('system.owner')">
-                            <span class="truncate">{{ $gateway->owner_scope === 'user' ? $gateway->user?->name : __('system.owners.system') }}</span>
+                            <span class="truncate">{{ $gateway->owner_scope === 'tenant' ? $gateway->tenant?->name : __('system.owners.system') }}</span>
                         </x-admin.mobile-list.field>
                         <x-admin.mobile-list.field :label="__('system.status')">
                             <x-admin.badge :tone="$gateway->status === 'enabled' ? 'emerald' : 'zinc'">{{ __('system.statuses.'.$gateway->status) }}</x-admin.badge>

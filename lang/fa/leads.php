@@ -2,13 +2,13 @@
 
 return [
     'title' => 'لیدها',
-    'details_title' => 'جزئیات لید',
+    'details_title' => 'مشاهده لید',
     'create_title' => 'لید جدید',
     'edit_title' => 'ویرایش لید',
     'manage' => 'مدیریت لیدها',
     'new_lead' => 'لید جدید',
     'edit' => 'ویرایش',
-    'details' => 'جزئیات',
+    'details' => 'مشاهده',
     'submit_create' => 'ثبت لید',
     'save_changes' => 'ذخیره تغییرات',
     'cancel' => 'انصراف',

@@ -30,7 +30,7 @@ return [
     ],
 
     'super_admin' => [
-        'name' => env('HAIRVISION_SUPER_ADMIN_NAME', 'مدیر سیستم HairVision'),
+        'name' => env('HAIRVISION_SUPER_ADMIN_NAME', 'مدیر کل'),
         'email' => env('HAIRVISION_SUPER_ADMIN_EMAIL', 'superadmin@example.com'),
         'phone' => env('HAIRVISION_SUPER_ADMIN_PHONE', '09129999999'),
     ],

@@ -18,7 +18,7 @@ use Illuminate\View\View;
 /**
  * Handles tenant-scoped lead management for the admin dashboard.
  *
- * @since 1.1.0
+ * @since 1.0.0
  */
 class LeadController extends Controller
 {

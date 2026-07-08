@@ -10,7 +10,7 @@ use Illuminate\Validation\Rule;
 /**
  * Validates dashboard lead creation while policies enforce tenant permissions.
  *
- * @since 1.1.0
+ * @since 1.0.0
  */
 class StoreLeadRequest extends FormRequest
 {

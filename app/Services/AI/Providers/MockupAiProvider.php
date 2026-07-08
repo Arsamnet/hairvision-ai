@@ -8,7 +8,7 @@ use App\Data\Ai\AiModelResponseData;
 use App\Support\DebugStepLogger;
 
 /**
- * Local demo provider for the protected MVP mockup model.
+ * Local demo provider for the protected mockup model.
  *
  * This provider never calls external AI services and never generates images.
  *

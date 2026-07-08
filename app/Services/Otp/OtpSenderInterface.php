@@ -5,7 +5,7 @@ namespace App\Services\Otp;
 /**
  * Sends one-time passwords without coupling controllers to an SMS provider.
  *
- * @since 1.1.0
+ * @since 1.0.0
  */
 interface OtpSenderInterface
 {

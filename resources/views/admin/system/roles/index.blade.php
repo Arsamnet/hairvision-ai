@@ -31,7 +31,6 @@
             preset-key="admin.system.roles.index"
             :search-placeholder="__('system.roles_search_placeholder')"
             :filters="[
-                ['name' => 'scope', 'label' => __('system.scope'), 'type' => 'select', 'placeholder' => __('system.all_scopes'), 'options' => collect(['platform', 'clinic'])->mapWithKeys(fn ($scope) => [$scope => __('system.role_scopes.'.$scope)])->all()],
                 ['name' => 'status', 'label' => __('system.status'), 'type' => 'select', 'placeholder' => __('system.users.all_statuses'), 'options' => collect(['active', 'inactive'])->mapWithKeys(fn ($status) => [$status => __('system.statuses.'.$status)])->all()],
             ]"
             :sorts="[
@@ -43,8 +42,8 @@
             ]"
         />
 
-        <div data-admin-table-container class="mt-5 hidden overflow-visible rounded-lg border border-zinc-100 lg:block">
-            <table class="w-full min-w-[42rem] text-right text-sm">
+        <div data-admin-table-container class="mt-5 hidden overflow-x-auto overflow-y-hidden rounded-lg border border-zinc-100 lg:block">
+            <table class="w-full min-w-2xl text-right text-sm">
                 <thead class="bg-zinc-50 text-xs text-zinc-500">
                     <tr>
                         <th class="w-14 px-4 py-3">{{ __('messages.actions') }}</th>
@@ -62,6 +61,11 @@
                                 <x-admin.table.action-menu>
                                     @can('permission', 'roles.view')
                                         <x-admin.table.action-item :href="route('admin.system.roles.edit', $role)" icon="edit">{{ __('system.edit') }}</x-admin.table.action-item>
+                                    @endcan
+                                    @can('permission', 'roles.delete')
+                                        @unless($role->is_system)
+                                            <x-admin.table.action-item :action="route('admin.system.roles.destroy', $role)" method="DELETE" icon="trash" danger :confirm="__('messages.confirm_delete')">{{ __('messages.delete') }}</x-admin.table.action-item>
+                                        @endunless
                                     @endcan
                                 </x-admin.table.action-menu>
                             </td>
@@ -95,6 +99,11 @@
                         <x-admin.table.action-menu>
                             @can('permission', 'roles.view')
                                 <x-admin.table.action-item :href="route('admin.system.roles.edit', $role)" icon="edit">{{ __('system.edit') }}</x-admin.table.action-item>
+                            @endcan
+                            @can('permission', 'roles.delete')
+                                @unless($role->is_system)
+                                    <x-admin.table.action-item :action="route('admin.system.roles.destroy', $role)" method="DELETE" icon="trash" danger :confirm="__('messages.confirm_delete')">{{ __('messages.delete') }}</x-admin.table.action-item>
+                                @endunless
                             @endcan
                         </x-admin.table.action-menu>
                     </div>

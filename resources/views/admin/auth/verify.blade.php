@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>تایید ورود HairVision AI</title>
+    <title>تایید ورود HairVision</title>
     <meta name="robots" content="noindex,nofollow">
     @include('admin.partials.theme-script')
     @vite(['resources/css/app.css', 'resources/js/app.js'])

@@ -13,7 +13,7 @@ final class ImageGenerationResponse
      * @param  string  $status  Provider status such as `completed` or `failed`.
      * @param  string|null  $providerJobId  External provider job id when async.
      * @param  string|null  $binaryContent  Optional returned binary content.
-     * @param  string|null  $localPath  Private local sample path for MVP provider.
+     * @param  string|null  $localPath  Private local sample path for the sample provider.
      * @param  array<string, mixed>  $metadata  Provider metadata safe for internal storage.
      */
     public function __construct(

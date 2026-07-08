@@ -1,167 +1,103 @@
 # AI Agent Instructions
 
-This document is for AI agents working on HairVision. The primary operating
-guide remains `AGENTS.md`; this file mirrors the project-specific context inside
-the flat `/docs` structure.
+Version: `1.0.0`
+
+This file is the compact operating prompt for AI agents. The primary guide is
+`AGENTS.md`; this file keeps the same rules inside `/docs`.
+
+## Reading Order
+
+Read before editing code:
+
+1. `AGENTS.md`
+2. `docs/business-rules-fa.md`
+3. `docs/architecture.md`
+4. `docs/api.md`
+5. `docs/release-notes.md`
+
+The documentation set is intentionally consolidated. Do not create a new docs
+file for a small topic; update one of the canonical docs instead.
 
 ## Product Summary
 
-HairVision is a Laravel 13 multi-tenant SaaS MVP for hair transplant clinics.
-Visitors arrive through a tenant-specific host, verify a phone number by OTP,
-upload a face/scalp image, and receive sample progress images for 3, 6, and 12
-months.
+HairVision is a complete Laravel 13 multi-tenant SaaS for hair-transplant
+clinics. Public visitors enter through a tenant host, verify their mobile number
+by OTP, upload a private face/scalp photo, and receive staged preview images for
+`two_weeks`, `intermediate_regrowth`, and `final_result`.
 
-## Current Release Target
+## Core Rules
 
-Version: `1.0.0`
-
-Release `1.0.0` is a Phase 1 MVP. It must prove the complete test-provider flow
-before any real AI provider is added.
-
-## Must Read First
-
-Before editing code, read:
-
-1. `AGENTS.md`
-2. `README.md`
-3. `docs/agent-instructions.md`
-4. `docs/architecture.md`
-5. `docs/api.md`
-6. `docs/database.md`
-7. `docs/setup.md`
-8. `docs/development-guide.md`
-9. `docs/coding-standards.md`
-10. `docs/auth-roadmap.md`
-11. `docs/release-notes.md`
-
-## Core Constraints
-
-- Use Laravel 13 conventions.
-- Use API-first architecture.
-- Blade pages must call `/api/v1` endpoints instead of duplicating business
-  logic.
-- Public product UI is Persian, right-to-left, and uses the embedded Vazirmatn
-  font.
-- The visitor page has three sections: tenant header, HairVision app body, and
-  tenant footer.
-- Do not show testing, deployment, or setup copy in the visitor-facing template.
-- Do not depend on external frontend resources.
-- Never put AI provider logic inside controllers.
-- Always resolve tenant from the request host, never from user input.
-- Every tenant-owned record must include `tenant_id`.
-- Never store OTP codes in plain text; store only hashes.
-- Never store uploaded user photos in the public webroot.
-- In MVP, use `SampleImageProvider` as the default AI provider. Real providers
-  such as GapGPT must stay opt-in through assigned AI model access records.
-- `SampleImageProvider` must not call external AI services and must not generate
-  images.
-- The protected `مدل نمونه HairVision` access must work without credentials and
-  return configured local sample images for the staged generation periods.
-- GapGPT image edits must use multipart form data, not JSON: file field `image`,
-  `model = gpt-image-2`, `n = 1`, `response_format = url`, and
-  `size = 1024x1024`.
-- Never seed, commit, log, display, or document a real GapGPT API key.
-- Queue-heavy processing must use Redis Queue and Horizon outside tests.
-- Do not introduce React, Vue, Inertia, Livewire, or Next.js into the MVP unless
-  explicitly requested.
-- After every behavior change, run the full test suite and add or update tests
-  for the changed behavior.
-
-## Phase 1 Done Means
-
-- A test tenant can be created and resolved by host.
-- Unknown hosts return `404`.
-- Tenant landing page visits are tracked even without a lead.
-- OTP request stores only a hash and is rate-limited.
-- OTP verify creates or updates a verified lead.
-- Upload requires a verified lead session.
-- Uploaded files are stored privately.
-- Generation creates staged jobs for `two_weeks`, `intermediate_regrowth`, and
-  `final_result`.
-- `SampleImageProvider` copies local sample images and makes no external HTTP
-  calls.
-- Results and assets are scoped to the current tenant and lead session.
-- The Persian RTL Blade page drives the workflow through `/api/v1`.
-- Results are revealed after short AI-style progress cast messages.
-- The result gallery shows the original upload plus the three generated periods.
-- Lead CRM stage and admin-note tables exist for later admin dashboard work.
-- Admin dashboard entry exists under `/admin` with mobile OTP login, tenant
-  switcher, role-aware lead management, and demo seed users.
-- System management exists under `/admin/system` with native roles,
-  permissions, system settings, gateways, billing, plans, and management reports.
-- AI model access management exists under `/admin/ai-models` with config-backed
-  model definitions, encrypted access credentials, clinic assignment, credit
-  tracking, and safe usage logs.
-- SaaS billing uses plan types for base subscriptions, service add-ons, and
-  credit top-ups; service credit is tracked through subscription entitlements
-  and credit ledger rows, not only a mutable aggregate counter.
-- Dashboard copy is localized through Persian language files in `lang/fa`.
-- Dashboard responsive behavior uses two modes: mobile/tablet below `1024px`
-  and desktop from `1024px`; important tables expose mobile card summaries.
-- Normal users without an active plan can access only dashboard overview, plans,
-  billing/invoices, tenant switch/logout, and account settings; operational
-  routes are locked in the UI and blocked by middleware.
-- `php artisan test` passes.
-
-## Required Agent Prompt
-
-```text
-You are working on the HairVision Laravel 13 project.
-
-Before making code changes, read AGENTS.md and all files listed in its
-"Must Read First" section.
-
-Keep the project on version 1.0.0 / Phase 1 unless explicitly asked otherwise.
-
-Core constraints:
-- Laravel 13 conventions.
-- API-first Blade.
-- Persian RTL public UI with embedded Vazirmatn font.
-- Tenant header, HairVision application body, tenant footer, and optional back-to-site link.
-- Header, application body, and footer should be full-width.
-- No testing/deployment/setup copy in the visitor-facing template.
-- Short AI-style progress cast before showing results.
-- The result gallery should show the original upload plus three result periods and support zoom.
-- No arbitrary external frontend resources.
-- Reuse shared backend utilities instead of duplicating formatting,
-  normalization, query-filter, pagination, or permission logic.
-- Use `App\Support\NumberNormalizer` plus `App\Rules\SupportedDigits` for
-  Persian/Arabic/Latin digit normalization and validation.
-- Use `App\Support\JalaliDate`, `App\Rules\JalaliDate`, and
-  `App\Rules\JalaliDateTime` for Jalali/Shamsi conversion and validation. Do
-  not duplicate date conversion logic.
-- Store business/user-facing date-time fields as zero-padded Jalali strings in
-  `YYYY/MM/DD HH:mm:ss` format where the schema marks them as business dates.
-  Keep Laravel system timestamps Gregorian in storage and convert them only for
-  display.
-- Use `App\Support\Query\SearchFilter` with `PaginationParameters` for reusable
-  dashboard table search/sort/filter behavior.
-- Dashboard Blade must use shared components for cards, badges, empty states,
-  modals, and table row action menus where practical.
-- Dashboard icons must use the local UIcons regular-rounded `x-admin.icon`
-  component; do not add Font Awesome, inline SVG dashboard icons, external icon
-  assets, or one-off custom icons for buttons, menus, and primary UI elements.
-- Dashboard list pages must use `x-admin.list-filters`,
-  `x-admin.table.sortable-heading`, and `x-admin.table.pagination-footer`
-  instead of hand-written filter forms, ad hoc sortable URLs, or direct
-  paginator links.
-- Create-capable list pages should expose modal create forms above the list.
-- Important tables should have backend search/filter query parameters and
-  three-dot row action menus at the RTL beginning/right side.
-- Tenant is resolved from request host only.
-- Do not trust tenant_id from requests.
-- Store OTP hashes only.
-- Store uploads and generated assets privately.
-- Use SampleImageProvider by default; real providers must stay behind the AI
-  model access/provider adapter layer.
-- SampleImageProvider must not call external services or generate images.
-- Enforce active base subscription, service entitlement, remaining service
-  credit, and assigned AI model access before public AI generation.
-- Consume service credit atomically after successful provider execution and log
-  the ledger transaction.
+- Laravel 13 conventions, API-first architecture, thin controllers.
+- Public Blade calls `/api/v1`; it must not duplicate business logic.
+- Public UI is Persian, RTL, and uses the embedded Vazirmatn font.
+- Visitor shell has full-width tenant header, HairVision app body, and tenant
+  footer.
+- No testing/setup/deployment/debugging copy in visitor templates.
+- No arbitrary external frontend resources. Tenant logos/theme images may be
+  loaded only from the primary HairVision domain.
+- Tenant is resolved from host only; never trust visitor-submitted tenant ids,
+  slugs, or domains.
+- Tenant-owned records include `tenant_id`; visitor-owned resources also scope
+  by current verified lead.
+- OTP codes are stored only as hashes and never returned, logged, seeded, or
+  displayed in plain text.
+- Uploads and generated assets stay under private storage and stream only
+  through scoped routes.
+- AI provider logic stays behind services/actions/jobs/provider adapters, never
+  controllers.
+- `SampleImageProvider` is the default provider for `1.0.0`. It must not call
+  external services, generate images, mutate images, or use external URLs.
+- Real providers require active assigned AI model access, encrypted credentials,
+  active subscription, service entitlement, and remaining service credit.
+- Credit is consumed atomically only after successful provider execution.
+- Seeded system SMS gateways keep `local` enabled/default and `ippanel`
+  disabled/non-default until an admin explicitly enables IPPanel.
 - Redis Queue and Horizon are required outside tests.
-- Add or update tests for every behavior change.
-- Run php artisan test after every change.
+- Do not introduce React, Vue, Inertia, Livewire, Next.js, CDN assets, or
+  external dashboard icon packs unless explicitly requested.
+- Add/update tests for every behavior change and run the full test suite.
 
-After implementation, report changed files, commands run, and test results.
+## Reuse Requirements
+
+- Digits: `App\Support\NumberNormalizer` and `App\Rules\SupportedDigits`.
+- Jalali dates: `App\Support\JalaliDate`, `App\Rules\JalaliDate`, and
+  `App\Rules\JalaliDateTime`.
+- Pagination: `App\Support\Pagination\PaginationParameters` and
+  `App\Support\Pagination\PaginatedResponse`.
+- Search: `App\Support\Query\SearchFilter`; date filters:
+  `App\Support\Query\DateRangeFilter`.
+- Admin lists: `x-admin.list-filters`,
+  `x-admin.table.sortable-heading`, `x-admin.table.pagination-footer`,
+  `x-admin.table.action-menu`, and mobile-list components where important.
+- Dashboard table rows with a view action open that view page on row click,
+  show a pointer cursor, and use "view" copy instead of "details" in row
+  action menus.
+- Dashboard icons: local `x-admin.icon` with UIcons regular-rounded classes.
+- Logging: use `App\Support\DebugStepLogger` for ordered local debug traces and
+  never log sensitive data.
+
+## Implementation Checklist
+
+- Resolve tenant from host and abort unknown hosts with `404`.
+- Keep public lead session separate from clinic/platform admin sessions.
+- Validate with Form Requests where inputs are non-trivial.
+- Authorize dashboard routes with policies and `permission:*` middleware.
+- Enforce active plan/service access through backend middleware/services, not UI
+  locks alone.
+- Keep GapGPT image edits multipart with file field `image`, `model =
+  gpt-image-2`, `n = 1`, `response_format = url`, and `size = 1024x1024`.
+- Never seed, commit, log, display, or document a real GapGPT API key.
+- Keep user-facing errors localized and generic; log only safe operational
+  context.
+
+## Required Commands
+
+```bash
+php artisan test
+```
+
+Run this too after CSS, JavaScript, Blade, font, or Vite changes:
+
+```bash
+npm run build
 ```

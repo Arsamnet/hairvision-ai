@@ -11,7 +11,7 @@ use Illuminate\Support\Facades\Storage;
 use RuntimeException;
 
 /**
- * Local MVP provider that returns configured sample result images.
+ * Local provider that returns configured sample result images.
  *
  * @since 1.0.0
  */

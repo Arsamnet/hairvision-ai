@@ -25,12 +25,10 @@ return [
         'plans' => 'پلن‌ها',
         'billing' => 'پرداخت‌ها و فاکتورها',
         'ai_models' => 'مدل‌های هوش مصنوعی',
-        'my_sms_gateways' => 'پنل پیامک اختصاصی',
         'system_sms_gateways' => 'درگاه‌های پیامک',
         'payment_gateways' => 'درگاه‌های پرداخت',
         'user_reports' => 'گزارش‌های من',
         'management_reports' => 'گزارش مدیریتی',
-        'settings' => 'تنظیمات حساب',
         'system_settings' => 'تنظیمات سیستم',
     ],
 

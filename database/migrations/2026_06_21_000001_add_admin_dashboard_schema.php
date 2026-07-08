@@ -8,13 +8,6 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::table('users', function (Blueprint $table): void {
-            $table->string('phone_normalized')->nullable()->unique()->after('email');
-            $table->string('role')->default('viewer')->after('phone_normalized');
-            $table->string('status')->default('active')->after('role');
-            $table->index(['role', 'status']);
-        });
-
         Schema::create('tenant_user', function (Blueprint $table): void {
             $table->id();
             $table->foreignId('tenant_id')->constrained('tenants')->cascadeOnDelete();
@@ -27,34 +20,42 @@ return new class extends Migration
             $table->index(['tenant_id', 'role']);
         });
 
-        Schema::table('leads', function (Blueprint $table): void {
-            $table->string('full_name')->nullable()->after('tenant_id');
-            $table->string('source')->nullable()->after('phone_normalized');
-            $table->foreignId('assigned_user_id')->nullable()->after('crm_last_note_at')->constrained('users')->nullOnDelete();
-            $table->index(['tenant_id', 'status']);
-            $table->index(['tenant_id', 'crm_stage']);
-            $table->index(['tenant_id', 'created_at']);
-            $table->index(['tenant_id', 'assigned_user_id']);
+        Schema::create('platform_users', function (Blueprint $table): void {
+            $table->id();
+            $table->uuid('uuid')->unique();
+            $table->string('name');
+            $table->string('email')->unique();
+            $table->string('phone_normalized')->nullable()->unique();
+            $table->string('role')->default('super_admin')->index();
+            $table->string('status')->default('active')->index();
+            $table->string('password');
+            $table->rememberToken();
+            $table->timestamps();
+            $table->index(['role', 'status']);
+        });
+
+        Schema::create('clinic_users', function (Blueprint $table): void {
+            $table->id();
+            $table->uuid('uuid')->unique();
+            $table->foreignId('tenant_id')->constrained('tenants')->cascadeOnDelete();
+            $table->string('name');
+            $table->string('email')->nullable();
+            $table->string('phone_normalized');
+            $table->string('role')->default('viewer')->index();
+            $table->string('status')->default('active')->index();
+            $table->string('password');
+            $table->rememberToken();
+            $table->timestamps();
+            $table->unique(['tenant_id', 'phone_normalized'], 'clinic_users_tenant_phone_unique');
+            $table->unique(['tenant_id', 'email'], 'clinic_users_tenant_email_unique');
+            $table->index(['tenant_id', 'role', 'status']);
         });
     }
 
     public function down(): void
     {
-        Schema::table('leads', function (Blueprint $table): void {
-            $table->dropIndex(['tenant_id', 'status']);
-            $table->dropIndex(['tenant_id', 'crm_stage']);
-            $table->dropIndex(['tenant_id', 'created_at']);
-            $table->dropIndex(['tenant_id', 'assigned_user_id']);
-            $table->dropConstrainedForeignId('assigned_user_id');
-            $table->dropColumn(['full_name', 'source']);
-        });
-
+        Schema::dropIfExists('clinic_users');
+        Schema::dropIfExists('platform_users');
         Schema::dropIfExists('tenant_user');
-
-        Schema::table('users', function (Blueprint $table): void {
-            $table->dropIndex(['role', 'status']);
-            $table->dropUnique(['phone_normalized']);
-            $table->dropColumn(['phone_normalized', 'role', 'status']);
-        });
     }
 };

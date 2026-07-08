@@ -4,7 +4,6 @@ namespace App\Services\Admin;
 
 use App\Models\SmsGateway;
 use App\Models\Tenant;
-use App\Models\User;
 use App\Services\Sms\SmsGatewayService;
 use App\Support\Pagination\PaginationParameters;
 use App\Support\Query\DateRangeFilter;
@@ -33,24 +32,12 @@ class SmsGatewayManagementService
             ->withQueryString();
     }
 
-    public function paginatePrivate(Request $request, User $user): LengthAwarePaginator
-    {
-        $pagination = PaginationParameters::fromRequest(
-            $request,
-            ['created_at', 'name', 'provider_code', 'status'],
-            'created_at'
-        );
-
-        return $this->privateQuery($request, $user, $pagination)
-            ->paginate($pagination->perPage, ['*'], 'page', $pagination->page)
-            ->withQueryString();
-    }
-
     public function systemQuery(Request $request, PaginationParameters $pagination): Builder
     {
-        $query = SmsGateway::query()->with('user');
+        $query = SmsGateway::query()->with(['user', 'tenant'])->whereIn('owner_scope', ['system', 'tenant']);
         SearchFilter::apply($query, $pagination->search, ['name', 'provider_code'], [
             'user' => ['name'],
+            'tenant' => ['name'],
         ]);
 
         $query
@@ -62,21 +49,6 @@ class SmsGatewayManagementService
 
         return $query
             ->orderBy($pagination->sort, $pagination->direction);
-    }
-
-    public function privateSettings(User $user): ?SmsGateway
-    {
-        return SmsGateway::query()
-            ->where('owner_scope', 'user')
-            ->where('user_id', $user->id)
-            ->where('is_default', true)
-            ->orderBy('id')
-            ->first()
-            ?? SmsGateway::query()
-                ->where('owner_scope', 'user')
-                ->where('user_id', $user->id)
-                ->orderBy('id')
-            ->first();
     }
 
     public function clinicSettings(Tenant $tenant): ?SmsGateway
@@ -92,23 +64,6 @@ class SmsGatewayManagementService
                 ->where('tenant_id', $tenant->id)
                 ->orderBy('id')
                 ->first();
-    }
-
-    public function privateQuery(Request $request, User $user, PaginationParameters $pagination): Builder
-    {
-        $query = SmsGateway::query()
-            ->where('owner_scope', 'user')
-            ->where('user_id', $user->id);
-        SearchFilter::apply($query, $pagination->search, ['name', 'provider_code']);
-
-        $query
-            ->when($request->filled('status'), fn (Builder $query) => $query->where('status', $request->string('status')->toString()))
-            ->when($request->filled('provider_code'), fn (Builder $query) => $query->where('provider_code', $request->string('provider_code')->toString()));
-
-        DateRangeFilter::apply($query, $request);
-
-        return $query
-            ->orderBy($pagination->sort, $pagination->direction);
     }
 
     /**
@@ -172,6 +127,12 @@ class SmsGatewayManagementService
      */
     public function createSystem(array $data, SmsGatewayService $gateways): SmsGateway
     {
+        if (($data['owner_scope'] ?? null) === 'tenant') {
+            $tenant = Tenant::query()->findOrFail((int) $data['tenant_id']);
+
+            return $this->saveClinicSettings($tenant, $data, $gateways);
+        }
+
         $gateway = SmsGateway::create($this->attributes($data, null, true));
 
         if ($gateway->is_default) {
@@ -186,6 +147,15 @@ class SmsGatewayManagementService
      */
     public function updateSystem(SmsGateway $gateway, array $data, SmsGatewayService $gateways): SmsGateway
     {
+        if (($data['owner_scope'] ?? null) === 'tenant') {
+            $tenant = Tenant::query()->findOrFail((int) $data['tenant_id']);
+            $existing = $this->clinicSettings($tenant);
+
+            if ($existing && ! $existing->is($gateway)) {
+                $existing->delete();
+            }
+        }
+
         $gateway->update($this->attributes($data, $gateway, true));
 
         if ($gateway->is_default) {
@@ -198,71 +168,12 @@ class SmsGatewayManagementService
     /**
      * @param  array<string, mixed>  $data
      */
-    public function createPrivate(User $user, array $data, SmsGatewayService $gateways): SmsGateway
-    {
-        $gateway = SmsGateway::create($this->attributes($data + [
-            'owner_scope' => 'user',
-            'user_id' => $user->id,
-        ], null, true));
-
-        if ($gateway->is_default) {
-            $gateways->markDefault($gateway);
-        }
-
-        return $gateway;
-    }
-
-    /**
-     * @param  array<string, mixed>  $data
-     */
-    public function updatePrivate(SmsGateway $gateway, array $data, SmsGatewayService $gateways): SmsGateway
-    {
-        $gateway->update($this->attributes($data + [
-            'owner_scope' => 'user',
-            'user_id' => $gateway->user_id,
-        ], $gateway, false));
-
-        if ($gateway->is_default) {
-            $gateways->markDefault($gateway);
-        }
-
-        return $gateway->refresh();
-    }
-
-    /**
-     * @param  array<string, mixed>  $data
-     */
-    public function savePrivateSettings(User $user, array $data, SmsGatewayService $gateways): SmsGateway
-    {
-        $gateway = $this->privateSettings($user);
-
-        $attributes = $this->attributes($data + [
-            'name' => $data['name'] ?? __('sms.dedicated_panel_name'),
-            'provider_code' => $data['provider_code'] ?? 'ippanel',
-            'status' => $data['status'] ?? 'disabled',
-            'is_default' => true,
-            'owner_scope' => 'user',
-            'user_id' => $user->id,
-        ], $gateway, true);
-
-        if ($gateway) {
-            $gateway->update($attributes);
-        } else {
-            $gateway = SmsGateway::create($attributes);
-        }
-
-        return $gateways->markDefault($gateway);
-    }
-
-    /**
-     * @param  array<string, mixed>  $data
-     */
     public function saveClinicSettings(Tenant $tenant, array $data, SmsGatewayService $gateways): SmsGateway
     {
         $gateway = $this->clinicSettings($tenant);
 
         $attributes = $this->attributes($data + [
-            'name' => $data['name'] ?? __('sms.dedicated_panel_name'),
+            'name' => $data['name'] ?? __('sms.clinic_gateway_name'),
             'provider_code' => $data['provider_code'] ?? 'ippanel',
             'status' => $data['status'] ?? 'disabled',
             'is_default' => true,
