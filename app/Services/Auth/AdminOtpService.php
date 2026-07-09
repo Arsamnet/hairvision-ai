@@ -48,7 +48,7 @@ class AdminOtpService
             'phone_normalized' => $phoneNormalized,
             'code_hash' => Hash::make($code),
             'purpose' => 'admin_login',
-            'expires_at' => Carbon::now()->addMinutes(5),
+            'expires_at' => Carbon::now()->addSeconds((int) config('hairvision.admin_otp.expires_seconds', 300)),
             'ip_address' => $ipAddress,
             'attempts' => 0,
         ]);

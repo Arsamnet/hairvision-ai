@@ -73,8 +73,10 @@ by OTP, upload a private face/scalp photo, and receive staged preview images for
   show a pointer cursor, and use "view" copy instead of "details" in row
   action menus.
 - Dashboard icons: local `x-admin.icon` with UIcons regular-rounded classes.
-- Logging: use `App\Support\DebugStepLogger` for ordered local debug traces and
-  never log sensitive data.
+- Logging: ordered local debug traces are registered centrally through
+  `DebugStepServiceProvider` and `LogDebugSteps`; do not add per-file logger
+  imports for ordinary controllers, services, jobs, or models. Never log
+  sensitive data.
 
 ## Implementation Checklist
 

@@ -11,7 +11,6 @@ use App\Models\Upload;
 use App\Services\Generation\GenerationStageCatalog;
 use App\Services\GenerationService;
 use App\Services\LeadSessionService;
-use App\Support\DebugStepLogger;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -34,22 +33,9 @@ class GenerationController extends Controller
     ): JsonResponse {
         $scope = 'generation.store';
 
-        DebugStepLogger::step($request, $scope, 'Request received', [
-            'upload_id' => $request->post('upload_id'),
-        ]);
-
         $tenant = $this->tenantFromRequest($request, $scope);
 
-        DebugStepLogger::step($request, $scope, 'Tenant resolved', [
-            'tenant_id' => $tenant->id,
-        ]);
-
         $lead = $leadSessionService->verifiedLead($request, $tenant, __('auth.verify_phone_to_view_results'));
-
-        DebugStepLogger::step($request, $scope, 'Verified lead resolved', [
-            'lead_id' => $lead->id,
-            'tenant_id' => $tenant->id,
-        ]);
 
         $upload = Upload::query()
             ->where('uuid', '=', $request->post('upload_id'))
@@ -57,20 +43,8 @@ class GenerationController extends Controller
             ->where('lead_id', '=', $lead->id)
             ->firstOrFail();
 
-        DebugStepLogger::step($request, $scope, 'Upload resolved', [
-            'upload_id' => $upload->id,
-            'upload_uuid' => $upload->uuid,
-        ]);
-
         $group = $generationService->createForUpload($upload);
         $group->refresh()->load('jobs.asset');
-
-        DebugStepLogger::step($request, $scope, 'Generation group created', [
-            'generation_group_id' => $group->id,
-            'generation_group_uuid' => $group->uuid,
-            'status' => $group->status,
-            'jobs_count' => $group->jobs->count(),
-        ]);
 
         $response = [
             'success' => true,
@@ -82,12 +56,6 @@ class GenerationController extends Controller
             'stages' => $stages->publicStages(),
             'jobs' => $this->jobPayload($group, $stages),
         ];
-
-        DebugStepLogger::step($request, $scope, 'Response prepared', [
-            'generation_group_uuid' => $group->uuid,
-            'current_stage' => $response['current_stage']['key'] ?? null,
-            'jobs_count' => count($response['jobs']),
-        ]);
 
         return response()->json($response);
     }
@@ -103,22 +71,9 @@ class GenerationController extends Controller
     ): JsonResponse {
         $scope = 'generation.status';
 
-        DebugStepLogger::step($request, $scope, 'Request received', [
-            'generation_group_uuid' => $groupUuid,
-        ]);
-
         $tenant = $this->tenantFromRequest($request, $scope);
 
-        DebugStepLogger::step($request, $scope, 'Tenant resolved', [
-            'tenant_id' => $tenant->id,
-        ]);
-
         $lead = $leadSessionService->verifiedLead($request, $tenant, __('auth.verify_phone_to_view_results'));
-
-        DebugStepLogger::step($request, $scope, 'Verified lead resolved', [
-            'lead_id' => $lead->id,
-            'tenant_id' => $tenant->id,
-        ]);
 
         $group = GenerationGroup::query()
             ->where('uuid', '=', $groupUuid)
@@ -127,25 +82,12 @@ class GenerationController extends Controller
             ->with('jobs.asset')
             ->firstOrFail();
 
-        DebugStepLogger::step($request, $scope, 'Generation group resolved', [
-            'generation_group_id' => $group->id,
-            'generation_group_uuid' => $group->uuid,
-            'status' => $group->status,
-            'jobs_count' => $group->jobs->count(),
-        ]);
-
         $response = [
             'status' => $group->status,
             'current_stage' => $this->currentStage($group, $stages),
             'stages' => $stages->publicStages(),
             'jobs' => $this->jobPayload($group, $stages),
         ];
-
-        DebugStepLogger::step($request, $scope, 'Response prepared', [
-            'generation_group_uuid' => $group->uuid,
-            'current_stage' => $response['current_stage']['key'] ?? null,
-            'jobs_count' => count($response['jobs']),
-        ]);
 
         return response()->json($response);
     }
@@ -161,50 +103,31 @@ class GenerationController extends Controller
     ): JsonResponse {
         $scope = 'generation.results';
 
-        DebugStepLogger::step($request, $scope, 'Request received', [
-            'generation_group_uuid' => $groupUuid,
-        ]);
-
         $tenant = $this->tenantFromRequest($request, $scope);
 
-        DebugStepLogger::step($request, $scope, 'Tenant resolved', [
-            'tenant_id' => $tenant->id,
-        ]);
-
         $lead = $leadSessionService->verifiedLead($request, $tenant, __('auth.verify_phone_to_view_results'));
-
-        DebugStepLogger::step($request, $scope, 'Verified lead resolved', [
-            'lead_id' => $lead->id,
-            'tenant_id' => $tenant->id,
-        ]);
 
         $group = GenerationGroup::query()
             ->where('uuid', '=', $groupUuid)
             ->where('tenant_id', '=', $tenant->id)
             ->where('lead_id', '=', $lead->id)
-            ->with('assets')
+            ->with('jobs.asset')
             ->firstOrFail();
 
-        DebugStepLogger::step($request, $scope, 'Generation group resolved', [
-            'generation_group_id' => $group->id,
-            'generation_group_uuid' => $group->uuid,
-            'assets_count' => $group->assets->count(),
-        ]);
+        $results = [];
 
-        $results = collect($stages->sortByStageOrder($group->assets))
-            ->map(fn ($asset): array => [
-                'period' => $asset->period,
-                'label' => $stages->label($asset->period),
-                'caption' => $stages->caption($asset->period),
-                'url' => '/api/v1/assets/'.$asset->uuid,
-            ])
-            ->values()
-            ->all();
+        foreach ($stages->sortByStageOrder($group->jobs) as $job) {
+            if ($job->status !== 'completed' || ! $job->asset) {
+                break;
+            }
 
-        DebugStepLogger::step($request, $scope, 'Results payload prepared', [
-            'generation_group_uuid' => $group->uuid,
-            'results_count' => count($results),
-        ]);
+            $results[] = [
+                'period' => $job->period,
+                'label' => $stages->label($job->period),
+                'caption' => $stages->caption($job->period),
+                'url' => '/api/v1/assets/'.$job->asset->uuid,
+            ];
+        }
 
         return response()->json([
             'success' => true,
@@ -220,8 +143,15 @@ class GenerationController extends Controller
      */
     private function jobPayload(GenerationGroup $group, GenerationStageCatalog $stages): array
     {
-        return collect($stages->sortByStageOrder($group->jobs))
-            ->map(fn (GenerationJob $job): array => [
+        $previousStagesCompleted = true;
+        $payload = [];
+
+        foreach ($stages->sortByStageOrder($group->jobs) as $job) {
+            $assetUrl = $previousStagesCompleted && $job->status === 'completed' && $job->asset
+                ? '/api/v1/assets/'.$job->asset->uuid
+                : null;
+
+            $payload[] = [
                 'id' => $job->uuid,
                 'period' => $job->period,
                 'key' => $job->period,
@@ -229,10 +159,15 @@ class GenerationController extends Controller
                 'caption' => $stages->caption($job->period),
                 'status' => $job->status,
                 'error' => $job->status === 'failed' ? $job->last_error : null,
-                'asset_url' => $job->asset ? '/api/v1/assets/'.$job->asset->uuid : null,
-            ])
-            ->values()
-            ->all();
+                'asset_url' => $assetUrl,
+            ];
+
+            if ($job->status !== 'completed') {
+                $previousStagesCompleted = false;
+            }
+        }
+
+        return $payload;
     }
 
     /**
@@ -264,8 +199,6 @@ class GenerationController extends Controller
         $tenant = $request->attributes->get('currentTenant');
 
         if (! $tenant instanceof Tenant) {
-            DebugStepLogger::step($request, $scope, 'Tenant missing from request attributes');
-
             abort(Response::HTTP_NOT_FOUND);
         }
 

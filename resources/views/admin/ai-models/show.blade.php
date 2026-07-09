@@ -28,6 +28,18 @@
                     </div>
                 </div>
                 <div class="flex flex-wrap gap-2">
+                    <x-admin.button :href="route('admin.ai-models.index')" variant="secondary" size="sm" icon="sparkles">
+                        <span>{{ __('ai_models.back_to_list') }}</span>
+                    </x-admin.button>
+                    @can('update', $aiModelAccess)
+                        <x-admin.button :href="route('admin.ai-models.edit', $aiModelAccess)" variant="teal" size="sm" icon="edit">
+                            <span>{{ __('ai_models.edit') }}</span>
+                        </x-admin.button>
+                    @else
+                        @if($aiModelAccess->is_protected)
+                            <span class="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-bold text-amber-800">{{ __('ai_models.edit_disabled_protected') }}</span>
+                        @endif
+                    @endcan
                     @can('toggle', $aiModelAccess)
                         <form method="POST" action="{{ route('admin.ai-models.toggle', $aiModelAccess) }}">
                             @csrf
@@ -73,12 +85,20 @@
                     <p class="mt-1 font-bold">{{ number_format($aiModelAccess->credit_used) }}</p>
                 </div>
                 <div class="rounded-lg bg-zinc-50 p-3">
+                    <p class="text-xs font-bold text-zinc-500">{{ __('ai_models.usage_count') }}</p>
+                    <p class="mt-1 font-bold">{{ number_format($aiModelAccess->usage_count) }}</p>
+                </div>
+                <div class="rounded-lg bg-zinc-50 p-3">
                     <p class="text-xs font-bold text-zinc-500">{{ __('ai_models.remaining_credit') }}</p>
                     <p class="mt-1 font-bold">{{ $aiModelAccess->remainingCredit() === null ? __('ai_models.unlimited_credit') : number_format($aiModelAccess->remainingCredit()) }}</p>
                 </div>
                 <div class="rounded-lg bg-zinc-50 p-3">
                     <p class="text-xs font-bold text-zinc-500">{{ __('ai_models.last_used_at') }}</p>
                     <p class="mt-1 font-bold"><x-jalali-date-time :value="$aiModelAccess->last_used_at" /></p>
+                </div>
+                <div class="rounded-lg bg-zinc-50 p-3">
+                    <p class="text-xs font-bold text-zinc-500">{{ __('ai_models.successful_usage_count') }}</p>
+                    <p class="mt-1 font-bold">{{ number_format($aiModelAccess->completed_usage_logs_count ?? 0) }}</p>
                 </div>
             </div>
         </x-admin.card>
@@ -96,23 +116,6 @@
                 @endforelse
             </div>
         </x-admin.card>
-
-        @can('update', $aiModelAccess)
-            <x-admin.card>
-                <h3 class="text-base font-bold">{{ __('ai_models.edit') }}</h3>
-                <form method="POST" action="{{ route('admin.ai-models.update', $aiModelAccess) }}" class="mt-4">
-                    @csrf
-                    @method('PUT')
-                    @include('admin.ai-models.form', [
-                        'access' => $aiModelAccess,
-                        'models' => [$aiModelAccess->model_key => $modelConfig],
-                        'usageCategories' => $usageCategories,
-                        'resolver' => $resolver,
-                        'formKey' => 'edit_ai_model_access',
-                    ])
-                </form>
-            </x-admin.card>
-        @endcan
 
         <x-admin.card>
             <div class="flex flex-wrap items-center justify-between gap-3">

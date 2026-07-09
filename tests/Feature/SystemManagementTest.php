@@ -1058,6 +1058,12 @@ class SystemManagementTest extends TestCase
             ->assertSee('admin-app-shell h-screen overflow-hidden', false)
             ->assertSee('admin-main-panel flex h-screen min-h-0 min-w-0 flex-col', false)
             ->assertSee('admin-content min-h-0 flex-1 overflow-y-auto', false)
+            ->assertSee('data-admin-breadcrumbs', false)
+            ->assertSee('class="admin-breadcrumbs"', false)
+            ->assertSee('admin-breadcrumbs-current', false)
+            ->assertSee('aria-label="'.__('dashboard.breadcrumbs.label').'"', false)
+            ->assertDontSee(__('dashboard.breadcrumbs.scope').':')
+            ->assertSee('aria-current="page"', false)
             ->assertSee('data-admin-menu-scroll', false)
             ->assertSee('data-admin-mobile-menu-open', false)
             ->assertSee('data-admin-mobile-drawer', false)
@@ -1111,6 +1117,16 @@ class SystemManagementTest extends TestCase
             ->assertSee('data-menu-icon="sparkles"', false)
             ->assertSee('data-menu-item="admin.system.roles.index"', false)
             ->assertDontSee('name="tenant_id"', false);
+
+        $this->actingAs($superAdmin)
+            ->forHost('hairvision-ai.test')
+            ->get('/admin/system')
+            ->assertOk()
+            ->assertSee('data-admin-breadcrumbs', false)
+            ->assertDontSee(__('dashboard.breadcrumbs.scope').':')
+            ->assertSee(__('dashboard.dashboard'))
+            ->assertSee(__('system.dashboard_title'))
+            ->assertSee('aria-current="page"', false);
     }
 
     public function test_inactive_plan_users_can_access_allowed_pages_and_restricted_routes_are_blocked(): void
@@ -1822,7 +1838,9 @@ class SystemManagementTest extends TestCase
         $this->assertStringContainsString('preserveScrollPosition', file_get_contents($modals));
         $this->assertStringContainsString('export const bootConfirmationModal', file_get_contents($confirmationModal));
         $this->assertStringContainsString('data-jdp-init-date', file_get_contents($jalaliDatepickers));
-        $this->assertStringContainsString("initDate: 'attr'", file_get_contents($jalaliDatepickers));
+        $this->assertStringNotContainsString("initDate: 'attr'", file_get_contents($jalaliDatepickers));
+        $this->assertStringContainsString('plusIconHtml', file_get_contents($jalaliDatepickers));
+        $this->assertStringContainsString('minusIconHtml', file_get_contents($jalaliDatepickers));
         $this->assertStringContainsString('export const bootMobileMenu', file_get_contents($mobileMenu));
         $this->assertStringContainsString('export const bootResponsiveControls', file_get_contents($responsiveControls));
         $this->assertStringContainsString('localStorage.setItem', file_get_contents($theme));
@@ -1882,9 +1900,17 @@ class SystemManagementTest extends TestCase
         $this->assertFileExists($lightLogo);
         $this->assertFileExists($darkLogo);
         $this->assertFileExists($neutralAvatar);
-        $this->assertStringContainsString('#132232', file_get_contents($lightLogo));
-        $this->assertStringContainsString('#FFFFFF', file_get_contents($darkLogo));
-        $this->assertStringNotContainsString('#132232', file_get_contents($darkLogo));
+        $lightLogoSvg = file_get_contents($lightLogo);
+        $darkLogoSvg = file_get_contents($darkLogo);
+
+        $this->assertStringContainsString('#0F172A', $lightLogoSvg);
+        $this->assertStringContainsString('#14B8A6', $lightLogoSvg);
+        $this->assertStringContainsString('#8B5CF6', $lightLogoSvg);
+        $this->assertStringContainsString('#FFFFFF', $darkLogoSvg);
+        $this->assertStringContainsString('#14B8A6', $darkLogoSvg);
+        $this->assertStringContainsString('#8B5CF6', $darkLogoSvg);
+        $this->assertStringContainsString('#A78BFA', $darkLogoSvg);
+        $this->assertStringNotContainsString('#0F172A', $darkLogoSvg);
         $neutralAvatarSvg = file_get_contents($neutralAvatar);
         $this->assertStringContainsString('<svg', $neutralAvatarSvg);
         $this->assertStringContainsString('fill="#e4e6e9"', $neutralAvatarSvg);
@@ -1893,12 +1919,21 @@ class SystemManagementTest extends TestCase
 
         $this->assertStringContainsString('--admin-header: #0f172a;', $dashboardCss);
         $this->assertStringContainsString('--admin-user-menu-bg: #111625;', $dashboardCss);
+        $this->assertStringContainsString('rgba(139, 92, 246, 0.3)', $dashboardCss);
+        $this->assertStringContainsString('rgba(20, 184, 166, 0.24)', $dashboardCss);
         $this->assertStringContainsString('border: 0;', $dashboardCss);
         $this->assertStringContainsString('border-radius: 999px;', $dashboardCss);
         $this->assertStringContainsString('background: transparent;', $dashboardCss);
         $this->assertStringNotContainsString('admin-user-menu-trigger-hover-bg', $dashboardCss);
         $this->assertStringNotContainsString('.admin-user-menu-trigger:hover', $dashboardCss);
         $this->assertStringContainsString('background: var(--admin-user-menu-bg);', $dashboardCss);
+        $this->assertStringContainsString('.admin-breadcrumbs', $dashboardCss);
+        $this->assertStringContainsString('overflow-x: auto;', $dashboardCss);
+        $this->assertStringContainsString('flex-wrap: nowrap;', $dashboardCss);
+        $this->assertStringContainsString('min-width: max-content;', $dashboardCss);
+        $this->assertStringContainsString("html[data-admin-theme='dark'] .admin-breadcrumbs", $dashboardCss);
+        $this->assertStringContainsString('jdp-container .jdp-icon-plus', $dashboardCss);
+        $this->assertStringContainsString('jdp-container .jdp-icon-minus.not-in-range', $dashboardCss);
         $this->assertStringContainsString('.admin-mobile-menu-button', $mobileCss);
         $this->assertStringContainsString('border: 0;', $mobileCss);
         $this->assertStringContainsString('background: transparent;', $mobileCss);

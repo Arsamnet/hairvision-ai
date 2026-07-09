@@ -43,10 +43,20 @@
         </select>
     </label>
 
-    <input name="name" value="{{ old('name', $access?->name) }}" class="h-11 rounded-lg border border-zinc-200 px-3 text-sm outline-none focus:border-teal-500" placeholder="{{ __('system.name') }}">
-    <input name="priority" value="{{ old('priority', $access?->priority) }}" class="h-11 rounded-lg border border-zinc-200 px-3 text-sm outline-none focus:border-teal-500" placeholder="{{ __('ai_models.priority') }}" dir="ltr">
+    <label class="grid gap-1 text-sm font-bold">
+        <span>{{ __('system.name') }}</span>
+        <input name="name" value="{{ old('name', $access?->name) }}" class="h-11 rounded-lg border border-zinc-200 px-3 text-sm outline-none focus:border-teal-500" placeholder="{{ __('system.name') }}">
+    </label>
 
-    <textarea name="description" rows="2" class="rounded-lg border border-zinc-200 px-3 py-2 text-sm outline-none focus:border-teal-500 md:col-span-2" placeholder="{{ __('system.description') }}">{{ old('description', $access?->description) }}</textarea>
+    <label class="grid gap-1 text-sm font-bold">
+        <span>{{ __('ai_models.priority') }}</span>
+        <input name="priority" value="{{ old('priority', $access?->priority) }}" class="h-11 rounded-lg border border-zinc-200 px-3 text-sm outline-none focus:border-teal-500" placeholder="{{ __('ai_models.priority') }}" dir="ltr">
+    </label>
+
+    <label class="grid gap-1 text-sm font-bold md:col-span-2">
+        <span>{{ __('system.description') }}</span>
+        <textarea name="description" rows="2" class="rounded-lg border border-zinc-200 px-3 py-2 text-sm outline-none focus:border-teal-500" placeholder="{{ __('system.description') }}">{{ old('description', $access?->description) }}</textarea>
+    </label>
 
     @if($credentialFields->isNotEmpty())
         <div class="grid gap-3 rounded-lg border border-zinc-100 bg-zinc-50 p-3 md:col-span-2 md:grid-cols-2">
@@ -80,7 +90,10 @@
         </div>
     @endif
 
-    <textarea name="prompt" rows="4" class="rounded-lg border border-zinc-200 px-3 py-2 text-sm outline-none focus:border-teal-500 md:col-span-2" placeholder="{{ __('ai_models.prompt') }}">{{ old('prompt', $access?->prompt) }}</textarea>
+    <label class="grid gap-1 text-sm font-bold md:col-span-2">
+        <span>{{ __('ai_models.prompt') }}</span>
+        <textarea name="prompt" rows="4" class="rounded-lg border border-zinc-200 px-3 py-2 text-sm leading-7 outline-none focus:border-teal-500" placeholder="{{ __('ai_models.prompt') }}">{{ old('prompt', $access?->prompt) }}</textarea>
+    </label>
 
     <div class="grid gap-3 rounded-lg border border-zinc-100 bg-zinc-50 p-3 md:col-span-2">
         <div>
@@ -101,7 +114,10 @@
         @endforeach
     </div>
 
-    <input name="credit_limit" value="{{ old('credit_limit', $access?->credit_limit) }}" class="h-11 rounded-lg border border-zinc-200 px-3 text-sm outline-none focus:border-teal-500" placeholder="{{ __('ai_models.credit_limit') }}" dir="ltr">
+    <label class="grid gap-1 text-sm font-bold">
+        <span>{{ __('ai_models.credit_limit') }}</span>
+        <input name="credit_limit" value="{{ old('credit_limit', $access?->credit_limit) }}" class="h-11 rounded-lg border border-zinc-200 px-3 text-sm outline-none focus:border-teal-500" placeholder="{{ __('ai_models.unlimited_credit') }}" dir="ltr">
+    </label>
 
     <label class="flex h-11 items-center gap-2 rounded-lg bg-zinc-50 px-3 text-sm font-bold">
         <input type="checkbox" name="is_active" value="1" @checked(old('is_active', $access?->is_active ?? true))>

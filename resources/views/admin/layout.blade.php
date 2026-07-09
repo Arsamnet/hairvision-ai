@@ -18,6 +18,8 @@
         $planAccess = request()->attributes->get('planAccess', ['allowed' => true, 'status' => null, 'subscription' => null]);
         $planAllowsAccess = (bool) ($planAccess['allowed'] ?? true);
         $activeSubscription = $activeSubscription ?? request()->attributes->get('activeSubscription');
+        $serviceSummaries = $serviceSummaries ?? app(\App\Services\Billing\ServiceEntitlementService::class)->summaryForSubscription($activeSubscription);
+        $remainingServiceCredit = $activeSubscription ? $serviceSummaries->sum('remaining_credit') : 0;
 
         $menuGroups = [
             [
@@ -179,7 +181,7 @@
                     <div class="admin-topbar-actions flex flex-wrap items-center gap-2">
                         @if($activeSubscription)
                             <span class="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-bold text-emerald-800">
-                                {{ $activeSubscription->plan?->name }} - {{ __('dashboard.plan.remaining_credit', ['count' => number_format(max(0, $activeSubscription->usage_limit - $activeSubscription->usage_used))]) }}
+                                {{ $activeSubscription->plan?->name }} - {{ __('dashboard.plan.remaining_credit', ['count' => number_format($remainingServiceCredit)]) }}
                             </span>
                         @elseif(($planAccess['status']->value ?? null) !== 'exempt')
                             <span class="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-bold text-amber-800">{{ __('dashboard.plan.'.($planAccess['status']->value ?? 'inactive')) }}</span>
@@ -192,6 +194,8 @@
             </header>
 
             <main class="admin-content min-h-0 flex-1 overflow-y-auto px-4 py-5 sm:px-6 lg:px-8">
+                <x-admin.breadcrumbs :tenant="$tenant" :page-title="trim($__env->yieldContent('page_title', __('dashboard.dashboard')))" />
+
                 @if(session('status'))
                     <div class="mb-4 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-bold text-emerald-800">{{ session('status') }}</div>
                 @endif

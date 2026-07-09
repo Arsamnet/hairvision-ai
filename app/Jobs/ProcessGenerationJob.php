@@ -5,6 +5,7 @@ namespace App\Jobs;
 use App\Actions\Ai\RunAiModelAction;
 use App\Data\Ai\AiModelResponseData;
 use App\Models\GeneratedAsset;
+use App\Models\GenerationGroup;
 use App\Models\GenerationJob;
 use App\Models\Lead;
 use App\Models\Upload;
@@ -15,7 +16,6 @@ use App\Services\Billing\CreditLedgerService;
 use App\Services\Generation\FinalGenerationSmsService;
 use App\Services\Generation\GenerationStageCatalog;
 use App\Services\GenerationService;
-use App\Support\DebugStepLogger;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -44,14 +44,12 @@ class ProcessGenerationJob implements ShouldQueue
     /**
      * Keep external image provider calls from being killed too early.
      */
-    public int $timeout = 300;
+    public int $timeout = 960;
 
     /**
-     * Avoid duplicate credit consumption and duplicate provider calls.
+     * Never repeat paid provider requests automatically.
      */
     public int $tries = 1;
-
-    private int $debugStepCounter = 0;
 
     public function __construct(public GenerationJob $generationJob) {}
 
@@ -63,24 +61,9 @@ class ProcessGenerationJob implements ShouldQueue
         $scope = 'generation.job.process';
 
         try {
-            $this->debugStep($scope, 'Job started', [
-                'period' => $this->generationJob->period,
-                'model_key' => $this->generationJob->model_name,
-            ]);
-
             $this->generationJob->refresh();
 
-            $this->debugStep($scope, 'Generation job refreshed', [
-                'status' => $this->generationJob->status,
-                'has_asset' => $this->generationJob->asset()->exists(),
-            ]);
-
             if ($this->generationJob->status === 'completed' || $this->generationJob->asset()->exists()) {
-                $this->debugStep($scope, 'Job already completed or asset already exists', [
-                    'status' => $this->generationJob->status,
-                    'has_asset' => $this->generationJob->asset()->exists(),
-                ]);
-
                 $this->generationJob->update([
                     'status' => 'completed',
                     'completed_at' => $this->generationJob->completed_at ?? now(),
@@ -89,6 +72,10 @@ class ProcessGenerationJob implements ShouldQueue
 
                 $this->completeGroupOrDispatchNext();
 
+                return;
+            }
+
+            if ($this->shouldStopBecauseGroupFailed()) {
                 return;
             }
 
@@ -101,19 +88,8 @@ class ProcessGenerationJob implements ShouldQueue
                 'last_error' => null,
             ]);
 
-            $this->debugStep($scope, 'Job marked as processing', [
-                'attempt' => $attempt,
-            ]);
-
             $upload = $this->generationJob->upload;
             $lead = $this->generationJob->lead;
-
-            $this->debugStep($scope, 'Related upload and lead resolved', [
-                'upload_id' => $upload?->id,
-                'upload_uuid' => $upload?->uuid,
-                'lead_id' => $lead?->id,
-                'lead_uuid' => $lead?->uuid,
-            ]);
 
             if (! $upload instanceof Upload) {
                 throw new RuntimeException('Generation upload could not be resolved.');
@@ -151,14 +127,6 @@ class ProcessGenerationJob implements ShouldQueue
     private function processWithAiModelAction(string $scope, Upload $upload): void
     {
         try {
-            $this->debugStep($scope, 'Executing AI model action', [
-                'ai_model_access_id' => $this->generationJob->aiModelAccess?->id,
-                'model_key' => $this->generationJob->aiModelAccess?->model_key,
-                'usage_category' => $this->generationJob->aiModelAccess?->usage_category_key,
-                'has_prompt' => $this->generationJob->prompt !== null && $this->generationJob->prompt !== '',
-                'prompt_length' => is_string($this->generationJob->prompt) ? strlen($this->generationJob->prompt) : 0,
-            ]);
-
             $response = app(RunAiModelAction::class)->execute(
                 clinic: $this->generationJob->tenant,
                 usageCategoryKey: $this->generationJob->aiModelAccess->usage_category_key,
@@ -173,39 +141,23 @@ class ProcessGenerationJob implements ShouldQueue
                 selectedAccess: $this->generationJob->aiModelAccess,
             );
 
-            $this->debugStep($scope, 'AI model action completed', [
-                'successful' => $response->successful,
-                'status' => $response->status,
-                'error_code' => $response->errorCode,
-            ]);
-
             if (! $response->successful) {
-                $this->debugStep($scope, 'AI model action returned failure', [
-                    'status' => $response->status,
-                    'error_code' => $response->errorCode,
-                    'has_safe_error_message' => $response->safeErrorMessage !== null,
-                ]);
-
-                $this->markFailed($response->safeErrorMessage ?: __('ai_models.errors.provider_failed'));
+                $this->markFailed($response->errorCode ?: 'provider_failed');
 
                 return;
             }
 
             if (! $this->aiResponseHasImage($response)) {
-                $this->debugStep($scope, 'AI model response missing generated image', [
-                    'output_keys' => array_keys($response->output),
-                ]);
-
-                $this->markFailed(__('ai_models.errors.missing_generated_image'));
+                $this->markFailed('missing_generated_image');
 
                 return;
             }
 
-            $this->debugStep($scope, 'Generated image response received', [
-                'has_binary_content' => true,
-                'mime' => $response->output['mime'] ?? null,
-                'extension' => $response->output['extension'] ?? null,
-            ]);
+            if ($this->shouldStopBecauseGroupFailed()) {
+                $this->markFailed('group_already_failed');
+
+                return;
+            }
 
             if (! $this->consumeServiceCredit()) {
                 return;
@@ -214,12 +166,7 @@ class ProcessGenerationJob implements ShouldQueue
             $this->storeGeneratedBinaryAsset($response);
             $this->markCompletedAndContinue();
         } catch (Throwable $exception) {
-            $this->debugStep($scope, 'AI model action exception', [
-                'exception' => $exception::class,
-                'message' => $exception->getMessage(),
-            ]);
-
-            $this->markFailed($this->safeFailureMessage($exception));
+            $this->markFailed('ai_model_exception', $exception);
         }
     }
 
@@ -229,12 +176,8 @@ class ProcessGenerationJob implements ShouldQueue
     private function processWithLegacyProvider(string $scope, Upload $upload, Lead $lead): void
     {
         try {
-            $resolver = new ProviderResolver();
+            $resolver = new ProviderResolver;
             $provider = $resolver->resolveForTenant($this->generationJob->tenant_id);
-
-            $this->debugStep($scope, 'Legacy provider resolved', [
-                'provider_class' => $provider::class,
-            ]);
 
             $request = new ImageGenerationRequest(
                 tenantUuid: $lead->tenant->uuid,
@@ -246,27 +189,16 @@ class ProcessGenerationJob implements ShouldQueue
                 settings: $this->generationJob->aiModelAccess?->settings ?? [],
             );
 
-            $this->debugStep($scope, 'Legacy provider request prepared', [
-                'period' => $this->generationJob->period,
-                'model_name' => $this->generationJob->model_name,
-                'has_prompt' => $this->generationJob->prompt !== null && $this->generationJob->prompt !== '',
-                'settings_count' => count($this->generationJob->aiModelAccess?->settings ?? []),
-            ]);
-
             $response = $provider->submit($request);
 
-            $this->debugStep($scope, 'Legacy provider response received', [
-                'response_status' => $response->status,
-                'has_local_path' => ! empty($response->localPath),
-            ]);
-
             if ($response->status !== 'completed' || ! $response->localPath) {
-                $this->debugStep($scope, 'Legacy provider did not complete', [
-                    'response_status' => $response->status,
-                    'has_local_path' => ! empty($response->localPath),
-                ]);
+                $this->markFailed('legacy_provider_incomplete');
 
-                $this->markFailed('sample provider did not return completed');
+                return;
+            }
+
+            if ($this->shouldStopBecauseGroupFailed()) {
+                $this->markFailed('group_already_failed');
 
                 return;
             }
@@ -278,12 +210,7 @@ class ProcessGenerationJob implements ShouldQueue
             $this->storeGeneratedLocalAsset($response);
             $this->markCompletedAndContinue();
         } catch (Throwable $exception) {
-            $this->debugStep($scope, 'Legacy provider exception', [
-                'exception' => $exception::class,
-                'message' => $exception->getMessage(),
-            ]);
-
-            $this->markFailed($this->safeFailureMessage($exception));
+            $this->markFailed('legacy_provider_exception', $exception);
         }
     }
 
@@ -295,10 +222,6 @@ class ProcessGenerationJob implements ShouldQueue
         $scope = 'generation.job.process';
 
         $this->generationJob->refresh();
-
-        $this->debugStep($scope, 'Marking job as completed', [
-            'period' => $this->generationJob->period,
-        ]);
 
         $this->generationJob->update([
             'status' => 'completed',
@@ -323,24 +246,8 @@ class ProcessGenerationJob implements ShouldQueue
             ->filter(fn (GenerationJob $job): bool => $job->status === 'completed')
             ->count();
 
-        $this->debugStep($scope, 'Checking group completion', [
-            'generation_group_id' => $group->id,
-            'generation_group_uuid' => $group->uuid,
-            'group_status' => $group->status,
-            'total_jobs' => $group->jobs->count(),
-            'completed_jobs' => $completedCount,
-            'failed_jobs' => $group->jobs->where('status', 'failed')->count(),
-            'pending_jobs' => $group->jobs->where('status', 'pending')->count(),
-            'processing_jobs' => $group->jobs->where('status', 'processing')->count(),
-        ]);
-
         if ($group->jobs->contains(fn (GenerationJob $job): bool => $job->status === 'failed')) {
-            $group->update(['status' => 'failed']);
-
-            $this->debugStep($scope, 'Group marked as failed because at least one stage failed', [
-                'generation_group_id' => $group->id,
-                'generation_group_uuid' => $group->uuid,
-            ]);
+            $this->failGroupAfterJobFailure($group);
 
             return;
         }
@@ -348,24 +255,9 @@ class ProcessGenerationJob implements ShouldQueue
         if ($group->jobs->every(fn (GenerationJob $job): bool => $job->status === 'completed')) {
             $group->update(['status' => 'completed']);
 
-            $this->debugStep($scope, 'Group marked as completed', [
-                'generation_group_id' => $group->id,
-                'generation_group_uuid' => $group->uuid,
-                'was_completed' => $wasCompleted,
-            ]);
-
             if (! $wasCompleted) {
-                $this->debugStep($scope, 'Sending final generation SMS', [
-                    'generation_group_id' => $group->id,
-                    'generation_group_uuid' => $group->uuid,
-                ]);
-
                 app(FinalGenerationSmsService::class)->sendCompleted($group->refresh());
 
-                $this->debugStep($scope, 'Final generation SMS dispatched', [
-                    'generation_group_id' => $group->id,
-                    'generation_group_uuid' => $group->uuid,
-                ]);
             }
 
             return;
@@ -373,50 +265,80 @@ class ProcessGenerationJob implements ShouldQueue
 
         $group->update(['status' => 'processing']);
 
-        $this->debugStep($scope, 'Group still processing; dispatching next stage', [
-            'generation_group_id' => $group->id,
-            'generation_group_uuid' => $group->uuid,
-            'completed_jobs' => $completedCount,
-            'total_jobs' => $group->jobs->count(),
-        ]);
-
         app(GenerationService::class)->dispatchNextStage($group);
 
-        $this->debugStep($scope, 'Next stage dispatch requested', [
-            'generation_group_id' => $group->id,
-            'generation_group_uuid' => $group->uuid,
-        ]);
     }
 
     /**
      * Mark the stage and group as failed.
      */
-    private function markFailed(string $message): void
+    private function markFailed(string $reasonCode, ?Throwable $exception = null): void
     {
         $scope = 'generation.job.process';
+        $message = $this->publicFailureMessage();
 
         $this->generationJob->refresh();
-
-        $this->debugStep($scope, 'Marking job as failed', [
-            'period' => $this->generationJob->period,
-            'attempt' => $this->generationJob->attempts,
-            'has_error_message' => $message !== '',
-        ]);
 
         $this->generationJob->update([
             'status' => 'failed',
             'last_error' => $message,
         ]);
 
-        $group = $this->generationJob->group()->first();
+        $this->logJobFailure($reasonCode, $exception);
+
+        $group = $this->generationJob->group()->with('jobs')->first();
 
         if ($group) {
-            $group->update(['status' => 'failed']);
+            $this->failGroupAfterJobFailure($group);
         }
 
-        $this->debugStep($scope, 'Group marked as failed', [
-            'generation_group_id' => $this->generationJob->generation_group_id,
-        ]);
+    }
+
+    /**
+     * Stop remaining stages after any generation stage fails.
+     */
+    private function failGroupAfterJobFailure(GenerationGroup $group): void
+    {
+        $message = $this->publicFailureMessage();
+
+        $group->jobs()
+            ->whereKeyNot($this->generationJob->id)
+            ->whereIn('status', ['pending', 'processing'])
+            ->update([
+                'status' => 'cancelled',
+                'last_error' => null,
+                'updated_at' => now(),
+            ]);
+
+        $group->update(['status' => 'failed']);
+    }
+
+    /**
+     * Stop this queued stage before provider execution when another stage already failed.
+     */
+    private function shouldStopBecauseGroupFailed(): bool
+    {
+        $group = $this->generationJob->group()->with('jobs')->first();
+
+        if (! $group instanceof GenerationGroup) {
+            return false;
+        }
+
+        $failed = $group->status === 'failed'
+            || $group->jobs->contains(fn (GenerationJob $job): bool => $job->status === 'failed');
+
+        if (! $failed) {
+            return false;
+        }
+
+        if ($this->generationJob->status !== 'failed') {
+            $this->generationJob->update([
+                'status' => 'cancelled',
+                'last_error' => null,
+            ]);
+        }
+
+        return true;
     }
 
     /**
@@ -425,12 +347,7 @@ class ProcessGenerationJob implements ShouldQueue
     private function safelyMarkFailedFromException(Throwable $exception): void
     {
         try {
-            $this->debugStep('generation.job.process', 'Unhandled generation job exception', [
-                'exception' => $exception::class,
-                'message' => $exception->getMessage(),
-            ]);
-
-            $this->markFailed($this->safeFailureMessage($exception));
+            $this->markFailed('exception', $exception);
         } catch (Throwable $failureException) {
             Log::error('[generation.job.process] Could not mark generation job as failed', [
                 'generation_job_id' => $this->generationJob->id ?? null,
@@ -445,15 +362,35 @@ class ProcessGenerationJob implements ShouldQueue
     }
 
     /**
-     * Return a safe error message for DB/frontend storage.
+     * Return the generic public failure message stored for visitor-facing APIs.
      */
-    private function safeFailureMessage(Throwable $exception): string
+    private function publicFailureMessage(): string
     {
-        if (config('app.debug')) {
-            return $exception->getMessage() ?: __('ai_models.errors.provider_failed');
-        }
-
         return __('ai_models.errors.provider_failed');
+    }
+
+    /**
+     * Log operational generation failures independently from debug tracing.
+     */
+    private function logJobFailure(string $reasonCode, ?Throwable $exception = null): void
+    {
+        $group = $this->generationJob->relationLoaded('group')
+            ? $this->generationJob->group
+            : $this->generationJob->group()->first();
+
+        Log::warning('Generation job failed.', [
+            'generation_job_id' => $this->generationJob->id,
+            'generation_job_uuid' => $this->generationJob->uuid,
+            'generation_group_id' => $this->generationJob->generation_group_id,
+            'generation_group_uuid' => $group?->uuid,
+            'tenant_id' => $this->generationJob->tenant_id,
+            'lead_id' => $this->generationJob->lead_id,
+            'period' => $this->generationJob->period,
+            'model_key' => $this->generationJob->aiModelAccess?->model_key ?? $this->generationJob->model_name,
+            'ai_model_access_id' => $this->generationJob->ai_model_access_id,
+            'reason_code' => $reasonCode,
+            'exception' => $exception ? $exception::class : null,
+        ]);
     }
 
     /**
@@ -465,10 +402,6 @@ class ProcessGenerationJob implements ShouldQueue
         $serviceKey = $this->generationJob->aiModelAccess?->usage_category_key ?? 'hair_transplant';
 
         try {
-            $this->debugStep($scope, 'Consuming service credit', [
-                'service_key' => $serviceKey,
-            ]);
-
             app(CreditLedgerService::class)->consume(
                 tenant: $this->generationJob->tenant,
                 serviceKey: $serviceKey,
@@ -478,28 +411,12 @@ class ProcessGenerationJob implements ShouldQueue
                 ]),
             );
 
-            $this->debugStep($scope, 'Service credit consumed', [
-                'service_key' => $serviceKey,
-            ]);
         } catch (ValidationException $exception) {
-            $error = collect($exception->errors())->flatten()->first() ?: __('credits.errors.consume_failed');
-
-            $this->debugStep($scope, 'Service credit validation failed', [
-                'service_key' => $serviceKey,
-                'has_error' => $error !== '',
-            ]);
-
-            $this->markFailed($error);
+            $this->markFailed('credit_validation_failed', $exception);
 
             return false;
         } catch (Throwable $exception) {
-            $this->debugStep($scope, 'Service credit exception', [
-                'service_key' => $serviceKey,
-                'exception' => $exception::class,
-                'message' => $exception->getMessage(),
-            ]);
-
-            $this->markFailed(__('credits.errors.consume_failed'));
+            $this->markFailed('credit_consume_failed', $exception);
 
             return false;
         }
@@ -527,12 +444,6 @@ class ProcessGenerationJob implements ShouldQueue
         $sourcePath = $response->localPath;
         $destination = $this->destinationPath('jpg');
 
-        $this->debugStep($scope, 'Storing local generated asset', [
-            'source_path' => $sourcePath,
-            'source_exists' => $source->exists($sourcePath),
-            'extension' => 'jpg',
-        ]);
-
         if (! $source->exists($sourcePath)) {
             throw new RuntimeException('Generated local provider file does not exist.');
         }
@@ -544,13 +455,6 @@ class ProcessGenerationJob implements ShouldQueue
         $mime = is_string($response->metadata['mime'] ?? null)
             ? $response->metadata['mime']
             : 'image/jpeg';
-
-        $this->debugStep($scope, 'Local generated asset stored', [
-            'disk' => 'local',
-            'path' => $destination,
-            'mime' => $mime,
-            'size' => $size,
-        ]);
 
         $this->createAsset([
             'disk' => 'local',
@@ -573,24 +477,11 @@ class ProcessGenerationJob implements ShouldQueue
         $disk = Storage::disk('local');
         $destination = $this->destinationPath($extension);
 
-        $this->debugStep($scope, 'Storing binary generated asset', [
-            'extension' => $extension,
-            'mime' => $mime,
-            'has_binary_content' => $this->aiResponseHasImage($response),
-        ]);
-
         $disk->makeDirectory(dirname($destination));
         $disk->put($destination, $response->output['binary_content']);
 
         $size = $disk->size($destination);
         $safeMime = str_starts_with($mime, 'image/') ? $mime : 'image/jpeg';
-
-        $this->debugStep($scope, 'Binary generated asset stored', [
-            'disk' => 'local',
-            'path' => $destination,
-            'mime' => $safeMime,
-            'size' => $size,
-        ]);
 
         $this->createAsset([
             'disk' => 'local',
@@ -611,16 +502,8 @@ class ProcessGenerationJob implements ShouldQueue
         $scope = 'generation.job.process';
 
         if ($this->generationJob->asset()->exists()) {
-            $this->debugStep($scope, 'Asset creation skipped because asset already exists');
-
             return;
         }
-
-        $this->debugStep($scope, 'Creating generated asset record', [
-            'disk' => $attributes['disk'] ?? null,
-            'mime' => $attributes['mime'] ?? null,
-            'size' => $attributes['size'] ?? null,
-        ]);
 
         $asset = GeneratedAsset::create([
             'generation_group_id' => $this->generationJob->generation_group_id,
@@ -630,10 +513,6 @@ class ProcessGenerationJob implements ShouldQueue
             'period' => $this->generationJob->period,
         ] + $attributes);
 
-        $this->debugStep($scope, 'Generated asset record created', [
-            'asset_id' => $asset->id,
-            'asset_uuid' => $asset->uuid,
-        ]);
     }
 
     /**
@@ -655,14 +534,4 @@ class ProcessGenerationJob implements ShouldQueue
      *
      * @param  array<string, mixed>  $context
      */
-    private function debugStep(string $scope, string $message, array $context = []): void
-    {
-        DebugStepLogger::workflowStep($scope, ++$this->debugStepCounter, $message, [
-            'generation_job_id' => $this->generationJob->id,
-            'generation_job_uuid' => $this->generationJob->uuid,
-            'generation_group_id' => $this->generationJob->generation_group_id,
-            'tenant_id' => $this->generationJob->tenant_id,
-            'lead_id' => $this->generationJob->lead_id,
-        ] + $context);
-    }
 }

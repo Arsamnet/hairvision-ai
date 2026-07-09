@@ -43,6 +43,7 @@
                 'model_key' => __('ai_models.model'),
                 'usage_category_key' => __('ai_models.usage_category'),
                 'credit_used' => __('ai_models.credit_used'),
+                'usage_count' => __('ai_models.usage_count'),
                 'priority' => __('ai_models.priority'),
                 'last_used_at' => __('ai_models.last_used_at'),
             ]"
@@ -56,6 +57,7 @@
                         <th class="px-4 py-3"><x-admin.table.sortable-heading sort="name" :label="__('system.name')" /></th>
                         <th class="px-4 py-3"><x-admin.table.sortable-heading sort="model_key" :label="__('ai_models.model')" /></th>
                         <th class="px-4 py-3">{{ __('ai_models.status') }}</th>
+                        <th class="px-4 py-3"><x-admin.table.sortable-heading sort="usage_count" :label="__('ai_models.usage_count')" /></th>
                         <th class="px-4 py-3"><x-admin.table.sortable-heading sort="credit_used" :label="__('ai_models.credit_used')" /></th>
                         <th class="px-4 py-3"><x-admin.table.sortable-heading sort="last_used_at" :label="__('ai_models.last_used_at')" /></th>
                     </tr>
@@ -67,6 +69,9 @@
                                 <x-admin.table.action-menu>
                                     @can('view', $access)
                                         <x-admin.table.action-item :href="route('admin.ai-models.show', $access)" icon="eye">{{ __('ai_models.details') }}</x-admin.table.action-item>
+                                    @endcan
+                                    @can('update', $access)
+                                        <x-admin.table.action-item :href="route('admin.ai-models.edit', $access)" icon="edit">{{ __('ai_models.edit') }}</x-admin.table.action-item>
                                     @endcan
                                     @can('toggle', $access)
                                         <x-admin.table.action-item :action="route('admin.ai-models.toggle', $access)" method="PATCH" icon="check">{{ __('ai_models.toggle') }}</x-admin.table.action-item>
@@ -93,6 +98,10 @@
                             </td>
                             <td class="px-4 py-3"><x-admin.badge :tone="$access->is_active ? 'emerald' : 'zinc'">{{ $access->is_active ? __('ai_models.statuses.active') : __('ai_models.statuses.inactive') }}</x-admin.badge></td>
                             <td class="px-4 py-3" dir="ltr">
+                                <p class="font-bold">{{ number_format($access->usage_count) }}</p>
+                                <p class="mt-1 text-xs text-zinc-500">{{ __('ai_models.successful_usage_count') }}: {{ number_format($access->completed_usage_logs_count ?? 0) }}</p>
+                            </td>
+                            <td class="px-4 py-3" dir="ltr">
                                 <p>{{ number_format($access->credit_used) }}</p>
                                 <p class="mt-1 text-xs text-zinc-500">{{ $access->remainingCredit() === null ? __('ai_models.unlimited_credit') : number_format($access->remainingCredit()) }}</p>
                             </td>
@@ -100,7 +109,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="6" class="px-4 py-12">
+                            <td colspan="7" class="px-4 py-12">
                                 <x-admin.empty-state icon="sparkles">{{ __('ai_models.empty.accesses') }}</x-admin.empty-state>
                             </td>
                         </tr>
@@ -120,6 +129,9 @@
                         <x-admin.table.action-menu>
                             @can('view', $access)
                                 <x-admin.table.action-item :href="route('admin.ai-models.show', $access)" icon="eye">{{ __('ai_models.details') }}</x-admin.table.action-item>
+                            @endcan
+                            @can('update', $access)
+                                <x-admin.table.action-item :href="route('admin.ai-models.edit', $access)" icon="edit">{{ __('ai_models.edit') }}</x-admin.table.action-item>
                             @endcan
                             @can('toggle', $access)
                                 <x-admin.table.action-item :action="route('admin.ai-models.toggle', $access)" method="PATCH" icon="check">{{ __('ai_models.toggle') }}</x-admin.table.action-item>
@@ -145,6 +157,9 @@
                         </x-admin.mobile-list.field>
                         <x-admin.mobile-list.field :label="__('ai_models.credit_used')">
                             <span dir="ltr">{{ number_format($access->credit_used) }} / {{ $access->remainingCredit() === null ? __('ai_models.unlimited_credit') : number_format($access->remainingCredit()) }}</span>
+                        </x-admin.mobile-list.field>
+                        <x-admin.mobile-list.field :label="__('ai_models.usage_count')">
+                            <span dir="ltr">{{ number_format($access->usage_count) }}</span>
                         </x-admin.mobile-list.field>
                         <x-admin.mobile-list.field :label="__('ai_models.last_used_at')">
                             <x-jalali-date-time :value="$access->last_used_at" />

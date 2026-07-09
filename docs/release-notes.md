@@ -25,6 +25,8 @@ multi-tenant SaaS for hair-transplant clinics.
   system management.
 - Persian localization files under `lang/fa`.
 - Default-light dashboard theme with persisted browser theme choice.
+- Reusable Persian RTL dashboard breadcrumb component rendered above the main
+  content for both system and clinic pages.
 - Two-mode responsive strategy: mobile/tablet below `1024px`, desktop from
   `1024px`.
 - Shared dashboard cards, badges, empty states, modals, list filters, sortable
@@ -58,6 +60,9 @@ multi-tenant SaaS for hair-transplant clinics.
   assignment.
 - GapGPT multipart request shape with `image`, `model = gpt-image-2`, `prompt`,
   `n = 1`, `response_format = url`, and `size = 1024x1024`.
+- Staged GapGPT generation runs one stage at a time with long provider
+  timeouts and no automatic paid-request retry; failures stop later stages
+  before they call the provider.
 - AI model usage logs with safe metadata.
 - Clinic AI model assignment enforcing one active access per usage category.
 

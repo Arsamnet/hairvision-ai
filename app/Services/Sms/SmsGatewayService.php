@@ -6,7 +6,6 @@ use App\Models\SmsGateway;
 use App\Services\Sms\Adapters\IppanelSmsGatewayAdapter;
 use App\Services\Sms\Adapters\LocalSmsGatewayAdapter;
 use App\Services\Sms\Contracts\SmsGatewayAdapter;
-use App\Support\DebugStepLogger;
 use Illuminate\Validation\ValidationException;
 
 /**
@@ -18,16 +17,12 @@ class SmsGatewayService
 {
     private ?string $debugSms = null;
 
-    private int $debugStepCounter = 0;
-
     /**
      * Return the default system SMS gateway for platform messages.
      */
     public function systemDefault(): ?SmsGateway
     {
         $scope = 'sms.gateway.system_default';
-
-        $this->debugStep($scope, 'System default SMS gateway resolution started.');
 
         $gateway = SmsGateway::query()
             ->system()
@@ -36,14 +31,8 @@ class SmsGatewayService
             ->first();
 
         if ($gateway instanceof SmsGateway) {
-            $this->debugStep($scope, 'Default system SMS gateway found in database.', [
-                'gateway' => $this->gatewayContext($gateway),
-            ]);
-
             return $gateway;
         }
-
-        $this->debugStep($scope, 'Default system SMS gateway was not found in database.');
 
         $gateway = SmsGateway::query()
             ->system()
@@ -52,22 +41,10 @@ class SmsGatewayService
             ->first();
 
         if ($gateway instanceof SmsGateway) {
-            $this->debugStep($scope, 'Fallback enabled system SMS gateway found in database.', [
-                'gateway' => $this->gatewayContext($gateway),
-            ]);
-
             return $gateway;
         }
 
-        $this->debugStep($scope, 'No enabled system SMS gateway found in database; checking config fallback.');
-
         $gateway = $this->systemDefaultFromConfig();
-
-        $this->debugStep($scope, 'System default SMS gateway resolution completed.', [
-            'resolved' => $gateway instanceof SmsGateway,
-            'source' => $gateway instanceof SmsGateway ? 'config' : null,
-            'gateway' => $gateway instanceof SmsGateway ? $this->gatewayContext($gateway) : null,
-        ]);
 
         return $gateway;
     }
@@ -80,10 +57,6 @@ class SmsGatewayService
         $scope = 'sms.gateway.config_default';
         $provider = config('hairvision.sms.default_provider', 'ippanel');
 
-        $this->debugStep($scope, 'Config SMS gateway resolution started.', [
-            'provider_code' => $provider,
-        ]);
-
         if ($provider === 'local') {
             $gateway = new SmsGateway([
                 'name' => 'Local SMS Gateway (configured)',
@@ -93,21 +66,12 @@ class SmsGatewayService
                 'settings_json' => ['purpose' => 'system_messages'],
             ]);
 
-            $this->debugStep($scope, 'Local config SMS gateway resolved.', [
-                'gateway' => $this->gatewayContext($gateway),
-            ]);
-
             return $gateway;
         }
 
         $token = config('hairvision.sms.ippanel.authorization_token');
 
         if (! is_string($token) || trim($token) === '') {
-            $this->debugStep($scope, 'IPPanel config SMS gateway could not be resolved because authorization token is missing.', [
-                'provider_code' => 'ippanel',
-                'has_authorization_token' => false,
-            ]);
-
             return null;
         }
 
@@ -128,11 +92,6 @@ class SmsGatewayService
             ],
         ]);
 
-        $this->debugStep($scope, 'IPPanel config SMS gateway resolved.', [
-            'gateway' => $this->gatewayContext($gateway),
-            'has_authorization_token' => true,
-        ]);
-
         return $gateway;
     }
 
@@ -144,10 +103,6 @@ class SmsGatewayService
         $scope = 'sms.gateway.system_ippanel';
         $defaultProvider = config('hairvision.sms.default_provider', 'ippanel');
 
-        $this->debugStep($scope, 'System IPPanel SMS gateway resolution started.', [
-            'default_provider' => $defaultProvider,
-        ]);
-
         $gateways = SmsGateway::query()
             ->system()
             ->enabled()
@@ -156,10 +111,6 @@ class SmsGatewayService
             ->orderBy('id')
             ->get();
 
-        $this->debugStep($scope, 'System IPPanel gateway candidates loaded.', [
-            'candidate_count' => $gateways->count(),
-        ]);
-
         $gateway = $gateways->first(function (SmsGateway $gateway): bool {
             $token = data_get($gateway->encrypted_credentials ?? [], 'api_key');
 
@@ -167,28 +118,14 @@ class SmsGatewayService
         });
 
         if ($gateway instanceof SmsGateway) {
-            $this->debugStep($scope, 'System IPPanel SMS gateway found in database.', [
-                'gateway' => $this->gatewayContext($gateway),
-            ]);
-
             return $gateway;
         }
 
         if ($defaultProvider === 'local') {
-            $this->debugStep($scope, 'No database IPPanel gateway found; system IPPanel resolution redirected to local config provider.');
-
             return $this->systemDefaultFromConfig();
         }
 
-        $this->debugStep($scope, 'No database IPPanel gateway with credentials found; checking config fallback.');
-
         $gateway = $this->systemDefaultFromConfig();
-
-        $this->debugStep($scope, 'System IPPanel SMS gateway resolution completed.', [
-            'resolved' => $gateway instanceof SmsGateway,
-            'source' => $gateway instanceof SmsGateway ? 'config' : null,
-            'gateway' => $gateway instanceof SmsGateway ? $this->gatewayContext($gateway) : null,
-        ]);
 
         return $gateway;
     }
@@ -205,37 +142,15 @@ class SmsGatewayService
 
         $scope = 'sms.system_message';
 
-        $this->debugStep($scope, 'System SMS message send workflow started.', [
-            'phone_hash' => $this->phoneHash($phoneNormalized),
-            'message_length' => mb_strlen($message),
-        ]);
-
         $gateway = $this->systemDefault();
 
         if (! $gateway) {
-            $this->debugStep($scope, 'System SMS message send failed because no system gateway is available.', [
-                'phone_hash' => $this->phoneHash($phoneNormalized),
-                'message_length' => mb_strlen($message),
-            ]);
-
             throw ValidationException::withMessages([
                 'sms_gateway' => __('sms.no_system_gateway'),
             ]);
         }
 
-        $this->debugStep($scope, 'System SMS gateway resolved for message send.', [
-            'gateway' => $this->gatewayContext($gateway),
-            'phone_hash' => $this->phoneHash($phoneNormalized),
-            'message_length' => mb_strlen($message),
-        ]);
-
         $this->adapterFor($gateway)->send($gateway, $phoneNormalized, $message);
-
-        $this->debugStep($scope, 'System SMS message sent successfully.', [
-            'gateway' => $this->gatewayContext($gateway),
-            'phone_hash' => $this->phoneHash($phoneNormalized),
-            'message_length' => mb_strlen($message),
-        ]);
 
         return $gateway;
     }
@@ -252,47 +167,20 @@ class SmsGatewayService
 
         $scope = 'sms.system_otp';
 
-        $this->debugStep($scope, 'System OTP send workflow started.', [
-            'phone_hash' => $this->phoneHash($phoneNormalized),
-            'code_length' => mb_strlen($code),
-        ]);
-
         $gateway = $this->systemIppanel();
 
         if (! $gateway) {
-            $this->debugStep($scope, 'System OTP send failed because no IPPanel gateway is available.', [
-                'phone_hash' => $this->phoneHash($phoneNormalized),
-                'code_length' => mb_strlen($code),
-            ]);
-
             throw ValidationException::withMessages([
                 'sms_gateway' => __('sms.no_ippanel_gateway'),
             ]);
         }
-
-        $this->debugStep($scope, 'System OTP gateway resolved.', [
-            'gateway' => $this->gatewayContext($gateway),
-            'phone_hash' => $this->phoneHash($phoneNormalized),
-            'code_length' => mb_strlen($code),
-        ]);
 
         $this->adapterFor($gateway)->sendOtp($gateway, $phoneNormalized, $code);
 
         if ($gateway->provider_code === 'local') {
             $this->debugSms = $code;
 
-            $this->debugStep($scope, 'Local OTP debug value stored without logging the OTP.', [
-                'gateway' => $this->gatewayContext($gateway),
-                'phone_hash' => $this->phoneHash($phoneNormalized),
-                'code_length' => mb_strlen($code),
-            ]);
         }
-
-        $this->debugStep($scope, 'System OTP sent successfully.', [
-            'gateway' => $this->gatewayContext($gateway),
-            'phone_hash' => $this->phoneHash($phoneNormalized),
-            'code_length' => mb_strlen($code),
-        ]);
 
         return $gateway;
     }
@@ -306,10 +194,6 @@ class SmsGatewayService
 
         $scope = 'sms.gateway.mark_default';
 
-        $this->debugStep($scope, 'SMS gateway mark-default workflow started.', [
-            'gateway' => $this->gatewayContext($gateway),
-        ]);
-
         $updatedPeers = SmsGateway::query()
             ->where('owner_scope', $gateway->owner_scope)
             ->when($gateway->owner_scope === 'user', fn ($query) => $query->where('user_id', $gateway->user_id))
@@ -318,19 +202,8 @@ class SmsGatewayService
             ->whereKeyNot($gateway->id)
             ->update(['is_default' => false]);
 
-        $this->debugStep($scope, 'Peer SMS gateways unset as default.', [
-            'gateway_id' => $gateway->id,
-            'owner_scope' => $gateway->owner_scope,
-            'user_id' => $gateway->user_id,
-            'updated_peer_count' => $updatedPeers,
-        ]);
-
         $gateway->forceFill(['is_default' => true])->save();
         $gateway->refresh();
-
-        $this->debugStep($scope, 'SMS gateway marked as default successfully.', [
-            'gateway' => $this->gatewayContext($gateway),
-        ]);
 
         return $gateway;
     }
@@ -351,24 +224,10 @@ class SmsGatewayService
             default => app(LocalSmsGatewayAdapter::class),
         };
 
-        $this->debugStep('sms.gateway.adapter', 'SMS gateway adapter resolved.', [
-            'gateway_id' => $gateway->id,
-            'provider_code' => $gateway->provider_code,
-            'adapter_class' => $adapter::class,
-        ]);
-
         return $adapter;
     }
 
-    private function resetDebugSteps(): void
-    {
-        $this->debugStepCounter = 0;
-    }
-
-    private function debugStep(string $scope, string $message, array $context = []): void
-    {
-        DebugStepLogger::workflowStep($scope, ++$this->debugStepCounter, $message, $context);
-    }
+    private function resetDebugSteps(): void {}
 
     private function gatewayContext(SmsGateway $gateway): array
     {

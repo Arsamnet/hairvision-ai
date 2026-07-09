@@ -32,7 +32,7 @@ class AiModelAccessController extends Controller
         if ($request->expectsJson()) {
             $pagination = PaginationParameters::fromRequest(
                 $request,
-                ['created_at', 'name', 'model_key', 'usage_category_key', 'credit_used', 'priority', 'last_used_at'],
+                ['created_at', 'name', 'model_key', 'usage_category_key', 'credit_used', 'usage_count', 'priority', 'last_used_at'],
                 'created_at'
             );
 
@@ -56,13 +56,26 @@ class AiModelAccessController extends Controller
         Gate::authorize('view', $aiModelAccess);
 
         return view('admin.ai-models.show', $this->formData($request, $resolver) + [
-            'aiModelAccess' => $aiModelAccess->load(['clinics', 'creator', 'updater']),
+            'aiModelAccess' => $aiModelAccess
+                ->load(['clinics', 'creator', 'updater'])
+                ->loadCount(['usageLogs', 'usageLogs as completed_usage_logs_count' => fn ($query) => $query->where('status', 'completed')]),
             'usageLogs' => AiModelUsageLog::query()
                 ->where('ai_model_access_id', $aiModelAccess->id)
                 ->with(['clinic', 'user'])
                 ->latest('id')
                 ->paginate(10, ['*'], 'logs_page')
                 ->withQueryString(),
+        ]);
+    }
+
+    public function edit(Request $request, AiModelAccess $aiModelAccess, AiModelResolver $resolver): View
+    {
+        Gate::authorize('update', $aiModelAccess);
+
+        return view('admin.ai-models.edit', $this->formData($request, $resolver) + [
+            'aiModelAccess' => $aiModelAccess
+                ->load(['clinics'])
+                ->loadCount(['usageLogs', 'usageLogs as completed_usage_logs_count' => fn ($query) => $query->where('status', 'completed')]),
         ]);
     }
 

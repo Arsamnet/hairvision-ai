@@ -92,10 +92,11 @@ Generation creates three period jobs:
 - `intermediate_regrowth`
 - `final_result`
 
-The default staged flow dispatches the first pending job, then dispatches the
-next stage after each success. GapGPT dispatches all three pending stages
-together because its image edits are independent. Each stage remains a separate
-job for retries, failures, assets, logs, and credit accounting.
+The staged flow dispatches the first pending job, then dispatches the next
+stage only after the previous stage succeeds. This preserves the public result
+order and ensures a failed stage stops later stages before they call a paid
+provider. Each stage remains a separate job for failures, assets, logs, and
+credit accounting.
 
 ## AI Provider Layer
 
@@ -141,6 +142,11 @@ size=1024x1024
 
 Do not send GapGPT requests as JSON. Do not seed, commit, log, display, or
 document real provider keys.
+
+GapGPT calls are long-running paid requests. Do not use automatic HTTP or queue
+retries for the provider call itself. Keep the HTTP timeout, queued job timeout,
+Horizon worker timeout, and Redis `retry_after` aligned so the worker waits for
+the provider response instead of issuing a duplicate request.
 
 ## Billing and Service Access
 
@@ -259,6 +265,7 @@ Reusable components:
 - `x-admin.card`
 - `x-admin.modal`
 - `x-admin.badge`
+- `x-admin.breadcrumbs`
 - `x-admin.empty-state`
 - `x-admin.validation-summary`
 - `x-admin.list-filters`
@@ -279,6 +286,12 @@ remain authoritative.
 
 The dashboard defaults to light theme. Dark mode is enabled only by persisted
 browser choice in `localStorage` under `hairvision.admin.theme`.
+
+Every dashboard page rendered through `admin.layout` includes the reusable
+`x-admin.breadcrumbs` component at the top of the main content area. The
+component builds a Persian RTL, accessible breadcrumb trail from the active
+route so system and clinic pages share one navigation contract without
+duplicating breadcrumb markup in individual pages.
 
 Dashboard list pages should use backend query parameters, shared filters,
 sortable headings, shared pagination footers, Jalali date controls, and
@@ -325,19 +338,32 @@ gateway responses, uploaded payloads, SQL errors, or stack traces to users.
 
 ## Debug Logging
 
-Use `App\Support\DebugStepLogger` for ordered local workflow tracing:
+Project-wide debug instrumentation is registered centrally through
+`DebugStepServiceProvider` and `LogDebugSteps`. When `APP_DEBUG=true`, the app
+records safe step traces for request lifecycle, route matching, database query
+templates, Eloquent model lifecycle events, outgoing Laravel HTTP client
+requests/responses, queue jobs, console commands, auth events, reported
+exceptions, and framework-visible service/job side effects.
+The logger must be silent when `APP_DEBUG=false`. Do not add per-file logger
+imports to ordinary controllers, services, jobs, or models; extend the central
+provider/middleware instrumentation instead. Do not use raw `Log::debug()` for
+ordered workflow traces unless the exception is documented. Context is
+sanitized by `DebugStepLogger` before logging, so credentials, OTP codes, bearer
+tokens, sessions, cookies, raw payloads, authority values, storage/private
+paths, uploads, and long values are redacted or truncated.
 
-```php
-DebugStepLogger::step($request, 'generation.store', 'Upload resolved', [
-    'tenant_id' => $tenant->id,
-    'lead_id' => $lead->id,
-    'upload_uuid' => $upload->uuid,
-]);
+A thin legacy bridge remains under the Support namespace only for backward
+compatibility. New application code should not import the logger directly
+unless it is extending the central debug instrumentation layer.
+
+Database query tracing logs SQL templates and binding counts, not binding
+values. It is enabled by default in debug mode and can be tuned with:
+
+```env
+HAIRVISION_DEBUG_STEP_DATABASE_QUERIES=true
+HAIRVISION_DEBUG_STEP_MODEL_EVENTS=true
+HAIRVISION_DEBUG_STEP_SLOW_QUERY_MS=0
 ```
-
-The logger must be silent when `APP_DEBUG=false`. Do not use raw `Log::debug()`
-for ordered workflow traces unless the exception is documented. Log only safe
-metadata.
 
 ## Coding Standards
 

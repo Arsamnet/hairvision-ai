@@ -5,7 +5,6 @@ namespace App\Services\AI;
 use App\Models\AiModelAccess;
 use App\Models\Tenant;
 use App\Models\User;
-use App\Support\DebugStepLogger;
 use App\Support\Pagination\PaginationParameters;
 use App\Support\Query\DateRangeFilter;
 use App\Support\Query\SearchFilter;
@@ -31,40 +30,15 @@ class AiModelManager
     {
         $scope = 'ai.model_manager.paginate';
 
-        DebugStepLogger::step($request, $scope, 'Request received', [
-            'user_id' => $request->user()?->id,
-            'has_search' => filled($request->input('search')),
-            'model_key' => $request->input('model_key'),
-            'usage_category_key' => $request->input('usage_category_key'),
-            'status' => $request->input('status'),
-            'flag' => $request->input('flag'),
-            'credit_status' => $request->input('credit_status'),
-        ]);
-
         $pagination = PaginationParameters::fromRequest(
             $request,
-            ['created_at', 'name', 'model_key', 'usage_category_key', 'credit_used', 'priority', 'last_used_at'],
+            ['created_at', 'name', 'model_key', 'usage_category_key', 'credit_used', 'usage_count', 'priority', 'last_used_at'],
             'created_at'
         );
-
-        DebugStepLogger::step($request, $scope, 'Pagination parameters resolved', [
-            'page' => $pagination->page,
-            'per_page' => $pagination->perPage,
-            'sort' => $pagination->sort,
-            'direction' => $pagination->direction,
-            'has_search' => filled($pagination->search),
-        ]);
 
         $paginator = $this->query($request, $pagination)
             ->paginate($pagination->perPage, ['*'], 'page', $pagination->page)
             ->withQueryString();
-
-        DebugStepLogger::step($request, $scope, 'Paginator prepared', [
-            'total' => $paginator->total(),
-            'current_page' => $paginator->currentPage(),
-            'per_page' => $paginator->perPage(),
-            'last_page' => $paginator->lastPage(),
-        ]);
 
         return $paginator;
     }
@@ -76,20 +50,14 @@ class AiModelManager
     {
         $scope = 'ai.model_manager.query';
 
-        DebugStepLogger::step($request, $scope, 'Query building started', [
-            'has_search' => filled($pagination->search),
-            'search_length' => is_string($pagination->search) ? mb_strlen($pagination->search) : 0,
-            'sort' => $pagination->sort,
-            'direction' => $pagination->direction,
-        ]);
-
-        $query = AiModelAccess::query()->withCount('clinics');
+        $query = AiModelAccess::query()
+            ->withCount([
+                'clinics',
+                'usageLogs',
+                'usageLogs as completed_usage_logs_count' => fn (Builder $query) => $query->where('status', 'completed'),
+            ]);
 
         SearchFilter::apply($query, $pagination->search, ['name', 'description', 'model_key', 'usage_category_key']);
-
-        DebugStepLogger::step($request, $scope, 'Search filter applied', [
-            'has_search' => filled($pagination->search),
-        ]);
 
         $query
             ->when($request->filled('model_key'), fn (Builder $query) => $query->where('model_key', $request->string('model_key')->toString()))
@@ -113,25 +81,7 @@ class AiModelManager
                 };
             });
 
-        DebugStepLogger::step($request, $scope, 'Field filters applied', [
-            'has_model_key_filter' => $request->filled('model_key'),
-            'has_usage_category_filter' => $request->filled('usage_category_key'),
-            'has_status_filter' => $request->filled('status'),
-            'has_flag_filter' => $request->filled('flag'),
-            'has_credit_status_filter' => $request->filled('credit_status'),
-        ]);
-
         DateRangeFilter::apply($query, $request);
-
-        DebugStepLogger::step($request, $scope, 'Date range filter applied', [
-            'has_date_from' => $request->filled('date_from'),
-            'has_date_to' => $request->filled('date_to'),
-        ]);
-
-        DebugStepLogger::step($request, $scope, 'Query ordering applied', [
-            'sort' => $pagination->sort,
-            'direction' => $pagination->direction,
-        ]);
 
         return $query->orderBy($pagination->sort, $pagination->direction);
     }
@@ -146,33 +96,12 @@ class AiModelManager
         $scope = 'ai.model_manager.create';
         $step = 0;
 
-        $step = $this->workflowStep($scope, $step, 'Request received', [
-            'actor_id' => $actor->id,
-            'model_key' => $data['model_key'] ?? null,
-            'usage_category_key' => $data['usage_category_key'] ?? null,
-            'has_credentials' => ! empty($data['credentials'] ?? []),
-            'settings_count' => count((array) ($data['settings'] ?? [])),
-            'has_prompt' => filled($data['prompt'] ?? null),
-            'is_active' => (bool) ($data['is_active'] ?? false),
-            'is_demo' => (bool) ($data['is_demo'] ?? false),
-            'is_protected' => (bool) ($data['is_protected'] ?? false),
-        ]);
-
+        $step++;
         $step = $this->validateConfigKeys((string) $data['model_key'], (string) $data['usage_category_key'], $scope, $step);
 
         $access = AiModelAccess::create($this->attributes($data) + [
             'created_by' => $actor->id,
             'updated_by' => $actor->id,
-        ]);
-
-        $this->workflowStep($scope, $step, 'AI model access created', [
-            'actor_id' => $actor->id,
-            'ai_model_access_id' => $access->id,
-            'model_key' => $access->model_key,
-            'usage_category_key' => $access->usage_category_key,
-            'is_active' => $access->is_active,
-            'is_demo' => $access->is_demo,
-            'is_protected' => $access->is_protected,
         ]);
 
         return $access;
@@ -188,17 +117,7 @@ class AiModelManager
         $scope = 'ai.model_manager.update';
         $step = 0;
 
-        $step = $this->workflowStep($scope, $step, 'Request received', [
-            'actor_id' => $actor->id,
-            'ai_model_access_id' => $access->id,
-            'current_model_key' => $access->model_key,
-            'new_model_key' => $data['model_key'] ?? null,
-            'new_usage_category_key' => $data['usage_category_key'] ?? null,
-            'has_new_credentials' => ! empty($data['credentials'] ?? []),
-            'settings_count' => count((array) ($data['settings'] ?? [])),
-            'has_prompt' => filled($data['prompt'] ?? null),
-        ]);
-
+        $step++;
         $step = $this->validateConfigKeys((string) $data['model_key'], (string) $data['usage_category_key'], $scope, $step);
 
         $access->update($this->attributes($data, $access) + [
@@ -206,16 +125,6 @@ class AiModelManager
         ]);
 
         $access->refresh();
-
-        $this->workflowStep($scope, $step, 'AI model access updated', [
-            'actor_id' => $actor->id,
-            'ai_model_access_id' => $access->id,
-            'model_key' => $access->model_key,
-            'usage_category_key' => $access->usage_category_key,
-            'is_active' => $access->is_active,
-            'is_demo' => $access->is_demo,
-            'is_protected' => $access->is_protected,
-        ]);
 
         return $access;
     }
@@ -228,24 +137,13 @@ class AiModelManager
         $scope = 'ai.model_manager.toggle';
         $step = 0;
 
-        $step = $this->workflowStep($scope, $step, 'Request received', [
-            'actor_id' => $actor->id,
-            'ai_model_access_id' => $access->id,
-            'current_is_active' => $access->is_active,
-        ]);
-
+        $step++;
         $access->forceFill([
             'is_active' => ! $access->is_active,
             'updated_by' => $actor->id,
         ])->save();
 
         $access->refresh();
-
-        $this->workflowStep($scope, $step, 'AI model access toggled', [
-            'actor_id' => $actor->id,
-            'ai_model_access_id' => $access->id,
-            'new_is_active' => $access->is_active,
-        ]);
 
         return $access;
     }
@@ -258,17 +156,8 @@ class AiModelManager
         $scope = 'ai.model_manager.delete';
         $step = 0;
 
-        $step = $this->workflowStep($scope, $step, 'Request received', [
-            'ai_model_access_id' => $access->id,
-            'model_key' => $access->model_key,
-            'is_protected' => $access->is_protected,
-        ]);
-
+        $step++;
         if ($access->is_protected) {
-            $this->workflowStep($scope, $step, 'Delete blocked for protected access', [
-                'ai_model_access_id' => $access->id,
-            ]);
-
             throw ValidationException::withMessages([
                 'ai_model_access' => __('ai_models.errors.protected_delete'),
             ]);
@@ -280,11 +169,8 @@ class AiModelManager
             ->whereKey($accessId)
             ->delete();
 
-        $this->workflowStep($scope, $step, 'AI model access deleted', [
-            'ai_model_access_id' => $accessId,
-        ]);
     }
-    
+
     /**
      * Resolve the usable model access for a clinic and usage category.
      */
@@ -293,12 +179,7 @@ class AiModelManager
         $scope = 'ai.model_manager.resolve_for_clinic';
         $step = 0;
 
-        $step = $this->workflowStep($scope, $step, 'Request received', [
-            'clinic_id' => $clinic->id,
-            'usage_category_key' => $usageCategoryKey,
-            'requested_ai_model_access_id' => $aiModelAccessId,
-        ]);
-
+        $step++;
         $query = AiModelAccess::query()
             ->active()
             ->where('usage_category_key', $usageCategoryKey)
@@ -309,10 +190,7 @@ class AiModelManager
         if ($aiModelAccessId) {
             $query->whereKey($aiModelAccessId);
 
-            $step = $this->workflowStep($scope, $step, 'Specific access filter applied', [
-                'clinic_id' => $clinic->id,
-                'ai_model_access_id' => $aiModelAccessId,
-            ]);
+            $step++;
         }
 
         $access = $query
@@ -321,47 +199,18 @@ class AiModelManager
             ->orderBy('id')
             ->first();
 
-        $step = $this->workflowStep($scope, $step, 'Access lookup completed', [
-            'clinic_id' => $clinic->id,
-            'usage_category_key' => $usageCategoryKey,
-            'access_found' => $access !== null,
-            'ai_model_access_id' => $access?->id,
-            'model_key' => $access?->model_key,
-            'priority' => $access?->priority,
-        ]);
-
+        $step++;
         if (! $access) {
-            $this->workflowStep($scope, $step, 'No assigned model found', [
-                'clinic_id' => $clinic->id,
-                'usage_category_key' => $usageCategoryKey,
-                'requested_ai_model_access_id' => $aiModelAccessId,
-            ]);
-
             throw ValidationException::withMessages([
                 'ai_model_access' => __('ai_models.errors.no_assigned_model'),
             ]);
         }
 
         if (! $access->hasAvailableCredit()) {
-            $this->workflowStep($scope, $step, 'Resolved access has no available credit', [
-                'clinic_id' => $clinic->id,
-                'ai_model_access_id' => $access->id,
-                'model_key' => $access->model_key,
-                'has_unlimited_credit' => $access->hasUnlimitedCredit(),
-            ]);
-
             throw ValidationException::withMessages([
                 'ai_model_access' => __('ai_models.errors.credit_finished'),
             ]);
         }
-
-        $this->workflowStep($scope, $step, 'Usable access resolved', [
-            'clinic_id' => $clinic->id,
-            'ai_model_access_id' => $access->id,
-            'model_key' => $access->model_key,
-            'usage_category_key' => $access->usage_category_key,
-            'has_unlimited_credit' => $access->hasUnlimitedCredit(),
-        ]);
 
         return $access;
     }
@@ -376,11 +225,7 @@ class AiModelManager
         $scope = 'ai.model_manager.available_for_clinic';
         $step = 0;
 
-        $step = $this->workflowStep($scope, $step, 'Request received', [
-            'clinic_id' => $clinic->id,
-            'usage_category_key' => $usageCategoryKey,
-        ]);
-
+        $step++;
         $accesses = AiModelAccess::query()
             ->active()
             ->where('usage_category_key', $usageCategoryKey)
@@ -391,13 +236,6 @@ class AiModelManager
             ->orderBy('priority')
             ->orderBy('id')
             ->get();
-
-        $this->workflowStep($scope, $step, 'Available accesses resolved', [
-            'clinic_id' => $clinic->id,
-            'usage_category_key' => $usageCategoryKey,
-            'count' => $accesses->count(),
-            'access_ids' => $accesses->pluck('id')->values()->all(),
-        ]);
 
         return $accesses;
     }
@@ -413,48 +251,26 @@ class AiModelManager
     ): int {
         $scope ??= 'ai.model_manager.validate_config_keys';
 
-        $step = $this->workflowStep($scope, $step, 'Validating config keys', [
-            'model_key' => $modelKey,
-            'usage_category_key' => $usageCategoryKey,
-        ]);
-
+        $step++;
         if (! $this->resolver->hasModel($modelKey)) {
-            $this->workflowStep($scope, $step, 'Unknown model key', [
-                'model_key' => $modelKey,
-                'usage_category_key' => $usageCategoryKey,
-            ]);
-
             throw ValidationException::withMessages([
                 'model_key' => __('ai_models.errors.unknown_model'),
             ]);
         }
 
         if (! $this->resolver->hasUsageCategory($usageCategoryKey)) {
-            $this->workflowStep($scope, $step, 'Unknown usage category key', [
-                'model_key' => $modelKey,
-                'usage_category_key' => $usageCategoryKey,
-            ]);
-
             throw ValidationException::withMessages([
                 'usage_category_key' => __('ai_models.errors.unknown_usage_category'),
             ]);
         }
 
         if (! $this->resolver->modelSupportsUsageCategory($modelKey, $usageCategoryKey)) {
-            $this->workflowStep($scope, $step, 'Model does not support usage category', [
-                'model_key' => $modelKey,
-                'usage_category_key' => $usageCategoryKey,
-            ]);
-
             throw ValidationException::withMessages([
                 'usage_category_key' => __('ai_models.errors.unsupported_usage_category'),
             ]);
         }
 
-        return $this->workflowStep($scope, $step, 'Config keys validated', [
-            'model_key' => $modelKey,
-            'usage_category_key' => $usageCategoryKey,
-        ]);
+        return $step + 1;
     }
 
     /**
@@ -508,12 +324,4 @@ class AiModelManager
      *
      * @param  array<string, mixed>  $context
      */
-    private function workflowStep(string $scope, int $step, string $message, array $context = []): int
-    {
-        $step++;
-
-        DebugStepLogger::workflowStep($scope, $step, $message, $context);
-
-        return $step;
-    }
 }

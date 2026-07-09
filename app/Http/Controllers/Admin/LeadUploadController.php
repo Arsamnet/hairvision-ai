@@ -8,7 +8,6 @@ use App\Models\Upload;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Gate;
-use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 
 /**
@@ -20,24 +19,11 @@ class LeadUploadController extends Controller
 {
     public function show(Request $request, Lead $lead, Upload $upload): Response
     {
+        $scope = 'admin.lead_upload.show';
+
         Gate::authorize('view', $lead);
 
         $tenant = $request->attributes->get('adminTenant');
-
-        Log::debug('[admin.lead_upload.show] Upload image requested', [
-            'lead_id' => $lead->id,
-            'lead_tenant_id' => $lead->tenant_id,
-            'lead_tenant_id_type' => gettype($lead->tenant_id),
-            'upload_id' => $upload->id,
-            'upload_lead_id' => $upload->lead_id,
-            'upload_lead_id_type' => gettype($upload->lead_id),
-            'upload_tenant_id' => $upload->tenant_id,
-            'upload_tenant_id_type' => gettype($upload->tenant_id),
-            'admin_tenant_id' => $tenant?->id,
-            'admin_tenant_id_type' => $tenant ? gettype($tenant->id) : null,
-            'disk' => $upload->original_disk,
-            'path' => $upload->original_path,
-        ]);
 
         abort_unless(
             ! $tenant || (int) $lead->tenant_id === (int) $tenant->id,
@@ -60,13 +46,6 @@ class LeadUploadController extends Controller
 
         $storage = Storage::disk($disk);
         $exists = $storage->exists($path);
-
-        Log::debug('[admin.lead_upload.show] Upload storage lookup', [
-            'upload_id' => $upload->id,
-            'disk' => $disk,
-            'path' => $path,
-            'exists' => $exists,
-        ]);
 
         abort_unless($exists, Response::HTTP_NOT_FOUND);
 

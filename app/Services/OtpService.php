@@ -5,7 +5,6 @@ namespace App\Services;
 use App\Models\Lead;
 use App\Models\OtpCode;
 use App\Services\Sms\SmsGatewayService;
-use App\Support\DebugStepLogger;
 use App\Support\NumberNormalizer;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -36,32 +35,13 @@ class OtpService
         $phoneHash = hash('sha256', $phoneNormalized);
         $ipHash = $ipAddress !== '' ? hash('sha256', $ipAddress) : null;
 
-        $this->debugStep($request, $scope, 'Request received', [
-            'tenant_id' => $tenantId,
-            'phone_hash' => $phoneHash,
-            'ip_hash' => $ipHash,
-        ]);
-
-        $expiresAt = Carbon::now()->addMinutes(2);
+        $expiresAt = Carbon::now()->addSeconds((int) config('hairvision.otp.expires_seconds', 120));
 
         try {
             $code = str_pad((string) random_int(100000, 999999), 6, '0', STR_PAD_LEFT);
         } catch (RandomException $exception) {
-            $this->debugStep($request, $scope, 'OTP generation failed', [
-                'tenant_id' => $tenantId,
-                'phone_hash' => $phoneHash,
-                'exception' => $exception::class,
-            ]);
-
             throw $exception;
         }
-
-        $this->debugStep($request, $scope, 'OTP generated', [
-            'tenant_id' => $tenantId,
-            'phone_hash' => $phoneHash,
-            'code_length' => strlen($code),
-            'expires_at' => $expiresAt->toISOString(),
-        ]);
 
         try {
             $otp = OtpCode::create([
@@ -74,39 +54,14 @@ class OtpService
                 'attempts' => 0,
             ]);
         } catch (Throwable $exception) {
-            $this->debugStep($request, $scope, 'OTP record creation failed', [
-                'tenant_id' => $tenantId,
-                'phone_hash' => $phoneHash,
-                'exception' => $exception::class,
-            ]);
-
             throw $exception;
         }
-
-        $this->debugStep($request, $scope, 'OTP record created', [
-            'tenant_id' => $tenantId,
-            'otp_id' => $otp->id,
-            'phone_hash' => $phoneHash,
-        ]);
 
         try {
             $this->smsGateways->sendSystemOtp($phoneNormalized, $code);
         } catch (Throwable $exception) {
-            $this->debugStep($request, $scope, 'OTP SMS sending failed', [
-                'tenant_id' => $tenantId,
-                'otp_id' => $otp->id,
-                'phone_hash' => $phoneHash,
-                'exception' => $exception::class,
-            ]);
-
             throw $exception;
         }
-
-        $this->debugStep($request, $scope, 'OTP SMS sent', [
-            'tenant_id' => $tenantId,
-            'otp_id' => $otp->id,
-            'phone_hash' => $phoneHash,
-        ]);
 
         return $otp;
     }
@@ -130,12 +85,6 @@ class OtpService
         $codeNormalized = NumberNormalizer::toLatinDigits($code);
         $phoneHash = hash('sha256', $phoneNormalized);
 
-        $this->debugStep($request, $scope, 'Request received', [
-            'tenant_id' => $tenantId,
-            'phone_hash' => $phoneHash,
-            'code_length' => strlen($codeNormalized),
-        ]);
-
         $otp = OtpCode::query()
             ->where('tenant_id', '=', $tenantId)
             ->where('phone_normalized', '=', $phoneNormalized)
@@ -145,30 +94,11 @@ class OtpService
             ->orderByDesc('created_at')
             ->first();
 
-        $this->debugStep($request, $scope, 'Active OTP lookup completed', [
-            'tenant_id' => $tenantId,
-            'phone_hash' => $phoneHash,
-            'otp_found' => $otp !== null,
-            'otp_id' => $otp?->id,
-        ]);
-
         if (! $otp) {
-            $this->debugStep($request, $scope, 'Active OTP not found', [
-                'tenant_id' => $tenantId,
-                'phone_hash' => $phoneHash,
-            ]);
-
             abort(Response::HTTP_UNPROCESSABLE_ENTITY, __('auth.invalid_lead_otp'));
         }
 
         if ($otp->attempts >= config('hairvision.otp.max_attempts')) {
-            $this->debugStep($request, $scope, 'OTP max attempts reached', [
-                'tenant_id' => $tenantId,
-                'otp_id' => $otp->id,
-                'attempts' => $otp->attempts,
-                'max_attempts' => config('hairvision.otp.max_attempts'),
-            ]);
-
             abort(Response::HTTP_UNPROCESSABLE_ENTITY, __('auth.too_many_otp_attempts'));
         }
 
@@ -177,32 +107,15 @@ class OtpService
 
             $otp->increment('attempts');
 
-            $this->debugStep($request, $scope, 'OTP code mismatch', [
-                'tenant_id' => $tenantId,
-                'otp_id' => $otp->id,
-                'attempts' => $newAttempts,
-                'max_attempts' => config('hairvision.otp.max_attempts'),
-            ]);
-
             if ($newAttempts >= config('hairvision.otp.max_attempts')) {
                 $otp->update(['verified_at' => Carbon::now()]);
 
-                $this->debugStep($request, $scope, 'OTP locked after max failed attempts', [
-                    'tenant_id' => $tenantId,
-                    'otp_id' => $otp->id,
-                    'attempts' => $newAttempts,
-                ]);
             }
 
             abort(Response::HTTP_UNPROCESSABLE_ENTITY, __('auth.invalid_lead_otp'));
         }
 
         $otp->update(['verified_at' => Carbon::now()]);
-
-        $this->debugStep($request, $scope, 'OTP marked as verified', [
-            'tenant_id' => $tenantId,
-            'otp_id' => $otp->id,
-        ]);
 
         $lead = Lead::updateOrCreate(
             ['tenant_id' => $tenantId, 'phone_normalized' => $phoneNormalized],
@@ -214,13 +127,6 @@ class OtpService
                 'status' => 'verified',
             ]
         );
-
-        $this->debugStep($request, $scope, 'Lead upserted', [
-            'tenant_id' => $tenantId,
-            'lead_id' => $lead->id,
-            'lead_uuid' => $lead->uuid,
-            'phone_hash' => $phoneHash,
-        ]);
 
         return $lead;
     }
@@ -238,12 +144,4 @@ class OtpService
      *
      * @param  array<string, mixed>  $context
      */
-    private function debugStep(?Request $request, string $scope, string $message, array $context = []): void
-    {
-        if (! $request) {
-            return;
-        }
-
-        DebugStepLogger::step($request, $scope, $message, $context);
-    }
 }

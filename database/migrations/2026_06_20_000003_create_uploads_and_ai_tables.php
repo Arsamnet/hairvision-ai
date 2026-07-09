@@ -64,6 +64,7 @@ return new class extends Migration
             $table->longText('prompt')->nullable();
             $table->unsignedInteger('credit_limit')->nullable();
             $table->unsignedInteger('credit_used')->default(0);
+            $table->unsignedInteger('usage_count')->default(0);
             $table->boolean('is_active')->default(true)->index();
             $table->boolean('is_demo')->default(false);
             $table->boolean('is_protected')->default(false);

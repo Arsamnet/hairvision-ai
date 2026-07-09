@@ -57,7 +57,12 @@
                             <tr class="transition hover:bg-zinc-50/80">
                                 <td class="px-4 py-3 align-top">
                                     <x-admin.table.action-menu>
-                                        <x-admin.table.action-item :href="route('admin.ai-models.show', $access)" icon="edit">{{ __('ai_models.edit') }}</x-admin.table.action-item>
+                                        @can('view', $access)
+                                            <x-admin.table.action-item :href="route('admin.ai-models.show', $access)" icon="eye">{{ __('ai_models.details') }}</x-admin.table.action-item>
+                                        @endcan
+                                        @can('update', $access)
+                                            <x-admin.table.action-item :href="route('admin.ai-models.edit', $access)" icon="edit">{{ __('ai_models.edit') }}</x-admin.table.action-item>
+                                        @endcan
                                         <x-admin.table.action-item
                                             :action="route('admin.clinics.ai-models.update', [$clinic, $access])"
                                             method="PATCH"
@@ -92,7 +97,12 @@
                                 <p class="admin-mobile-list-card-subtitle">{{ $resolver->modelLabel($access->model_key) }}</p>
                             </div>
                             <x-admin.table.action-menu>
-                                <x-admin.table.action-item :href="route('admin.ai-models.show', $access)" icon="edit">{{ __('ai_models.edit') }}</x-admin.table.action-item>
+                                @can('view', $access)
+                                    <x-admin.table.action-item :href="route('admin.ai-models.show', $access)" icon="eye">{{ __('ai_models.details') }}</x-admin.table.action-item>
+                                @endcan
+                                @can('update', $access)
+                                    <x-admin.table.action-item :href="route('admin.ai-models.edit', $access)" icon="edit">{{ __('ai_models.edit') }}</x-admin.table.action-item>
+                                @endcan
                                 <x-admin.table.action-item
                                     :action="route('admin.clinics.ai-models.update', [$clinic, $access])"
                                     method="PATCH"

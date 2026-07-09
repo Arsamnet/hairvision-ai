@@ -8,6 +8,8 @@
     <?php
         $defaultFaviconHref = app('Illuminate\Foundation\Vite')->asset('resources/img/favicon.png');
         $faviconHref = $theme?->faviconHref($defaultFaviconHref) ?? $defaultFaviconHref;
+        $primaryColor = (string) ($theme?->primary_color ?: '#0f766e');
+        $primaryColor = preg_match('/^#[0-9a-fA-F]{6}$/', $primaryColor) ? $primaryColor : '#0f766e';
     ?>
     <link rel="icon" href="<?php echo e($faviconHref); ?>">
     <?php echo app('Illuminate\Foundation\Vite')(['resources/css/app.css', 'resources/js/app.js']); ?>
@@ -102,7 +104,7 @@
             border: 2px solid transparent;
             background:
                 linear-gradient(135deg, #0f172a, #111827) padding-box,
-                linear-gradient(120deg, #14b8a6, #22d3ee, #6366f1, #a855f7, #14b8a6) border-box;
+                linear-gradient(120deg, var(--hv-primary-color, #14b8a6), #22d3ee, #6366f1, #a855f7, var(--hv-primary-color, #14b8a6)) border-box;
             background-size: 100% 100%, 260% 260%;
             animation: hv-shift 4.5s ease-in-out infinite;
             box-shadow: 0 14px 34px rgba(49,46,129,.24);
@@ -123,7 +125,7 @@
         .hv-ai-input {
             background:
                 linear-gradient(#fff, #fff) padding-box,
-                linear-gradient(120deg, #14b8a6, #22d3ee, #6366f1, #a855f7, #14b8a6) border-box;
+                linear-gradient(120deg, var(--hv-primary-color, #14b8a6), #22d3ee, #6366f1, #a855f7, var(--hv-primary-color, #14b8a6)) border-box;
             background-size: 100% 100%, 260% 260%;
             border: 1px solid transparent;
             animation: hv-shift 4.5s ease-in-out infinite;
@@ -208,9 +210,27 @@
             min-height: 17rem;
             aspect-ratio: 4 / 5;
         }
+        .hv-otp-brand {
+            border-color: color-mix(in srgb, var(--hv-primary-color, #0f766e) 22%, white);
+            background:
+                radial-gradient(circle at 12% 10%, color-mix(in srgb, var(--hv-primary-color, #0f766e) 18%, transparent), transparent 34%),
+                linear-gradient(135deg, #ffffff, #f8fafc);
+        }
+        .hv-secondary-action {
+            border: 1px solid color-mix(in srgb, var(--hv-primary-color, #0f766e) 26%, #e4e4e7);
+            color: color-mix(in srgb, var(--hv-primary-color, #0f766e) 86%, #18181b);
+            background: color-mix(in srgb, var(--hv-primary-color, #0f766e) 6%, white);
+        }
+        .hv-secondary-action:hover:not(:disabled) {
+            background: color-mix(in srgb, var(--hv-primary-color, #0f766e) 12%, white);
+        }
+        .hv-secondary-action:disabled {
+            color: #71717a;
+            background: #f4f4f5;
+        }
     </style>
 </head>
-<body class="min-h-screen bg-[#eef2ff] font-sans text-zinc-900 antialiased">
+<body class="min-h-screen bg-[#eef2ff] font-sans text-zinc-900 antialiased" style="--hv-primary-color: <?php echo e($primaryColor); ?>;">
     <div class="flex min-h-screen flex-col">
         <header class="w-full bg-white/85 shadow-sm shadow-zinc-200/60 backdrop-blur">
             <?php echo $theme?->header_html ?? '<div class="mx-auto flex w-full max-w-6xl flex-wrap items-center justify-between gap-4 px-4 py-5 sm:px-6"><div><p class="text-sm font-bold text-emerald-700">کلینیک کاشت مو</p><h1 class="mt-1 text-xl font-bold text-zinc-950">مشاوره و پیش نمایش اختصاصی کاشت مو</h1></div></div>'; ?>
@@ -285,33 +305,41 @@
                             </div>
 
                             <section class="flow-step hv-enter space-y-5 rounded-3xl bg-white p-5 shadow-xl shadow-indigo-100/60" id="step1">
-                                <div>
-                                    <p class="text-sm font-bold text-indigo-600">شروع</p>
-                                    <h2 class="mt-2 text-xl font-bold text-zinc-950">شماره موبایل خود را وارد کنید</h2>
+                                <div class="hv-otp-brand rounded-3xl border p-4">
+                                    <p class="text-sm font-bold" style="color: var(--hv-primary-color);"><?php echo e($tenant->name ?? 'HairVision'); ?></p>
+                                    <h2 class="mt-1 text-xl font-bold text-zinc-950">ورود امن با شماره موبایل</h2>
+                                    <p class="mt-2 text-sm leading-7 text-zinc-500">کد یکبارمصرف فقط برای همین نشست ارسال می‌شود و تصویر شما بعد از تایید شماره قابل بارگذاری است.</p>
                                 </div>
                                 <div>
                                     <label for="phone" class="block text-sm font-bold text-zinc-800">شماره موبایل</label>
                                     <input id="phone" type="text" inputmode="numeric" autocomplete="tel" maxlength="11" pattern="[0-9۰-۹٠-٩]*" placeholder="۰۹۱۲۳۴۵۶۷۸۹" class="hv-ai-input mt-2 w-full rounded-2xl px-4 py-3 text-right text-base outline-none transition" />
                                     <p id="phoneError" class="mt-2 hidden text-sm text-rose-600"></p>
                                 </div>
-                                <button id="requestOtp" class="hv-primary-action w-full rounded-2xl px-5 py-3 text-sm font-bold text-white transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-60">ارسال کد تایید</button>
+                                <button id="requestOtp" type="button" class="hv-primary-action w-full rounded-2xl px-5 py-3 text-sm font-bold text-white transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-60">ارسال کد تایید</button>
                             </section>
 
                             <section class="flow-step hidden space-y-5 rounded-3xl bg-white p-5 shadow-xl shadow-indigo-100/60" id="step2">
-                                <div>
-                                    <p class="text-sm font-bold text-indigo-600">تایید شماره</p>
-                                    <h2 class="mt-2 text-xl font-bold text-zinc-950">کد تایید را وارد کنید</h2>
+                                <div class="hv-otp-brand rounded-3xl border p-4">
+                                    <p class="text-sm font-bold" style="color: var(--hv-primary-color);">تایید شماره</p>
+                                    <h2 class="mt-1 text-xl font-bold text-zinc-950">کد تایید را وارد کنید</h2>
                                     <p class="mt-2 text-sm leading-7 text-zinc-500">کد ارسال شده به <span id="displayPhone" class="font-bold text-zinc-900"></span></p>
                                 </div>
                                 <div>
                                     <label for="otp" class="block text-sm font-bold text-zinc-800">کد تایید</label>
-                                    <input id="otp" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="6" pattern="[0-9۰-۹٠-٩]*" placeholder="۱۲۳۴۵۶" class="hv-ai-input mt-2 w-full rounded-2xl px-4 py-3 text-right text-base outline-none transition" />
+                                    <input id="otp" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="6" pattern="[0-9۰-۹٠-٩]*" placeholder="۱۲۳۴۵۶" class="hv-ai-input mt-2 w-full rounded-2xl px-4 py-3 text-center text-lg font-bold tracking-[0.3em] outline-none transition" dir="ltr" />
                                     <p id="otpDebug" class="mt-2 hidden text-sm text-sky-700"></p>
                                     <p id="otpError" class="mt-2 hidden text-sm text-rose-600"></p>
                                 </div>
+                                <div class="rounded-2xl bg-zinc-50 p-3 ring-1 ring-zinc-200">
+                                    <div class="flex flex-wrap items-center justify-between gap-2 text-sm">
+                                        <span id="otpTimerText" class="font-bold text-zinc-700">زمان باقی‌مانده: <span id="otpCountdown" dir="ltr">۰۲:۰۰</span></span>
+                                        <button id="resendOtp" type="button" class="hv-secondary-action rounded-xl px-3 py-2 text-xs font-bold transition disabled:cursor-not-allowed" disabled>ارسال مجدد کد</button>
+                                    </div>
+                                    <p class="mt-2 text-xs leading-6 text-zinc-500">اگر شماره اشتباه است، آن را تغییر دهید تا کد جدید برای شماره درست ارسال شود.</p>
+                                </div>
                                 <div class="grid gap-3 lg:grid-cols-2">
-                                    <button id="verifyOtp" class="hv-primary-action w-full rounded-2xl px-5 py-3 text-sm font-bold text-white transition hover:-translate-y-0.5">تایید و ادامه</button>
-                                    <button id="backToPhone" class="hv-lift w-full rounded-2xl bg-white px-5 py-3 text-sm font-bold text-zinc-700 ring-1 ring-zinc-200">تغییر شماره</button>
+                                    <button id="verifyOtp" type="button" class="hv-primary-action w-full rounded-2xl px-5 py-3 text-sm font-bold text-white transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-60">تایید و ادامه</button>
+                                    <button id="backToPhone" type="button" class="hv-lift w-full rounded-2xl bg-white px-5 py-3 text-sm font-bold text-zinc-700 ring-1 ring-zinc-200">تغییر شماره</button>
                                 </div>
                             </section>
 
@@ -399,7 +427,7 @@
         </main>
 
         <footer class="w-full bg-white/85 shadow-[0_-1px_20px_rgba(24,24,27,0.04)] backdrop-blur">
-            <?php echo $theme?->footer_html ?? '<div class="mx-auto flex w-full max-w-6xl flex-wrap items-center justify-between gap-3 px-4 py-5 text-sm text-zinc-500 sm:px-6"><p>یک پیش‌نمایش الهام‌بخش برای شروع گفت‌وگوی دقیق‌تر با کلینیک.</p><p class="flex items-center gap-2"><span>قدرت گرفته از</span><span class="grid h-7 w-7 place-items-center rounded-xl bg-linear-to-br from-emerald-500 via-indigo-500 to-fuchsia-500"><img src="/theme/hairvision-icon.svg" alt="" class="h-5 w-5"></span></p></div>'; ?>
+            <?php echo $theme?->footer_html ?? '<div class="mx-auto flex w-full max-w-6xl flex-wrap items-center justify-between gap-3 px-4 py-5 text-sm text-zinc-500 sm:px-6"><p>یک پیش‌نمایش الهام‌بخش برای شروع گفت‌وگوی دقیق‌تر با کلینیک.</p><p class="flex items-center gap-2"><span>قدرت گرفته از</span><span class="grid h-7 w-7 place-items-center rounded-xl bg-linear-to-br from-emerald-500 via-indigo-500 to-fuchsia-500"><img src="/theme/admin-logo-dark.svg" alt="" class="h-5 w-5"></span></p></div>'; ?>
 
         </footer>
     </div>
@@ -462,6 +490,9 @@
         messageTimer: null,
         generationComplete: false,
         longRunningMessageShown: false,
+        otpExpiresAt: null,
+        otpTimer: null,
+        otpRequestInFlight: false,
     };
 
     const DIGIT_MAP = {
@@ -512,6 +543,72 @@
     function wait(ms) {
         return new Promise((resolve) => setTimeout(resolve, ms));
     }
+
+    function formatSeconds(seconds) {
+        const safeSeconds = Math.max(0, Number(seconds) || 0);
+        const minutes = Math.floor(safeSeconds / 60);
+        const remainingSeconds = safeSeconds % 60;
+
+        return toPersianDigits(`${String(minutes).padStart(2, '0')}:${String(remainingSeconds).padStart(2, '0')}`);
+    }
+
+    function stopOtpTimer() {
+        if (STATE.otpTimer) {
+            clearInterval(STATE.otpTimer);
+        }
+
+        STATE.otpTimer = null;
+        STATE.otpExpiresAt = null;
+    }
+
+    function updateOtpTimer() {
+        const countdown = document.getElementById('otpCountdown');
+        const timerText = document.getElementById('otpTimerText');
+        const resendButton = document.getElementById('resendOtp');
+
+        if (!countdown || !timerText || !resendButton || !STATE.otpExpiresAt) return;
+
+        const remainingSeconds = Math.ceil((STATE.otpExpiresAt - Date.now()) / 1000);
+
+        if (remainingSeconds <= 0) {
+            countdown.textContent = formatSeconds(0);
+            timerText.firstChild.textContent = 'کد منقضی شد. ';
+            resendButton.disabled = STATE.otpRequestInFlight;
+            resendButton.textContent = STATE.otpRequestInFlight ? 'در حال ارسال...' : 'ارسال مجدد کد';
+            stopOtpTimer();
+
+            return;
+        }
+
+        timerText.firstChild.textContent = 'زمان باقی‌مانده: ';
+        countdown.textContent = formatSeconds(remainingSeconds);
+        resendButton.disabled = true;
+        resendButton.textContent = 'ارسال مجدد کد';
+    }
+
+    function startOtpTimer(seconds) {
+        stopOtpTimer();
+
+        STATE.otpExpiresAt = Date.now() + (Math.max(1, Number(seconds) || 120) * 1000);
+        updateOtpTimer();
+        STATE.otpTimer = setInterval(updateOtpTimer, 1000);
+    }
+
+    function markOtpExpired() {
+        stopOtpTimer();
+
+        const countdown = document.getElementById('otpCountdown');
+        const timerText = document.getElementById('otpTimerText');
+        const resendButton = document.getElementById('resendOtp');
+
+        if (countdown) countdown.textContent = formatSeconds(0);
+        if (timerText?.firstChild) timerText.firstChild.textContent = 'کد قبلی منقضی شده است. ';
+        if (resendButton) {
+            resendButton.disabled = false;
+            resendButton.textContent = 'ارسال مجدد کد';
+        }
+    }
+
 
     function firstStageKey() {
         return GENERATION.stages?.[0]?.key || 'two_weeks';
@@ -621,6 +718,7 @@
 
         if (payload?.requiresVerification) {
             STATE.verified = false;
+            stopOtpTimer();
             sessionStorage.removeItem(STORAGE_KEYS.verified);
             document.getElementById('otp').value = '';
             UI.clearError('otpError');
@@ -853,26 +951,32 @@
         openImageModal(0);
     });
 
-    document.getElementById('requestOtp').addEventListener('click', async () => {
-        const phone = normalizeDigits(document.getElementById('phone').value);
+    async function requestOtpForPhone(phone, mode = 'initial') {
+        const initialButton = document.getElementById('requestOtp');
+        const resendButton = document.getElementById('resendOtp');
+        const activeButton = mode === 'resend' ? resendButton : initialButton;
 
-        UI.clearError('phoneError');
+        UI.clearError(mode === 'resend' ? 'otpError' : 'phoneError');
 
         if (phone.length !== 11) {
             return UI.showError('phoneError', 'شماره موبایل باید ۱۱ رقم باشد.');
         }
 
-        const btn = document.getElementById('requestOtp');
+        if (STATE.otpRequestInFlight || activeButton?.disabled) return;
 
-        if (btn.disabled) return;
-
-        btn.disabled = true;
-        btn.textContent = 'در حال ارسال...';
+        STATE.otpRequestInFlight = true;
+        activeButton.disabled = true;
+        activeButton.textContent = 'در حال ارسال...';
 
         const result = await API.requestOtp(phone);
 
-        btn.disabled = false;
-        btn.textContent = 'ارسال کد تایید';
+        STATE.otpRequestInFlight = false;
+        initialButton.disabled = false;
+        initialButton.textContent = 'ارسال کد تایید';
+        if (mode === 'resend') {
+            resendButton.disabled = false;
+            resendButton.textContent = 'ارسال مجدد کد';
+        }
 
         if (result.success) {
             STATE.phone = phone;
@@ -882,6 +986,7 @@
             sessionStorage.removeItem(STORAGE_KEYS.verified);
 
             document.getElementById('displayPhone').textContent = toPersianDigits(phone);
+            document.getElementById('otp').value = '';
 
             if (result.debug_sms) {
                 UI.showDebugOtp(result.debug_sms);
@@ -889,13 +994,34 @@
                 UI.clearDebugOtp();
             }
 
+            startOtpTimer(result.expires_in || 120);
             UI.showStep(2);
             document.getElementById('otp').focus();
 
             return;
         }
 
-        UI.showError('phoneError', result.message || 'ارسال کد تایید ناموفق بود.');
+        updateOtpTimer();
+        if (mode === 'resend' && !STATE.otpExpiresAt) {
+            resendButton.disabled = false;
+            resendButton.textContent = 'ارسال مجدد کد';
+        }
+        UI.showError(mode === 'resend' ? 'otpError' : 'phoneError', result.message || 'ارسال کد تایید ناموفق بود.');
+    }
+
+    document.getElementById('requestOtp').addEventListener('click', async () => {
+        const phone = normalizeDigits(document.getElementById('phone').value);
+
+        await requestOtpForPhone(phone);
+    });
+
+    document.getElementById('resendOtp').addEventListener('click', async () => {
+        if (!STATE.phone) {
+            UI.showStep(1);
+            return UI.showError('phoneError', 'برای ارسال کد، ابتدا شماره موبایل خود را وارد کنید.');
+        }
+
+        await requestOtpForPhone(STATE.phone, 'resend');
     });
 
     document.getElementById('verifyOtp').addEventListener('click', async () => {
@@ -921,6 +1047,7 @@
 
         if (result.success) {
             STATE.verified = true;
+            stopOtpTimer();
 
             sessionStorage.setItem(STORAGE_KEYS.phone, STATE.phone);
             sessionStorage.setItem(STORAGE_KEYS.verified, '1');
@@ -937,6 +1064,7 @@
         document.getElementById('otp').value = '';
 
         STATE.verified = false;
+        stopOtpTimer();
         sessionStorage.removeItem(STORAGE_KEYS.verified);
 
         UI.clearError('otpError');
@@ -1475,6 +1603,7 @@
             document.getElementById('phone').value = toPersianDigits(STATE.phone);
             document.getElementById('displayPhone').textContent = toPersianDigits(STATE.phone);
             UI.showStep(2);
+            markOtpExpired();
             document.getElementById('otp').focus();
             return;
         }

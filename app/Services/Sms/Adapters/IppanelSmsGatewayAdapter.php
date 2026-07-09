@@ -4,7 +4,6 @@ namespace App\Services\Sms\Adapters;
 
 use App\Models\SmsGateway;
 use App\Services\Sms\Contracts\SmsGatewayAdapter;
-use App\Support\DebugStepLogger;
 use App\Support\NumberNormalizer;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\Response;
@@ -29,29 +28,14 @@ class IppanelSmsGatewayAdapter implements SmsGatewayAdapter
         $scope = 'sms.adapter.ippanel.send';
         $step = 0;
 
-        $step = $this->workflowStep($scope, $step, 'Request received', [
-            'gateway_id' => $gateway->id,
-            'phone_hash' => hash('sha256', $phoneNormalized),
-            'message_length' => strlen($message),
-        ]);
-
+        $step++;
         try {
             $fromNumber = $this->fromNumber($gateway);
         } catch (ValidationException $exception) {
-            $this->workflowStep($scope, $step, 'Sender number validation failed', [
-                'gateway_id' => $gateway->id,
-            ]);
-
             throw $exception;
         }
 
-        $step = $this->workflowStep($scope, $step, 'SMS payload prepared', [
-            'gateway_id' => $gateway->id,
-            'sending_type' => 'webservice',
-            'has_from_number' => $fromNumber !== '',
-            'recipients_count' => 1,
-        ]);
-
+        $step++;
         $this->post($gateway, [
             'sending_type' => 'webservice',
             'from_number' => $fromNumber,
@@ -72,19 +56,10 @@ class IppanelSmsGatewayAdapter implements SmsGatewayAdapter
         $scope = 'sms.adapter.ippanel.send_otp';
         $step = 0;
 
-        $step = $this->workflowStep($scope, $step, 'Request received', [
-            'gateway_id' => $gateway->id,
-            'phone_hash' => hash('sha256', $phoneNormalized),
-            'code_length' => strlen($code),
-        ]);
-
+        $step++;
         $patternCode = data_get($gateway->settings_json ?? [], 'otp_pattern_code');
 
         if (! is_string($patternCode) || trim($patternCode) === '') {
-            $this->workflowStep($scope, $step, 'OTP pattern code missing', [
-                'gateway_id' => $gateway->id,
-            ]);
-
             throw ValidationException::withMessages([
                 'sms_gateway' => __('sms.missing_otp_pattern_code'),
             ]);
@@ -93,22 +68,10 @@ class IppanelSmsGatewayAdapter implements SmsGatewayAdapter
         try {
             $fromNumber = $this->fromNumber($gateway);
         } catch (ValidationException $exception) {
-            $this->workflowStep($scope, $step, 'Sender number validation failed', [
-                'gateway_id' => $gateway->id,
-            ]);
-
             throw $exception;
         }
 
-        $step = $this->workflowStep($scope, $step, 'OTP payload prepared', [
-            'gateway_id' => $gateway->id,
-            'sending_type' => 'pattern',
-            'has_from_number' => $fromNumber !== '',
-            'has_pattern_code' => true,
-            'pattern_variable' => $this->otpPatternVariable($gateway),
-            'recipients_count' => 1,
-        ]);
-
+        $step++;
         $this->post($gateway, [
             'sending_type' => 'pattern',
             'from_number' => $fromNumber,
@@ -134,31 +97,14 @@ class IppanelSmsGatewayAdapter implements SmsGatewayAdapter
         $connectTimeout = $this->connectTimeoutSeconds($gateway);
         $sendingType = $payload['sending_type'] ?? null;
 
-        $step = $this->workflowStep($scope, $step, 'HTTP settings resolved', [
-            'gateway_id' => $gateway->id,
-            'endpoint_host' => $this->endpointHost($endpoint),
-            'custom_endpoint' => $endpoint !== self::DEFAULT_ENDPOINT,
-            'timeout_seconds' => $timeout,
-            'connect_timeout_seconds' => $connectTimeout,
-            'sending_type' => is_string($sendingType) ? $sendingType : null,
-        ]);
-
+        $step++;
         try {
             $authorizationHeader = $this->authorizationHeader($gateway);
         } catch (ValidationException $exception) {
-            $this->workflowStep($scope, $step, 'Authorization validation failed', [
-                'gateway_id' => $gateway->id,
-                'endpoint_host' => $this->endpointHost($endpoint),
-            ]);
-
             throw $exception;
         }
 
-        $step = $this->workflowStep($scope, $step, 'Authorization prepared', [
-            'gateway_id' => $gateway->id,
-            'has_authorization' => $authorizationHeader !== '',
-        ]);
-
+        $step++;
         try {
             $response = Http::asJson()
                 ->acceptJson()
@@ -169,15 +115,7 @@ class IppanelSmsGatewayAdapter implements SmsGatewayAdapter
                 ])
                 ->post($endpoint, $payload);
 
-            $step = $this->workflowStep($scope, $step, 'HTTP response received', [
-                'gateway_id' => $gateway->id,
-                'endpoint_host' => $this->endpointHost($endpoint),
-                'http_status' => $response->status(),
-                'http_successful' => $response->successful(),
-                'ippanel_status' => data_get($response->json() ?? [], 'meta.status'),
-                'sending_type' => is_string($sendingType) ? $sendingType : null,
-            ]);
-
+            $step++;
             if (! $this->isSuccessfulResponse($response)) {
                 $this->logFailedResponse($gateway, $endpoint, $response, $sendingType, $scope, $step);
 
@@ -186,18 +124,8 @@ class IppanelSmsGatewayAdapter implements SmsGatewayAdapter
                 ]);
             }
 
-            return $this->workflowStep($scope, $step, 'IPPanel request completed', [
-                'gateway_id' => $gateway->id,
-                'endpoint_host' => $this->endpointHost($endpoint),
-                'sending_type' => is_string($sendingType) ? $sendingType : null,
-            ]);
+            return $step + 1;
         } catch (ConnectionException $exception) {
-            $this->workflowStep($scope, $step, 'IPPanel connection failed', [
-                'gateway_id' => $gateway->id,
-                'endpoint_host' => $this->endpointHost($endpoint),
-                'exception' => $exception::class,
-            ]);
-
             throw ValidationException::withMessages([
                 'sms_gateway' => __('sms.ippanel_timeout'),
             ]);
@@ -371,7 +299,7 @@ class IppanelSmsGatewayAdapter implements SmsGatewayAdapter
 
         Log::warning('IPPanel SMS gateway request failed.', $context);
 
-        return $this->workflowStep($scope, $step, 'IPPanel request failed', $context);
+        return $step + 1;
     }
 
     /**
@@ -404,12 +332,4 @@ class IppanelSmsGatewayAdapter implements SmsGatewayAdapter
      *
      * @param  array<string, mixed>  $context
      */
-    private function workflowStep(string $scope, int $step, string $message, array $context = []): int
-    {
-        $step++;
-
-        DebugStepLogger::workflowStep($scope, $step, $message, $context);
-
-        return $step;
-    }
 }

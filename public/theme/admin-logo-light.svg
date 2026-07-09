@@ -9,14 +9,14 @@ viewBox="0 0 277148 69929"
   <style type="text/css">
    <![CDATA[
     .fil3 {fill:none}
-    .fil0 {fill:#132232}
-    .fil2 {fill:#474AF7}
+    .fil0 {fill:#0F172A}
+    .fil2 {fill:#7C3AED}
     .fil1 {fill:url(#id0)}
    ]]>
   </style>
   <linearGradient id="id0" gradientUnits="objectBoundingBox" x1="1.8373%" y1="0%" x2="98.8295%" y2="0%">
-   <stop offset="0" style="stop-opacity:1; stop-color:#4849F7"/>
-   <stop offset="1" style="stop-opacity:1; stop-color:#02C4CC"/>
+   <stop offset="0" style="stop-opacity:1; stop-color:#8B5CF6"/>
+   <stop offset="1" style="stop-opacity:1; stop-color:#14B8A6"/>
   </linearGradient>
  </defs>
  <g id="Layer_x0020_1">

@@ -4,7 +4,6 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Tenant;
-use App\Support\DebugStepLogger;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -23,23 +22,9 @@ class BootstrapController extends Controller
     {
         $scope = 'public.bootstrap';
 
-        DebugStepLogger::step($request, $scope, 'Request received');
-
         $tenant = $this->tenantFromRequest($request, $scope);
 
-        DebugStepLogger::step($request, $scope, 'Tenant resolved', [
-            'tenant_id' => $tenant->id,
-            'tenant_slug' => $tenant->slug,
-        ]);
-
         $theme = $tenant->theme;
-
-        DebugStepLogger::step($request, $scope, 'Tenant theme resolved', [
-            'tenant_id' => $tenant->id,
-            'has_theme' => $theme !== null,
-            'template' => $theme?->template?->code ?? 'classic',
-            'has_primary_color' => filled($theme?->primary_color),
-        ]);
 
         $response = [
             'tenant' => [
@@ -57,14 +42,6 @@ class BootstrapController extends Controller
             ],
         ];
 
-        DebugStepLogger::step($request, $scope, 'Response prepared', [
-            'tenant_id' => $tenant->id,
-            'tenant_slug' => $tenant->slug,
-            'template' => $response['tenant']['theme']['template'],
-            'upload_enabled' => $response['features']['upload_enabled'],
-            'ai_provider' => $response['features']['ai_provider'],
-        ]);
-
         return response()->json($response);
     }
 
@@ -76,8 +53,6 @@ class BootstrapController extends Controller
         $tenant = $request->attributes->get('currentTenant');
 
         if (! $tenant instanceof Tenant) {
-            DebugStepLogger::step($request, $scope, 'Tenant missing from request attributes');
-
             abort(Response::HTTP_NOT_FOUND);
         }
 

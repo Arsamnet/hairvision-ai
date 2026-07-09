@@ -24,6 +24,22 @@
 }
 
 @font-face {
+    font-family: 'Vazirmatn FD';
+    src: url('../fonts/vazirmatn/Vazirmatn-FD-Regular.woff2') format('woff2');
+    font-weight: 400;
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: 'Vazirmatn FD';
+    src: url('../fonts/vazirmatn/Vazirmatn-FD-Bold.woff2') format('woff2');
+    font-weight: 700;
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
     font-family: 'uicons-regular-rounded';
     src: url('../fonts/uicons/uicons-regular-rounded.woff2') format('woff2');
     font-weight: 400;
@@ -183,9 +199,10 @@ html[data-admin-theme='dark'] {
     color-scheme: dark;
     --admin-bg: #090b16;
     --admin-bg-image:
-        radial-gradient(circle at 12% 0%, rgba(124, 58, 237, 0.22), transparent 26rem),
-        radial-gradient(circle at 84% 12%, rgba(45, 212, 191, 0.18), transparent 24rem),
-        linear-gradient(180deg, #0d1021 0%, #090b16 100%);
+        radial-gradient(circle at 14% -6%, rgba(139, 92, 246, 0.3), transparent 28rem),
+        radial-gradient(circle at 88% 8%, rgba(20, 184, 166, 0.24), transparent 26rem),
+        radial-gradient(circle at 48% 100%, rgba(139, 92, 246, 0.1), transparent 32rem),
+        linear-gradient(180deg, #0e1224 0%, #090b16 58%, #07120f 100%);
     --admin-auth-bg-image: linear-gradient(135deg, #0b1020 0%, #111625 48%, #090b16 100%);
     --admin-surface: #111625;
     --admin-elevated: #171d30;
@@ -251,6 +268,10 @@ html[data-admin-theme='dark'] {
     --admin-submenu-line: rgba(148, 163, 184, 0.22);
     --admin-focus: #a78bfa;
     --admin-scroll-thumb: rgba(148, 163, 184, 0.36);
+}
+
+:where(.admin-shell, .admin-auth-shell) {
+    font-family: 'Vazirmatn FD', 'Vazirmatn', ui-sans-serif, system-ui, sans-serif;
 }
 
 .admin-shell {
@@ -378,6 +399,146 @@ html[data-admin-theme='dark'] .admin-logo-dark {
     overscroll-behavior: contain;
     scrollbar-color: var(--admin-scroll-thumb) transparent;
     scrollbar-width: thin;
+}
+
+.admin-breadcrumbs {
+    position: relative;
+    margin-bottom: 1.25rem;
+    border-bottom: 1px solid var(--admin-border);
+    color: var(--admin-text);
+}
+
+.admin-breadcrumbs::before {
+    content: '';
+    position: absolute;
+    inset-block-end: -1px;
+    inset-inline-start: 0;
+    width: min(7rem, 38%);
+    height: 1px;
+    background: linear-gradient(90deg, var(--admin-primary), var(--admin-accent));
+}
+
+.admin-breadcrumbs-inner {
+    display: flex;
+    padding-block: 0 0.75rem;
+}
+
+.admin-breadcrumbs-nav {
+    min-width: 0;
+    overflow-x: auto;
+    overscroll-behavior-inline: contain;
+    scrollbar-width: none;
+}
+
+.admin-breadcrumbs-nav::-webkit-scrollbar {
+    display: none;
+}
+
+.admin-breadcrumbs-list {
+    display: flex;
+    min-width: max-content;
+    flex-wrap: nowrap;
+    align-items: center;
+    gap: 0.25rem;
+    font-size: 0.875rem;
+}
+
+.admin-breadcrumbs-list-item {
+    display: flex;
+    min-width: 0;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+.admin-breadcrumbs-link,
+.admin-breadcrumbs-current {
+    display: inline-flex;
+    max-width: 100%;
+    min-width: 0;
+    align-items: center;
+    gap: 0.375rem;
+    border-radius: 0.375rem;
+    font-weight: 700;
+    line-height: 1.5;
+}
+
+.admin-breadcrumbs-link,
+.admin-breadcrumbs-current {
+    padding-block: 0.25rem;
+}
+
+.admin-breadcrumbs-link {
+    position: relative;
+    color: var(--admin-muted);
+    outline: none;
+    text-decoration: none;
+    transition: color 160ms ease, box-shadow 160ms ease;
+}
+
+.admin-breadcrumbs-link::after {
+    content: '';
+    position: absolute;
+    inset-inline: 0;
+    inset-block-end: 0.125rem;
+    height: 1px;
+    transform: scaleX(0);
+    transform-origin: right;
+    background: currentColor;
+    opacity: 0.45;
+    transition: transform 160ms ease;
+}
+
+.admin-breadcrumbs-link:hover::after,
+.admin-breadcrumbs-link:focus-visible::after {
+    transform: scaleX(1);
+}
+
+.admin-breadcrumbs-link:hover,
+.admin-breadcrumbs-link:focus-visible {
+    color: var(--admin-primary-text);
+}
+
+.admin-breadcrumbs-link:focus-visible {
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--admin-focus) 28%, transparent);
+}
+
+.admin-breadcrumbs-current {
+    color: var(--admin-text);
+}
+
+.admin-breadcrumbs-link span,
+.admin-breadcrumbs-current span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.admin-breadcrumbs-separator {
+    color: var(--admin-muted);
+    opacity: 0.42;
+}
+
+html[data-admin-theme='dark'] .admin-breadcrumbs {
+    border-bottom-color: color-mix(in srgb, var(--admin-border) 84%, transparent);
+}
+
+html[data-admin-theme='dark'] .admin-breadcrumbs-current {
+    color: var(--admin-text);
+}
+
+@media (min-width: 640px) {
+    .admin-breadcrumbs-inner {
+        display: block;
+    }
+
+    .admin-breadcrumbs-nav {
+        overflow-x: visible;
+    }
+
+    .admin-breadcrumbs-list {
+        min-width: 0;
+        flex-wrap: wrap;
+    }
 }
 
 .admin-shell * {
@@ -652,6 +813,107 @@ html[data-admin-theme='dark'] .theme-icon-sun {
 
 .admin-logout-button:hover {
     background: rgba(225, 29, 72, 0.11);
+}
+
+html[data-admin-theme] jdp-container {
+    border: 1px solid var(--admin-border);
+    border-radius: 0.75rem;
+    background: var(--admin-surface);
+    color: var(--admin-text);
+    box-shadow: 0 22px 55px var(--admin-shadow-color);
+}
+
+html[data-admin-theme] jdp-container .jdp-years,
+html[data-admin-theme] jdp-container .jdp-months {
+    fill: var(--admin-text);
+    color: var(--admin-text);
+    align-items: center;
+}
+
+html[data-admin-theme] jdp-container .jdp-year,
+html[data-admin-theme] jdp-container .jdp-month,
+html[data-admin-theme] jdp-container .jdp-time,
+html[data-admin-theme] jdp-container .jdp-year input,
+html[data-admin-theme] jdp-container .jdp-month select,
+html[data-admin-theme] jdp-container .jdp-time select {
+    background: var(--admin-elevated);
+    color: var(--admin-text);
+}
+
+html[data-admin-theme] jdp-container .jdp-icon-plus,
+html[data-admin-theme] jdp-container .jdp-icon-minus {
+    display: inline-grid;
+    width: 1.875rem;
+    height: 1.875rem;
+    place-items: center;
+    border: 1px solid var(--admin-border);
+    border-radius: 0.5rem;
+    background: var(--admin-primary-soft);
+    color: var(--admin-primary-text);
+    transition: background-color 160ms ease, border-color 160ms ease, color 160ms ease, transform 160ms ease, box-shadow 160ms ease;
+}
+
+html[data-admin-theme] jdp-container .jdp-icon-plus:hover,
+html[data-admin-theme] jdp-container .jdp-icon-minus:hover {
+    border-color: var(--admin-primary);
+    background: var(--admin-primary-solid);
+    color: var(--admin-on-primary);
+    transform: translateY(-1px);
+}
+
+html[data-admin-theme] jdp-container .jdp-icon-plus:focus-visible,
+html[data-admin-theme] jdp-container .jdp-icon-minus:focus-visible {
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--admin-focus) 32%, transparent);
+}
+
+html[data-admin-theme] jdp-container .jdp-icon-plus.not-in-range,
+html[data-admin-theme] jdp-container .jdp-icon-minus.not-in-range {
+    pointer-events: none;
+    border-color: var(--admin-border);
+    background: var(--admin-elevated);
+    color: var(--admin-muted);
+    opacity: 0.48;
+    transform: none;
+}
+
+html[data-admin-theme] jdp-container .jdp-icon-plus svg,
+html[data-admin-theme] jdp-container .jdp-icon-minus svg {
+    width: 1.05rem;
+    height: 1.05rem;
+    padding: 0;
+}
+
+html[data-admin-theme] jdp-container .jdp-day,
+html[data-admin-theme] jdp-container .jdp-day-name {
+    color: var(--admin-text);
+}
+
+html[data-admin-theme] jdp-container .jdp-day-name {
+    background: var(--admin-elevated);
+    color: var(--admin-muted);
+}
+
+html[data-admin-theme] jdp-container .jdp-day-name.today,
+html[data-admin-theme] jdp-container .jdp-day.today {
+    border-color: var(--admin-primary);
+}
+
+html[data-admin-theme] jdp-container .jdp-day:not(.disabled-day):hover {
+    background: var(--admin-primary-soft);
+}
+
+html[data-admin-theme] jdp-container .jdp-day.selected {
+    background-color: var(--admin-primary-solid) !important;
+    color: var(--admin-on-primary) !important;
+}
+
+html[data-admin-theme] jdp-container .jdp-btn-close,
+html[data-admin-theme] jdp-container .jdp-btn-empty,
+html[data-admin-theme] jdp-container .jdp-btn-today {
+    border-radius: 0.5rem;
+    background: var(--admin-primary-solid);
+    color: var(--admin-on-primary);
+    font-weight: 700;
 }
 
 :where(.admin-shell, .admin-auth-shell) .bg-white {

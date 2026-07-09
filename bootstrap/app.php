@@ -2,7 +2,9 @@
 
 use App\Http\Middleware\EnsureActivePlanAccess;
 use App\Http\Middleware\EnsureAdminPermission;
+use App\Http\Middleware\LogDebugSteps;
 use App\Http\Middleware\UseScopedSessionCookie;
+use App\Services\Debug\DebugStepLogger;
 use Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse;
 use Illuminate\Cookie\Middleware\EncryptCookies;
 use Illuminate\Foundation\Application;
@@ -19,6 +21,8 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
+        $middleware->append(LogDebugSteps::class);
+
         $middleware->web(prepend: [
             UseScopedSessionCookie::class,
         ]);
@@ -44,6 +48,12 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
+        $exceptions->report(function (Throwable $exception): void {
+            DebugStepLogger::record('exception.report', 'Exception reported', [
+                'exception' => $exception,
+            ]);
+        });
+
         $exceptions->shouldRenderJsonWhen(
             fn (Request $request) => $request->is('api/*'),
         );

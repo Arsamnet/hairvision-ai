@@ -60,7 +60,13 @@ class AdminDashboardTest extends TestCase
         $this->forHost('hairvision-ai.test')
             ->get('/admin/otp')
             ->assertOk()
-            ->assertDontSee('کد ورود آزمایشی');
+            ->assertDontSee('کد ورود آزمایشی')
+            ->assertSee('/theme/admin-logo-light.svg', false)
+            ->assertSee('id="adminOtpCountdown"', false)
+            ->assertSee('id="adminResendOtp"', false)
+            ->assertSee('id="adminOtpResendForm"', false)
+            ->assertSee('ارسال مجدد کد')
+            ->assertDontSee('ارسال مجدد تا');
 
         $code = $this->latestSentOtpCode();
 
@@ -69,15 +75,25 @@ class AdminDashboardTest extends TestCase
         $this->assertNotSame($code, $otp->code_hash);
         $this->assertTrue(Hash::check($code, $otp->code_hash));
 
-        $this->forHost('hairvision-ai.test')
+        $verifyResponse = $this->forHost('hairvision-ai.test')
             ->post('/admin/otp/verify', [
                 'phone' => '09217359491',
                 'code' => $code,
             ])
             ->assertRedirect(route('admin.dashboard'));
 
+        $this->assertTrue(
+            $verifyResponse->getSession()->has('login_web_'.sha1(\Illuminate\Auth\SessionGuard::class)),
+            'Admin OTP login should persist the web guard user id in the scoped admin session.'
+        );
         $this->assertAuthenticatedAs($user);
         $this->assertNotNull($otp->refresh()->verified_at);
+
+        $this->app['auth']->forgetGuards();
+
+        $this->forHost('hairvision-ai.test')
+            ->get('/admin/dashboard')
+            ->assertOk();
     }
 
     public function test_expired_admin_session_redirects_to_admin_login(): void
@@ -101,6 +117,9 @@ class AdminDashboardTest extends TestCase
         $this->assertStringContainsString('.hover\\:bg-zinc-50\\/80:hover', $css);
         $this->assertStringContainsString('[data-admin-table-container] tbody tr:hover', $css);
         $this->assertStringContainsString('[data-admin-table-container] tbody tr[data-clickable-table-row="true"]', $css);
+        $this->assertStringContainsString("font-family: 'Vazirmatn FD';", $css);
+        $this->assertStringContainsString('Vazirmatn-FD-Regular.woff2', $css);
+        $this->assertStringContainsString(":where(.admin-shell, .admin-auth-shell)", $css);
 
         $this->forHost('hairvision-ai.test')
             ->get('/admin')
@@ -151,16 +170,20 @@ class AdminDashboardTest extends TestCase
 
     public function test_table_view_actions_make_dashboard_rows_clickable(): void
     {
+        $menu = Blade::render('<x-admin.table.action-menu><x-admin.table.action-item href="/admin/leads/1" icon="eye">مشاهده</x-admin.table.action-item></x-admin.table.action-menu>');
         $viewAction = Blade::render('<x-admin.table.action-item href="/admin/leads/1" icon="eye">مشاهده</x-admin.table.action-item>');
         $editAction = Blade::render('<x-admin.table.action-item href="/admin/leads/1/edit" icon="edit">ویرایش</x-admin.table.action-item>');
         $actionMenus = file_get_contents(resource_path('js/admin/action-menus.js'));
 
+        $this->assertStringContainsString('data-table-action-menu-panel', $menu);
         $this->assertStringContainsString('data-table-row-view-action', $viewAction);
         $this->assertStringNotContainsString('data-table-row-view-action', $editAction);
         $this->assertStringContainsString('data-clickable-table-row', $actionMenus);
         $this->assertStringContainsString('window.location.assign(href)', $actionMenus);
         $this->assertStringContainsString('viewAction.click()', $actionMenus);
         $this->assertStringContainsString('[data-table-action-menu]', $actionMenus);
+        $this->assertStringContainsString('positionActionMenu', $actionMenus);
+        $this->assertStringContainsString("panel.style.position = 'fixed';", $actionMenus);
     }
 
     public function test_database_seeder_creates_super_admin_and_clinic_demo_data(): void

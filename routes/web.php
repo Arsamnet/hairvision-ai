@@ -84,6 +84,7 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
         Route::delete('/users/{user}', [UserController::class, 'destroy'])->middleware('permission:users.delete')->name('users.destroy');
         Route::get('/ai-models', [AiModelAccessController::class, 'index'])->middleware('permission:ai_models.list')->name('ai-models.index');
         Route::post('/ai-models', [AiModelAccessController::class, 'store'])->middleware('permission:ai_models.create')->name('ai-models.store');
+        Route::get('/ai-models/{aiModelAccess}/edit', [AiModelAccessController::class, 'edit'])->middleware('permission:ai_models.edit')->name('ai-models.edit');
         Route::get('/ai-models/{aiModelAccess}', [AiModelAccessController::class, 'show'])->middleware('permission:ai_models.view')->name('ai-models.show');
         Route::put('/ai-models/{aiModelAccess}', [AiModelAccessController::class, 'update'])->middleware('permission:ai_models.edit')->name('ai-models.update');
         Route::delete('/ai-models/{aiModelAccess}', [AiModelAccessController::class, 'destroy'])->middleware('permission:ai_models.delete')->name('ai-models.destroy');

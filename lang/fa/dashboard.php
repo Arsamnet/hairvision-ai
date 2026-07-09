@@ -25,6 +25,9 @@ return [
         'open' => 'باز کردن منوی پنل',
         'close' => 'بستن منوی پنل',
     ],
+    'breadcrumbs' => [
+        'label' => 'مسیر سایت',
+    ],
 
     'cards' => [
         'total_leads' => 'کل لیدها',

@@ -3,6 +3,9 @@ import '@majidh1/jalalidatepicker/dist/jalalidatepicker.min.css';
 
 let focusSyncRegistered = false;
 
+const plusIconHtml = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg>';
+const minusIconHtml = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg>';
+
 const digitMap = {
     '۰': '0',
     '۱': '1',
@@ -116,7 +119,6 @@ export const bootJalaliDatepickers = () => {
         selector: 'input[data-jdp]',
         date: true,
         time: true,
-        initDate: 'attr',
         hasSecond: true,
         persianDigits: false,
         autoShow: true,
@@ -124,8 +126,8 @@ export const bootJalaliDatepickers = () => {
         hideAfterChange: false,
         showTodayBtn: true,
         showEmptyBtn: true,
-        plusHtml: '+',
-        minusHtml: '-',
+        plusHtml: plusIconHtml,
+        minusHtml: minusIconHtml,
         separatorChars: {
             date: '/',
             between: ' ',

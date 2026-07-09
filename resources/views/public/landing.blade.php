@@ -15,7 +15,9 @@
 <body class="bg-white font-sans text-zinc-950 antialiased">
     <header class="absolute inset-x-0 top-0 z-20">
         <div class="mx-auto flex w-full max-w-7xl items-center justify-between px-4 py-5 sm:px-6 lg:px-8">
-            <a href="{{ url('/') }}" class="text-sm font-bold text-white">HairVision</a>
+            <a href="{{ url('/') }}" class="text-sm font-bold text-white">
+                <img src="/theme/admin-logo-dark.svg" alt="HairVision Logo" class="h-11">
+            </a>
             <nav class="flex items-center gap-2 text-sm font-bold">
                 <a href="#features" class="rounded-lg px-3 py-2 text-white/80 hover:bg-white/10 hover:text-white">قابلیت‌ها</a>
                 <a href="{{ url('/admin') }}" class="rounded-lg bg-white px-4 py-2 text-zinc-950 hover:bg-teal-50">ورود به پنل</a>
@@ -26,7 +28,7 @@
     <main>
         <section class="relative isolate min-h-[88svh] overflow-hidden">
             <img src="/theme/hairvision-ai-hero.png" alt="نمای داشبورد HairVision" class="absolute inset-0 -z-20 h-full w-full object-cover">
-            <div class="absolute inset-0 -z-10 bg-[linear-gradient(90deg,rgba(9,9,11,.90)_0%,rgba(15,23,42,.76)_42%,rgba(9,9,11,.28)_100%)]"></div>
+            <div class="absolute inset-0 -z-10 bg-[linear-gradient(45deg,rgba(9,9,11,.28)_0%,rgba(15,23,42,.76)_70%,rgba(9,9,11,.90)_100%)]"></div>
             <div class="mx-auto flex min-h-[88svh] w-full max-w-7xl items-center px-4 pb-14 pt-24 sm:px-6 lg:px-8">
                 <div class="max-w-2xl text-white">
                     <p class="text-sm font-bold text-teal-200">نرم‌افزار کلینیک‌های کاشت مو</p>

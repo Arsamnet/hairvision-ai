@@ -75,10 +75,10 @@ class AiModelAccessManagementTest extends TestCase
         $this->assertSame('gpt-image-2', data_get($gapGpt->settings, 'model'));
         $this->assertSame('1024x1024', data_get($gapGpt->settings, 'size'));
         $this->assertSame('url', data_get($gapGpt->settings, 'response_format'));
-        $this->assertSame(300, data_get($gapGpt->settings, 'timeout_seconds'));
-        $this->assertSame(15, data_get($gapGpt->settings, 'connect_timeout_seconds'));
-        $this->assertSame(1, data_get($gapGpt->settings, 'retry_attempts'));
-        $this->assertSame(750, data_get($gapGpt->settings, 'retry_sleep_ms'));
+        $this->assertSame(900, data_get($gapGpt->settings, 'timeout_seconds'));
+        $this->assertSame(30, data_get($gapGpt->settings, 'connect_timeout_seconds'));
+        $this->assertArrayNotHasKey('retry_attempts', $gapGpt->settings);
+        $this->assertArrayNotHasKey('retry_sleep_ms', $gapGpt->settings);
         $this->assertIsArray($stagePrompts);
         $expectedStagePromptKeys = ['two_weeks', 'intermediate_regrowth', 'final_result'];
         $stagePromptKeys = array_keys($stagePrompts);
@@ -151,7 +151,9 @@ class AiModelAccessManagementTest extends TestCase
             ->forHost('hairvision-ai.test')
             ->get('/admin/ai-models')
             ->assertOk()
-            ->assertSee(__('ai_models.details'));
+            ->assertSee(__('ai_models.details'))
+            ->assertSee(__('ai_models.edit'))
+            ->assertSee(__('ai_models.usage_count'));
 
         $this->actingAs($superAdmin)
             ->forHost('hairvision-ai.test')
@@ -165,6 +167,13 @@ class AiModelAccessManagementTest extends TestCase
             ->assertOk()
             ->assertSee($access->maskedCredentials()['api_key'])
             ->assertDontSee('super-secret-ai-key');
+
+        $this->actingAs($superAdmin)
+            ->forHost('hairvision-ai.test')
+            ->get('/admin/ai-models/'.$access->id.'/edit')
+            ->assertOk()
+            ->assertSee(__('ai_models.edit'))
+            ->assertSee($access->name);
 
         $shortSecretAccess = AiModelAccess::create([
             'model_key' => 'sample_image',
@@ -235,6 +244,11 @@ class AiModelAccessManagementTest extends TestCase
             ])
             ->assertForbidden();
 
+        $this->actingAs($superAdmin)
+            ->forHost('hairvision-ai.test')
+            ->get('/admin/ai-models/'.$demo->id.'/edit')
+            ->assertForbidden();
+
         $this->actingAs($clinicUser)
             ->withSession(['admin_active_tenant_id' => $clinicUser->tenants()->firstOrFail()->id])
             ->forHost('hairvision-ai.test')
@@ -283,8 +297,31 @@ class AiModelAccessManagementTest extends TestCase
             ->json('generation_group.id');
 
         $this->assertSame(3, $access->refresh()->credit_used);
+        $this->assertSame(3, $access->usage_count);
+        $this->assertNotNull($access->last_used_at);
         $this->assertSame(3, AiModelUsageLog::query()->where('ai_model_access_id', $access->id)->where('status', 'completed')->count());
         $this->assertSame(3, GenerationGroup::query()->where('uuid', $groupId)->firstOrFail()->jobs()->where('ai_model_access_id', $access->id)->count());
+    }
+
+    public function test_dashboard_topbar_uses_service_credit_balance(): void
+    {
+        $this->seed(DatabaseSeeder::class);
+
+        $clinicUser = User::query()->where('role', 'clinic_admin')->firstOrFail();
+        $subscription = $this->activateSubscription($clinicUser);
+        $tenant = $clinicUser->tenants()->firstOrFail();
+
+        $subscription->serviceEntitlements()->firstOrFail()->forceFill([
+            'used_credit' => 4,
+        ])->save();
+
+        $this->actingAs($clinicUser)
+            ->withSession(['admin_active_tenant_id' => $tenant->id])
+            ->forHost('hairvision-ai.test')
+            ->get('/admin/dashboard')
+            ->assertOk()
+            ->assertSee(__('dashboard.plan.remaining_credit', ['count' => number_format(96)]))
+            ->assertDontSee(__('dashboard.plan.remaining_credit', ['count' => number_format(100)]));
     }
 
     public function test_clinic_can_have_only_one_active_model_assignment_per_usage_category(): void
@@ -448,6 +485,12 @@ class AiModelAccessManagementTest extends TestCase
             $this->assertSame('sample_image', $response->metadata['provider'] ?? null);
             $this->assertSame($stageKey, $response->metadata['stage_key'] ?? null);
         }
+
+        $access->refresh();
+
+        $this->assertSame(0, $access->credit_used);
+        $this->assertSame(3, $access->usage_count);
+        $this->assertNotNull($access->last_used_at);
     }
 
     public function test_clinic_manager_creates_only_own_clinic_users_and_cannot_assign_system_roles(): void

@@ -1,6 +1,6 @@
 {
   "resources/css/app.css": {
-    "file": "assets/app-CeIOHPKT.css",
+    "file": "assets/app-BVOcpRMm.css",
     "name": "app",
     "names": [
       "app.css"
@@ -10,6 +10,8 @@
     "assets": [
       "assets/Vazirmatn-Regular-CtGL0YI-.woff2",
       "assets/Vazirmatn-Bold-_OhAJEdh.woff2",
+      "assets/Vazirmatn-FD-Regular-DHqa3JTn.woff2",
+      "assets/Vazirmatn-FD-Bold-B_t2WhO7.woff2",
       "assets/uicons-regular-rounded-0sU45oCT.woff2"
     ]
   },
@@ -21,6 +23,14 @@
     "file": "assets/Vazirmatn-Bold-_OhAJEdh.woff2",
     "src": "resources/fonts/vazirmatn/Vazirmatn-Bold.woff2"
   },
+  "resources/fonts/vazirmatn/Vazirmatn-FD-Bold.woff2": {
+    "file": "assets/Vazirmatn-FD-Bold-B_t2WhO7.woff2",
+    "src": "resources/fonts/vazirmatn/Vazirmatn-FD-Bold.woff2"
+  },
+  "resources/fonts/vazirmatn/Vazirmatn-FD-Regular.woff2": {
+    "file": "assets/Vazirmatn-FD-Regular-DHqa3JTn.woff2",
+    "src": "resources/fonts/vazirmatn/Vazirmatn-FD-Regular.woff2"
+  },
   "resources/fonts/vazirmatn/Vazirmatn-Regular.woff2": {
     "file": "assets/Vazirmatn-Regular-CtGL0YI-.woff2",
     "src": "resources/fonts/vazirmatn/Vazirmatn-Regular.woff2"
@@ -30,7 +40,7 @@
     "src": "resources/img/favicon.png"
   },
   "resources/js/app.js": {
-    "file": "assets/app-D7SEsuPn.js",
+    "file": "assets/app-2cG5Ti8E.js",
     "name": "app",
     "src": "resources/js/app.js",
     "isEntry": true,

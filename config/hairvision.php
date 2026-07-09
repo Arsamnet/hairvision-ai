@@ -130,6 +130,7 @@ return [
         'max_requests' => (int) env('HAIRVISION_OTP_MAX_REQUESTS', 5),
         'decay_seconds' => (int) env('HAIRVISION_OTP_DECAY_SECONDS', 600),
         'max_attempts' => (int) env('HAIRVISION_OTP_MAX_ATTEMPTS', 5),
+        'expires_seconds' => (int) env('HAIRVISION_OTP_EXPIRES_SECONDS', 120),
     ],
 
     'admin_otp' => [
@@ -138,6 +139,7 @@ return [
         'max_verify_attempts' => (int) env('HAIRVISION_ADMIN_OTP_MAX_VERIFY_ATTEMPTS', 5),
         'verify_decay_seconds' => (int) env('HAIRVISION_ADMIN_OTP_VERIFY_DECAY_SECONDS', 600),
         'max_attempts' => (int) env('HAIRVISION_ADMIN_OTP_MAX_ATTEMPTS', 5),
+        'expires_seconds' => (int) env('HAIRVISION_ADMIN_OTP_EXPIRES_SECONDS', 300),
     ],
 
     'sms' => [
@@ -158,4 +160,16 @@ return [
         env('HAIRVISION_DEBUG_FAST_SAMPLES', env('APP_DEBUG', false)),
         FILTER_VALIDATE_BOOLEAN
     ),
+
+    'debug_steps' => [
+        'database_queries' => filter_var(
+            env('HAIRVISION_DEBUG_STEP_DATABASE_QUERIES', true),
+            FILTER_VALIDATE_BOOLEAN
+        ),
+        'model_events' => filter_var(
+            env('HAIRVISION_DEBUG_STEP_MODEL_EVENTS', true),
+            FILTER_VALIDATE_BOOLEAN
+        ),
+        'slow_query_ms' => (float) env('HAIRVISION_DEBUG_STEP_SLOW_QUERY_MS', 0),
+    ],
 ];

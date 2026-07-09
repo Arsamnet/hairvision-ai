@@ -223,8 +223,13 @@ credential یا model ارسال کند.
   می‌شود.
 - flow پیش‌فرض فقط اولین مرحله را dispatch می‌کند و بعد از تکمیل هر مرحله،
   مرحله بعد dispatch می‌شود.
-- GapGPT هر سه مرحله را هم‌زمان dispatch می‌کند، چون image editها مستقل‌اند.
-- هر job log، retry/failure، asset و credit accounting مستقل دارد.
+- برای providerهای واقعی هزینه‌دار مانند GapGPT، stageها هم‌زمان به provider
+  ارسال نمی‌شوند تا ترتیب نمایش حفظ شود و در صورت خطا، ادامه مراحل بدون مصرف
+  هزینه متوقف شود.
+- هر job log، failure، asset و credit accounting مستقل دارد.
+- provider call واقعی نباید retry خودکار HTTP یا queue داشته باشد؛ timeoutها
+  باید به اندازه کافی بلند و با `retry_after` صف هماهنگ باشند تا درخواست
+  تکراری به مدل ارسال نشود.
 - اگر همه jobها completed شوند، group completed می‌شود و SMS نهایی ارسال
   می‌شود.
 
@@ -361,6 +366,9 @@ gateway با context امن log می‌شوند و به کاربر فقط پیا
 - clinic filter داخل صفحات مرتبط است، نه header جهانی.
 - light theme پیش‌فرض است؛ dark mode فقط با انتخاب persisted فعال می‌شود.
 - زیر `1024px` حالت mobile/tablet و از `1024px` حالت desktop است.
+- همه صفحه‌های داشبورد سیستم و کلینیک باید بالای محتوای اصلی مسیر سایت
+  فارسی، RTL و قابل دسترس داشته باشند؛ این مسیر از component مشترک layout
+  رندر می‌شود و نباید در صفحه‌ها تکرار شود.
 - لیست‌های مهم search/filter/sort/pagination backend دارند.
 - جدول‌های مهم در mobile/tablet به card تبدیل می‌شوند.
 - actionهای ردیفی از منوی سه‌نقطه shared استفاده می‌کنند.
@@ -415,8 +423,8 @@ middleware `active_plan` block می‌شوند. super admin و کاربران sy
 - کاربر فقط پیام generic و localized ببیند.
 - OTP، credential، bearer token، private path، full gateway authority، payload
   upload، raw provider response و stack trace نباید log یا نمایش داده شود.
-- debug traceهای چندمرحله‌ای فقط از `App\Support\DebugStepLogger` عبور کنند و
-  وقتی `APP_DEBUG=false` خاموش باشند.
+- debug traceهای چندمرحله‌ای از instrumentation مرکزی عبور کنند، در فایل‌های
+  عادی import دستی لاگر اضافه نشود، و وقتی `APP_DEBUG=false` خاموش باشند.
 
 ## تست و کیفیت
 
