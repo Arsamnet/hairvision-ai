@@ -101,6 +101,5 @@ return [
         'payment_gateways' => 'درگاه پرداخت',
         'plans' => 'پلن‌ها',
         'open_invoices' => 'فاکتورهای باز',
-        'active_subscriptions' => 'اشتراک فعال',
     ],
 ];

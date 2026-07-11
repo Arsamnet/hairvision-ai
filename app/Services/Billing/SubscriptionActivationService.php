@@ -114,6 +114,22 @@ class SubscriptionActivationService
             ]);
         }
 
+        $serviceCredits = $plan->serviceCredits();
+
+        if ($active && $serviceCredits !== []) {
+            $alreadyAvailable = collect($serviceCredits)
+                ->every(function (int $credit, string $serviceKey) use ($tenant): bool {
+                    $entitlement = $this->entitlements->activeEntitlement($tenant, $serviceKey);
+
+                    return $entitlement && $entitlement->totalCredit() >= $credit;
+                });
+
+            if ($alreadyAvailable) {
+                throw ValidationException::withMessages([
+                    'plan' => __('plans.service_access_already_available'),
+                ]);
+            }
+        }
     }
 
     private function validateServiceAddOnPurchase(Plan $plan, Tenant $tenant, string $scope = 'billing.subscription_activation.validate_service_add_on'): void

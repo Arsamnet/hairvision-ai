@@ -37,6 +37,7 @@ class StorePlanRequest extends FormRequest
             'usage_limit' => ['nullable', 'integer', 'min:0', 'max:1000000'],
             'service_credits' => ['required', 'array'],
             'service_credits.*' => ['nullable', 'integer', 'min:0', 'max:1000000'],
+            'is_public' => ['nullable', 'boolean'],
             'status' => ['required', 'in:active,inactive'],
         ];
     }
@@ -70,6 +71,7 @@ class StorePlanRequest extends FormRequest
         $this->merge([
             'plan_type' => $this->input('plan_type', PlanType::BaseSubscription->value),
             'service_credits' => $serviceCredits,
+            'is_public' => $this->boolean('is_public'),
         ]);
     }
 }

@@ -51,7 +51,7 @@ class BillingService
                     'status' => 'pending',
                 ],
                 [
-                    'number' => $this->nextInvoiceNumber(),
+                    'number' => $this->nextInvoiceNumber($plan),
                     'amount' => $plan->price,
                     'currency' => $plan->currency,
                     'due_at' => now()->addDays(7),
@@ -72,7 +72,7 @@ class BillingService
     /**
      * Create or return a pending clinic-owned invoice for a plan without tying it to a user.
      */
-    public function invoiceForClinicPlan(Plan $plan, Tenant $tenant, ?User $actor = null): Invoice
+    public function invoiceForClinicPlan(Plan $plan, Tenant $tenant, ?User $actor = null, int $discountAmount = 0): Invoice
     {
         $this->resetDebugSteps();
 
@@ -80,8 +80,10 @@ class BillingService
 
         try {
             $this->activation->validatePurchase($actor, $plan, $tenant);
+            $discountAmount = max(0, min($discountAmount, (int) $plan->price));
+            $invoiceAmount = max(0, (int) $plan->price - $discountAmount);
 
-            $invoice = Invoice::query()->firstOrCreate(
+            $invoice = Invoice::query()->firstOrNew(
                 [
                     'tenant_id' => $tenant->id,
                     'user_id' => null,
@@ -89,8 +91,8 @@ class BillingService
                     'status' => 'pending',
                 ],
                 [
-                    'number' => $this->nextInvoiceNumber(),
-                    'amount' => $plan->price,
+                    'number' => $this->nextInvoiceNumber($plan),
+                    'amount' => $invoiceAmount,
                     'currency' => $plan->currency,
                     'due_at' => now()->addDays(7),
                     'expires_at' => now()->addDays(7),
@@ -99,9 +101,24 @@ class BillingService
                         'service_key' => $plan->service_key,
                         'created_by' => $actor?->id,
                         'source' => 'clinic_manual_assignment',
+                        'original_amount' => (int) $plan->price,
+                        'discount_amount' => $discountAmount,
                     ],
                 ]
             );
+            $invoice->fill([
+                'amount' => $invoiceAmount,
+                'currency' => $plan->currency,
+                'metadata_json' => array_replace($invoice->metadata_json ?? [], [
+                    'plan_type' => $plan->plan_type->value,
+                    'service_key' => $plan->service_key,
+                    'created_by' => $actor?->id,
+                    'source' => 'clinic_manual_assignment',
+                    'original_amount' => (int) $plan->price,
+                    'discount_amount' => $discountAmount,
+                ]),
+            ]);
+            $invoice->save();
 
             return $invoice;
         } catch (Throwable $exception) {
@@ -430,9 +447,23 @@ class BillingService
         return $subscription;
     }
 
-    private function nextInvoiceNumber(): string
+    private function nextInvoiceNumber(?Plan $plan = null): string
     {
-        return 'HV-'.now()->format('Ymd').'-'.strtoupper(Str::random(6));
+        $prefix = match ($plan?->plan_type?->value) {
+            'base_subscription' => 'BS',
+            'service_add_on' => 'SA',
+            'credit_top_up' => 'CT',
+            default => 'IN',
+        };
+
+        $next = ((int) Invoice::query()->max('id')) + 1;
+
+        do {
+            $number = $prefix.'-'.$next;
+            $next++;
+        } while (Invoice::query()->where('number', $number)->exists());
+
+        return $number;
     }
 
     private function billingTenantFor(User $user, ?Tenant $tenant = null, string $scope = 'billing.tenant_resolution'): ?Tenant

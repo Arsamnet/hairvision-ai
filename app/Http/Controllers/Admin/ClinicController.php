@@ -24,7 +24,6 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 use Throwable;
@@ -157,7 +156,7 @@ class ClinicController extends Controller
         $plan = Plan::query()->with('serviceEntitlements')->findOrFail((int) $request->input('plan_id'));
 
         try {
-            $billing->invoiceForClinicPlan($plan, $clinic, $request->user());
+            $billing->invoiceForClinicPlan($plan, $clinic, $request->user(), (int) $request->input('discount_amount', 0));
 
             return redirect()
                 ->route('admin.clinics.show', $clinic)
@@ -281,11 +280,13 @@ class ClinicController extends Controller
             'source' => 'clinic_manual_invoice',
         ]));
 
+        $plan = filled($data['plan_id'] ?? null) ? Plan::query()->find((int) $data['plan_id']) : null;
+
         return [
             'tenant_id' => $clinic->id,
             'user_id' => filled($data['user_id'] ?? null) ? (int) $data['user_id'] : null,
-            'plan_id' => filled($data['plan_id'] ?? null) ? (int) $data['plan_id'] : null,
-            'number' => $invoice?->number ?? $this->nextInvoiceNumber(),
+            'plan_id' => $plan?->id,
+            'number' => $invoice?->number ?? $this->nextInvoiceNumber($plan),
             'status' => $data['status'],
             'amount' => (int) $data['amount'],
             'currency' => $data['currency'],
@@ -296,10 +297,19 @@ class ClinicController extends Controller
         ];
     }
 
-    private function nextInvoiceNumber(): string
+    private function nextInvoiceNumber(?Plan $plan = null): string
     {
+        $prefix = match ($plan?->plan_type?->value) {
+            'base_subscription' => 'BS',
+            'service_add_on' => 'SA',
+            'credit_top_up' => 'CT',
+            default => 'MI',
+        };
+        $next = ((int) Invoice::query()->max('id')) + 1;
+
         do {
-            $number = 'HV-MAN-'.now()->format('Ymd').'-'.strtoupper(Str::random(6));
+            $number = $prefix.'-'.$next;
+            $next++;
         } while (Invoice::query()->where('number', $number)->exists());
 
         return $number;

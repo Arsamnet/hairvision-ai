@@ -228,6 +228,27 @@
             color: #71717a;
             background: #f4f4f5;
         }
+        .hv-treatment-card {
+            border: 1px solid rgba(228,228,231,.9);
+            background:
+                linear-gradient(135deg, rgba(255,255,255,.96), rgba(248,250,252,.9)),
+                linear-gradient(135deg, color-mix(in srgb, var(--hv-primary-color, #0f766e) 10%, transparent), rgba(99,102,241,.08));
+            transition: transform .22s ease, box-shadow .22s ease, border-color .22s ease;
+        }
+        .hv-treatment-card:hover,
+        .hv-treatment-card.is-selected {
+            transform: translateY(-3px);
+            border-color: color-mix(in srgb, var(--hv-primary-color, #0f766e) 44%, #a5b4fc);
+            box-shadow: 0 22px 46px rgba(79,70,229,.16);
+        }
+        .hv-treatment-icon {
+            background: linear-gradient(135deg, var(--hv-primary-color, #0f766e), #4f46e5 56%, #c026d3);
+        }
+        .hv-info-band {
+            background:
+                linear-gradient(135deg, rgba(15,23,42,.92), rgba(49,46,129,.84)),
+                linear-gradient(135deg, color-mix(in srgb, var(--hv-primary-color, #0f766e) 34%, transparent), transparent);
+        }
     </style>
 </head>
 <body class="min-h-screen bg-[#eef2ff] font-sans text-zinc-900 antialiased" style="--hv-primary-color: <?php echo e($primaryColor); ?>;">
@@ -255,16 +276,20 @@
                                 </div>
 
                                 <div class="hv-float">
-                                    <p class="text-sm font-bold text-emerald-300">پیش نمایش اختصاصی</p>
-                                    <h2 class="mt-3 text-2xl font-bold leading-9 text-white">تصویر خود را ثبت کنید و نمای زمانی رشد مو را ببینید.</h2>
-                                    <p class="mt-4 text-sm leading-8 text-zinc-200">فرآیند کوتاه است: تایید شماره، بارگذاری تصویر و دریافت چهار نمای قابل مشاهده.</p>
+                                    <p class="text-sm font-bold text-emerald-300">مشاوره تصویری اختصاصی</p>
+                                    <h2 class="mt-3 text-2xl font-bold leading-9 text-white">مسیر کاشت مو یا ابرو را با تصویر خودتان ببینید.</h2>
+                                    <p class="mt-4 text-sm leading-8 text-zinc-200">ابتدا نوع درمان را انتخاب می‌کنید، تصویرتان را آماده می‌کنید، شماره موبایل را تایید می‌کنید و نتیجه مرحله‌ای روی همین صفحه ساخته می‌شود.</p>
                                 </div>
                             </div>
 
                             <div class="grid gap-2 text-sm text-zinc-200">
+                                <div class="hv-info-band rounded-2xl p-4 ring-1 ring-white/10">
+                                    <p class="font-bold text-white">مو: سه نمای رشد</p>
+                                    <p class="mt-2 leading-7">دو هفته بعد از کاشت، رشد میانی و نتیجه نهایی به ترتیب ساخته و نمایش داده می‌شوند.</p>
+                                </div>
                                 <div class="hv-lift rounded-2xl bg-white/8 p-4 ring-1 ring-white/10">
-                                    <p class="font-bold text-white">همراهی تا مشاوره</p>
-                                    <p class="mt-2 leading-7">اطلاعات شما به تیم کلینیک کمک می‌کند با آمادگی بهتر و پیشنهاد دقیق‌تر کنارتان باشد.</p>
+                                    <p class="font-bold text-white">ابرو: یک نتیجه متمرکز</p>
+                                    <p class="mt-2 leading-7">برای کاشت ابرو یک تصویر نهایی طبیعی با تمرکز روی فرم، تراکم و هماهنگی چهره ساخته می‌شود.</p>
                                 </div>
                                 <div class="hv-lift rounded-2xl bg-white/8 p-4 ring-1 ring-white/10">
                                     <p class="font-bold text-white">آرام و کنترل‌شده</p>
@@ -283,18 +308,18 @@
                                 <div class="grid gap-2 lg:grid-cols-4" aria-label="مراحل">
                                 <button type="button" data-step-indicator="1" class="step-indicator hv-step hv-step-active rounded-2xl px-3 py-3 text-right text-sm transition">
                                     <span class="step-marker mb-2 grid h-7 w-7 place-items-center rounded-xl bg-white/15 text-xs font-bold">۱</span>
-                                    <span class="block font-bold">موبایل</span>
-                                    <span class="text-xs text-white/70">ارسال کد</span>
+                                    <span class="block font-bold">انتخاب</span>
+                                    <span class="text-xs text-white/70">نوع درمان</span>
                                 </button>
                                 <button type="button" data-step-indicator="2" class="step-indicator hv-step hv-step-upcoming rounded-2xl px-3 py-3 text-right text-sm transition">
                                     <span class="step-marker mb-2 grid h-7 w-7 place-items-center rounded-xl bg-white text-xs font-bold text-zinc-500">۲</span>
-                                    <span class="block font-bold">تایید</span>
-                                    <span class="text-xs text-zinc-500">ثبت کد</span>
+                                    <span class="block font-bold">تصویر</span>
+                                    <span class="text-xs text-zinc-500">انتخاب فایل</span>
                                 </button>
                                 <button type="button" data-step-indicator="3" class="step-indicator hv-step hv-step-upcoming rounded-2xl px-3 py-3 text-right text-sm transition">
                                     <span class="step-marker mb-2 grid h-7 w-7 place-items-center rounded-xl bg-white text-xs font-bold text-zinc-500">۳</span>
-                                    <span class="block font-bold">تصویر</span>
-                                    <span class="text-xs text-zinc-500">بارگذاری</span>
+                                    <span class="block font-bold">موبایل</span>
+                                    <span class="text-xs text-zinc-500">OTP</span>
                                 </button>
                                 <button type="button" data-step-indicator="4" class="step-indicator hv-step hv-step-upcoming rounded-2xl px-3 py-3 text-right text-sm transition">
                                     <span class="step-marker mb-2 grid h-7 w-7 place-items-center rounded-xl bg-white text-xs font-bold text-zinc-500">۴</span>
@@ -307,46 +332,39 @@
                             <section class="flow-step hv-enter space-y-5 rounded-3xl bg-white p-5 shadow-xl shadow-indigo-100/60" id="step1">
                                 <div class="hv-otp-brand rounded-3xl border p-4">
                                     <p class="text-sm font-bold" style="color: var(--hv-primary-color);"><?php echo e($tenant->name ?? 'HairVision'); ?></p>
-                                    <h2 class="mt-1 text-xl font-bold text-zinc-950">ورود امن با شماره موبایل</h2>
-                                    <p class="mt-2 text-sm leading-7 text-zinc-500">کد یکبارمصرف فقط برای همین نشست ارسال می‌شود و تصویر شما بعد از تایید شماره قابل بارگذاری است.</p>
+                                    <h2 class="mt-1 text-xl font-bold text-zinc-950">اول نوع پیش‌نمایش را انتخاب کنید</h2>
+                                    <p class="mt-2 text-sm leading-7 text-zinc-500">کاشت مو سه تصویر مرحله‌ای می‌سازد؛ کاشت ابرو یک تصویر نهایی دقیق و متمرکز روی فرم ابرو.</p>
                                 </div>
-                                <div>
-                                    <label for="phone" class="block text-sm font-bold text-zinc-800">شماره موبایل</label>
-                                    <input id="phone" type="text" inputmode="numeric" autocomplete="tel" maxlength="11" pattern="[0-9۰-۹٠-٩]*" placeholder="۰۹۱۲۳۴۵۶۷۸۹" class="hv-ai-input mt-2 w-full rounded-2xl px-4 py-3 text-right text-base outline-none transition" />
-                                    <p id="phoneError" class="mt-2 hidden text-sm text-rose-600"></p>
+
+                                <div class="grid gap-4 lg:grid-cols-2">
+                                    <button type="button" data-treatment-option="hair_transplant" class="hv-treatment-card is-selected rounded-3xl p-5 text-right">
+                                        <span class="hv-treatment-icon grid h-14 w-14 place-items-center rounded-2xl text-2xl text-white shadow-lg shadow-indigo-100">
+                                            <span class="fi fi-rr-sparkles h-6 w-6" aria-hidden="true"></span>
+                                        </span>
+                                        <span class="mt-5 block text-xl font-bold text-zinc-950">کاشت مو</span>
+                                        <span class="mt-2 block text-sm leading-7 text-zinc-600">سه تصویر: دو هفته بعد از کاشت، رشد میانی و نتیجه نهایی.</span>
+                                        <span class="mt-4 inline-flex rounded-full bg-emerald-50 px-3 py-1 text-xs font-bold text-emerald-700">۳ خروجی</span>
+                                    </button>
+
+                                    <button type="button" data-treatment-option="eyebrow_transplant" class="hv-treatment-card rounded-3xl p-5 text-right">
+                                        <span class="hv-treatment-icon grid h-14 w-14 place-items-center rounded-2xl text-2xl text-white shadow-lg shadow-indigo-100">
+                                            <span class="fi fi-rr-eye h-6 w-6" aria-hidden="true"></span>
+                                        </span>
+                                        <span class="mt-5 block text-xl font-bold text-zinc-950">کاشت ابرو</span>
+                                        <span class="mt-2 block text-sm leading-7 text-zinc-600">یک تصویر نهایی با تمرکز روی تراکم، جهت خواب مو و هماهنگی با چهره.</span>
+                                        <span class="mt-4 inline-flex rounded-full bg-indigo-50 px-3 py-1 text-xs font-bold text-indigo-700">۱ خروجی</span>
+                                    </button>
                                 </div>
-                                <button id="requestOtp" type="button" class="hv-primary-action w-full rounded-2xl px-5 py-3 text-sm font-bold text-white transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-60">ارسال کد تایید</button>
+
+                                <p id="treatmentError" class="hidden text-sm text-rose-600"></p>
+                                <button id="continueToImage" type="button" class="hv-primary-action w-full rounded-2xl px-5 py-3 text-sm font-bold text-white transition hover:-translate-y-0.5">ادامه و انتخاب تصویر</button>
                             </section>
 
                             <section class="flow-step hidden space-y-5 rounded-3xl bg-white p-5 shadow-xl shadow-indigo-100/60" id="step2">
-                                <div class="hv-otp-brand rounded-3xl border p-4">
-                                    <p class="text-sm font-bold" style="color: var(--hv-primary-color);">تایید شماره</p>
-                                    <h2 class="mt-1 text-xl font-bold text-zinc-950">کد تایید را وارد کنید</h2>
-                                    <p class="mt-2 text-sm leading-7 text-zinc-500">کد ارسال شده به <span id="displayPhone" class="font-bold text-zinc-900"></span></p>
-                                </div>
-                                <div>
-                                    <label for="otp" class="block text-sm font-bold text-zinc-800">کد تایید</label>
-                                    <input id="otp" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="6" pattern="[0-9۰-۹٠-٩]*" placeholder="۱۲۳۴۵۶" class="hv-ai-input mt-2 w-full rounded-2xl px-4 py-3 text-center text-lg font-bold tracking-[0.3em] outline-none transition" dir="ltr" />
-                                    <p id="otpDebug" class="mt-2 hidden text-sm text-sky-700"></p>
-                                    <p id="otpError" class="mt-2 hidden text-sm text-rose-600"></p>
-                                </div>
-                                <div class="rounded-2xl bg-zinc-50 p-3 ring-1 ring-zinc-200">
-                                    <div class="flex flex-wrap items-center justify-between gap-2 text-sm">
-                                        <span id="otpTimerText" class="font-bold text-zinc-700">زمان باقی‌مانده: <span id="otpCountdown" dir="ltr">۰۲:۰۰</span></span>
-                                        <button id="resendOtp" type="button" class="hv-secondary-action rounded-xl px-3 py-2 text-xs font-bold transition disabled:cursor-not-allowed" disabled>ارسال مجدد کد</button>
-                                    </div>
-                                    <p class="mt-2 text-xs leading-6 text-zinc-500">اگر شماره اشتباه است، آن را تغییر دهید تا کد جدید برای شماره درست ارسال شود.</p>
-                                </div>
-                                <div class="grid gap-3 lg:grid-cols-2">
-                                    <button id="verifyOtp" type="button" class="hv-primary-action w-full rounded-2xl px-5 py-3 text-sm font-bold text-white transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-60">تایید و ادامه</button>
-                                    <button id="backToPhone" type="button" class="hv-lift w-full rounded-2xl bg-white px-5 py-3 text-sm font-bold text-zinc-700 ring-1 ring-zinc-200">تغییر شماره</button>
-                                </div>
-                            </section>
-
-                            <section class="flow-step hidden space-y-5 rounded-3xl bg-white p-5 shadow-xl shadow-indigo-100/60" id="step3">
                                 <div>
                                     <p class="text-sm font-bold text-indigo-600">بارگذاری تصویر</p>
                                     <h2 class="mt-2 text-xl font-bold text-zinc-950">تصویر خود را انتخاب کنید</h2>
+                                    <p class="mt-2 text-sm leading-7 text-zinc-500">فایل در این مرحله فقط در مرورگر شما آماده می‌شود و بعد از تایید شماره به‌صورت امن آپلود خواهد شد.</p>
                                 </div>
 
                                 <div class="grid gap-4 lg:grid-cols-[.9fr_1.1fr]">
@@ -386,10 +404,50 @@
                                             </div>
                                         </div>
                                         <div class="grid gap-3 lg:grid-cols-2">
-                                            <button id="upload" class="hv-primary-action w-full rounded-2xl px-5 py-3 text-sm font-bold text-white transition hover:-translate-y-0.5">شروع</button>
-                                            <button id="backToVerify" class="hv-lift w-full rounded-2xl bg-white px-5 py-3 text-sm font-bold text-zinc-700 ring-1 ring-zinc-200">بازگشت</button>
+                                            <button id="continueToPhone" class="hv-primary-action w-full rounded-2xl px-5 py-3 text-sm font-bold text-white transition hover:-translate-y-0.5">ادامه و تایید شماره</button>
+                                            <button id="backToTreatment" class="hv-lift w-full rounded-2xl bg-white px-5 py-3 text-sm font-bold text-zinc-700 ring-1 ring-zinc-200">بازگشت</button>
                                         </div>
                                     </div>
+                                </div>
+                            </section>
+
+                            <section class="flow-step hidden space-y-5 rounded-3xl bg-white p-5 shadow-xl shadow-indigo-100/60" id="step3">
+                                <div class="hv-otp-brand rounded-3xl border p-4">
+                                    <p class="text-sm font-bold" style="color: var(--hv-primary-color);">تایید امن شماره</p>
+                                    <h2 class="mt-1 text-xl font-bold text-zinc-950">شماره موبایل را تایید کنید</h2>
+                                    <p class="mt-2 text-sm leading-7 text-zinc-500">بعد از تایید OTP، تصویر آپلود می‌شود و درخواست ساخت نتیجه برای مدل انتخاب‌شده ارسال خواهد شد.</p>
+                                </div>
+
+                                <div class="grid gap-4 lg:grid-cols-2">
+                                    <div>
+                                        <label for="phone" class="block text-sm font-bold text-zinc-800">شماره موبایل</label>
+                                        <input id="phone" type="text" inputmode="numeric" autocomplete="tel" maxlength="11" pattern="[0-9۰-۹٠-٩]*" placeholder="۰۹۱۲۳۴۵۶۷۸۹" class="hv-ai-input mt-2 w-full rounded-2xl px-4 py-3 text-right text-base outline-none transition" />
+                                        <p id="phoneError" class="mt-2 hidden text-sm text-rose-600"></p>
+                                        <button id="requestOtp" type="button" class="hv-primary-action mt-3 w-full rounded-2xl px-5 py-3 text-sm font-bold text-white transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-60">ارسال کد تایید</button>
+                                    </div>
+
+                                    <div>
+                                        <label for="otp" class="block text-sm font-bold text-zinc-800">کد تایید</label>
+                                        <input id="otp" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="6" pattern="[0-9۰-۹٠-٩]*" placeholder="۱۲۳۴۵۶" class="hv-ai-input mt-2 w-full rounded-2xl px-4 py-3 text-center text-lg font-bold tracking-[0.3em] outline-none transition" dir="ltr" />
+                                        <p class="mt-2 text-sm leading-7 text-zinc-500">کد ارسال شده به <span id="displayPhone" class="font-bold text-zinc-900"></span></p>
+                                        <p id="otpDebug" class="mt-2 hidden text-sm text-sky-700"></p>
+                                        <p id="otpError" class="mt-2 hidden text-sm text-rose-600"></p>
+                                    </div>
+                                </div>
+
+                                <div class="rounded-2xl bg-zinc-50 p-3 ring-1 ring-zinc-200">
+                                    <div class="flex flex-wrap items-center justify-between gap-2 text-sm">
+                                        <span id="otpTimerText" class="font-bold text-zinc-700">زمان باقی‌مانده: <span id="otpCountdown" dir="ltr">۰۲:۰۰</span></span>
+                                        <button id="resendOtp" type="button" class="hv-secondary-action rounded-xl px-3 py-2 text-xs font-bold transition disabled:cursor-not-allowed" disabled>ارسال مجدد کد</button>
+                                    </div>
+                                </div>
+
+                                <p id="generationError" class="hidden text-sm text-rose-600"></p>
+
+                                <div class="grid gap-3 lg:grid-cols-3">
+                                    <button id="verifyOtp" type="button" class="hv-primary-action w-full rounded-2xl px-5 py-3 text-sm font-bold text-white transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-60">تایید و شروع ساخت</button>
+                                    <button id="backToImage" type="button" class="hv-lift w-full rounded-2xl bg-white px-5 py-3 text-sm font-bold text-zinc-700 ring-1 ring-zinc-200">بازگشت به تصویر</button>
+                                    <button id="backToPhone" type="button" class="hv-lift w-full rounded-2xl bg-white px-5 py-3 text-sm font-bold text-zinc-700 ring-1 ring-zinc-200">تغییر شماره</button>
                                 </div>
                             </section>
 
@@ -433,10 +491,14 @@
     </div>
 
     <div id="imageModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-zinc-950/85 p-4 backdrop-blur">
-        <button id="closeImageModal" class="absolute left-4 top-4 inline-flex items-center gap-2 rounded-full bg-white px-4 py-2 text-sm font-bold text-zinc-950 shadow-lg transition hover:-translate-y-0.5">
-            <span class="fi fi-rr-x h-4 w-4" aria-hidden="true"></span>
+        <button id="closeImageModal" class="absolute left-4 top-4 inline-flex items-center gap-2 rounded-full bg-white px-4 py-2 text-sm font-bold text-zinc-950 shadow-lg transition hover:-translate-y-0.5" aria-label="بستن تصویر">
+            <span class="fi fi-rr-cross-small h-4 w-4" aria-hidden="true"></span>
             <span>بستن</span>
         </button>
+        <a id="downloadImageModal" class="absolute right-4 top-4 hidden items-center gap-2 rounded-full bg-white px-4 py-2 text-sm font-bold text-zinc-950 shadow-lg transition hover:-translate-y-0.5" href="#" download>
+            <span class="fi fi-rr-arrow-down h-4 w-4" aria-hidden="true"></span>
+            <span>دانلود</span>
+        </a>
         <button id="prevImageModal" class="absolute right-4 top-1/2 grid h-11 w-11 -translate-y-1/2 place-items-center rounded-full bg-white/95 text-xl font-bold text-zinc-950 shadow-lg transition hover:scale-105 sm:right-8" aria-label="تصویر قبلی">
             <span class="fi fi-rr-arrow-small-right h-5 w-5" aria-hidden="true"></span>
         </button>
@@ -456,6 +518,10 @@
 
     $generationFrontend = [
         'stages' => $stageCatalog->publicStages(),
+        'stagesByService' => [
+            'hair_transplant' => $stageCatalog->publicStages('hair_transplant'),
+            'eyebrow_transplant' => $stageCatalog->publicStages('eyebrow_transplant'),
+        ],
         'messages' => __('ai.generation.messages'),
         'statuses' => __('ai.generation.statuses'),
         'messageIntervalMs' => config('hairvision.generation.message_interval_ms'),
@@ -478,6 +544,7 @@
     const STATE = {
         phone: null,
         verified: false,
+        selectedTreatment: 'hair_transplant',
         uploadId: null,
         generationGroupId: null,
         originalPreviewUrl: null,
@@ -538,6 +605,16 @@
         const element = document.createElement('div');
         element.textContent = value ?? '';
         return element.innerHTML;
+    }
+
+    function downloadFileName(item) {
+        const period = String(item?.period || 'result').replace(/[^a-z0-9_-]/gi, '-').toLowerCase();
+
+        return `hairvision-${period}.jpg`;
+    }
+
+    function downloadLabel(item) {
+        return `دانلود ${item?.label || 'تصویر'}`;
     }
 
     function wait(ms) {
@@ -612,6 +689,23 @@
 
     function firstStageKey() {
         return GENERATION.stages?.[0]?.key || 'two_weeks';
+    }
+
+    function selectedStages() {
+        return GENERATION.stagesByService?.[STATE.selectedTreatment] || GENERATION.stages || [];
+    }
+
+    function setActiveStages(stages) {
+        if (Array.isArray(stages) && stages.length) {
+            GENERATION.stages = stages;
+            return;
+        }
+
+        GENERATION.stages = selectedStages();
+    }
+
+    function generationButton() {
+        return document.getElementById('verifyOtp');
     }
 
     function stageMessages(stageKey) {
@@ -710,10 +804,10 @@
         UI.clearStatus();
         UI.showError(errorId, message);
 
-        const uploadButton = document.getElementById('upload');
-        if (uploadButton) {
-            uploadButton.disabled = false;
-            uploadButton.textContent = 'دریافت پیش نمایش';
+        const actionButton = generationButton();
+        if (actionButton) {
+            actionButton.disabled = false;
+            actionButton.textContent = 'تایید و شروع ساخت';
         }
 
         if (payload?.requiresVerification) {
@@ -726,11 +820,11 @@
 
             if (STATE.phone) {
                 document.getElementById('displayPhone').textContent = toPersianDigits(STATE.phone);
-                UI.showStep(2);
+                UI.showStep(3);
                 UI.showError('otpError', message);
                 document.getElementById('otp').focus();
             } else {
-                UI.showStep(1);
+                UI.showStep(3);
                 UI.showError('phoneError', message);
                 document.getElementById('requestOtp').focus();
             }
@@ -894,7 +988,10 @@
         async createGeneration(uploadId) {
             return requestJson('/api/v1/generations', {
                 method: 'POST',
-                body: JSON.stringify({ upload_id: uploadId }),
+                body: JSON.stringify({
+                    upload_id: uploadId,
+                    usage_category_key: STATE.selectedTreatment,
+                }),
             });
         },
 
@@ -922,6 +1019,29 @@
         if (!button.disabled) {
             document.getElementById('verifyOtp').click();
         }
+    });
+
+    document.querySelectorAll('[data-treatment-option]').forEach((button) => {
+        button.addEventListener('click', () => {
+            STATE.selectedTreatment = button.dataset.treatmentOption || 'hair_transplant';
+            setActiveStages();
+            resetGenerationProgress();
+            UI.clearError('treatmentError');
+
+            document.querySelectorAll('[data-treatment-option]').forEach((option) => {
+                option.classList.toggle('is-selected', option === button);
+            });
+        });
+    });
+
+    document.getElementById('continueToImage').addEventListener('click', () => {
+        if (!STATE.selectedTreatment) {
+            return UI.showError('treatmentError', 'لطفاً نوع پیش‌نمایش را انتخاب کنید.');
+        }
+
+        setActiveStages();
+        renderStagePanels([]);
+        UI.showStep(2);
     });
 
     document.getElementById('image').addEventListener('change', (event) => {
@@ -995,7 +1115,7 @@
             }
 
             startOtpTimer(result.expires_in || 120);
-            UI.showStep(2);
+            UI.showStep(3);
             document.getElementById('otp').focus();
 
             return;
@@ -1017,7 +1137,7 @@
 
     document.getElementById('resendOtp').addEventListener('click', async () => {
         if (!STATE.phone) {
-            UI.showStep(1);
+            UI.showStep(3);
             return UI.showError('phoneError', 'برای ارسال کد، ابتدا شماره موبایل خود را وارد کنید.');
         }
 
@@ -1043,7 +1163,7 @@
         const result = await API.verifyOtp(STATE.phone, code);
 
         btn.disabled = false;
-        btn.textContent = 'تایید و ادامه';
+        btn.textContent = 'تایید و شروع ساخت';
 
         if (result.success) {
             STATE.verified = true;
@@ -1052,7 +1172,7 @@
             sessionStorage.setItem(STORAGE_KEYS.phone, STATE.phone);
             sessionStorage.setItem(STORAGE_KEYS.verified, '1');
 
-            UI.showStep(3);
+            await beginGenerationProcess(btn);
 
             return;
         }
@@ -1069,19 +1189,48 @@
 
         UI.clearError('otpError');
         UI.clearDebugOtp();
-        UI.showStep(1);
+        UI.showStep(3);
     });
 
-    document.getElementById('upload').addEventListener('click', async () => {
+    document.getElementById('continueToPhone').addEventListener('click', () => {
         const fileInput = document.getElementById('image');
         const consent = document.getElementById('consent').checked;
-        const btn = document.getElementById('upload');
 
         UI.clearError('uploadError');
 
+        if (!fileInput.files.length) {
+            return UI.showError('uploadError', 'لطفاً یک تصویر انتخاب کنید.');
+        }
+
+        if (!consent) {
+            return UI.showError('uploadError', 'برای ادامه باید رضایت پردازش تصویر را تایید کنید.');
+        }
+
+        UI.showStep(3);
+        document.getElementById('phone').focus();
+    });
+
+    document.getElementById('backToTreatment').addEventListener('click', () => {
+        UI.clearError('uploadError');
+        UI.showStep(1);
+    });
+
+    document.getElementById('backToImage').addEventListener('click', () => {
+        UI.clearError('generationError');
+        UI.clearError('otpError');
+        UI.showStep(2);
+    });
+
+    async function beginGenerationProcess(button = null) {
+        const fileInput = document.getElementById('image');
+        const consent = document.getElementById('consent').checked;
+        const btn = button || generationButton();
+
+        UI.clearError('generationError');
+
         if (!STATE.verified) {
             sessionStorage.removeItem(STORAGE_KEYS.verified);
-            UI.showStep(1);
+            UI.showStep(3);
             UI.showError('phoneError', 'برای ادامه، لطفاً ابتدا شماره موبایل خود را تایید کنید.');
             return;
         }
@@ -1095,8 +1244,8 @@
 
                 if (statusResult.success === false) {
                     btn.disabled = false;
-                    btn.textContent = 'دریافت پیش نمایش';
-                    handleApiFailure(statusResult);
+                    btn.textContent = 'تایید و شروع ساخت';
+                    handleApiFailure(statusResult, 'generationError');
                     return;
                 }
 
@@ -1120,10 +1269,12 @@
         }
 
         if (!fileInput.files.length) {
+            UI.showStep(2);
             return UI.showError('uploadError', 'لطفاً یک تصویر انتخاب کنید.');
         }
 
         if (!consent) {
+            UI.showStep(2);
             return UI.showError('uploadError', 'برای ادامه باید رضایت پردازش تصویر را تایید کنید.');
         }
 
@@ -1133,6 +1284,7 @@
         btn.disabled = true;
         btn.textContent = 'در حال ارسال...';
 
+        UI.showStep(4);
         startStageMessages(firstStageKey(), true);
 
         try {
@@ -1163,32 +1315,25 @@
                 }
 
                 btn.disabled = false;
-                btn.textContent = 'دریافت پیش نمایش';
-                handleApiFailure(genResult);
+                btn.textContent = 'تایید و شروع ساخت';
+                handleApiFailure(genResult, 'generationError');
 
                 return;
             }
 
             btn.disabled = false;
-            btn.textContent = 'دریافت پیش نمایش';
-            handleApiFailure(result);
+            btn.textContent = 'تایید و شروع ساخت';
+            handleApiFailure(result, 'generationError');
         } catch (error) {
             stopStageMessages();
 
             btn.disabled = false;
-            btn.textContent = 'دریافت پیش نمایش';
+            btn.textContent = 'تایید و شروع ساخت';
 
             UI.clearStatus();
-            UI.showError('uploadError', 'خطایی رخ داد. لطفاً دوباره تلاش کنید.');
+            UI.showError('generationError', 'خطایی رخ داد. لطفاً دوباره تلاش کنید.');
         }
-    });
-
-    document.getElementById('backToVerify').addEventListener('click', () => {
-        resetImageInput();
-        resetGenerationProgress();
-        UI.clearError('uploadError');
-        UI.showStep(2);
-    });
+    }
 
     document.getElementById('closeImageModal').addEventListener('click', closeImageModal);
     document.getElementById('prevImageModal').addEventListener('click', showPreviousImage);
@@ -1242,12 +1387,14 @@
 
         stopStageMessages();
         UI.showStatus(backgroundContinueMessage());
-        UI.showError('uploadError', backgroundContinueMessage());
+        UI.showError('generationError', backgroundContinueMessage());
 
         return 'background';
     }
 
     function applyGenerationStatus(payload) {
+        setActiveStages(payload.stages);
+
         const jobs = Array.isArray(payload.jobs) ? payload.jobs : [];
 
         STATE.stageJobs = jobs;
@@ -1269,11 +1416,11 @@
             STATE.generationComplete = false;
 
             UI.showStatus(failedMessage());
-            UI.showError('uploadError', failedMessage());
+            UI.showError('generationError', failedMessage());
 
-            const uploadButton = document.getElementById('upload');
-            uploadButton.disabled = false;
-            uploadButton.textContent = 'دریافت پیش نمایش';
+            const actionButton = generationButton();
+            actionButton.disabled = false;
+            actionButton.textContent = 'تایید و شروع ساخت';
 
             return 'failed';
         }
@@ -1284,9 +1431,9 @@
             UI.showStep(4);
             showCompletionMessage();
 
-            const uploadButton = document.getElementById('upload');
-            uploadButton.disabled = false;
-            uploadButton.textContent = 'دریافت پیش نمایش';
+            const actionButton = generationButton();
+            actionButton.disabled = false;
+            actionButton.textContent = 'تایید و شروع ساخت';
 
             return 'completed';
         }
@@ -1428,15 +1575,34 @@
             card.className = 'hv-result-card hv-enter overflow-hidden rounded-3xl bg-white shadow-lg shadow-indigo-100/70';
             card.style.animationDelay = `${index * 70}ms`;
 
+            const safeUrl = item.url ? escapeHtml(item.url) : '';
             const media = item.url
-                ? `<img src="${item.url}" alt="${escapeHtml(item.label)}" class="hv-result-image aspect-[4/5] w-full object-cover" loading="lazy" />`
+                ? `<img src="${safeUrl}" alt="${escapeHtml(item.label)}" class="hv-result-image aspect-[4/5] w-full object-cover" loading="lazy" />`
                 : `<span class="hv-skeleton block aspect-[4/5] w-full"></span><span class="absolute inset-0 grid place-items-center px-4 text-center"><span><span class="mx-auto grid h-12 w-12 place-items-center rounded-2xl bg-white/90 text-sm font-bold text-zinc-500 shadow-sm">${toPersianDigits(index + 1)}</span><span class="mt-3 block text-sm font-bold text-zinc-600">${escapeHtml(statusLabel(item.status))}</span></span></span>`;
 
             const status = item.period === 'original'
                 ? `<span class="mt-3 inline-flex rounded-full bg-emerald-50 px-3 py-1 text-xs font-bold text-emerald-700">${escapeHtml(statusLabel(item.status))}</span>`
                 : `<span class="mt-3 inline-flex rounded-full bg-zinc-100 px-3 py-1 text-xs font-bold text-zinc-600">${escapeHtml(statusLabel(item.status))}</span>`;
 
-            card.innerHTML = `<button type="button" class="block w-full text-right" data-gallery-index="${index}"><span class="relative block overflow-hidden bg-zinc-100">${media}</span><span class="block p-4"><span class="block text-base font-bold text-zinc-950">${escapeHtml(item.label)}</span><span class="mt-1 block text-sm leading-6 text-zinc-500">${escapeHtml(item.caption || '')}</span>${status}</span></button>`;
+            const downloadAction = item.url
+                ? `<a class="inline-flex items-center gap-1.5 rounded-full bg-zinc-950 px-3 py-1.5 text-xs font-bold text-white transition hover:-translate-y-0.5 hover:bg-zinc-800" href="${safeUrl}" download="${escapeHtml(downloadFileName(item))}" aria-label="${escapeHtml(downloadLabel(item))}" data-gallery-download><span class="fi fi-rr-arrow-down h-3.5 w-3.5" aria-hidden="true"></span><span>دانلود</span></a>`
+                : '';
+
+            card.innerHTML = `
+                <button type="button" class="block w-full text-right" data-gallery-index="${index}">
+                    <span class="relative block overflow-hidden bg-zinc-100">${media}</span>
+                </button>
+                <div class="p-4">
+                    <button type="button" class="block w-full text-right" data-gallery-index="${index}">
+                        <span class="block text-base font-bold text-zinc-950">${escapeHtml(item.label)}</span>
+                        <span class="mt-1 block text-sm leading-6 text-zinc-500">${escapeHtml(item.caption || '')}</span>
+                    </button>
+                    <div class="mt-3 flex flex-wrap items-center justify-between gap-2">
+                        ${status}
+                        ${downloadAction}
+                    </div>
+                </div>
+            `;
 
             container.appendChild(card);
         });
@@ -1481,6 +1647,10 @@
         document.getElementById('modalImage').src = '';
         document.getElementById('modalImage').classList.remove('hidden', 'is-changing');
         document.getElementById('modalCaption').textContent = '';
+        document.getElementById('downloadImageModal').classList.add('hidden');
+        document.getElementById('downloadImageModal').classList.remove('inline-flex');
+        document.getElementById('downloadImageModal').removeAttribute('href');
+        document.getElementById('downloadImageModal').removeAttribute('download');
 
         UI.hideModalToast();
     }
@@ -1507,12 +1677,17 @@
         const image = document.getElementById('modalImage');
         const skeleton = document.getElementById('modalSkeleton');
         const caption = document.getElementById('modalCaption');
+        const downloadLink = document.getElementById('downloadImageModal');
 
         const applyImage = () => {
             if (!item.url) {
                 image.classList.add('hidden');
                 image.classList.remove('is-changing');
                 image.removeAttribute('src');
+                downloadLink.classList.add('hidden');
+                downloadLink.classList.remove('inline-flex');
+                downloadLink.removeAttribute('href');
+                downloadLink.removeAttribute('download');
 
                 skeleton.classList.remove('hidden');
                 caption.textContent = `${item.label} - ${statusLabel(item.status || 'pending')}`;
@@ -1527,6 +1702,11 @@
             image.src = item.url;
             image.alt = item.label || 'نمای بزرگ تصویر';
             caption.textContent = `${item.label} - ${item.caption}`;
+            downloadLink.href = item.url;
+            downloadLink.download = downloadFileName(item);
+            downloadLink.setAttribute('aria-label', downloadLabel(item));
+            downloadLink.classList.remove('hidden');
+            downloadLink.classList.add('inline-flex');
             image.classList.remove('is-changing');
         };
 
@@ -1579,9 +1759,11 @@
 
         document.getElementById('resultsContainer').innerHTML = '';
 
-        const uploadButton = document.getElementById('upload');
-        uploadButton.disabled = false;
-        uploadButton.textContent = 'دریافت پیش نمایش';
+        const actionButton = generationButton();
+        if (actionButton) {
+            actionButton.disabled = false;
+            actionButton.textContent = 'تایید و شروع ساخت';
+        }
 
         if (clearStatus) UI.clearStatus();
     }
@@ -1602,12 +1784,10 @@
             STATE.phone = normalizeDigits(storedPhone).slice(0, 11);
             document.getElementById('phone').value = toPersianDigits(STATE.phone);
             document.getElementById('displayPhone').textContent = toPersianDigits(STATE.phone);
-            UI.showStep(2);
             markOtpExpired();
-            document.getElementById('otp').focus();
-            return;
         }
 
+        setActiveStages();
         UI.showStep(1);
     }
 
@@ -1633,8 +1813,8 @@
             const state = applyGenerationStatus(statusResult);
 
             if (state === 'processing') {
-                const uploadButton = document.getElementById('upload');
-                uploadButton.textContent = 'بررسی وضعیت نتیجه';
+                const actionButton = generationButton();
+                if (actionButton) actionButton.textContent = 'بررسی وضعیت نتیجه';
                 await pollUntilComplete();
             }
         } catch (error) {

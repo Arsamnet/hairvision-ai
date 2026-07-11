@@ -96,10 +96,11 @@ return new class extends Migration
             $table->string('plan_type')->default('base_subscription')->index();
             $table->string('service_key')->nullable()->index();
             $table->unsignedBigInteger('price');
-            $table->string('currency')->default('IRR');
+            $table->string('currency')->default('ریال');
             $table->unsignedInteger('duration_days')->nullable();
             $table->unsignedInteger('usage_limit')->default(0);
             $table->json('features_json')->nullable();
+            $table->boolean('is_public')->default(true)->index();
             $table->string('status')->default('active');
             $table->timestamps();
 
@@ -129,7 +130,7 @@ return new class extends Migration
             $table->string('number')->unique();
             $table->string('status')->default('pending');
             $table->unsignedBigInteger('amount');
-            $table->string('currency')->default('IRR');
+            $table->string('currency')->default('ریال');
             $table->char('due_at', 19)->nullable();
             $table->char('paid_at', 19)->nullable();
             $table->char('expires_at', 19)->nullable();
@@ -151,7 +152,7 @@ return new class extends Migration
             $table->foreignId('payment_gateway_id')->constrained('payment_gateways')->restrictOnDelete();
             $table->string('status')->default('pending');
             $table->unsignedBigInteger('amount');
-            $table->string('currency')->default('IRR');
+            $table->string('currency')->default('ریال');
             $table->string('authority')->nullable()->index();
             $table->string('reference_id')->nullable()->index();
             $table->string('idempotency_key')->nullable()->unique();

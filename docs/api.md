@@ -172,9 +172,11 @@ The file is stored privately and scoped to the current tenant and lead.
 Requires a verified lead session. The upload must belong to the current tenant
 and session lead.
 
-The backend requires an active base subscription, active `hair_transplant`
-service entitlement, enough service credit for the three periods, and active
-assigned AI model access. The client submits none of these authorities.
+The backend requires an active base subscription, active service entitlement for
+the selected usage category, enough service credit for the selected stage count,
+and active assigned AI model access. The client submits only the upload id and
+the allowed usage category key, never tenant, provider, credential, or model
+authority.
 
 ```http
 POST /api/v1/generations
@@ -184,9 +186,16 @@ Body:
 
 ```json
 {
-  "upload_id": "uuid"
+  "upload_id": "uuid",
+  "usage_category_key": "hair_transplant"
 }
 ```
+
+`usage_category_key` is optional and defaults to `hair_transplant`. Allowed
+public values are:
+
+- `hair_transplant`: creates three staged jobs.
+- `eyebrow_transplant`: creates one final-result job.
 
 Response:
 

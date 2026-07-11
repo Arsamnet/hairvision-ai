@@ -75,6 +75,15 @@ return [
             env('HAIRVISION_GENERATION_MAX_WAIT_MS', 900000)
         ),
 
+        'services' => [
+            'hair_transplant' => [
+                'stages' => ['two_weeks', 'intermediate_regrowth', 'final_result'],
+            ],
+            'eyebrow_transplant' => [
+                'stages' => ['eyebrow_final_result'],
+            ],
+        ],
+
         'stages' => [
             'two_weeks' => [
                 'order' => 1,
@@ -93,6 +102,12 @@ return [
                 'label_key' => 'ai.generation.stages.final_result',
                 'sample_image' => env('HAIRVISION_SAMPLE_IMAGE_FINAL_RESULT', env('HAIRVISION_SAMPLE_IMAGE_12_MONTHS', 'sample-results/final_result.jpg')),
                 'prompt' => 'Create exactly one realistic final hair transplant result image showing the same person after full growth from a complete hair transplant. Preserve the face identity, camera angle, lighting, skin tone, and background. Only edit the scalp and hairline area. Show a fuller natural hairline, realistic density, natural direction and texture, and coverage that suits the person’s face. Keep the result photorealistic, balanced, and medically plausible.',
+            ],
+            'eyebrow_final_result' => [
+                'order' => 1,
+                'label_key' => 'ai.generation.stages.eyebrow_final_result',
+                'sample_image' => env('HAIRVISION_SAMPLE_IMAGE_EYEBROW_FINAL_RESULT', 'sample-results/eyebrow_final_result.jpg'),
+                'prompt' => 'Create exactly one realistic eyebrow transplant preview image showing the same person after a complete eyebrow transplant. Preserve the face identity, camera angle, lighting, skin tone, expression, eyes, nose, lips, hair, clothing, and background. Only edit the eyebrows. Add natural, fuller eyebrow density with realistic hair direction, texture, asymmetry, and a medically plausible shape suited to the face. Keep the result photorealistic and avoid makeup-like, tattooed, overly dark, or artificial brows.',
             ],
         ],
         'legacy_stage_map' => [
@@ -123,6 +138,7 @@ return [
         '3_months' => env('HAIRVISION_SAMPLE_IMAGE_3_MONTHS', 'sample-results/two-weeks.jpg'),
         '6_months' => env('HAIRVISION_SAMPLE_IMAGE_6_MONTHS', 'sample-results/intermediate_regrowth.jpg'),
         '12_months' => env('HAIRVISION_SAMPLE_IMAGE_12_MONTHS', 'sample-results/final_result.jpg'),
+        'eyebrow_final_result' => env('HAIRVISION_SAMPLE_IMAGE_EYEBROW_FINAL_RESULT', 'sample-results/eyebrow_final_result.jpg'),
         'fallback' => env('HAIRVISION_SAMPLE_IMAGE_FALLBACK', 'sample-results/hairvision-sample-result.jpg'),
     ],
 

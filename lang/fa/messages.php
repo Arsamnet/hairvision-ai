@@ -58,4 +58,6 @@ return [
     'upload_consent_required' => 'برای ادامه، تایید پردازش تصویر لازم است.',
     'upload_id_required' => 'شناسه تصویر ارسال نشده است.',
     'upload_id_invalid' => 'شناسه تصویر معتبر نیست.',
+    'generation_service_required' => 'نوع سرویس انتخاب نشده است.',
+    'generation_service_invalid' => 'نوع سرویس انتخاب‌شده معتبر نیست.',
 ];

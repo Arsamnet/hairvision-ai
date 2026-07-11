@@ -59,7 +59,7 @@
         <input name="expires_at" value="{{ old('expires_at', $invoice?->expires_at) }}" class="mt-1 h-11 w-full rounded-lg border border-zinc-200 px-3 text-sm outline-none focus:border-teal-500" dir="ltr" placeholder="1405/01/31 23:59:59">
     </label>
 
-    <input name="currency" value="{{ old('currency', $invoice?->currency ?? 'IRR') }}" class="h-11 rounded-lg border border-zinc-200 px-3 text-sm outline-none focus:border-teal-500" dir="ltr" placeholder="{{ __('payments.fields.currency') }}">
+    <input name="currency" value="{{ old('currency', $invoice?->currency ?? 'ریال') }}" class="h-11 rounded-lg border border-zinc-200 px-3 text-sm outline-none focus:border-teal-500" placeholder="{{ __('payments.fields.currency') }}">
     <input name="note" value="{{ old('note', data_get($invoice?->metadata_json, 'manual_note')) }}" class="h-11 rounded-lg border border-zinc-200 px-3 text-sm outline-none focus:border-teal-500" placeholder="{{ __('system.description') }}">
 
     <x-admin.button type="submit" icon="check" class="md:col-span-2">

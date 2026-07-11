@@ -30,11 +30,15 @@ class GenerationService
     /**
      * Create or reuse a generation group for an upload.
      */
-    public function createForUpload(Upload $upload, ?Request $request = null): GenerationGroup
+    public function createForUpload(
+        Upload $upload,
+        string $usageCategoryKey = 'hair_transplant',
+        ?Request $request = null
+    ): GenerationGroup
     {
         $scope = 'generation.service.create_for_upload';
 
-        $stageKeys = $this->stages->keys();
+        $stageKeys = $this->stages->keys($usageCategoryKey);
 
         $existing = $upload->generationGroup()->with('jobs')->first();
 
@@ -46,9 +50,9 @@ class GenerationService
             return $existing;
         }
 
-        $this->entitlements->assertCanUse($upload->tenant, 'hair_transplant', count($stageKeys));
+        $this->entitlements->assertCanUse($upload->tenant, $usageCategoryKey, count($stageKeys));
 
-        $modelAccess = $this->aiModels->resolveForClinic($upload->tenant, 'hair_transplant');
+        $modelAccess = $this->aiModels->resolveForClinic($upload->tenant, $usageCategoryKey);
 
         $group = GenerationGroup::create([
             'tenant_id' => $upload->tenant_id,

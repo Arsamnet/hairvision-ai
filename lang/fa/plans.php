@@ -14,6 +14,10 @@ return [
     'upgrade' => 'ارتقا',
     'buy_add_on' => 'خرید سرویس افزوده',
     'buy_top_up' => 'خرید اعتبار',
+    'not_purchasable' => 'غیرقابل خرید',
+    'visible_to_clinics' => 'نمایش برای کلینیک‌ها',
+    'hidden_from_clinics' => 'مخفی از کلینیک‌ها',
+    'all_types' => 'همه نوع بسته‌ها',
     'create' => 'ثبت',
     'edit' => 'ویرایش',
     'update' => 'به‌روزرسانی',
@@ -27,6 +31,7 @@ return [
     'invoice_ready' => 'فاکتور خرید پلن آماده پرداخت است: :number',
     'inactive_plan' => 'این پلن فعال نیست.',
     'same_active_plan_blocked' => 'این پلن در حال حاضر برای شما فعال است و تا پایان زمان یا اعتبار، امکان خرید دوباره همان پلن وجود ندارد.',
+    'service_access_already_available' => 'دسترسی سرویس‌های این پلن در حال حاضر برای کلینیک فعال است.',
     'empty' => 'در حال حاضر پلن فعالی برای خرید وجود ندارد.',
 
     'fields' => [
@@ -39,6 +44,7 @@ return [
         'usage_limit' => 'اعتبار',
         'currency' => 'واحد',
         'status' => 'وضعیت',
+        'visibility' => 'نمایش',
     ],
 
     'statuses' => [
@@ -55,5 +61,12 @@ return [
     'validation' => [
         'duration_required' => 'مدت اعتبار برای پلن پایه و سرویس افزوده الزامی است.',
         'service_credit_required' => 'حداقل برای یک سرویس باید اعتبار مثبت وارد شود.',
+    ],
+
+    'purchase_disabled' => [
+        'inactive' => 'این پلن فعال نیست.',
+        'already_available' => 'دسترسی این سرویس در پلن فعال شما فراهم است.',
+        'add_on_requires_base' => 'برای خرید سرویس افزوده ابتدا باید پلن پایه فعال داشته باشید.',
+        'top_up_requires_service' => 'برای خرید این بسته، سرویس مربوطه باید از قبل فعال باشد.',
     ],
 ];

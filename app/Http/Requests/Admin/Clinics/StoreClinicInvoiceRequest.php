@@ -40,7 +40,7 @@ class StoreClinicInvoiceRequest extends FormRequest
     {
         $this->merge([
             '_form' => $this->input('_form', 'create_clinic_invoice'),
-            'currency' => $this->input('currency', 'IRR'),
+            'currency' => $this->input('currency', 'ریال'),
             'status' => $this->input('status', 'pending'),
         ]);
     }

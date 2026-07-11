@@ -40,7 +40,7 @@ class UpdateClinicInvoiceRequest extends FormRequest
     {
         $this->merge([
             '_form' => $this->input('_form', 'edit_clinic_invoice_'.$this->route('invoice')?->id),
-            'currency' => $this->input('currency', 'IRR'),
+            'currency' => $this->input('currency', 'ریال'),
         ]);
     }
 }

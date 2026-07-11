@@ -5,7 +5,7 @@ namespace App\Services\Generation;
 use App\Models\AiModelAccess;
 
 /**
- * Central source for the three public hair-transplant generation stages.
+ * Central source for public generation stages by service category.
  *
  * @since 1.0.0
  */
@@ -14,26 +14,41 @@ class GenerationStageCatalog
     /**
      * @return array<int, string>
      */
-    public function keys(): array
+    public function keys(string $usageCategoryKey = 'hair_transplant'): array
     {
-        return array_keys($this->stages());
+        return array_keys($this->stages($usageCategoryKey));
     }
 
     /**
      * @return array<string, array<string, mixed>>
      */
-    public function stages(): array
+    public function stages(string $usageCategoryKey = 'hair_transplant'): array
     {
-        $stages = config('hairvision.generation.stages', []);
+        $allStages = config('hairvision.generation.stages', []);
+        $serviceStageKeys = config("hairvision.generation.services.$usageCategoryKey.stages");
+        $stages = [];
+
+        if (is_array($serviceStageKeys) && $serviceStageKeys !== []) {
+            foreach ($serviceStageKeys as $stageKey) {
+                if (is_string($stageKey) && isset($allStages[$stageKey]) && is_array($allStages[$stageKey])) {
+                    $stages[$stageKey] = $allStages[$stageKey];
+                }
+            }
+        }
+
+        if ($stages === [] && $usageCategoryKey === 'hair_transplant') {
+            $stages = $allStages;
+            unset($stages['eyebrow_final_result']);
+        }
 
         uasort($stages, fn (array $first, array $second): int => ($first['order'] ?? 0) <=> ($second['order'] ?? 0));
 
         return $stages;
     }
 
-    public function count(): int
+    public function count(string $usageCategoryKey = 'hair_transplant'): int
     {
-        return count($this->stages());
+        return count($this->stages($usageCategoryKey));
     }
 
     public function normalizeKey(string $stageKey): string
@@ -43,12 +58,12 @@ class GenerationStageCatalog
 
     public function order(string $stageKey): int
     {
-        return (int) ($this->stages()[$this->normalizeKey($stageKey)]['order'] ?? 0);
+        return (int) ($this->stage($stageKey)['order'] ?? 0);
     }
 
     public function label(string $stageKey): string
     {
-        $stage = $this->stages()[$this->normalizeKey($stageKey)] ?? [];
+        $stage = $this->stage($stageKey);
         $labelKey = $stage['label_key'] ?? null;
 
         return is_string($labelKey) ? __($labelKey) : $stageKey;
@@ -61,14 +76,14 @@ class GenerationStageCatalog
 
     public function sampleImagePath(string $stageKey): ?string
     {
-        $path = $this->stages()[$this->normalizeKey($stageKey)]['sample_image'] ?? null;
+        $path = $this->stage($stageKey)['sample_image'] ?? null;
 
         return is_string($path) ? $path : null;
     }
 
     public function defaultPrompt(string $stageKey): string
     {
-        $prompt = $this->stages()[$this->normalizeKey($stageKey)]['prompt'] ?? null;
+        $prompt = $this->stage($stageKey)['prompt'] ?? null;
 
         return is_string($prompt) ? $prompt : 'Create one realistic hair transplant preview image.';
     }
@@ -103,15 +118,39 @@ class GenerationStageCatalog
     /**
      * @return array<int, array<string, mixed>>
      */
-    public function publicStages(): array
+    public function publicStages(string $usageCategoryKey = 'hair_transplant'): array
     {
-        return collect($this->stages())
+        return collect($this->stages($usageCategoryKey))
             ->map(fn (array $stage, string $key): array => [
                 'key' => $key,
                 'order' => (int) ($stage['order'] ?? 0),
                 'label' => $this->label($key),
                 'caption' => $this->caption($key),
             ])
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @param  array<int, string>  $stageKeys
+     * @return array<int, array<string, mixed>>
+     */
+    public function publicStagesForKeys(array $stageKeys): array
+    {
+        $uniqueStageKeys = collect($stageKeys)
+            ->map(fn (string $stageKey): string => $this->normalizeKey($stageKey))
+            ->unique()
+            ->values()
+            ->all();
+
+        return collect($uniqueStageKeys)
+            ->map(fn (string $key): array => [
+                'key' => $key,
+                'order' => $this->order($key),
+                'label' => $this->label($key),
+                'caption' => $this->caption($key),
+            ])
+            ->sortBy('order')
             ->values()
             ->all();
     }
@@ -126,5 +165,15 @@ class GenerationStageCatalog
             ->sortBy(fn (mixed $item): int => $this->order((string) (data_get($item, 'period') ?? data_get($item, 'key'))))
             ->values()
             ->all();
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function stage(string $stageKey): array
+    {
+        $stage = config('hairvision.generation.stages.'.$this->normalizeKey($stageKey), []);
+
+        return is_array($stage) ? $stage : [];
     }
 }

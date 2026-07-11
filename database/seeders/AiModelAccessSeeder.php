@@ -36,6 +36,33 @@ class AiModelAccessSeeder extends Seeder
             ]
         );
 
+        $eyebrowDemoAccess = AiModelAccess::query()->updateOrCreate(
+            [
+                'model_key' => 'sample_image',
+                'usage_category_key' => 'eyebrow_transplant',
+                'name' => __('ai_models.seed.eyebrow_demo_access_name'),
+            ],
+            [
+                'description' => __('ai_models.seed.eyebrow_demo_access_description'),
+                'credentials' => [],
+                'settings' => [
+                    'demo_images' => [
+                        'eyebrow_final_result' => config('hairvision.sample_images.eyebrow_final_result'),
+                    ],
+                ],
+                'prompt' => __('ai_models.seed.eyebrow_demo_prompt'),
+                'credit_limit' => null,
+                'credit_used' => 0,
+                'usage_count' => 0,
+                'is_active' => true,
+                'is_demo' => true,
+                'is_protected' => true,
+                'priority' => 1,
+                'created_by' => $superAdmin->id,
+                'updated_by' => $superAdmin->id,
+            ]
+        );
+
         $gapGptModelConfig = config('ai-models.models.gapgpt', []);
         $gapGptAccess = AiModelAccess::query()->updateOrCreate(
             [
@@ -68,12 +95,49 @@ class AiModelAccessSeeder extends Seeder
             ]
         );
 
+        $demoGapGptAccess = AiModelAccess::query()->updateOrCreate(
+            [
+                'model_key' => 'gapgpt',
+                'usage_category_key' => 'hair_transplant',
+                'name' => 'GapGPT واقعی کلینیک دمو',
+            ],
+            [
+                'description' => 'دسترسی فعال GapGPT برای کلینیک دمو',
+                'credentials' => [
+                    'api_key' => env('HAIRVISION_DEMO_GAPGPT_API_KEY', 'seed-demo-gapgpt-api-key'),
+                ],
+                'settings' => [
+                    'endpoint_url' => $gapGptModelConfig['endpoint'] ?? 'https://api.gapgpt.app/v1/images/edits',
+                    'model' => $gapGptModelConfig['default_model'] ?? 'gpt-image-2',
+                    'size' => $gapGptModelConfig['default_size'] ?? '1024x1024',
+                    'response_format' => $gapGptModelConfig['default_response_format'] ?? 'url',
+                    'timeout_seconds' => $gapGptModelConfig['default_timeout'] ?? 900,
+                    'connect_timeout_seconds' => $gapGptModelConfig['default_connect_timeout'] ?? 30,
+                    'stage_prompts' => $this->gapGptStagePrompts(),
+                ],
+                'prompt' => '{stage_prompt}',
+                'credit_limit' => null,
+                'credit_used' => 0,
+                'usage_count' => 0,
+                'is_active' => true,
+                'is_demo' => false,
+                'is_protected' => false,
+                'priority' => 1,
+                'created_by' => $superAdmin->id,
+                'updated_by' => $superAdmin->id,
+            ]
+        );
+
         Tenant::query()
             ->whereIn('slug', ['aria', 'noja'], 'and', false)
             ->get()
-            ->each(function (Tenant $tenant) use ($demoAccess, $gapGptAccess, $superAdmin): void {
+            ->each(function (Tenant $tenant) use ($demoAccess, $eyebrowDemoAccess, $gapGptAccess, $superAdmin): void {
                 $tenant->aiModelAccesses()->syncWithoutDetaching([
                     $demoAccess->id => [
+                        'is_active' => true,
+                        'assigned_by' => $superAdmin->id,
+                    ],
+                    $eyebrowDemoAccess->id => [
                         'is_active' => true,
                         'assigned_by' => $superAdmin->id,
                     ],
@@ -83,6 +147,17 @@ class AiModelAccessSeeder extends Seeder
                     ],
                 ]);
             });
+
+        $demoTenant = Tenant::query()->where('slug', 'demo')->first();
+
+        if ($demoTenant) {
+            $demoTenant->aiModelAccesses()->syncWithoutDetaching([
+                $demoGapGptAccess->id => [
+                    'is_active' => true,
+                    'assigned_by' => $superAdmin->id,
+                ],
+            ]);
+        }
     }
 
     /**

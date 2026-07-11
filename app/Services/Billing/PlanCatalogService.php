@@ -93,6 +93,7 @@ class PlanCatalogService
             'duration_days' => $planType === PlanType::CreditTopUp ? null : (int) ($data['duration_days'] ?? 0),
             'usage_limit' => array_sum($credits),
             'features_json' => $plan?->features_json ?? [],
+            'is_public' => (bool) ($data['is_public'] ?? false),
             'status' => $data['status'],
         ];
 
@@ -151,6 +152,7 @@ class PlanCatalogService
             'duration_days' => $plan->duration_days,
             'usage_limit' => $plan->usage_limit,
             'status' => $plan->status,
+            'is_public' => (bool) $plan->is_public,
             'feature_keys' => is_array($plan->features_json) ? array_keys($plan->features_json) : [],
         ];
     }

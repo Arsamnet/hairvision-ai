@@ -192,7 +192,10 @@ class HairVisionMvpTest extends TestCase
             ->assertSee('id="resendOtp"', false)
             ->assertSee('ارسال مجدد کد')
             ->assertDontSee('ارسال مجدد تا')
-            ->assertSee('تغییر شماره');
+            ->assertSee('تغییر شماره')
+            ->assertSee('id="downloadImageModal"', false)
+            ->assertSee('data-gallery-download', false)
+            ->assertSee('fi-rr-cross-small', false);
     }
 
     public function test_otp_request_sends_system_ippanel_pattern_when_configured(): void
@@ -513,6 +516,106 @@ class HairVisionMvpTest extends TestCase
 
         $this->assertSame($groupId, $repeatGroupId);
         $this->assertSame(1, GenerationGroup::query()->where('upload_id', $group->upload_id)->count());
+    }
+
+    public function test_eyebrow_generation_creates_one_private_asset_with_sample_model(): void
+    {
+        $tenant = $this->createTenant('Clinic One', 'aria', 'aria.hairvision-ai.test');
+        $subscription = $this->activateTenantSubscription($tenant, 5);
+        $this->seedSampleImages();
+        Http::fake();
+
+        $access = AiModelAccess::create([
+            'model_key' => 'sample_image',
+            'usage_category_key' => 'eyebrow_transplant',
+            'name' => 'Eyebrow Sample Access',
+            'credentials' => [],
+            'settings' => [],
+            'prompt' => 'Eyebrow sample prompt',
+            'credit_limit' => null,
+            'is_active' => true,
+            'is_demo' => true,
+            'is_protected' => true,
+            'priority' => 0,
+        ]);
+
+        $tenant->aiModelAccesses()->syncWithoutDetaching([
+            $access->id => ['is_active' => true],
+        ]);
+
+        $eyebrowEntitlement = SubscriptionServiceEntitlement::query()->create([
+            'tenant_id' => $tenant->id,
+            'subscription_id' => $subscription->id,
+            'plan_id' => $subscription->plan_id,
+            'service_key' => 'eyebrow_transplant',
+            'source_type' => 'base_plan',
+            'source_id' => $subscription->plan_id,
+            'included_credit' => 5,
+            'purchased_credit' => 0,
+            'used_credit' => 0,
+            'is_active' => true,
+            'starts_at' => now(),
+            'ends_at' => now()->addDays(30),
+        ]);
+
+        CreditTransaction::query()->create([
+            'tenant_id' => $tenant->id,
+            'subscription_id' => $subscription->id,
+            'subscription_service_entitlement_id' => $eyebrowEntitlement->id,
+            'service_key' => 'eyebrow_transplant',
+            'type' => 'grant',
+            'amount' => 5,
+            'balance_after' => 5,
+        ]);
+
+        $lead = Lead::create([
+            'tenant_id' => $tenant->id,
+            'phone' => '09124448888',
+            'phone_normalized' => '09124448888',
+            'phone_verified_at' => now(),
+            'status' => 'verified',
+        ]);
+
+        $uploadId = $this->withSession(['lead_id' => $lead->id])
+            ->forHost('aria.hairvision-ai.test')
+            ->post('/api/v1/uploads', [
+                'image' => $this->fakeImageUpload(),
+                'consent' => '1',
+            ])
+            ->assertOk()
+            ->json('upload.id');
+
+        $groupId = $this->withSession(['lead_id' => $lead->id])
+            ->forHost('aria.hairvision-ai.test')
+            ->postJson('/api/v1/generations', [
+                'upload_id' => $uploadId,
+                'usage_category_key' => 'eyebrow_transplant',
+            ])
+            ->assertOk()
+            ->assertJsonPath('generation_group.status', 'completed')
+            ->assertJsonPath('stages.0.key', 'eyebrow_final_result')
+            ->assertJsonPath('jobs.0.period', 'eyebrow_final_result')
+            ->assertJsonCount(1, 'stages')
+            ->assertJsonCount(1, 'jobs')
+            ->json('generation_group.id');
+
+        $group = GenerationGroup::query()->where('uuid', $groupId)->firstOrFail();
+
+        $this->assertSame(['eyebrow_final_result'], $group->jobs()->pluck('period')->all());
+        $this->assertSame(1, GeneratedAsset::query()->where('generation_group_id', $group->id)->count());
+        $this->assertSame(1, $access->refresh()->usage_count);
+        $this->assertSame(0, $access->credit_used);
+        $this->assertSame(4, $eyebrowEntitlement->refresh()->remainingCredit());
+        $this->assertSame(1, CreditTransaction::query()->where('tenant_id', $tenant->id)->where('service_key', 'eyebrow_transplant')->where('type', 'use')->count());
+
+        $this->withSession(['lead_id' => $lead->id])
+            ->forHost('aria.hairvision-ai.test')
+            ->getJson("/api/v1/generations/{$groupId}/results")
+            ->assertOk()
+            ->assertJsonPath('results.0.period', 'eyebrow_final_result')
+            ->assertJsonCount(1, 'results');
+
+        Http::assertNothingSent();
     }
 
     public function test_gapgpt_generation_sends_three_independent_image_edit_requests(): void
@@ -982,6 +1085,14 @@ class HairVisionMvpTest extends TestCase
             ->values();
 
         $this->assertCount(1, $gapGptRequests);
+        $this->assertSame(0, $access->refresh()->credit_used);
+        $this->assertSame(0, CreditTransaction::query()->where('tenant_id', $tenant->id)->where('type', 'use')->count());
+        $this->assertDatabaseHas('ai_model_usage_logs', [
+            'ai_model_access_id' => $access->id,
+            'usage_category_key' => 'hair_transplant',
+            'status' => 'failed',
+            'credit_consumed' => 0,
+        ]);
 
         Log::shouldHaveReceived('warning')
             ->withArgs(fn (string $message, array $context): bool => $message === 'GapGPT image edit request failed with HTTP error.'
@@ -1267,7 +1378,7 @@ class HairVisionMvpTest extends TestCase
 
     private function seedSampleImages(): void
     {
-        foreach (['two-weeks.jpg', 'intermediate_regrowth.jpg', 'final_result.jpg'] as $filename) {
+        foreach (['two-weeks.jpg', 'intermediate_regrowth.jpg', 'final_result.jpg', 'eyebrow_final_result.jpg'] as $filename) {
             Storage::disk('local')->put('sample-results/'.$filename, base64_decode(self::TEST_JPEG_BASE64));
         }
     }

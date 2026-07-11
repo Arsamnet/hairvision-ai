@@ -14,7 +14,12 @@
         ->flatMap(fn (array $model): array => $model['configurable_settings'] ?? [])
         ->unique()
         ->values();
-    $generationStages = app(\App\Services\Generation\GenerationStageCatalog::class)->publicStages();
+    $stageCatalog = app(\App\Services\Generation\GenerationStageCatalog::class);
+    $generationStages = collect(array_keys($usageCategories))
+        ->flatMap(fn (string $categoryKey): array => $stageCatalog->publicStages($categoryKey))
+        ->unique('key')
+        ->values()
+        ->all();
 @endphp
 
 <input type="hidden" name="_form" value="{{ $formKey }}">

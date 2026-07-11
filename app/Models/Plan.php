@@ -21,6 +21,7 @@ class Plan extends Model
         'plan_type' => 'base_subscription',
         'service_key' => 'hair_transplant',
         'usage_limit' => 0,
+        'is_public' => true,
         'status' => 'active',
     ];
 
@@ -34,6 +35,7 @@ class Plan extends Model
         'duration_days',
         'usage_limit',
         'features_json',
+        'is_public',
         'status',
     ];
 
@@ -42,6 +44,7 @@ class Plan extends Model
         'features_json' => 'array',
         'duration_days' => 'integer',
         'usage_limit' => 'integer',
+        'is_public' => 'boolean',
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
     ];

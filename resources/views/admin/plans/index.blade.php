@@ -24,12 +24,16 @@
                         </select>
                         <input name="price" type="number" class="h-11 rounded-lg border border-zinc-200 px-3 text-sm outline-none focus:border-teal-500" placeholder="{{ __('plans.fields.price') }}">
                         <input name="duration_days" type="number" class="h-11 rounded-lg border border-zinc-200 px-3 text-sm outline-none focus:border-teal-500" placeholder="{{ __('plans.fields.duration_days') }}">
-                        <input name="currency" value="IRR" class="h-11 rounded-lg border border-zinc-200 px-3 text-sm outline-none focus:border-teal-500" dir="ltr" placeholder="{{ __('plans.fields.currency') }}">
+                        <input name="currency" value="ریال" class="h-11 rounded-lg border border-zinc-200 px-3 text-sm outline-none focus:border-teal-500" placeholder="{{ __('plans.fields.currency') }}">
                         <select name="status" class="h-11 rounded-lg border border-zinc-200 px-3 text-sm outline-none focus:border-teal-500">
                             @foreach(__('plans.statuses') as $status => $label)
                                 <option value="{{ $status }}">{{ $label }}</option>
                             @endforeach
                         </select>
+                        <label class="inline-flex h-11 items-center gap-2 rounded-lg border border-zinc-200 px-3 text-sm font-bold text-zinc-700">
+                            <input name="is_public" type="checkbox" value="1" class="rounded border-zinc-300 text-teal-600" checked>
+                            <span>{{ __('plans.visible_to_clinics') }}</span>
+                        </label>
                         <div class="grid gap-2 lg:col-span-4 lg:grid-cols-2">
                             @foreach($serviceOptions as $serviceKey => $serviceLabel)
                                 <label class="text-xs font-bold text-zinc-600">
@@ -112,6 +116,7 @@
                                                 'currency' => $plan->currency,
                                                 'duration_days' => $plan->duration_days,
                                                 'usage_limit' => $plan->usage_limit,
+                                                'is_public' => $plan->is_public ? 1 : 0,
                                                 'status' => $plan->status === 'active' ? 'inactive' : 'active',
                                             ] + $creditInputs"
                                         >
@@ -137,7 +142,10 @@
                                 <td class="px-4 py-3" dir="ltr">{{ number_format($plan->price) }} {{ $plan->currency }}</td>
                                 <td class="px-4 py-3">{{ $plan->duration_days ? number_format($plan->duration_days) : __('messages.none') }}</td>
                                 <td class="px-4 py-3">
-                                    <x-admin.badge :tone="$plan->status === 'active' ? 'emerald' : 'zinc'">{{ __('plans.statuses.'.$plan->status) }}</x-admin.badge>
+                                    <div class="flex flex-wrap gap-1">
+                                        <x-admin.badge :tone="$plan->status === 'active' ? 'emerald' : 'zinc'">{{ __('plans.statuses.'.$plan->status) }}</x-admin.badge>
+                                        <x-admin.badge :tone="$plan->is_public ? 'teal' : 'amber'">{{ $plan->is_public ? __('plans.visible_to_clinics') : __('plans.hidden_from_clinics') }}</x-admin.badge>
+                                    </div>
                                 </td>
                             </tr>
                         @empty
@@ -187,6 +195,7 @@
                                         'currency' => $plan->currency,
                                         'duration_days' => $plan->duration_days,
                                         'usage_limit' => $plan->usage_limit,
+                                        'is_public' => $plan->is_public ? 1 : 0,
                                         'status' => $plan->status === 'active' ? 'inactive' : 'active',
                                     ] + $creditInputs"
                                 >
@@ -204,7 +213,10 @@
                                 <span dir="ltr">{{ number_format($plan->price) }} {{ $plan->currency }}</span>
                             </x-admin.mobile-list.field>
                             <x-admin.mobile-list.field :label="__('plans.fields.status')">
-                                <x-admin.badge :tone="$plan->status === 'active' ? 'emerald' : 'zinc'">{{ __('plans.statuses.'.$plan->status) }}</x-admin.badge>
+                                <div class="flex flex-wrap gap-1">
+                                    <x-admin.badge :tone="$plan->status === 'active' ? 'emerald' : 'zinc'">{{ __('plans.statuses.'.$plan->status) }}</x-admin.badge>
+                                    <x-admin.badge :tone="$plan->is_public ? 'teal' : 'amber'">{{ $plan->is_public ? __('plans.visible_to_clinics') : __('plans.hidden_from_clinics') }}</x-admin.badge>
+                                </div>
                             </x-admin.mobile-list.field>
                             <x-admin.mobile-list.field :label="__('plans.service_credits')">
                                 <span class="truncate">{{ collect($plan->serviceCredits())->map(fn ($credit, $serviceKey) => ($serviceOptions[$serviceKey] ?? $serviceKey).': '.number_format($credit))->join('، ') ?: __('messages.none') }}</span>
@@ -240,12 +252,16 @@
                         </select>
                         <input name="price" type="number" value="{{ old('price', $plan->price) }}" class="h-11 rounded-lg border border-zinc-200 px-3 text-sm outline-none focus:border-teal-500" placeholder="{{ __('plans.fields.price') }}">
                         <input name="duration_days" type="number" value="{{ old('duration_days', $plan->duration_days) }}" class="h-11 rounded-lg border border-zinc-200 px-3 text-sm outline-none focus:border-teal-500" placeholder="{{ __('plans.fields.duration_days') }}">
-                        <input name="currency" value="{{ old('currency', $plan->currency) }}" class="h-11 rounded-lg border border-zinc-200 px-3 text-sm outline-none focus:border-teal-500" dir="ltr" placeholder="{{ __('plans.fields.currency') }}">
+                        <input name="currency" value="{{ old('currency', $plan->currency) }}" class="h-11 rounded-lg border border-zinc-200 px-3 text-sm outline-none focus:border-teal-500" placeholder="{{ __('plans.fields.currency') }}">
                         <select name="status" class="h-11 rounded-lg border border-zinc-200 px-3 text-sm outline-none focus:border-teal-500">
                             @foreach(__('plans.statuses') as $status => $label)
                                 <option value="{{ $status }}" @selected(old('status', $plan->status) === $status)>{{ $label }}</option>
                             @endforeach
                         </select>
+                        <label class="inline-flex h-11 items-center gap-2 rounded-lg border border-zinc-200 px-3 text-sm font-bold text-zinc-700">
+                            <input name="is_public" type="checkbox" value="1" class="rounded border-zinc-300 text-teal-600" @checked(old('is_public', $plan->is_public))>
+                            <span>{{ __('plans.visible_to_clinics') }}</span>
+                        </label>
                         <div class="grid gap-2 lg:col-span-4 lg:grid-cols-2">
                             @foreach($serviceOptions as $serviceKey => $serviceLabel)
                                 <label class="text-xs font-bold text-zinc-600">
@@ -285,33 +301,85 @@
             </div>
         </x-admin.card>
 
+        <x-admin.list-filters
+            class="mb-5 mt-0"
+            preset-key="admin.plans.clinic"
+            :search-placeholder="__('plans.search_placeholder')"
+            :filters="[
+                ['name' => 'plan_type', 'label' => __('plans.fields.plan_type'), 'type' => 'select', 'placeholder' => __('plans.all_types'), 'options' => __('plans.types')],
+            ]"
+            :sorts="[
+                'price' => __('plans.fields.price'),
+                'name' => __('plans.fields.name'),
+                'plan_type' => __('plans.fields.plan_type'),
+                'duration_days' => __('plans.fields.duration_days'),
+                'usage_limit' => __('plans.fields.usage_limit'),
+            ]"
+        />
+
         <div class="grid gap-4 lg:grid-cols-2 xl:grid-cols-3">
             @forelse($plans as $plan)
-                <section class="rounded-lg bg-white p-5 shadow-sm ring-1 ring-zinc-200 transition hover:-translate-y-0.5 hover:shadow-md">
+                @php
+                    $state = $planPurchaseStates[$plan->id] ?? ['can_purchase' => true, 'reason' => null];
+                    $typeTone = $plan->isCreditTopUp() ? 'amber' : ($plan->isServiceAddOn() ? 'teal' : 'emerald');
+                @endphp
+                <section class="flex min-h-full flex-col rounded-lg bg-white p-5 shadow-sm ring-1 ring-zinc-200 transition hover:-translate-y-0.5 hover:shadow-md">
                     <div class="flex items-start justify-between gap-3">
-                        <div>
-                            <h2 class="text-lg font-bold">{{ $plan->name }}</h2>
-                            <p class="mt-1 min-h-10 text-sm leading-6 text-zinc-500">{{ $plan->description }}</p>
+                        <div class="min-w-0">
+                            <h2 class="break-words text-lg font-bold leading-7 text-zinc-950">{{ $plan->name }}</h2>
+                            <p class="mt-1 text-sm leading-6 text-zinc-500">{{ $plan->description }}</p>
                         </div>
-                        <x-admin.badge tone="emerald">{{ __('plans.types.'.$plan->plan_type->value) }}</x-admin.badge>
+                        <x-admin.badge :tone="$typeTone">{{ __('plans.types.'.$plan->plan_type->value) }}</x-admin.badge>
                     </div>
 
-                    <dl class="mt-4 grid gap-3 text-sm lg:grid-cols-3">
-                        <div class="rounded-lg bg-zinc-50 p-3"><dt class="text-zinc-500">{{ __('plans.fields.price') }}</dt><dd class="mt-1 font-bold">{{ number_format($plan->price) }}</dd></div>
-                        <div class="rounded-lg bg-zinc-50 p-3"><dt class="text-zinc-500">{{ __('plans.fields.duration_days') }}</dt><dd class="mt-1 font-bold">{{ $plan->duration_days ? number_format($plan->duration_days) : __('messages.none') }}</dd></div>
-                        <div class="rounded-lg bg-zinc-50 p-3"><dt class="text-zinc-500">{{ __('plans.fields.usage_limit') }}</dt><dd class="mt-1 font-bold">{{ number_format($plan->usage_limit) }}</dd></div>
+                    <dl class="mt-4 grid gap-3 text-sm sm:grid-cols-2">
+                        <div class="flex min-w-0 items-start gap-2 rounded-lg bg-zinc-50 p-3">
+                            <span class="mt-0.5 grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-white text-teal-700 ring-1 ring-zinc-100">
+                                <x-admin.icon name="credit-card" class="h-3.5 w-3.5" />
+                            </span>
+                            <div class="min-w-0">
+                                <dt class="text-xs font-bold text-zinc-500">{{ __('plans.fields.price') }}</dt>
+                                <dd class="mt-1 break-words font-bold leading-6 text-zinc-950">{{ number_format($plan->price) }} {{ $plan->currency }}</dd>
+                            </div>
+                        </div>
+                        <div class="flex min-w-0 items-start gap-2 rounded-lg bg-zinc-50 p-3">
+                            <span class="mt-0.5 grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-white text-teal-700 ring-1 ring-zinc-100">
+                                <x-admin.icon name="calendar" class="h-3.5 w-3.5" />
+                            </span>
+                            <div class="min-w-0">
+                                <dt class="text-xs font-bold text-zinc-500">{{ __('plans.fields.duration_days') }}</dt>
+                                <dd class="mt-1 break-words font-bold leading-6 text-zinc-950">{{ $plan->duration_days ? number_format($plan->duration_days) : __('messages.none') }}</dd>
+                            </div>
+                        </div>
+                        <div class="flex min-w-0 items-start gap-2 rounded-lg bg-zinc-50 p-3">
+                            <span class="mt-0.5 grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-white text-teal-700 ring-1 ring-zinc-100">
+                                <x-admin.icon name="package" class="h-3.5 w-3.5" />
+                            </span>
+                            <div class="min-w-0">
+                                <dt class="text-xs font-bold text-zinc-500">{{ __('plans.fields.usage_limit') }}</dt>
+                                <dd class="mt-1 break-words font-bold leading-6 text-zinc-950">{{ number_format($plan->usage_limit) }}</dd>
+                            </div>
+                        </div>
                     </dl>
 
-                    <div class="mt-3 flex flex-wrap gap-1">
+                    <div class="mt-3 flex flex-wrap gap-2">
                         @foreach($plan->serviceCredits() as $serviceKey => $credit)
-                            <span class="rounded-full bg-teal-50 px-2 py-1 text-xs font-bold text-teal-700">{{ $serviceOptions[$serviceKey] ?? $serviceKey }}: {{ number_format($credit) }}</span>
+                            <span class="inline-flex max-w-full items-start gap-1.5 rounded-lg bg-teal-50 px-2.5 py-1.5 text-xs font-bold text-teal-700">
+                                <x-admin.icon name="sparkles" class="mt-0.5 h-3.5 w-3.5" />
+                                <span class="min-w-0 break-words leading-5">{{ $serviceOptions[$serviceKey] ?? $serviceKey }}: {{ number_format($credit) }}</span>
+                            </span>
                         @endforeach
                     </div>
 
-                    <div class="mt-4 flex flex-wrap items-center gap-2">
+                    <div class="mt-auto flex flex-wrap items-center gap-2 pt-4">
                         @can('permission', 'billing.pay')
-                            @if($activeSubscription?->plan_id === $plan->id)
-                                <div class="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-bold text-amber-800">{{ __('plans.same_active_plan_blocked') }}</div>
+                            @if(! $state['can_purchase'])
+                                <x-admin.button type="button" variant="subtle" size="sm" icon="lock" class="cursor-not-allowed text-zinc-500 hover:bg-zinc-100" disabled aria-disabled="true">
+                                    <span>{{ __('plans.not_purchasable') }}</span>
+                                </x-admin.button>
+                                @if($state['reason'])
+                                    <p class="text-xs font-bold leading-6 text-amber-700">{{ $state['reason'] }}</p>
+                                @endif
                             @else
                                 <form method="POST" action="{{ route('admin.plans.purchase', $plan) }}">
                                     @csrf

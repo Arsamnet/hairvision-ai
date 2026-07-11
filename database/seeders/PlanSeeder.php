@@ -9,48 +9,87 @@ class PlanSeeder extends Seeder
 {
     public function run(): void
     {
-        $starterPlanCredits = $this->starterPlanServiceCredits();
-
-        $starterPlan = Plan::query()->updateOrCreate(
-            ['name' => 'پلن شروع'],
+        $this->seedPlan(
+            'پلن شروع',
             [
-                'description' => 'پلن فعال کلینیک آریا برای استفاده کامل از امکانات HairVision 1.0.0.',
+                'description' => 'پلن آغازین کاشت مو و ابرو',
                 'plan_type' => 'base_subscription',
-                'service_key' => count($starterPlanCredits) === 1 ? array_key_first($starterPlanCredits) : null,
                 'price' => 4000000000,
-                'currency' => 'IRR',
-                'duration_days' => 30,
-                'usage_limit' => array_sum($starterPlanCredits),
+                'duration_days' => 365,
+                'credits' => [
+                    'hair_transplant' => 600,
+                    'eyebrow_transplant' => 600,
+                ],
                 'features_json' => $this->starterPlanFeatures(),
-                'status' => 'active',
             ]
         );
 
-        foreach ($starterPlanCredits as $serviceKey => $credit) {
-            $starterPlan->serviceEntitlements()->updateOrCreate(
-                ['service_key' => $serviceKey],
-                [
-                    'credit_amount' => $credit,
-                    'is_active' => true,
-                ]
-            );
-        }
+        $this->seedPlan(
+            'پلن شروع کاشت مو',
+            [
+                'description' => 'پلن آغازین کاشت مو',
+                'plan_type' => 'base_subscription',
+                'price' => 3500000000,
+                'duration_days' => 365,
+                'credits' => [
+                    'hair_transplant' => 600,
+                ],
+                'features_json' => $this->starterPlanFeatures(),
+            ]
+        );
 
-        $starterPlan->serviceEntitlements()
-            ->whereNotIn('service_key', array_keys($starterPlanCredits))
-            ->update(['is_active' => false]);
-    }
+        $this->seedPlan(
+            'افزودن کاشت ابرو',
+            [
+                'description' => 'سرویس افزوده کاشت ابرو برای پلن شروع کاشت مو',
+                'plan_type' => 'service_add_on',
+                'price' => 500000000,
+                'duration_days' => null,
+                'credits' => [
+                    'eyebrow_transplant' => 600,
+                ],
+            ]
+        );
 
-    /**
-     * @return array<string, int>
-     */
-    private function starterPlanServiceCredits(): array
-    {
-        $serviceKeys = array_keys(config('hairvision.ai_services', [])) ?: ['hair_transplant'];
+        $this->seedPlan(
+            'بسته افزایش اعتبار کاشت مو',
+            [
+                'description' => 'بسته ۶۰۰ اعتبار افزوده کاشت مو',
+                'plan_type' => 'credit_top_up',
+                'price' => 500000000,
+                'duration_days' => null,
+                'credits' => [
+                    'hair_transplant' => 600,
+                ],
+            ]
+        );
 
-        return collect($serviceKeys)
-            ->mapWithKeys(fn (string $serviceKey): array => [$serviceKey => 100])
-            ->all();
+        $this->seedPlan(
+            'بسته افزایش اعتبار کاشت ابرو',
+            [
+                'description' => 'بسته ۶۰۰ اعتبار افزوده کاشت ابرو',
+                'plan_type' => 'credit_top_up',
+                'price' => 500000000,
+                'duration_days' => null,
+                'credits' => [
+                    'eyebrow_transplant' => 600,
+                ],
+            ]
+        );
+
+        $this->seedPlan(
+            'بسته افزایش اعتبار کاشت مو و ابرو',
+            [
+                'description' => 'بسته ۶۰۰ اعتبار افزوده کاشت مو و ۶۰۰ اعتبار افزوده کاشت ابرو',
+                'plan_type' => 'credit_top_up',
+                'price' => 1000000000,
+                'duration_days' => null,
+                'credits' => [
+                    'hair_transplant' => 600,
+                    'eyebrow_transplant' => 600,
+                ],
+            ]
+        );
     }
 
     /**
@@ -70,5 +109,43 @@ class PlanSeeder extends Seeder
             'team' => true,
             'uploads' => true,
         ];
+    }
+
+    /**
+     * @param  array{description: string, plan_type: string, price: int, duration_days: int|null, credits: array<string, int>, features_json?: array<string, bool>}  $data
+     */
+    private function seedPlan(string $name, array $data): void
+    {
+        $credits = $data['credits'];
+
+        $plan = Plan::query()->updateOrCreate(
+            ['name' => $name],
+            [
+                'description' => $data['description'],
+                'plan_type' => $data['plan_type'],
+                'service_key' => count($credits) === 1 ? array_key_first($credits) : null,
+                'price' => $data['price'],
+                'currency' => 'ریال',
+                'duration_days' => $data['duration_days'],
+                'usage_limit' => array_sum($credits),
+                'features_json' => $data['features_json'] ?? [],
+                'is_public' => $data['is_public'] ?? true,
+                'status' => 'active',
+            ]
+        );
+
+        foreach ($credits as $serviceKey => $credit) {
+            $plan->serviceEntitlements()->updateOrCreate(
+                ['service_key' => $serviceKey],
+                [
+                    'credit_amount' => $credit,
+                    'is_active' => true,
+                ]
+            );
+        }
+
+        $plan->serviceEntitlements()
+            ->whereNotIn('service_key', array_keys($credits))
+            ->update(['is_active' => false]);
     }
 }

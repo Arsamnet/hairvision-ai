@@ -19,23 +19,65 @@ class SubscriptionSeeder extends Seeder
 {
     public function run(): void
     {
-        $tenant = Tenant::query()->where('slug', 'aria')->firstOrFail();
-        $admin = User::query()->where('phone_normalized', '09217359491')->firstOrFail();
+        $ariaAdmin = User::query()->where('phone_normalized', '09217359491')->firstOrFail();
+        $demoAdmin = User::query()->where('phone_normalized', '09004666673')->firstOrFail();
+
+        $this->seedStarterSubscription(
+            tenantSlug: 'aria',
+            planName: 'پلن شروع',
+            invoiceNumber: 'BS-1',
+            paymentKey: 'seed-aria-starter-plan-paid',
+            authority: 'SEED-ARIA-STARTER',
+            referenceId: 'SEED-ARIA-PAID',
+            user: $ariaAdmin,
+        );
+
+        $this->seedStarterSubscription(
+            tenantSlug: 'noja',
+            planName: 'پلن شروع کاشت مو',
+            invoiceNumber: 'BS-2',
+            paymentKey: 'seed-noja-hair-starter-plan-paid',
+            authority: 'SEED-NOJA-HAIR-STARTER',
+            referenceId: 'SEED-NOJA-HAIR-PAID',
+            user: null,
+        );
+
+        $this->seedStarterSubscription(
+            tenantSlug: 'demo',
+            planName: 'پلن شروع کاشت مو',
+            invoiceNumber: 'BS-3',
+            paymentKey: 'seed-demo-hair-starter-plan-paid',
+            authority: 'SEED-DEMO-HAIR-STARTER',
+            referenceId: 'SEED-DEMO-HAIR-PAID',
+            user: $demoAdmin,
+        );
+    }
+
+    private function seedStarterSubscription(
+        string $tenantSlug,
+        string $planName,
+        string $invoiceNumber,
+        string $paymentKey,
+        string $authority,
+        string $referenceId,
+        ?User $user,
+    ): void {
+        $tenant = Tenant::query()->where('slug', $tenantSlug)->firstOrFail();
         $starterPlan = Plan::query()
             ->with('serviceEntitlements')
-            ->where('name', 'پلن شروع')
+            ->where('name', $planName)
             ->firstOrFail();
 
         $activeStarter = $this->activeStarterSubscription($tenant, $starterPlan);
         $now = now();
 
         $invoice = Invoice::query()->firstOrNew([
-            'number' => 'HV-SEED-ARIA-STARTER',
+            'number' => $invoiceNumber,
         ]);
 
         $invoice->fill([
             'tenant_id' => $tenant->id,
-            'user_id' => $admin->id,
+            'user_id' => $user?->id,
             'plan_id' => $starterPlan->id,
             'status' => 'paid',
             'amount' => $starterPlan->price,
@@ -45,7 +87,7 @@ class SubscriptionSeeder extends Seeder
             'expires_at' => $now->copy()->addDays((int) $starterPlan->duration_days),
             'metadata_json' => [
                 'seeded' => true,
-                'clinic' => 'aria',
+                'clinic' => $tenantSlug,
                 'plan_type' => $starterPlan->plan_type->value,
                 'service_credits' => $starterPlan->serviceCredits(),
             ],
@@ -59,7 +101,7 @@ class SubscriptionSeeder extends Seeder
 
         $invoice->save();
 
-        $this->seedPayment($tenant, $admin, $starterPlan, $invoice->refresh());
+        $this->seedPayment($tenant, $user, $starterPlan, $invoice->refresh(), $paymentKey, $authority, $referenceId);
 
         $subscription = $activeStarter;
 
@@ -74,7 +116,7 @@ class SubscriptionSeeder extends Seeder
 
         $subscription->forceFill([
             'tenant_id' => $tenant->id,
-            'user_id' => $admin->id,
+            'user_id' => $user?->id,
             'plan_id' => $starterPlan->id,
             'invoice_id' => $subscription->invoice_id ?? $invoice->id,
             'status' => 'active',
@@ -83,7 +125,7 @@ class SubscriptionSeeder extends Seeder
 
         $this->syncSeededSubscriptionEntitlements(
             $tenant,
-            $admin,
+            $user,
             $starterPlan,
             $subscription->refresh(),
             $invoice->refresh()
@@ -102,8 +144,15 @@ class SubscriptionSeeder extends Seeder
             ->first();
     }
 
-    private function seedPayment(Tenant $tenant, User $admin, Plan $starterPlan, Invoice $invoice): void
-    {
+    private function seedPayment(
+        Tenant $tenant,
+        ?User $user,
+        Plan $starterPlan,
+        Invoice $invoice,
+        string $paymentKey,
+        string $authority,
+        string $referenceId,
+    ): void {
         $gateway = PaymentGateway::query()->where('provider_code', 'local')->first()
             ?? PaymentGateway::query()->where('is_default', true)->first();
 
@@ -112,17 +161,17 @@ class SubscriptionSeeder extends Seeder
         }
 
         Payment::query()->updateOrCreate(
-            ['idempotency_key' => 'seed-aria-starter-plan-paid'],
+            ['idempotency_key' => $paymentKey],
             [
                 'tenant_id' => $tenant->id,
-                'user_id' => $admin->id,
+                'user_id' => $user?->id,
                 'invoice_id' => $invoice->id,
                 'payment_gateway_id' => $gateway->id,
                 'status' => 'paid',
                 'amount' => $starterPlan->price,
                 'currency' => $starterPlan->currency,
-                'authority' => 'SEED-ARIA-STARTER',
-                'reference_id' => 'SEED-ARIA-PAID',
+                'authority' => $authority,
+                'reference_id' => $referenceId,
                 'gateway_response_json' => [
                     'provider' => $gateway->provider_code,
                     'seeded' => true,
@@ -134,7 +183,7 @@ class SubscriptionSeeder extends Seeder
 
     private function syncSeededSubscriptionEntitlements(
         Tenant $tenant,
-        User $admin,
+        ?User $user,
         Plan $starterPlan,
         Subscription $subscription,
         Invoice $invoice,
@@ -172,7 +221,7 @@ class SubscriptionSeeder extends Seeder
                     'amount' => $credit,
                     'balance_after' => $entitlement->remainingCredit(),
                     'description' => __('credits.descriptions.base_grant', ['plan' => $starterPlan->name]),
-                    'created_by' => $admin->id,
+                    'created_by' => $user?->id,
                 ]
             );
         }

@@ -31,5 +31,20 @@ class TenantUserSeeder extends Seeder
                 'status' => 'active',
             ]);
         }
+
+        $demoTenant = Tenant::query()->where('slug', 'demo')->firstOrFail();
+        $demoAdmin = User::query()->where('phone_normalized', '09004666673')->firstOrFail();
+
+        $demoTenant->users()->syncWithoutDetaching([
+            $demoAdmin->id => [
+                'role' => 'clinic_admin',
+                'status' => 'active',
+            ],
+        ]);
+
+        $demoTenant->users()->updateExistingPivot($demoAdmin->id, [
+            'role' => 'clinic_admin',
+            'status' => 'active',
+        ]);
     }
 }

@@ -61,6 +61,7 @@ class AiModelAccessManagementTest extends TestCase
         $this->assertArrayHasKey('sample_image', config('ai-models.models'));
         $this->assertArrayHasKey('gapgpt', config('ai-models.models'));
         $this->assertArrayHasKey('hair_transplant', config('ai-models.usage_categories'));
+        $this->assertArrayHasKey('eyebrow_transplant', config('ai-models.usage_categories'));
         $this->assertSame('کاشت مو', __('ai_models.usage_categories.hair_transplant'));
         $this->assertTrue((bool) config('ai-models.models.sample_image.is_protected'));
         $this->assertFalse((bool) config('ai-models.models.sample_image.requires_credentials'));
@@ -91,6 +92,11 @@ class AiModelAccessManagementTest extends TestCase
         $this->assertStringContainsString('final successful result after full hair growth', $stagePrompts['final_result']);
         $this->assertTrue($superAdmin->hasPermission('ai_models.manage_credit'));
         $this->assertTrue($tenant->aiModelAccesses()->whereKey($demo->id)->wherePivot('is_active', true)->exists());
+        $this->assertTrue($tenant->aiModelAccesses()
+            ->where('usage_category_key', 'eyebrow_transplant')
+            ->where('model_key', 'sample_image')
+            ->wherePivot('is_active', true)
+            ->exists());
         $this->assertTrue($tenant->aiModelAccesses()->whereKey($gapGpt->id)->wherePivot('is_active', false)->exists());
     }
 
@@ -486,10 +492,30 @@ class AiModelAccessManagementTest extends TestCase
             $this->assertSame($stageKey, $response->metadata['stage_key'] ?? null);
         }
 
+        $eyebrowAccess = $this->createAccess([
+            'usage_category_key' => 'eyebrow_transplant',
+            'is_demo' => true,
+            'is_protected' => true,
+            'credit_limit' => null,
+        ]);
+        $tenant->aiModelAccesses()->attach($eyebrowAccess->id, ['is_active' => true]);
+
+        $eyebrowResponse = app(RunAiModelAction::class)->execute(
+            $tenant,
+            'eyebrow_transplant',
+            ['period' => 'eyebrow_final_result'],
+            selectedAccess: $eyebrowAccess,
+        );
+
+        $this->assertTrue($eyebrowResponse->successful);
+        $this->assertSame(base64_decode(self::TEST_JPEG_BASE64), $eyebrowResponse->output['binary_content'] ?? null);
+        $this->assertSame('eyebrow_final_result', $eyebrowResponse->metadata['stage_key'] ?? null);
+
         $access->refresh();
 
         $this->assertSame(0, $access->credit_used);
         $this->assertSame(3, $access->usage_count);
+        $this->assertSame(1, $eyebrowAccess->refresh()->usage_count);
         $this->assertNotNull($access->last_used_at);
     }
 
@@ -667,7 +693,7 @@ class AiModelAccessManagementTest extends TestCase
 
     private function seedSampleImages(): void
     {
-        foreach (['two-weeks.jpg', 'intermediate_regrowth.jpg', 'final_result.jpg'] as $filename) {
+        foreach (['two-weeks.jpg', 'intermediate_regrowth.jpg', 'final_result.jpg', 'eyebrow_final_result.jpg'] as $filename) {
             Storage::disk('local')->put('sample-results/'.$filename, base64_decode(self::TEST_JPEG_BASE64));
         }
     }

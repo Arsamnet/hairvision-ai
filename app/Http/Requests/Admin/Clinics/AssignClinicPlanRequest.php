@@ -32,6 +32,7 @@ class AssignClinicPlanRequest extends FormRequest
                 'required',
                 Rule::exists('plans', 'id')->where('status', 'active'),
             ],
+            'discount_amount' => ['nullable', 'integer', 'min:0'],
         ];
     }
 
@@ -51,6 +52,7 @@ class AssignClinicPlanRequest extends FormRequest
 
         $this->merge([
             '_form' => $this->input('_form', 'assign_clinic_plan_'.$clinicId),
+            'discount_amount' => $this->input('discount_amount', 0),
         ]);
     }
 }

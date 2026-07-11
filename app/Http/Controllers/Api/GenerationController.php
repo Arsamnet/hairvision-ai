@@ -43,7 +43,9 @@ class GenerationController extends Controller
             ->where('lead_id', '=', $lead->id)
             ->firstOrFail();
 
-        $group = $generationService->createForUpload($upload);
+        $usageCategoryKey = (string) $request->input('usage_category_key', 'hair_transplant');
+
+        $group = $generationService->createForUpload($upload, $usageCategoryKey);
         $group->refresh()->load('jobs.asset');
 
         $response = [
@@ -53,7 +55,7 @@ class GenerationController extends Controller
                 'status' => $group->status,
             ],
             'current_stage' => $this->currentStage($group, $stages),
-            'stages' => $stages->publicStages(),
+            'stages' => $this->stagePayload($group, $stages, $usageCategoryKey),
             'jobs' => $this->jobPayload($group, $stages),
         ];
 
@@ -85,7 +87,7 @@ class GenerationController extends Controller
         $response = [
             'status' => $group->status,
             'current_stage' => $this->currentStage($group, $stages),
-            'stages' => $stages->publicStages(),
+            'stages' => $this->stagePayload($group, $stages),
             'jobs' => $this->jobPayload($group, $stages),
         ];
 
@@ -168,6 +170,28 @@ class GenerationController extends Controller
         }
 
         return $payload;
+    }
+
+    /**
+     * Build stage metadata for the selected generation service.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    private function stagePayload(
+        GenerationGroup $group,
+        GenerationStageCatalog $stages,
+        ?string $usageCategoryKey = null
+    ): array {
+        if ($usageCategoryKey) {
+            return $stages->publicStages($usageCategoryKey);
+        }
+
+        return $stages->publicStagesForKeys(
+            $group->jobs
+                ->pluck('period')
+                ->map(fn (mixed $period): string => (string) $period)
+                ->all()
+        );
     }
 
     /**

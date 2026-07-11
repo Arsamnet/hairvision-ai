@@ -274,11 +274,48 @@ class AdminDashboardTest extends TestCase
             ->where('tenant_id', $tenant->id)
             ->where('status', 'active')
             ->firstOrFail();
-        $seededServiceCount = count(config('hairvision.ai_services', [])) ?: 1;
+        $nojaTenant = Tenant::query()->where('slug', 'noja')->firstOrFail();
+        $nojaSubscription = Subscription::query()
+            ->with(['plan', 'serviceEntitlements'])
+            ->where('tenant_id', $nojaTenant->id)
+            ->where('status', 'active')
+            ->firstOrFail();
 
         $this->assertSame('پلن شروع', $activeSubscription->plan->name);
+        $this->assertSame(365, $activeSubscription->plan->duration_days);
+        $this->assertSame('ریال', $activeSubscription->plan->currency);
+        $this->assertSame(1200, $activeSubscription->usage_limit);
         $this->assertTrue((bool) data_get($activeSubscription->plan->features_json, 'ai_generation'));
-        $this->assertSame($seededServiceCount * 100, $activeSubscription->serviceEntitlements->sum('included_credit'));
+        $this->assertSame(1200, $activeSubscription->serviceEntitlements->sum('included_credit'));
+        $this->assertSame(600, $activeSubscription->serviceEntitlements->firstWhere('service_key', 'hair_transplant')?->included_credit);
+        $this->assertSame(600, $activeSubscription->serviceEntitlements->firstWhere('service_key', 'eyebrow_transplant')?->included_credit);
+        $this->assertDatabaseHas('plans', [
+            'name' => 'پلن شروع کاشت مو',
+            'description' => 'پلن آغازین کاشت مو',
+            'plan_type' => 'base_subscription',
+            'price' => 3500000000,
+            'currency' => 'ریال',
+            'usage_limit' => 600,
+        ]);
+        $this->assertDatabaseHas('plans', [
+            'name' => 'افزودن کاشت ابرو',
+            'plan_type' => 'service_add_on',
+            'price' => 500000000,
+            'currency' => 'ریال',
+            'usage_limit' => 600,
+        ]);
+        $this->assertDatabaseHas('plans', [
+            'name' => 'بسته افزایش اعتبار کاشت مو و ابرو',
+            'plan_type' => 'credit_top_up',
+            'price' => 1000000000,
+            'currency' => 'ریال',
+            'usage_limit' => 1200,
+        ]);
+        $this->assertSame('پلن شروع کاشت مو', $nojaSubscription->plan->name);
+        $this->assertNull($nojaSubscription->user_id);
+        $this->assertSame(600, $nojaSubscription->usage_limit);
+        $this->assertSame(600, $nojaSubscription->serviceEntitlements->firstWhere('service_key', 'hair_transplant')?->included_credit);
+        $this->assertNull($nojaSubscription->serviceEntitlements->firstWhere('service_key', 'eyebrow_transplant'));
     }
 
     public function test_admin_lead_list_is_scoped_to_active_tenant(): void

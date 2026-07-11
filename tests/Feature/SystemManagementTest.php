@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\AiProvider;
+use App\Models\AiModelAccess;
 use App\Models\CreditTransaction;
 use App\Models\GeneratedAsset;
 use App\Models\GenerationGroup;
@@ -21,6 +22,7 @@ use App\Models\Subscription;
 use App\Models\SubscriptionServiceEntitlement;
 use App\Models\SystemSetting;
 use App\Models\Tenant;
+use App\Models\TenantAiSetting;
 use App\Models\TenantDomain;
 use App\Models\Upload;
 use App\Models\User;
@@ -87,18 +89,103 @@ class SystemManagementTest extends TestCase
         $this->assertSame('https://sandbox.zarinpal.com', $zarinpalGateway->settings_json['sandbox_base_url'] ?? null);
         $this->assertSame('11111111-1111-4111-8111-111111111111', $zarinpalGateway->encrypted_credentials['merchant_id'] ?? null);
         $this->assertGreaterThan(0, SystemSetting::query()->count('*'));
-        $this->assertGreaterThan(0, Plan::query()->count('*'));
+        $this->assertSame(6, Plan::query()->count('*'));
 
         $tenant = Tenant::query()->where('slug', 'aria')->firstOrFail();
+        $nojaTenant = Tenant::query()->where('slug', 'noja')->firstOrFail();
+        $demoTenant = Tenant::query()->where('slug', 'demo')->firstOrFail();
+        $demoAdmin = User::query()->where('phone_normalized', '09004666673')->firstOrFail();
         $activeSubscription = Subscription::query()->where('tenant_id', $tenant->id)->where('status', 'active')->firstOrFail();
-        $seededServiceCount = count(config('hairvision.ai_services', [])) ?: 1;
+        $nojaSubscription = Subscription::query()->where('tenant_id', $nojaTenant->id)->where('status', 'active')->firstOrFail();
+        $demoSubscription = Subscription::query()->where('tenant_id', $demoTenant->id)->where('status', 'active')->firstOrFail();
+        $seededPlans = Plan::query()->with('serviceEntitlements')->get()->keyBy('name');
+        $combinedStarter = $seededPlans->get('پلن شروع');
+        $hairStarter = $seededPlans->get('پلن شروع کاشت مو');
+        $eyebrowAddOn = $seededPlans->get('افزودن کاشت ابرو');
+        $hairTopUp = $seededPlans->get('بسته افزایش اعتبار کاشت مو');
+        $eyebrowTopUp = $seededPlans->get('بسته افزایش اعتبار کاشت ابرو');
+        $combinedTopUp = $seededPlans->get('بسته افزایش اعتبار کاشت مو و ابرو');
+
+        $this->assertSame(['ریال'], $seededPlans->pluck('currency')->unique()->values()->all());
+        $this->assertSame('پلن آغازین کاشت مو و ابرو', $combinedStarter?->description);
+        $this->assertSame(4000000000, $combinedStarter?->price);
+        $this->assertEquals(['hair_transplant' => 600, 'eyebrow_transplant' => 600], $combinedStarter?->serviceCredits());
+        $this->assertSame('پلن آغازین کاشت مو', $hairStarter?->description);
+        $this->assertSame(3500000000, $hairStarter?->price);
+        $this->assertSame(['hair_transplant' => 600], $hairStarter?->serviceCredits());
+        $this->assertSame('service_add_on', $eyebrowAddOn?->plan_type->value);
+        $this->assertSame(500000000, $eyebrowAddOn?->price);
+        $this->assertSame(['eyebrow_transplant' => 600], $eyebrowAddOn?->serviceCredits());
+        $this->assertSame('credit_top_up', $hairTopUp?->plan_type->value);
+        $this->assertSame(500000000, $hairTopUp?->price);
+        $this->assertSame(['hair_transplant' => 600], $hairTopUp?->serviceCredits());
+        $this->assertSame('credit_top_up', $eyebrowTopUp?->plan_type->value);
+        $this->assertSame(500000000, $eyebrowTopUp?->price);
+        $this->assertSame(['eyebrow_transplant' => 600], $eyebrowTopUp?->serviceCredits());
+        $this->assertSame('credit_top_up', $combinedTopUp?->plan_type->value);
+        $this->assertSame(1000000000, $combinedTopUp?->price);
+        $this->assertEquals(['hair_transplant' => 600, 'eyebrow_transplant' => 600], $combinedTopUp?->serviceCredits());
 
         $this->assertSame('پلن شروع', $activeSubscription->plan->name);
+        $this->assertSame(365, $activeSubscription->plan->duration_days);
+        $this->assertSame(1200, $activeSubscription->usage_limit);
         $this->assertSame(1, Subscription::query()->where('tenant_id', $tenant->id)->where('status', 'active')->count());
-        $this->assertSame(1, Invoice::query()->where('tenant_id', $tenant->id)->where('status', 'paid')->where('number', 'HV-SEED-ARIA-STARTER')->count());
+        $this->assertSame(1, Invoice::query()->where('tenant_id', $tenant->id)->where('status', 'paid')->where('number', 'BS-1')->count());
         $this->assertSame(1, Payment::query()->where('tenant_id', $tenant->id)->where('status', 'paid')->where('idempotency_key', 'seed-aria-starter-plan-paid')->count());
-        $this->assertSame($seededServiceCount, $activeSubscription->serviceEntitlements()->where('is_active', true)->count());
-        $this->assertSame($seededServiceCount * 100, (int) $activeSubscription->serviceEntitlements()->sum('included_credit'));
+        $this->assertSame(2, $activeSubscription->serviceEntitlements()->where('is_active', true)->count());
+        $this->assertSame(1200, (int) $activeSubscription->serviceEntitlements()->sum('included_credit'));
+        $this->assertSame(600, (int) $activeSubscription->serviceEntitlements()->where('service_key', 'hair_transplant')->value('included_credit'));
+        $this->assertSame(600, (int) $activeSubscription->serviceEntitlements()->where('service_key', 'eyebrow_transplant')->value('included_credit'));
+        $this->assertSame('پلن شروع کاشت مو', $nojaSubscription->plan->name);
+        $this->assertNull($nojaSubscription->user_id);
+        $this->assertSame(600, $nojaSubscription->usage_limit);
+        $this->assertSame(1, Subscription::query()->where('tenant_id', $nojaTenant->id)->where('status', 'active')->count());
+        $this->assertSame(1, Invoice::query()->where('tenant_id', $nojaTenant->id)->where('status', 'paid')->where('number', 'BS-2')->count());
+        $this->assertSame(1, Payment::query()->where('tenant_id', $nojaTenant->id)->where('status', 'paid')->where('idempotency_key', 'seed-noja-hair-starter-plan-paid')->count());
+        $this->assertSame(1, $nojaSubscription->serviceEntitlements()->where('is_active', true)->count());
+        $this->assertSame(600, (int) $nojaSubscription->serviceEntitlements()->sum('included_credit'));
+        $this->assertSame(600, (int) $nojaSubscription->serviceEntitlements()->where('service_key', 'hair_transplant')->value('included_credit'));
+        $this->assertNull($nojaSubscription->serviceEntitlements()->where('service_key', 'eyebrow_transplant')->value('included_credit'));
+        $this->assertSame('کلینیک دمو', $demoTenant->name);
+        $this->assertDatabaseHas('tenant_domains', [
+            'tenant_id' => $demoTenant->id,
+            'domain' => 'demo.hairbision-ai.test',
+            'status' => 'active',
+        ]);
+        $this->assertSame('مهسا فرهمند', $demoAdmin->name);
+        $this->assertSame('clinic_admin', $demoTenant->users()->whereKey($demoAdmin->id)->firstOrFail()->pivot->role);
+        $this->assertSame('پلن شروع کاشت مو', $demoSubscription->plan->name);
+        $this->assertSame($demoAdmin->id, $demoSubscription->user_id);
+        $this->assertSame(600, $demoSubscription->usage_limit);
+        $this->assertSame(1, Subscription::query()->where('tenant_id', $demoTenant->id)->where('status', 'active')->count());
+        $this->assertSame(1, Invoice::query()->where('tenant_id', $demoTenant->id)->where('status', 'paid')->where('number', 'BS-3')->count());
+        $this->assertSame(1, Payment::query()->where('tenant_id', $demoTenant->id)->where('status', 'paid')->where('idempotency_key', 'seed-demo-hair-starter-plan-paid')->count());
+        $this->assertSame(1, $demoSubscription->serviceEntitlements()->where('is_active', true)->count());
+        $this->assertSame(600, (int) $demoSubscription->serviceEntitlements()->where('service_key', 'hair_transplant')->value('included_credit'));
+        $this->assertNull($demoSubscription->serviceEntitlements()->where('service_key', 'eyebrow_transplant')->value('included_credit'));
+
+        $demoGapGpt = AiModelAccess::query()
+            ->where('model_key', 'gapgpt')
+            ->where('usage_category_key', 'hair_transplant')
+            ->where('name', 'GapGPT واقعی کلینیک دمو')
+            ->firstOrFail();
+        $this->assertTrue($demoGapGpt->is_active);
+        $this->assertNotEmpty($demoGapGpt->credentials['api_key'] ?? null);
+        $this->assertTrue($demoTenant->aiModelAccesses()->whereKey($demoGapGpt->id)->wherePivot('is_active', true)->exists());
+        $this->assertSame('gapgpt', TenantAiSetting::query()
+            ->where('tenant_id', $demoTenant->id)
+            ->where('is_default', true)
+            ->firstOrFail()
+            ->provider
+            ->code);
+
+        $demoSmsGateway = SmsGateway::query()
+            ->where('tenant_id', $demoTenant->id)
+            ->where('owner_scope', 'tenant')
+            ->where('provider_code', 'ippanel')
+            ->firstOrFail();
+        $this->assertSame('enabled', $demoSmsGateway->status);
+        $this->assertTrue($demoSmsGateway->is_default);
 
         $this->assertDatabaseHas('system_settings', [
             'key' => 'catalog.states.leads.crm_stages',
@@ -870,14 +957,14 @@ class SystemManagementTest extends TestCase
         $this->deactivateSeededClinicPlan();
 
         $user = User::query()->where('role', 'clinic_admin')->firstOrFail();
-        $starter = Plan::query()->firstOrFail();
+        $starter = Plan::query()->where('name', 'پلن شروع')->firstOrFail();
         $upgrade = Plan::create([
             'name' => 'پلن ارتقا',
             'description' => 'Upgrade',
             'price' => 4000000000,
             'currency' => 'IRR',
             'duration_days' => 60,
-            'usage_limit' => 500,
+            'usage_limit' => 1800,
             'status' => 'active',
         ]);
 
@@ -927,7 +1014,7 @@ class SystemManagementTest extends TestCase
         $newActive = Subscription::query()->where('user_id', $user->id)->where('status', 'active')->firstOrFail();
         $this->assertSame($upgrade->id, $newActive->plan_id);
         $this->assertSame(0, $newActive->usage_used);
-        $this->assertSame(500, $newActive->usage_limit);
+        $this->assertSame(1800, $newActive->usage_limit);
     }
 
     public function test_invoices_are_user_scoped_unless_user_can_manage_billing(): void
@@ -935,7 +1022,7 @@ class SystemManagementTest extends TestCase
         $this->seed(DatabaseSeeder::class);
         $this->deactivateSeededClinicPlan();
 
-        $plan = Plan::query()->firstOrFail();
+        $plan = Plan::query()->where('name', 'پلن شروع')->firstOrFail();
         $userA = User::query()->where('role', 'clinic_admin')->firstOrFail();
         $userB = User::query()->where('role', 'editor')->firstOrFail();
         $billing = app(BillingService::class);
@@ -966,7 +1053,8 @@ class SystemManagementTest extends TestCase
         $this->deactivateSeededClinicPlan();
 
         $user = User::query()->where('role', 'clinic_admin')->firstOrFail();
-        $plan = Plan::query()->where('status', 'active')->firstOrFail();
+        $plan = Plan::query()->where('name', 'پلن شروع')->where('status', 'active')->firstOrFail();
+        $hairOnlyPlan = Plan::query()->where('name', 'پلن شروع کاشت مو')->where('status', 'active')->firstOrFail();
         $gateway = PaymentGateway::query()->where('provider_code', 'zarinpal')->firstOrFail();
         $invoice = app(BillingService::class)->invoiceForPlan($user, $plan);
         $authority = 'A000000000000000000000000000000999';
@@ -1026,7 +1114,7 @@ class SystemManagementTest extends TestCase
         $this->deactivateSeededClinicPlan();
 
         $user = User::query()->where('role', 'clinic_admin')->firstOrFail();
-        $plan = Plan::query()->firstOrFail();
+        $plan = Plan::query()->where('name', 'پلن شروع')->firstOrFail();
         $billing = app(BillingService::class);
         $invoice = $billing->invoiceForPlan($user, $plan);
         $subscription = $billing->activatePlan($user, $plan, $invoice);
@@ -1171,13 +1259,14 @@ class SystemManagementTest extends TestCase
             ])
             ->assertRedirect();
 
-        $this->assertDatabaseHas('plans', ['name' => 'پلن مدیریتی']);
+        $this->assertDatabaseHas('plans', ['name' => 'پلن مدیریتی', 'is_public' => false]);
 
         $plansResponse = $this->actingAs($superAdmin)
             ->forHost('hairvision-ai.test')
             ->get('/admin/plans?'.http_build_query(['search' => 'پلن مدیریتی', 'status' => 'active', 'sort' => 'name', 'direction' => 'asc']))
             ->assertOk()
             ->assertSee('پلن مدیریتی')
+            ->assertSee(__('plans.hidden_from_clinics'))
             ->assertSee('create-plan-modal-toggle', false)
             ->assertSee('data-admin-modal-trigger="edit-plan-', false)
             ->assertSee('data-admin-table-container', false)
@@ -1197,7 +1286,18 @@ class SystemManagementTest extends TestCase
             ->assertOk()
             ->assertSee(__('plans.current_plan'))
             ->assertSee(__('plans.same_active_plan_blocked'))
+            ->assertSee(__('plans.fields.plan_type'))
+            ->assertDontSee('پلن مدیریتی')
             ->assertDontSee('data-admin-table-container', false);
+
+        $this->actingAs($normalUser)
+            ->forHost('hairvision-ai.test')
+            ->get('/admin/plans?plan_type=service_add_on')
+            ->assertOk()
+            ->assertSee(__('plans.types.service_add_on'))
+            ->assertSee(__('plans.not_purchasable'))
+            ->assertSee(__('plans.purchase_disabled.already_available'))
+            ->assertDontSee('<h2 class="text-lg font-bold">پلن شروع کاشت مو</h2>', false);
 
         $this->actingAs($normalUser)
             ->forHost('hairvision-ai.test')
@@ -1348,12 +1448,13 @@ class SystemManagementTest extends TestCase
             'price' => 25000000,
             'currency' => 'IRR',
             'duration_days' => 45,
-            'usage_limit' => 250,
+            'usage_limit' => 1200,
+            'is_public' => false,
             'status' => 'active',
         ]);
         $upgrade->serviceEntitlements()->create([
             'service_key' => 'hair_transplant',
-            'credit_amount' => 250,
+            'credit_amount' => 1200,
             'is_active' => true,
         ]);
 
@@ -1372,6 +1473,7 @@ class SystemManagementTest extends TestCase
             ->get('/admin/clinics/'.$clinic->id)
             ->assertOk()
             ->assertSee(__('clinics.assign_plan'))
+            ->assertSee('پلن ویژه کلینیک‌ها')
             ->assertSee(__('clinics.manage_models'))
             ->assertSee(__('clinics.leads_count'))
             ->assertSee(__('clinics.models_count'));
@@ -1381,6 +1483,7 @@ class SystemManagementTest extends TestCase
             ->post('/admin/clinics/'.$clinic->id.'/plans', [
                 '_form' => 'assign_clinic_plan_'.$clinic->id,
                 'plan_id' => $upgrade->id,
+                'discount_amount' => 5000000,
             ])
             ->assertRedirect(route('admin.clinics.show', $clinic))
             ->assertSessionHasNoErrors();
@@ -1392,6 +1495,10 @@ class SystemManagementTest extends TestCase
             ->where('plan_id', $upgrade->id)
             ->where('status', 'pending')
             ->firstOrFail();
+        $this->assertMatchesRegularExpression('/^BS-\d+$/', $invoice->number);
+        $this->assertSame(20000000, $invoice->amount);
+        $this->assertSame(25000000, data_get($invoice->metadata_json, 'original_amount'));
+        $this->assertSame(5000000, data_get($invoice->metadata_json, 'discount_amount'));
 
         $this->actingAs($superAdmin)
             ->forHost('hairvision-ai.test')
@@ -1404,7 +1511,7 @@ class SystemManagementTest extends TestCase
             'user_id' => null,
             'plan_id' => $upgrade->id,
             'status' => 'active',
-            'usage_limit' => 250,
+            'usage_limit' => 1200,
         ]);
         $this->assertNotNull($invoice->refresh()->activated_at);
 
@@ -1426,6 +1533,7 @@ class SystemManagementTest extends TestCase
             ->where('plan_id', $upgrade->id)
             ->where('amount', 990000)
             ->firstOrFail();
+        $this->assertMatchesRegularExpression('/^BS-\d+$/', $manualInvoice->number);
 
         $this->actingAs($superAdmin)
             ->forHost('hairvision-ai.test')
@@ -1494,14 +1602,14 @@ class SystemManagementTest extends TestCase
         $this->fakeZarinpalPayments('A000000000000000000000000000000000101', 'A000000000000000000000000000000000102');
 
         $user = User::query()->where('role', 'clinic_admin')->firstOrFail();
-        $starter = Plan::query()->where('status', 'active')->firstOrFail();
+        $starter = Plan::query()->where('name', 'پلن شروع')->where('status', 'active')->firstOrFail();
         $upgrade = Plan::query()->create([
             'name' => 'پلن مسیر رشد',
             'description' => 'پلن ارتقا برای تست مسیر پرداخت',
             'price' => 14900000,
             'currency' => 'IRR',
             'duration_days' => 60,
-            'usage_limit' => 300,
+            'usage_limit' => 1800,
             'status' => 'active',
         ]);
 
@@ -1529,7 +1637,7 @@ class SystemManagementTest extends TestCase
         $this->assertSame('replaced', $active->refresh()->status);
         $this->assertSame($upgrade->id, $newActive->plan_id);
         $this->assertSame(0, $newActive->usage_used);
-        $this->assertSame(300, $newActive->usage_limit);
+        $this->assertSame(1800, $newActive->usage_limit);
     }
 
     public function test_same_active_base_plan_cannot_be_purchased_until_expired(): void
@@ -1538,11 +1646,17 @@ class SystemManagementTest extends TestCase
         $this->fakeZarinpalPayments('A000000000000000000000000000000000201', 'A000000000000000000000000000000000202');
 
         $user = User::query()->where('role', 'clinic_admin')->firstOrFail();
-        $plan = Plan::query()->where('status', 'active')->firstOrFail();
+        $plan = Plan::query()->where('name', 'پلن شروع')->where('status', 'active')->firstOrFail();
+        $hairOnlyPlan = Plan::query()->where('name', 'پلن شروع کاشت مو')->where('status', 'active')->firstOrFail();
 
         $this->actingAs($user)
             ->forHost('hairvision-ai.test')
             ->post('/admin/plans/'.$plan->id.'/purchase')
+            ->assertSessionHasErrors('plan');
+
+        $this->actingAs($user)
+            ->forHost('hairvision-ai.test')
+            ->post('/admin/plans/'.$hairOnlyPlan->id.'/purchase')
             ->assertSessionHasErrors('plan');
 
         $active = $user->subscriptions()->where('status', 'active')->firstOrFail();
@@ -1747,6 +1861,7 @@ class SystemManagementTest extends TestCase
             ->assertOk()
             ->assertSee(__('dashboard.dashboard'))
             ->assertSee(__('system.metrics.users'))
+            ->assertDontSee(__('payments.active_subscription'))
             ->assertSessionMissing('admin_active_tenant_id');
 
         $this->actingAs($superAdmin)
@@ -1759,7 +1874,8 @@ class SystemManagementTest extends TestCase
             ->get('/admin/dashboard')
             ->assertOk()
             ->assertSee(__('dashboard.dashboard'))
-            ->assertSee(__('system.metrics.plans'));
+            ->assertSee(__('system.metrics.plans'))
+            ->assertDontSee(__('payments.active_subscription'));
     }
 
     public function test_normal_user_dashboard_is_scoped_to_own_tenant_data(): void
@@ -1871,7 +1987,7 @@ class SystemManagementTest extends TestCase
             ->assertSee('h-3.5 w-3.5', false)
             ->assertSee('data-menu-icon="chevron-right"', false)
             ->assertSee('data-menu-icon="chevron-left"', false)
-            ->assertSee(__('messages.pagination_summary', ['from' => '1', 'to' => '4', 'total' => '4']))
+            ->assertSee(__('messages.pagination_summary', ['from' => '1', 'to' => '5', 'total' => '5']))
             ->assertSee('aria-disabled="true"', false)
             ->assertSee('admin-mobile-list', false)
             ->assertSee('admin-mobile-list-card', false)
