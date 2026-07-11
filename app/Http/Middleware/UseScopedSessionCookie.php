@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Support\Tenancy\HostClassifier;
 use Closure;
 use Illuminate\Http\Request;
 
@@ -60,6 +61,6 @@ class UseScopedSessionCookie
 
     private function isPlatformHost(Request $request): bool
     {
-        return strtolower($request->getHost()) === strtolower((string) config('hairvision.primary_domain'));
+        return HostClassifier::isPrimaryHost($request->getHost());
     }
 }

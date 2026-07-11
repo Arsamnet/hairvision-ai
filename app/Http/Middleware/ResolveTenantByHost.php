@@ -3,6 +3,7 @@
 namespace App\Http\Middleware;
 
 use App\Models\TenantDomain;
+use App\Support\Tenancy\HostClassifier;
 use Closure;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -23,7 +24,7 @@ class ResolveTenantByHost
     {
         $scope = 'tenant.resolve_host';
 
-        $host = strtolower($request->getHost());
+        $host = HostClassifier::normalize($request->getHost());
 
         $domain = TenantDomain::query()
             ->with('tenant')
@@ -34,12 +35,19 @@ class ResolveTenantByHost
         if (! $domain && app()->environment('local') && in_array($host, ['127.0.0.1', 'localhost', '::1'], true)) {
             $domain = TenantDomain::query()
                 ->with('tenant')
+                ->whereIn('type', HostClassifier::visitorDomainTypes())
                 ->where('status', '=', 'active')
                 ->first();
 
         }
 
-        if (! $domain || ! $domain->tenant || $domain->tenant->status !== 'active') {
+        if (
+            HostClassifier::isPlatformHost($host, $domain)
+            || ! $domain
+            || ! in_array($domain->type, HostClassifier::visitorDomainTypes(), true)
+            || ! $domain->tenant
+            || $domain->tenant->status !== 'active'
+        ) {
             abort(Response::HTTP_NOT_FOUND);
         }
 

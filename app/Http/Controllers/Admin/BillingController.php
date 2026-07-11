@@ -10,6 +10,7 @@ use App\Services\Billing\ServiceEntitlementService;
 use App\Support\Pagination\PaginationParameters;
 use App\Support\Query\DateRangeFilter;
 use App\Support\Query\SearchFilter;
+use App\Support\Tenancy\HostClassifier;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -160,7 +161,7 @@ class BillingController extends Controller
 
     private function isClinicAdminHost(Request $request): bool
     {
-        return strtolower($request->getHost()) !== strtolower((string) config('hairvision.primary_domain'));
+        return ! HostClassifier::isPrimaryHost($request->getHost());
     }
 
     private function redirectToGateway(string $url): RedirectResponse

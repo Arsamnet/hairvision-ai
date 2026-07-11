@@ -15,6 +15,7 @@ namespace App\Models {
      * @property boolean $is_protected
      * @property boolean $is_demo
      * @property boolean $is_active
+     * @property integer $usage_count
      * @property integer $credit_used
      * @property integer|null $credit_limit
      * @property string|null $prompt
@@ -43,6 +44,7 @@ namespace App\Models {
      * @method static \Illuminate\Database\Eloquent\Builder<AiModelAccess>|AiModelAccess wherePrompt($value)
      * @method static \Illuminate\Database\Eloquent\Builder<AiModelAccess>|AiModelAccess whereCreditLimit($value)
      * @method static \Illuminate\Database\Eloquent\Builder<AiModelAccess>|AiModelAccess whereCreditUsed($value)
+     * @method static \Illuminate\Database\Eloquent\Builder<AiModelAccess>|AiModelAccess whereUsageCount($value)
      * @method static \Illuminate\Database\Eloquent\Builder<AiModelAccess>|AiModelAccess whereIsActive($value)
      * @method static \Illuminate\Database\Eloquent\Builder<AiModelAccess>|AiModelAccess whereIsDemo($value)
      * @method static \Illuminate\Database\Eloquent\Builder<AiModelAccess>|AiModelAccess whereIsProtected($value)

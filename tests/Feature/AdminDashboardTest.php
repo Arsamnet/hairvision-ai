@@ -38,11 +38,49 @@ class AdminDashboardTest extends TestCase
 
     public function test_primary_root_displays_public_product_landing_page(): void
     {
+        $tenant = Tenant::create([
+            'name' => 'Clinic One',
+            'slug' => 'aria',
+            'status' => 'active',
+        ]);
+
+        TenantDomain::create([
+            'tenant_id' => $tenant->id,
+            'domain' => 'hairvision-ai.test',
+            'type' => 'platform_subdomain',
+            'status' => 'active',
+            'ssl_status' => 'unknown',
+        ]);
+
         $this->forHost('hairvision-ai.test')
             ->get('/')
             ->assertOk()
             ->assertSee('HairVision')
-            ->assertSee('/admin');
+            ->assertSee('/admin')
+            ->assertDontSee('تصویر خود را ثبت کنید');
+
+        $this->assertDatabaseCount('tenant_landing_page_visits', 0);
+    }
+
+    public function test_primary_host_does_not_expose_public_tenant_api(): void
+    {
+        $tenant = Tenant::create([
+            'name' => 'Clinic One',
+            'slug' => 'aria',
+            'status' => 'active',
+        ]);
+
+        TenantDomain::create([
+            'tenant_id' => $tenant->id,
+            'domain' => 'hairvision-ai.test',
+            'type' => 'platform_subdomain',
+            'status' => 'active',
+            'ssl_status' => 'unknown',
+        ]);
+
+        $this->forHost('hairvision-ai.test')
+            ->getJson('/api/v1/bootstrap')
+            ->assertNotFound();
     }
 
     public function test_admin_otp_login_stores_hash_and_authenticates_user(): void

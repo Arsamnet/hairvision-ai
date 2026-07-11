@@ -24,12 +24,13 @@ use App\Http\Controllers\Admin\UserSavedFilterController;
 use App\Http\Middleware\EnsureAdminTenantSelected;
 use App\Models\TenantDomain;
 use App\Services\LandingPageVisitService;
+use App\Support\Tenancy\HostClassifier;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function (Request $request, LandingPageVisitService $visitService) {
-    $host = strtolower($request->getHost());
+    $host = HostClassifier::normalize($request->getHost());
     $domain = TenantDomain::query()
         ->with('tenant.theme')
         ->where('domain', $host)
@@ -37,8 +38,7 @@ Route::get('/', function (Request $request, LandingPageVisitService $visitServic
         ->first();
 
     if (
-        $host === config('hairvision.primary_domain')
-        || $domain?->type === 'platform'
+        HostClassifier::isPlatformHost($host, $domain)
         || (app()->environment('local') && in_array($host, ['127.0.0.1', 'localhost', '::1'], true))
     ) {
         return view('public.landing');
