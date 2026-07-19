@@ -65,7 +65,7 @@
                                 <p class="mt-2 leading-5 text-zinc-600 dark:text-zinc-300">{{ $application['message'] }}</p>
                             </div>
                         @empty
-                            <p class="rounded-lg bg-amber-50 px-3 py-2 text-xs font-bold text-amber-800 dark:bg-amber-300/10 dark:text-amber-200 dark:ring-1 dark:ring-amber-300/15">{{ __('dashboard.plan.no_service_credit') }}</p>
+                            <x-admin.empty-state icon="category" class="py-2">{{ __('dashboard.plan.no_service_credit') }}</x-admin.empty-state>
                         @endforelse
                     </div>
                 @else
@@ -137,7 +137,9 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="6" class="py-10 text-center text-zinc-500">{{ __('dashboard.empty_recent_leads') }}</td>
+                            <td colspan="6" class="py-10">
+                                <x-admin.empty-state icon="contact">{{ __('dashboard.empty_recent_leads') }}</x-admin.empty-state>
+                            </td>
                         </tr>
                     @endforelse
                 </tbody>

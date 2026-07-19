@@ -11,6 +11,7 @@ return [
     'new_role' => 'سطح دسترسی جدید',
     'roles_search_placeholder' => 'جستجوی نام یا کد سطح دسترسی',
     'empty_roles' => 'سطح دسترسی برای نمایش وجود ندارد.',
+    'empty_permissions' => 'مجوزی برای نمایش وجود ندارد.',
     'settings_title' => 'تنظیمات سیستم',
     'payment_gateways_title' => 'درگاه‌های پرداخت',
     'new_gateway' => 'درگاه جدید',

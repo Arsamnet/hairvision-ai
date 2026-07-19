@@ -29,7 +29,7 @@ class TenantThemeSettingSeeder extends Seeder
     private function themes(): array
     {
         return [
-            'aria' => [
+            'arya' => [
                 'favicon_path' => null,
                 'primary_color' => '#0f766e',
                 'hero_title' => 'پیش نمایش هوشمند مسیر کاشت مو',

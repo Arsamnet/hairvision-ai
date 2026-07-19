@@ -35,7 +35,7 @@
                                 <p class="mt-1 text-xs text-zinc-500">{{ __('subscriptions.statuses.'.$service['status']) }}</p>
                             </div>
                         @empty
-                            <p class="rounded-lg bg-amber-50 px-3 py-2 text-sm font-bold text-amber-800">{{ __('dashboard.plan.no_service_credit') }}</p>
+                            <x-admin.empty-state icon="category" class="w-full py-2 lg:col-span-2 xl:col-span-3">{{ __('dashboard.plan.no_service_credit') }}</x-admin.empty-state>
                         @endforelse
                     </div>
                 </div>

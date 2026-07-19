@@ -173,14 +173,16 @@ GenerationController
   -> AiModelManager / AiModelResolver
   -> generation jobs
   -> RunAiModelAction
-  -> ProviderResolver
-  -> ImageGenerationProvider or AiModelProviderInterface
+  -> AiModelResolver
+  -> AiModelProviderInterface
   -> CreditLedgerService after success
   -> private generated asset
 ```
 
 Provider selection and real provider credentials are server-side only. Clients
-submit `upload_id`, not provider, tenant, model, or credentials.
+submit `upload_id`, not provider, tenant, model, or credentials. There is no
+application-wide default AI provider: selection starts from the active model
+access records assigned to the current clinic by a system administrator.
 
 Configured model definitions live in `config/ai-models.php`; access records live
 in `ai_model_accesses`; clinic assignments live in `clinic_ai_model_access`.
@@ -190,10 +192,11 @@ uses the lowest numeric priority first while that model has queue capacity; when
 all assigned models are at capacity, the resolver selects the model with the
 lowest active queue load and then the lowest numeric priority.
 
-`sample_image` is the built-in local default provider. Admins with model
-management permissions can create and edit its access records like other model
-types. It returns configured local sample paths, does not call the internet, and
-does not generate or mutate images.
+`sample_image` is a built-in local model type. Admins with model management
+permissions can create, edit, and assign its access records like other model
+types. It is eligible only when actively assigned to the clinic. It returns
+configured local sample paths, does not call the internet, and does not generate
+or mutate images.
 
 GapGPT image edits must use multipart form data:
 
@@ -315,6 +318,10 @@ Required invariants:
 V1 generation tables remain for compatibility. V2 additive migrations must not
 drop `ai_model_accesses`, `generation_groups`, or `generation_jobs` in the same
 release that introduces category-based generation.
+
+`tenant_ai_settings` is retained as legacy schema only and is not model-selection
+authority. Runtime model selection requires an active `clinic_ai_model_access`
+assignment created by an authorized system administrator.
 
 ## Jalali Dates and Numbers
 
@@ -497,7 +504,7 @@ npm run build
 Local hosts:
 
 ```text
-127.0.0.1 aria.hairvision-ai.test
+127.0.0.1 arya.hairvision-ai.test
 127.0.0.1 hairvision-ai.test
 ```
 
@@ -515,6 +522,12 @@ Demo users after seeding:
 - Clinic admin: `09217359491`
 - Editor: `09120000001`
 - Viewer: `09120000002`
+- Demo clinic admin (مهسا فرهمند): `09004666673`
+- Demo clinic admin (کامران فضلی): `09127072327`
+
+The seeded demo clinic uses the combined hair-and-eyebrow starter plan. Its
+`hair_transplant` and `eyebrow_transplant` applications are both assigned to
+active category-specific GapGPT model access records.
 
 Baseline configuration:
 
@@ -526,7 +539,6 @@ CACHE_STORE=redis
 QUEUE_CONNECTION=redis
 SESSION_DRIVER=redis
 REDIS_CLIENT=predis
-HAIRVISION_DEFAULT_AI_PROVIDER=sample_image
 ```
 
 ## Production Shape
@@ -545,9 +557,44 @@ Production queue-heavy work uses:
 
 ```env
 QUEUE_CONNECTION=redis
+REDIS_QUEUE_RETRY_AFTER=1200
+HAIRVISION_QUEUE_WORKER_TIMEOUT=1020
 ```
 
 Run Horizon through Supervisor, systemd, or the hosting panel process manager.
+
+### Shared cPanel Queue Fallback
+
+When cPanel cannot keep Horizon or `queue:work` alive as a persistent process,
+use the bounded cron worker. Do not enable it while Horizon is running.
+
+For a database-backed cPanel queue:
+
+```env
+QUEUE_CONNECTION=database
+DB_QUEUE_RETRY_AFTER=1200
+HAIRVISION_QUEUE_WORKER_TIMEOUT=1020
+HAIRVISION_CPANEL_QUEUE_CRON_ENABLED=true
+HAIRVISION_CPANEL_QUEUE_CONNECTION=database
+HAIRVISION_CPANEL_QUEUE_NAMES=default
+HAIRVISION_CPANEL_QUEUE_WINDOW_SECONDS=58
+HAIRVISION_CPANEL_QUEUE_SLEEP_SECONDS=1
+HAIRVISION_CPANEL_QUEUE_OVERLAP_MINUTES=30
+```
+
+After caching the deployment configuration, add one cPanel Cron Job that runs
+Laravel's scheduler every minute:
+
+```cron
+* * * * * /usr/local/bin/php /home/CPANEL_USER/path/to/artisan schedule:run >> /home/CPANEL_USER/path/to/storage/logs/cron.log 2>&1
+```
+
+Replace the PHP binary and project paths with the values shown by cPanel. The
+window keeps one worker ready for 58 seconds and checks the queue every second,
+so newly dispatched image jobs do not wait for the next full cron minute. The
+overlap lock remains valid longer than a paid image request. The CLI PHP build
+should have `pcntl`, and the `jobs` / `failed_jobs` migrations must be present
+when using the database queue.
 
 ## Performance
 

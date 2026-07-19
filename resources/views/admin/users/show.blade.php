@@ -58,7 +58,11 @@
                             <td class="px-4 py-3">{{ __('system.statuses.'.$userTenant->pivot->status) }}</td>
                         </tr>
                     @empty
-                        <tr><td colspan="3" class="px-4 py-10 text-center text-zinc-500">{{ __('system.users.no_clinics') }}</td></tr>
+                        <tr>
+                            <td colspan="3" class="px-4 py-10">
+                                <x-admin.empty-state icon="users">{{ __('system.users.no_clinics') }}</x-admin.empty-state>
+                            </td>
+                        </tr>
                     @endforelse
                 </tbody>
             </table>

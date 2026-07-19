@@ -18,7 +18,6 @@ use App\Models\Role;
 use App\Models\Subscription;
 use App\Models\SubscriptionServiceEntitlement;
 use App\Models\Tenant;
-use App\Models\TenantAiSetting;
 use App\Models\TenantDomain;
 use App\Models\Upload;
 use App\Models\User;
@@ -45,7 +44,6 @@ class AiModelAccessManagementTest extends TestCase
         config([
             'app.debug' => true,
             'hairvision.debug_fast_samples' => true,
-            'hairvision.default_ai_provider' => 'sample_image',
             'hairvision.otp.max_requests' => 10,
             'hairvision.otp.decay_seconds' => 600,
         ]);
@@ -56,9 +54,13 @@ class AiModelAccessManagementTest extends TestCase
         $this->seed(DatabaseSeeder::class);
 
         $superAdmin = User::query()->where('role', 'super_admin')->firstOrFail();
-        $tenant = Tenant::query()->where('slug', 'aria')->firstOrFail();
+        $tenant = Tenant::query()->where('slug', 'arya')->firstOrFail();
         $demo = AiModelAccess::query()->where('model_key', 'sample_image')->where('is_demo', true)->firstOrFail();
-        $gapGpt = AiModelAccess::query()->where('model_key', 'gapgpt')->where('usage_category_key', 'hair_transplant')->firstOrFail();
+        $gapGpt = AiModelAccess::query()
+            ->where('model_key', 'gapgpt')
+            ->where('usage_category_key', 'hair_transplant')
+            ->where('name', 'مدل واقعی GapGPT کاشت مو')
+            ->firstOrFail();
         $rawGapGptCredentials = DB::table('ai_model_accesses')->where('id', $gapGpt->id)->value('credentials');
         $outputPrompts = AiModelCategoryOutput::query()
             ->whereHas('category', fn ($query) => $query->where('code', 'hair_transplant'))
@@ -75,8 +77,8 @@ class AiModelAccessManagementTest extends TestCase
         $this->assertTrue((bool) config('ai-models.models.gapgpt.requires_credentials'));
         $this->assertFalse($demo->is_protected);
         $this->assertTrue($demo->is_active);
-        $this->assertFalse($gapGpt->is_active);
-        $this->assertSame([], $gapGpt->credentials);
+        $this->assertTrue($gapGpt->is_active);
+        $this->assertNotEmpty($gapGpt->credentials['api_key'] ?? null);
         $this->assertIsString($rawGapGptCredentials);
         $this->assertNull($gapGpt->prompt);
         $this->assertSame('https://api.gapgpt.app/v1/images/edits', data_get($gapGpt->settings, 'endpoint_url'));
@@ -97,6 +99,13 @@ class AiModelAccessManagementTest extends TestCase
         $this->assertStringContainsString('دو هفته بعد', $outputPrompts['two_weeks']);
         $this->assertStringContainsString('رشد میانی', $outputPrompts['intermediate_regrowth']);
         $this->assertStringContainsString('نتیجه نهایی', $outputPrompts['final_result']);
+
+        $this->assertSame([
+            'مدل دمو کاشت ابرو',
+            'مدل دمو کاشت مو',
+            'مدل واقعی GapGPT کاشت ابرو',
+            'مدل واقعی GapGPT کاشت مو',
+        ], AiModelAccess::query()->orderBy('name')->pluck('name')->all());
 
         $eyebrowOutputPrompts = AiModelCategoryOutput::query()
             ->whereHas('category', fn ($query) => $query->where('code', 'eyebrow_transplant'))
@@ -121,8 +130,14 @@ class AiModelAccessManagementTest extends TestCase
             ->whereHas('category', fn ($query) => $query->where('code', 'eyebrow_transplant'))
             ->whereHas('outputConfigs.output', fn ($query) => $query->where('code', 'eyebrow_final_result'))
             ->exists());
+        $this->assertSame(2, AiModel::query()->where('type', 'gapgpt')->where('status', 'active')->count());
+        $this->assertTrue(AiModel::query()
+            ->where('type', 'gapgpt')
+            ->whereHas('category', fn ($query) => $query->where('code', 'eyebrow_transplant'))
+            ->whereHas('outputConfigs.output', fn ($query) => $query->where('code', 'eyebrow_final_result'))
+            ->exists());
 
-        $bootstrapCategories = collect($this->forHost('aria.hairvision-ai.test')
+        $bootstrapCategories = collect($this->forHost('arya.hairvision-ai.test')
             ->getJson('/api/v1/bootstrap')
             ->assertOk()
             ->json('categories'))
@@ -141,33 +156,44 @@ class AiModelAccessManagementTest extends TestCase
         $this->assertTrue($tenant->aiModelAccesses()->whereKey($gapGpt->id)->wherePivot('is_active', false)->exists());
     }
 
-    public function test_gapgpt_seeded_access_uses_dashboard_settings_without_env_credentials(): void
+    public function test_seeded_gapgpt_accesses_use_category_specific_names_and_dashboard_settings(): void
     {
         $this->seed(DatabaseSeeder::class);
 
-        $tenant = Tenant::query()->where('slug', 'aria')->firstOrFail();
-        $gapGpt = AiModelAccess::query()->where('model_key', 'gapgpt')->where('usage_category_key', 'hair_transplant')->firstOrFail();
-        $rawCredentials = DB::table('ai_model_accesses')->where('id', $gapGpt->id)->value('credentials');
+        $tenant = Tenant::query()->where('slug', 'arya')->firstOrFail();
+        $gapGptAccesses = AiModelAccess::query()
+            ->where('model_key', 'gapgpt')
+            ->orderBy('usage_category_key')
+            ->get();
 
-        $this->assertFalse($gapGpt->is_active);
-        $this->assertSame([], $gapGpt->credentials);
-        $this->assertSame('https://api.gapgpt.app/v1/images/edits', data_get($gapGpt->settings, 'endpoint_url'));
-        $this->assertSame('gpt-image-2', data_get($gapGpt->settings, 'model'));
-        $this->assertIsString($rawCredentials);
-        $this->assertTrue($tenant->aiModelAccesses()->whereKey($gapGpt->id)->wherePivot('is_active', false)->exists());
+        $this->assertSame([
+            'eyebrow_transplant' => 'مدل واقعی GapGPT کاشت ابرو',
+            'hair_transplant' => 'مدل واقعی GapGPT کاشت مو',
+        ], $gapGptAccesses->pluck('name', 'usage_category_key')->all());
+
+        $gapGptAccesses->each(function (AiModelAccess $gapGpt) use ($tenant): void {
+            $rawCredentials = DB::table('ai_model_accesses')->where('id', $gapGpt->id)->value('credentials');
+
+            $this->assertTrue($gapGpt->is_active);
+            $this->assertNotEmpty($gapGpt->credentials['api_key'] ?? null);
+            $this->assertSame('https://api.gapgpt.app/v1/images/edits', data_get($gapGpt->settings, 'endpoint_url'));
+            $this->assertSame('gpt-image-2', data_get($gapGpt->settings, 'model'));
+            $this->assertIsString($rawCredentials);
+            $this->assertTrue($tenant->aiModelAccesses()->whereKey($gapGpt->id)->wherePivot('is_active', false)->exists());
+        });
     }
 
     public function test_public_bootstrap_tracks_clinic_model_assignment_and_entitlement_state(): void
     {
         $this->seed(DatabaseSeeder::class);
 
-        $tenant = Tenant::query()->where('slug', 'aria')->firstOrFail();
+        $tenant = Tenant::query()->where('slug', 'arya')->firstOrFail();
         $eyebrowAccess = AiModelAccess::query()
             ->where('model_key', 'sample_image')
             ->where('usage_category_key', 'eyebrow_transplant')
             ->firstOrFail();
 
-        $initialCategories = collect($this->forHost('aria.hairvision-ai.test')
+        $initialCategories = collect($this->forHost('arya.hairvision-ai.test')
             ->getJson('/api/v1/bootstrap')
             ->assertOk()
             ->json('categories'))
@@ -178,7 +204,7 @@ class AiModelAccessManagementTest extends TestCase
 
         $tenant->aiModelAccesses()->updateExistingPivot($eyebrowAccess->id, ['is_active' => false]);
 
-        $withoutClinicModel = collect($this->forHost('aria.hairvision-ai.test')
+        $withoutClinicModel = collect($this->forHost('arya.hairvision-ai.test')
             ->getJson('/api/v1/bootstrap')
             ->assertOk()
             ->json('categories'))
@@ -193,7 +219,7 @@ class AiModelAccessManagementTest extends TestCase
             ->where('service_key', 'eyebrow_transplant')
             ->update(['is_active' => false]);
 
-        $withoutEntitlement = collect($this->forHost('aria.hairvision-ai.test')
+        $withoutEntitlement = collect($this->forHost('arya.hairvision-ai.test')
             ->getJson('/api/v1/bootstrap')
             ->assertOk()
             ->json('categories'))
@@ -208,7 +234,7 @@ class AiModelAccessManagementTest extends TestCase
         $this->seed(DatabaseSeeder::class);
 
         $superAdmin = User::query()->where('role', 'super_admin')->firstOrFail();
-        $tenant = Tenant::query()->where('slug', 'aria')->firstOrFail();
+        $tenant = Tenant::query()->where('slug', 'arya')->firstOrFail();
 
         AiModelAccess::query()
             ->where('model_key', 'sample_image')
@@ -249,7 +275,7 @@ class AiModelAccessManagementTest extends TestCase
 
         $this->assertSame(3, $bridgedModel->outputConfigs()->where('is_active', true)->count());
 
-        $categories = collect($this->forHost('aria.hairvision-ai.test')
+        $categories = collect($this->forHost('arya.hairvision-ai.test')
             ->getJson('/api/v1/bootstrap')
             ->assertOk()
             ->json('categories'));
@@ -282,7 +308,7 @@ class AiModelAccessManagementTest extends TestCase
 
         $this->assertSame('inactive', $category->refresh()->status);
 
-        $categories = collect($this->forHost('aria.hairvision-ai.test')
+        $categories = collect($this->forHost('arya.hairvision-ai.test')
             ->getJson('/api/v1/bootstrap')
             ->assertOk()
             ->json('categories'))
@@ -297,7 +323,7 @@ class AiModelAccessManagementTest extends TestCase
         $this->seed(DatabaseSeeder::class);
 
         $clinicUser = User::query()->where('role', 'clinic_admin')->firstOrFail();
-        $tenant = Tenant::query()->where('slug', 'aria')->firstOrFail();
+        $tenant = Tenant::query()->where('slug', 'arya')->firstOrFail();
         $eyebrowAccess = AiModelAccess::query()
             ->where('model_key', 'sample_image')
             ->where('usage_category_key', 'eyebrow_transplant')
@@ -305,7 +331,7 @@ class AiModelAccessManagementTest extends TestCase
 
         $eyebrowAccess->forceFill(['is_active' => false])->save();
 
-        $categories = collect($this->forHost('aria.hairvision-ai.test')
+        $categories = collect($this->forHost('arya.hairvision-ai.test')
             ->getJson('/api/v1/bootstrap')
             ->assertOk()
             ->json('categories'))
@@ -328,7 +354,7 @@ class AiModelAccessManagementTest extends TestCase
         $this->seed(DatabaseSeeder::class);
 
         $clinicUser = User::query()->where('role', 'clinic_admin')->firstOrFail();
-        $tenant = Tenant::query()->where('slug', 'aria')->firstOrFail();
+        $tenant = Tenant::query()->where('slug', 'arya')->firstOrFail();
         $subscription = Subscription::query()
             ->where('tenant_id', $tenant->id)
             ->where('status', 'active')
@@ -337,7 +363,7 @@ class AiModelAccessManagementTest extends TestCase
 
         $subscription->plan->forceFill(['status' => 'inactive'])->save();
 
-        $categories = collect($this->forHost('aria.hairvision-ai.test')
+        $categories = collect($this->forHost('arya.hairvision-ai.test')
             ->getJson('/api/v1/bootstrap')
             ->assertOk()
             ->json('categories'))
@@ -531,7 +557,7 @@ class AiModelAccessManagementTest extends TestCase
         $this->seed(DatabaseSeeder::class);
         $this->seedSampleImages();
 
-        $tenant = Tenant::query()->where('slug', 'aria')->firstOrFail();
+        $tenant = Tenant::query()->where('slug', 'arya')->firstOrFail();
         $superAdmin = User::query()->where('role', 'super_admin')->firstOrFail();
         $this->activateSubscription(User::query()->where('role', 'clinic_admin')->firstOrFail());
         $gapGpt = AiModelAccess::query()->where('model_key', 'gapgpt')->firstOrFail();
@@ -558,9 +584,9 @@ class AiModelAccessManagementTest extends TestCase
             ])
             ->assertRedirect();
 
-        $uploadId = $this->createVerifiedUploadViaApi('aria.hairvision-ai.test');
+        $uploadId = $this->createVerifiedUploadViaApi('arya.hairvision-ai.test');
 
-        $groupId = $this->forHost('aria.hairvision-ai.test')
+        $groupId = $this->forHost('arya.hairvision-ai.test')
             ->postJson('/api/v1/generations', ['upload_id' => $uploadId])
             ->assertOk()
             ->assertJsonPath('generation_group.status', 'completed')
@@ -598,7 +624,7 @@ class AiModelAccessManagementTest extends TestCase
     {
         $this->seed(DatabaseSeeder::class);
 
-        $tenant = Tenant::query()->where('slug', 'aria')->firstOrFail();
+        $tenant = Tenant::query()->where('slug', 'arya')->firstOrFail();
         $superAdmin = User::query()->where('role', 'super_admin')->firstOrFail();
         $manager = app(AiModelManager::class);
 
@@ -707,7 +733,7 @@ class AiModelAccessManagementTest extends TestCase
     {
         $this->seed(DatabaseSeeder::class);
 
-        $tenant = Tenant::query()->where('slug', 'aria')->firstOrFail();
+        $tenant = Tenant::query()->where('slug', 'arya')->firstOrFail();
         $superAdmin = User::query()->where('role', 'super_admin')->firstOrFail();
         $assignedAccess = $tenant->aiModelAccesses()
             ->where('ai_model_accesses.is_active', true)
@@ -744,13 +770,13 @@ class AiModelAccessManagementTest extends TestCase
 
     public function test_unassigned_inactive_and_finished_credit_models_cannot_be_used(): void
     {
-        $tenant = $this->createTenant('Clinic One', 'aria', 'aria.hairvision-ai.test');
+        $tenant = $this->createTenant('Clinic One', 'arya', 'arya.hairvision-ai.test');
         $this->activateTenantSubscription($tenant);
         $upload = $this->createVerifiedUpload($tenant);
         $access = $this->createAccess(['credit_limit' => null]);
 
         $this->withSession(['lead_id' => $upload->lead_id])
-            ->forHost('aria.hairvision-ai.test')
+            ->forHost('arya.hairvision-ai.test')
             ->postJson('/api/v1/generations', ['upload_id' => $upload->uuid])
             ->assertStatus(422)
             ->assertJsonValidationErrors('ai_model_access');
@@ -758,7 +784,7 @@ class AiModelAccessManagementTest extends TestCase
         $tenant->aiModelAccesses()->attach($access->id, ['is_active' => false]);
 
         $this->withSession(['lead_id' => $upload->lead_id])
-            ->forHost('aria.hairvision-ai.test')
+            ->forHost('arya.hairvision-ai.test')
             ->postJson('/api/v1/generations', ['upload_id' => $upload->uuid])
             ->assertStatus(422)
             ->assertJsonValidationErrors('ai_model_access');
@@ -767,7 +793,7 @@ class AiModelAccessManagementTest extends TestCase
         $access->forceFill(['is_active' => false])->save();
 
         $this->withSession(['lead_id' => $upload->lead_id])
-            ->forHost('aria.hairvision-ai.test')
+            ->forHost('arya.hairvision-ai.test')
             ->postJson('/api/v1/generations', ['upload_id' => $upload->uuid])
             ->assertStatus(422)
             ->assertJsonValidationErrors('ai_model_access');
@@ -775,7 +801,7 @@ class AiModelAccessManagementTest extends TestCase
         $access->forceFill(['is_active' => true, 'credit_limit' => 0, 'credit_used' => 0])->save();
 
         $this->withSession(['lead_id' => $upload->lead_id])
-            ->forHost('aria.hairvision-ai.test')
+            ->forHost('arya.hairvision-ai.test')
             ->postJson('/api/v1/generations', ['upload_id' => $upload->uuid])
             ->assertStatus(422)
             ->assertJsonValidationErrors('ai_model_access');
@@ -783,7 +809,7 @@ class AiModelAccessManagementTest extends TestCase
 
     public function test_failed_provider_response_does_not_consume_credit(): void
     {
-        $tenant = $this->createTenant('Clinic One', 'aria', 'aria.hairvision-ai.test');
+        $tenant = $this->createTenant('Clinic One', 'arya', 'arya.hairvision-ai.test');
         $access = $this->createAccess([
             'credit_limit' => 1,
             'settings' => ['force_failure' => true],
@@ -803,7 +829,7 @@ class AiModelAccessManagementTest extends TestCase
 
     public function test_active_demo_model_returns_predefined_image_for_each_stage(): void
     {
-        $tenant = $this->createTenant('Clinic One', 'aria', 'aria.hairvision-ai.test');
+        $tenant = $this->createTenant('Clinic One', 'arya', 'arya.hairvision-ai.test');
         $this->seedSampleImages();
 
         $access = $this->createAccess([
@@ -859,7 +885,7 @@ class AiModelAccessManagementTest extends TestCase
     {
         $this->seed(DatabaseSeeder::class);
 
-        $tenant = Tenant::query()->where('slug', 'aria')->firstOrFail();
+        $tenant = Tenant::query()->where('slug', 'arya')->firstOrFail();
         $otherTenant = $this->createTenant('Clinic Two', 'clinic2', 'clinic2.hairvision-ai.test');
         $clinicManager = User::query()->where('role', 'clinic_admin')->firstOrFail();
         $this->activateSubscription($clinicManager);
@@ -937,7 +963,7 @@ class AiModelAccessManagementTest extends TestCase
             'ssl_status' => 'unknown',
         ]);
 
-        $provider = AiProvider::query()->firstOrCreate(
+        AiProvider::query()->firstOrCreate(
             ['code' => 'sample_image'],
             [
                 'name' => 'Sample Image Provider',
@@ -946,12 +972,6 @@ class AiModelAccessManagementTest extends TestCase
                 'supports_async' => false,
             ]
         );
-
-        TenantAiSetting::create([
-            'tenant_id' => $tenant->id,
-            'provider_id' => $provider->id,
-            'is_default' => true,
-        ]);
 
         return $tenant;
     }

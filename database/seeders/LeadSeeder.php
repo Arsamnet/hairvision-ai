@@ -12,7 +12,7 @@ class LeadSeeder extends Seeder
 {
     public function run(): void
     {
-        $tenant = Tenant::query()->where('slug', 'aria')->firstOrFail();
+        $tenant = Tenant::query()->where('slug', 'arya')->firstOrFail();
         $admin = User::query()->where('phone_normalized', '09217359491')->firstOrFail();
         $editor = User::query()->where('phone_normalized', '09120000001')->firstOrFail();
 

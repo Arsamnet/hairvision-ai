@@ -207,7 +207,8 @@ return [
             'maxJobs' => 0,
             'memory' => 128,
             'tries' => 1,
-            'timeout' => 1020,
+            'timeout' => (int) env('HAIRVISION_QUEUE_WORKER_TIMEOUT', 1020),
+            'sleep' => (int) env('HORIZON_SLEEP_SECONDS', 1),
             'nice' => 0,
         ],
     ],
@@ -215,7 +216,7 @@ return [
     'environments' => [
         'production' => [
             'supervisor-1' => [
-                'maxProcesses' => 10,
+                'maxProcesses' => (int) env('HORIZON_MAX_PROCESSES', 10),
                 'balanceMaxShift' => 1,
                 'balanceCooldown' => 3,
             ],

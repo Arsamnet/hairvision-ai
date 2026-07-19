@@ -7,11 +7,7 @@ use App\Data\Ai\AiModelResponseData;
 use App\Models\GeneratedAsset;
 use App\Models\GenerationGroup;
 use App\Models\GenerationJob;
-use App\Models\Lead;
 use App\Models\Upload;
-use App\Services\AI\Dtos\ImageGenerationRequest;
-use App\Services\AI\Dtos\ImageGenerationResponse;
-use App\Services\AI\Resolvers\ProviderResolver;
 use App\Services\Billing\CreditLedgerService;
 use App\Services\Generation\FinalGenerationSmsService;
 use App\Services\Generation\GenerationStageCatalog;
@@ -89,23 +85,15 @@ class ProcessGenerationJob implements ShouldQueue
             ]);
 
             $upload = $this->generationJob->upload;
-            $lead = $this->generationJob->lead;
-
             if (! $upload instanceof Upload) {
                 throw new RuntimeException('Generation upload could not be resolved.');
             }
 
-            if (! $lead instanceof Lead) {
-                throw new RuntimeException('Generation lead could not be resolved.');
+            if (! $this->generationJob->aiModelAccess) {
+                throw new RuntimeException('Assigned clinic AI model could not be resolved.');
             }
 
-            if ($this->generationJob->aiModelAccess) {
-                $this->processWithAiModelAction($scope, $upload);
-
-                return;
-            }
-
-            $this->processWithLegacyProvider($scope, $upload, $lead);
+            $this->processWithAiModelAction($scope, $upload);
         } catch (Throwable $exception) {
             $this->safelyMarkFailedFromException($exception);
 
@@ -167,50 +155,6 @@ class ProcessGenerationJob implements ShouldQueue
             $this->markCompletedAndContinue();
         } catch (Throwable $exception) {
             $this->markFailed('ai_model_exception', $exception);
-        }
-    }
-
-    /**
-     * Process the stage through the legacy provider path.
-     */
-    private function processWithLegacyProvider(string $scope, Upload $upload, Lead $lead): void
-    {
-        try {
-            $resolver = new ProviderResolver;
-            $provider = $resolver->resolveForTenant($this->generationJob->tenant_id);
-
-            $request = new ImageGenerationRequest(
-                tenantUuid: $lead->tenant->uuid,
-                leadUuid: $lead->uuid,
-                uploadPath: $upload->original_path,
-                period: $this->generationJob->period,
-                prompt: $this->generationJob->prompt,
-                modelName: $this->generationJob->model_name,
-                settings: $this->generationJob->aiModelAccess?->settings ?? [],
-            );
-
-            $response = $provider->submit($request);
-
-            if ($response->status !== 'completed' || ! $response->localPath) {
-                $this->markFailed('legacy_provider_incomplete');
-
-                return;
-            }
-
-            if ($this->shouldStopBecauseGroupFailed()) {
-                $this->markFailed('group_already_failed');
-
-                return;
-            }
-
-            if (! $this->consumeServiceCredit()) {
-                return;
-            }
-
-            $this->storeGeneratedLocalAsset($response);
-            $this->markCompletedAndContinue();
-        } catch (Throwable $exception) {
-            $this->markFailed('legacy_provider_exception', $exception);
         }
     }
 
@@ -431,38 +375,6 @@ class ProcessGenerationJob implements ShouldQueue
     {
         return is_string($response->output['binary_content'] ?? null)
             && ($response->output['binary_content'] ?? '') !== '';
-    }
-
-    /**
-     * Copy local provider output into private result storage.
-     */
-    private function storeGeneratedLocalAsset(ImageGenerationResponse $response): void
-    {
-        $scope = 'generation.job.process';
-
-        $source = Storage::disk('local');
-        $sourcePath = $response->localPath;
-        $destination = $this->destinationPath('jpg');
-
-        if (! $source->exists($sourcePath)) {
-            throw new RuntimeException('Generated local provider file does not exist.');
-        }
-
-        $source->makeDirectory(dirname($destination));
-        $source->copy($sourcePath, $destination);
-
-        $size = $source->size($destination);
-        $mime = is_string($response->metadata['mime'] ?? null)
-            ? $response->metadata['mime']
-            : 'image/jpeg';
-
-        $this->createAsset([
-            'disk' => 'local',
-            'path' => $destination,
-            'mime' => $mime,
-            'size' => $response->metadata['size'] ?? $size,
-            'provider_metadata_json' => $response->metadata,
-        ]);
     }
 
     /**

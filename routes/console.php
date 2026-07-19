@@ -3,58 +3,69 @@
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Schedule;
+use Symfony\Component\Console\Command\Command;
 
 Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());
 })->purpose('Display an inspiring quote');
 
 Artisan::command('hairvision:queue-window
-    {connection=redis : Queue connection name}
+    {connection? : Queue connection name; defaults to QUEUE_CONNECTION}
     {--queue=default : Queue names to process}
-    {--duration=55 : Total window duration in seconds}
-    {--interval=10 : Delay between queue checks in seconds}
-    {--timeout=300 : Worker timeout in seconds}', function () {
-        $connection = (string) $this->argument('connection');
-        $duration = max(1, (int) $this->option('duration'));
-        $interval = max(1, (int) $this->option('interval'));
-        $deadline = microtime(true) + $duration;
+    {--duration=58 : Total worker window in seconds}
+    {--interval=1 : Delay while waiting for new jobs in seconds}
+    {--timeout=1020 : Worker timeout in seconds}', function (): int {
+    $connection = (string) ($this->argument('connection') ?: config('queue.default'));
+    $duration = max(1, (int) $this->option('duration'));
+    $interval = max(1, (int) $this->option('interval'));
+    $timeout = max(1, (int) $this->option('timeout'));
+    $retryAfter = (int) config("queue.connections.$connection.retry_after", 0);
 
-        do {
-            Artisan::call('queue:work', [
-                'connection' => $connection,
-                '--queue' => (string) $this->option('queue'),
-                '--stop-when-empty' => true,
-                '--timeout' => max(1, (int) $this->option('timeout')),
-                '--tries' => 1,
-            ]);
+    if (! in_array(config("queue.connections.$connection.driver"), ['database', 'redis'], true)) {
+        $this->error('The cPanel queue window requires a database or Redis queue connection.');
 
-            $remaining = $deadline - microtime(true);
+        return Command::FAILURE;
+    }
 
-            if ($remaining <= 0) {
-                break;
-            }
+    if ($retryAfter <= $timeout) {
+        $this->error("Queue retry_after ($retryAfter) must be greater than worker timeout ($timeout).");
 
-            sleep((int) min($interval, $remaining));
-        } while (microtime(true) < $deadline);
-    })->purpose('Process HairVision queued jobs repeatedly inside one cron minute.');
+        return Command::FAILURE;
+    }
+
+    $exitCode = Artisan::call('queue:work', [
+        'connection' => $connection,
+        '--queue' => (string) $this->option('queue'),
+        '--sleep' => $interval,
+        '--max-time' => $duration,
+        '--timeout' => $timeout,
+        '--tries' => 1,
+        '--no-interaction' => true,
+    ]);
+
+    $this->output->write(Artisan::output());
+
+    return $exitCode;
+})->purpose('Process HairVision queued jobs repeatedly inside one cron minute.');
 
 /*
 |--------------------------------------------------------------------------
 | Queue Worker Scheduler
 |--------------------------------------------------------------------------
 |
-| On shared cPanel hosting, run Laravel scheduler via Cron every minute.
-| The scheduler will process one queued job at a time and prevent overlapping.
+| On shared cPanel hosting, explicitly enable the cron worker and run Laravel's
+| scheduler every minute. Keep this disabled when Horizon is running.
 |
 */
 
-Schedule::command('hairvision:queue-window redis --queue=default --duration=55 --interval=10 --timeout=300')
-    ->everyMinute()
-    ->withoutOverlapping(10);
-
-// For cpanel
-/*
-Schedule::command('hairvision:queue-window database --queue=default --duration=55 --interval=10 --timeout=300')
-    ->everyMinute()
-    ->withoutOverlapping(10);
-*/
+if (config('hairvision.queue_worker.cpanel_cron_enabled')) {
+    Schedule::command('hairvision:queue-window', [
+        'connection' => (string) config('hairvision.queue_worker.cpanel_connection', config('queue.default')),
+        '--queue' => (string) config('hairvision.queue_worker.queues', 'default'),
+        '--duration' => max(1, (int) config('hairvision.queue_worker.window_seconds', 58)),
+        '--interval' => max(1, (int) config('hairvision.queue_worker.sleep_seconds', 1)),
+        '--timeout' => max(1, (int) config('hairvision.queue_worker.timeout_seconds', 1020)),
+    ])
+        ->everyMinute()
+        ->withoutOverlapping(max(1, (int) config('hairvision.queue_worker.overlap_expiration_minutes', 30)));
+}

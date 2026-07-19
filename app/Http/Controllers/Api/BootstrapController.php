@@ -40,7 +40,6 @@ class BootstrapController extends Controller
                 ],
             ],
             'features' => [
-                'ai_provider' => config('hairvision.default_ai_provider'),
                 'upload_enabled' => true,
             ],
             'categories' => AiModelCategoryResource::collection($categories)->resolve($request),

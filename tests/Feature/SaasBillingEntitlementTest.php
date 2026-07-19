@@ -3,14 +3,12 @@
 namespace Tests\Feature;
 
 use App\Models\AiModelAccess;
-use App\Models\AiProvider;
 use App\Models\CreditTransaction;
 use App\Models\Lead;
 use App\Models\Plan;
 use App\Models\Subscription;
 use App\Models\SubscriptionServiceEntitlement;
 use App\Models\Tenant;
-use App\Models\TenantAiSetting;
 use App\Models\TenantDomain;
 use App\Models\Upload;
 use App\Models\User;
@@ -242,22 +240,6 @@ class SaasBillingEntitlementTest extends TestCase
 
     private function attachAiModel(Tenant $tenant): void
     {
-        $provider = AiProvider::query()->firstOrCreate(
-            ['code' => 'sample_image'],
-            [
-                'name' => 'Sample Image Provider',
-                'type' => 'local',
-                'is_active' => true,
-                'supports_async' => false,
-            ]
-        );
-
-        TenantAiSetting::query()->create([
-            'tenant_id' => $tenant->id,
-            'provider_id' => $provider->id,
-            'is_default' => true,
-        ]);
-
         $access = AiModelAccess::query()->create([
             'model_key' => 'sample_image',
             'usage_category_key' => 'hair_transplant',

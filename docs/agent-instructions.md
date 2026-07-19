@@ -46,14 +46,17 @@ transplant, or dynamically added services like under-eye filler.
   through scoped routes.
 - AI provider logic stays behind services/actions/jobs/provider adapters, never
   controllers.
-- `SampleImageProvider` is the default provider for `1.0.0`. It must not call
-  external services, generate images, mutate images, or use external URLs.
+- The local `sample_image` adapter may run only through an active model access
+  assigned to the clinic. It must not call external services, generate images,
+  mutate images, or use external URLs.
 - Real providers require active assigned AI model access, encrypted credentials,
   active subscription, service entitlement, and remaining service credit.
 - Credit is consumed atomically only after successful provider execution.
 - Seeded system SMS gateways keep `local` enabled/default and `ippanel`
   disabled/non-default until an admin explicitly enables IPPanel.
-- Redis Queue and Horizon are required outside tests.
+- Redis Queue and Horizon are preferred outside tests. Shared cPanel hosting
+  may use the explicitly enabled, non-overlapping cron worker with Redis or the
+  database queue; do not run that fallback alongside Horizon.
 - Do not introduce React, Vue, Inertia, Livewire, Next.js, CDN assets, or
   external dashboard icon packs unless explicitly requested.
 - Add/update tests for every behavior change and run the full test suite.

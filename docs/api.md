@@ -70,7 +70,6 @@ Response:
     }
   },
   "features": {
-    "ai_provider": "sample_image",
     "upload_enabled": true
   }
 }
@@ -79,7 +78,9 @@ Response:
 In version `2.0.0`, category metadata is source-of-truth in
 `ai_model_categories`. Public clients should use profile category endpoints
 after verification for requestable categories and outputs instead of hard-coding
-the historic three hair-transplant stages.
+the historic three hair-transplant stages. Provider and model identifiers are
+not public feature metadata; the server selects from active model access records
+assigned to the current clinic by a system administrator.
 
 ## OTP Request
 

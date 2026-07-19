@@ -21,6 +21,9 @@ HairVision `2.0.0` starts the category-based AI model architecture.
 - Active categories are available in AI model access forms.
 - Clinic model assignment dropdowns show every active model access and disable
   records that are already assigned to the clinic.
+- Global default AI-provider configuration has been removed. Runtime selection
+  uses only active model access records assigned to the clinic by a system
+  administrator.
 - Clinic dashboards now show landing application availability and explain when
   an application is hidden because a system admin disabled the category, the
   purchased plan, or the AI model used by that clinic.
@@ -67,6 +70,9 @@ HairVision `2.0.0` starts the category-based AI model architecture.
   deductions.
 - System settings now use practical controls and affect invoice due days and
   pagination limits at runtime.
+- Added an opt-in cPanel queue window that follows the configured Redis or
+  database connection, waits only one second for new image jobs, aligns worker
+  timeout with long-running providers, and prevents overlapping cron workers.
 
 ### API
 

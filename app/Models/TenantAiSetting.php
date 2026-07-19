@@ -8,7 +8,9 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /**
- * Tenant-specific AI provider configuration and encrypted secret holder.
+ * Legacy tenant provider configuration retained for historical data only.
+ *
+ * Runtime model selection uses active clinic AI model assignments instead.
  *
  * @since 1.0.0
  */
@@ -44,7 +46,7 @@ class TenantAiSetting extends Model
     }
 
     /**
-     * Provider catalog row selected by this setting.
+     * Legacy provider catalog row referenced by this setting.
      *
      * @return BelongsTo<AiProvider, $this>
      */

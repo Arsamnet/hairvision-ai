@@ -78,7 +78,7 @@ class Tenant extends Model
     }
 
     /**
-     * AI provider settings available to this tenant.
+     * Legacy AI provider settings retained for this tenant's history.
      *
      * @return HasMany<TenantAiSetting, $this>
      */

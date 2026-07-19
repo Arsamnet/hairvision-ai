@@ -14,7 +14,7 @@
                         <span class="text-sm font-bold text-zinc-950">{{ number_format($count) }}</span>
                     </div>
                 @empty
-                    <p class="rounded-lg bg-zinc-50 px-4 py-8 text-center text-sm text-zinc-500">{{ __('reports.empty') }}</p>
+                    <x-admin.empty-state icon="chart" class="py-5">{{ __('reports.empty') }}</x-admin.empty-state>
                 @endforelse
             </div>
         </section>
@@ -28,7 +28,9 @@
                         <span class="text-sm font-bold text-zinc-950">{{ number_format($tenantRow->leads_count) }}</span>
                     </div>
                 @empty
-                    <p class="rounded-lg bg-zinc-50 px-4 py-8 text-center text-sm text-zinc-500">{{ __('reports.management_only') }}</p>
+                    <x-admin.empty-state icon="building" class="py-5">
+                        {{ auth()->user()?->isSuperAdmin() ? __('reports.clinics_empty') : __('reports.management_only') }}
+                    </x-admin.empty-state>
                 @endforelse
             </div>
         </section>

@@ -7,7 +7,6 @@ use App\Models\AiModelAccess;
 use App\Models\AiProvider;
 use App\Models\GenerationGroup;
 use App\Models\GenerationJob;
-use App\Models\TenantAiSetting;
 use App\Models\Upload;
 use App\Services\AI\AiModelManager;
 use App\Services\Billing\ServiceEntitlementService;
@@ -61,7 +60,7 @@ class GenerationService
             'status' => 'pending',
         ]);
 
-        $provider = $this->resolveProvider($upload->tenant_id, $modelAccess, $request);
+        $provider = $this->resolveProvider($modelAccess);
 
         foreach ($stageKeys as $stageKey) {
             $prompt = $this->stages->promptFor($usageCategoryKey, $stageKey);
@@ -135,14 +134,14 @@ class GenerationService
     /**
      * Resolve the provider record used by generation jobs.
      */
-    private function resolveProvider(int $tenantId, ?AiModelAccess $modelAccess = null, ?Request $request = null): AiProvider
+    private function resolveProvider(AiModelAccess $modelAccess): AiProvider
     {
         $scope = 'generation.service.resolve_provider';
 
-        if ($modelAccess) {
-            $config = config('ai-models.models.'.$modelAccess->model_key, []);
+        $config = config('ai-models.models.'.$modelAccess->model_key, []);
 
-            $provider = AiProvider::query()->firstOrCreate(
+        $provider = AiProvider::query()
+            ->firstOrCreate(
                 ['code' => $modelAccess->model_key],
                 [
                     'name' => is_string($config['display_name_key'] ?? null)
@@ -156,25 +155,6 @@ class GenerationService
                     'default_model' => $config['default_model'] ?? null,
                 ]
             );
-
-            return $provider;
-        }
-
-        $setting = TenantAiSetting::query()
-            ->where('tenant_id', '=', $tenantId)
-            ->where('is_default', '=', true)
-            ->with('provider')
-            ->first();
-
-        if ($setting?->provider) {
-            return $setting->provider;
-        }
-
-        $default = config('hairvision.default_ai_provider');
-
-        $provider = AiProvider::query()
-            ->where('code', '=', $default)
-            ->firstOrFail();
 
         return $provider;
     }

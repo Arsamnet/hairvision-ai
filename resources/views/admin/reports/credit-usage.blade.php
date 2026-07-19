@@ -44,7 +44,7 @@
                             <span>{{ $service['label'] }}</span>
                         </span>
                     @empty
-                        <span class="rounded-lg bg-amber-50 px-3 py-2 text-sm font-bold text-amber-800">{{ __('dashboard.plan.no_service_credit') }}</span>
+                        <x-admin.empty-state icon="category" class="w-full py-2">{{ __('dashboard.plan.no_service_credit') }}</x-admin.empty-state>
                     @endforelse
                 </div>
             @else

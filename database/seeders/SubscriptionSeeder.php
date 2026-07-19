@@ -19,17 +19,17 @@ class SubscriptionSeeder extends Seeder
 {
     public function run(): void
     {
-        $ariaAdmin = User::query()->where('phone_normalized', '09217359491')->firstOrFail();
+        $aryaAdmin = User::query()->where('phone_normalized', '09217359491')->firstOrFail();
         $demoAdmin = User::query()->where('phone_normalized', '09004666673')->firstOrFail();
 
         $this->seedStarterSubscription(
-            tenantSlug: 'aria',
+            tenantSlug: 'arya',
             planName: 'پلن شروع',
             invoiceNumber: 'BS-1',
-            paymentKey: 'seed-aria-starter-plan-paid',
-            authority: 'SEED-ARIA-STARTER',
-            referenceId: 'SEED-ARIA-PAID',
-            user: $ariaAdmin,
+            paymentKey: 'seed-arya-starter-plan-paid',
+            authority: 'SEED-ARYA-STARTER',
+            referenceId: 'SEED-ARYA-PAID',
+            user: $aryaAdmin,
         );
 
         $this->seedStarterSubscription(
@@ -44,11 +44,11 @@ class SubscriptionSeeder extends Seeder
 
         $this->seedStarterSubscription(
             tenantSlug: 'demo',
-            planName: 'پلن شروع کاشت مو',
+            planName: 'پلن شروع',
             invoiceNumber: 'BS-3',
-            paymentKey: 'seed-demo-hair-starter-plan-paid',
-            authority: 'SEED-DEMO-HAIR-STARTER',
-            referenceId: 'SEED-DEMO-HAIR-PAID',
+            paymentKey: 'seed-demo-starter-plan-paid',
+            authority: 'SEED-DEMO-STARTER',
+            referenceId: 'SEED-DEMO-PAID',
             user: $demoAdmin,
         );
     }

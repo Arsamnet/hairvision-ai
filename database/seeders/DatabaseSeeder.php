@@ -17,7 +17,6 @@ class DatabaseSeeder extends Seeder
             UserSeeder::class,
             TenantSeeder::class,
             AiProviderSeeder::class,
-            TenantAiSettingSeeder::class,
             AiModelAccessSeeder::class,
             TemplateSeeder::class,
             TenantThemeSettingSeeder::class,

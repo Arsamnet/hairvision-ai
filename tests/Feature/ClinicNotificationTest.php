@@ -19,6 +19,30 @@ class ClinicNotificationTest extends TestCase
 {
     use RefreshDatabase;
 
+    public function test_empty_notification_lists_show_shared_meaningful_empty_states(): void
+    {
+        $tenant = $this->createTenant('کلینیک بدون پیام', 'empty-inbox', 'empty-inbox.hairvision-ai.test');
+        $superAdmin = $this->createSuperAdmin();
+        $clinicUser = $this->createUserForTenant($tenant, 'viewer', '09120000009');
+
+        $this->actingAs($superAdmin)
+            ->forHost('hairvision-ai.test')
+            ->get('/admin/system/notifications')
+            ->assertOk()
+            ->assertSee(__('notifications.empty_management'))
+            ->assertSee('data-admin-empty-state', false)
+            ->assertDontSee('> - </p>', false);
+
+        $this->actingAs($clinicUser)
+            ->withSession(['admin_active_tenant_id' => $tenant->id])
+            ->forHost('hairvision-ai.test')
+            ->get('/admin/notifications')
+            ->assertOk()
+            ->assertSee(__('notifications.empty_inbox'))
+            ->assertSee('data-admin-empty-state', false)
+            ->assertDontSee('> - </p>', false);
+    }
+
     public function test_clinic_notifications_show_unread_badge_and_record_reader_on_open(): void
     {
         $tenantA = $this->createTenant('کلینیک آریا', 'aria', 'aria.hairvision-ai.test');

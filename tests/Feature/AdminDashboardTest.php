@@ -40,7 +40,7 @@ class AdminDashboardTest extends TestCase
     {
         $tenant = Tenant::create([
             'name' => 'Clinic One',
-            'slug' => 'aria',
+            'slug' => 'arya',
             'status' => 'active',
         ]);
 
@@ -66,7 +66,7 @@ class AdminDashboardTest extends TestCase
     {
         $tenant = Tenant::create([
             'name' => 'Clinic One',
-            'slug' => 'aria',
+            'slug' => 'arya',
             'status' => 'active',
         ]);
 
@@ -85,7 +85,7 @@ class AdminDashboardTest extends TestCase
 
     public function test_admin_otp_login_stores_hash_and_authenticates_user(): void
     {
-        $tenant = $this->createTenant('Clinic One', 'aria', 'aria.hairvision-ai.test');
+        $tenant = $this->createTenant('Clinic One', 'arya', 'arya.hairvision-ai.test');
         $user = $this->createUserForTenant($tenant, 'clinic_admin', '09217359491');
         $this->enableIppanelOtpGateway();
 
@@ -206,6 +206,51 @@ class AdminDashboardTest extends TestCase
         }
     }
 
+    public function test_admin_empty_record_states_use_the_shared_component_with_specific_messages(): void
+    {
+        $emptyState = Blade::render('<x-admin.empty-state icon="bell">هنوز پیامی ثبت نشده است.</x-admin.empty-state>');
+
+        $this->assertStringContainsString('data-admin-empty-state', $emptyState);
+        $this->assertStringContainsString('هنوز پیامی ثبت نشده است.', $emptyState);
+
+        $expectedBindings = [
+            'resources/views/admin/notifications/index.blade.php' => ['notifications.empty_inbox'],
+            'resources/views/admin/system/notifications/index.blade.php' => ['notifications.empty_management'],
+            'resources/views/admin/system/ai-model-categories/index.blade.php' => ['ai_models.empty.categories'],
+            'resources/views/admin/system/ai-model-categories/show.blade.php' => ['ai_models.empty.category_outputs'],
+            'resources/views/admin/dashboard.blade.php' => ['dashboard.plan.no_service_credit', 'dashboard.empty_recent_leads'],
+            'resources/views/admin/billing/index.blade.php' => ['dashboard.plan.no_service_credit', 'payments.empty_invoices'],
+            'resources/views/admin/reports.blade.php' => ['reports.empty', 'reports.clinics_empty', 'reports.management_only'],
+            'resources/views/admin/reports/credit-usage.blade.php' => ['dashboard.plan.no_service_credit', 'reports.credit_usage_empty'],
+            'resources/views/admin/leads/show.blade.php' => ['leads.uploads.empty', 'leads.generations.empty', 'crm.empty'],
+            'resources/views/admin/users/show.blade.php' => ['system.users.no_clinics'],
+            'resources/views/admin/ai-models/show.blade.php' => ['ai_models.empty.credentials'],
+            'resources/views/admin/system/permissions/index.blade.php' => ['system.empty_permissions'],
+        ];
+
+        foreach ($expectedBindings as $relativePath => $translationKeys) {
+            $contents = file_get_contents(base_path($relativePath));
+
+            foreach ($translationKeys as $translationKey) {
+                $this->assertMatchesRegularExpression(
+                    '/<x-admin\.empty-state\b[^>]*>.*?'.preg_quote("__('{$translationKey}')", '/').'.*?<\/x-admin\.empty-state>/s',
+                    $contents,
+                    $relativePath.' should render '.$translationKey.' through x-admin.empty-state.'
+                );
+            }
+        }
+
+        $adminViews = File::allFiles(resource_path('views/admin'));
+
+        foreach ($adminViews as $view) {
+            $this->assertStringNotContainsString(
+                ">{{ __('messages.none') }}</x-admin.empty-state>",
+                $view->getContents(),
+                $view->getRelativePathname().' should use a meaningful empty-state message instead of messages.none.'
+            );
+        }
+    }
+
     public function test_table_view_actions_make_dashboard_rows_clickable(): void
     {
         $menu = Blade::render('<x-admin.table.action-menu><x-admin.table.action-item href="/admin/leads/1" icon="eye">مشاهده</x-admin.table.action-item></x-admin.table.action-menu>');
@@ -230,7 +275,7 @@ class AdminDashboardTest extends TestCase
 
         $this->seed(\Database\Seeders\DatabaseSeeder::class);
 
-        $tenant = Tenant::query()->where('slug', 'aria')->firstOrFail();
+        $tenant = Tenant::query()->where('slug', 'arya')->firstOrFail();
 
         $this->assertDatabaseHas('users', [
             'email' => 'superadmin@example.com',
@@ -242,6 +287,22 @@ class AdminDashboardTest extends TestCase
         $this->assertDatabaseHas('users', [
             'email' => 'editor@example.com',
             'role' => 'editor',
+        ]);
+
+        $this->assertDatabaseHas('users', [
+            'name' => 'کامران فضلی',
+            'phone_normalized' => '09127072327',
+            'role' => 'clinic_admin',
+            'status' => 'active',
+        ]);
+
+        $demoTenant = Tenant::query()->where('slug', 'demo')->firstOrFail();
+
+        $this->assertDatabaseHas('tenant_user', [
+            'tenant_id' => $demoTenant->id,
+            'user_id' => User::query()->where('phone_normalized', '09127072327')->firstOrFail()->id,
+            'role' => 'clinic_admin',
+            'status' => 'active',
         ]);
 
         $this->assertDatabaseHas('tenant_user', [
@@ -320,7 +381,7 @@ class AdminDashboardTest extends TestCase
 
     public function test_admin_lead_list_is_scoped_to_active_tenant(): void
     {
-        $tenantA = $this->createTenant('Clinic One', 'aria', 'aria.hairvision-ai.test');
+        $tenantA = $this->createTenant('Clinic One', 'arya', 'arya.hairvision-ai.test');
         $tenantB = $this->createTenant('Clinic Two', 'clinic2', 'clinic2.hairvision-ai.test');
         $user = $this->createUserForTenant($tenantA, 'clinic_admin', '09121111111');
         $this->activateSubscription($user);
@@ -344,7 +405,7 @@ class AdminDashboardTest extends TestCase
 
     public function test_viewer_cannot_edit_leads_and_editor_can_only_update_limited_fields(): void
     {
-        $tenant = $this->createTenant('Clinic One', 'aria', 'aria.hairvision-ai.test');
+        $tenant = $this->createTenant('Clinic One', 'arya', 'arya.hairvision-ai.test');
         $viewer = $this->createUserForTenant($tenant, 'viewer', '09122222222');
         $editor = $this->createUserForTenant($tenant, 'editor', '09123333333');
         $this->activateSubscription($viewer);

@@ -42,11 +42,14 @@ one of the files above unless a separate audience or lifecycle is unavoidable.
 9. Store OTP codes only as hashes.
 10. Store uploads and generated assets privately, never in the public webroot.
 11. Never put AI provider logic in controllers.
-12. Use `SampleImageProvider` as the default provider for `1.0.0`; it must not
-    call external services, generate images, or use random external URLs.
+12. The local `sample_image` adapter may run only through an active model access
+    assigned to the clinic; it must not call external services, generate
+    images, or use random external URLs.
 13. Real providers stay behind assigned AI model access records, encrypted
     credentials, provider adapters, jobs, and service-credit checks.
-14. Queue-heavy processing uses Redis Queue and Horizon outside tests.
+14. Queue-heavy processing uses Redis Queue and Horizon where a persistent
+    worker is available. Shared cPanel hosting may use the explicitly enabled,
+    non-overlapping cron worker with Redis or the database queue.
 15. Do not introduce React, Vue, Inertia, Livewire, Next.js, CDN CSS/JS/fonts, or
     external dashboard icon packs unless explicitly requested.
 16. After every behavior change, add/update tests and run the full suite.

@@ -3,8 +3,6 @@
 return [
     'version' => env('APP_VERSION', '1.0.0'),
 
-    'default_ai_provider' => env('HAIRVISION_DEFAULT_AI_PROVIDER', 'sample_image'),
-
     'primary_domain' => env('HAIRVISION_PRIMARY_DOMAIN', 'hairvision-ai.test'),
 
     'sessions' => [
@@ -42,6 +40,19 @@ return [
 
     'visitor_messages' => [
         'preparing_image' => env('HAIRVISION_PREPARING_IMAGE_MESSAGE', 'در حال آماده سازی تصویر و ساخت نتایج نمونه هستیم. لطفا چند لحظه صبر کنید.'),
+    ],
+
+    'queue_worker' => [
+        'cpanel_cron_enabled' => filter_var(
+            env('HAIRVISION_CPANEL_QUEUE_CRON_ENABLED', false),
+            FILTER_VALIDATE_BOOLEAN
+        ),
+        'cpanel_connection' => env('HAIRVISION_CPANEL_QUEUE_CONNECTION', env('QUEUE_CONNECTION', 'database')),
+        'queues' => env('HAIRVISION_CPANEL_QUEUE_NAMES', 'default'),
+        'window_seconds' => (int) env('HAIRVISION_CPANEL_QUEUE_WINDOW_SECONDS', 58),
+        'sleep_seconds' => (int) env('HAIRVISION_CPANEL_QUEUE_SLEEP_SECONDS', 1),
+        'timeout_seconds' => (int) env('HAIRVISION_QUEUE_WORKER_TIMEOUT', 1020),
+        'overlap_expiration_minutes' => (int) env('HAIRVISION_CPANEL_QUEUE_OVERLAP_MINUTES', 30),
     ],
 
     'generation' => [

@@ -122,7 +122,10 @@ credentialها، تنظیمات عمومی و تنظیمات تکرارشوند�
   بزند.
 - تماس provider واقعی فقط از طریق job و پس از entitlement معتبر، اعتبار کافی،
   انتخاب مدل و رزرو ظرفیت انجام می‌شود.
-- Redis Queue و Horizon مسیر اجرای کارهای سنگین در محیط غیرتست هستند.
+- Redis Queue و Horizon مسیر اصلی اجرای کارهای سنگین در محیط غیرتست هستند.
+  در هاست اشتراکی cPanel که worker دائمی در دسترس نیست، fallback کرون باید به
+  صورت صریح فعال شود، با Redis یا database queue کار کند و هم‌زمان با Horizon
+  اجرا نشود.
 - دیتابیس source of truth وضعیت درخواست، صف، تلاش‌ها، اعتبار و assetها است؛ Redis
   فقط برای اجرای queue، lock، semaphore و cache استفاده می‌شود.
 - هیچ تماس خارجی provider داخل transaction دیتابیس انجام نمی‌شود.
@@ -567,9 +570,8 @@ GET    /api/v1/system/ai-models/{model}/jobs
 
 - `subscription_service_entitlements.service_code` باید به `ai_model_categories.code`
   یا یک foreign key پایدار به category نگاشت شود.
-- تا زمانی که جدول `clinic_ai_model_access` در runtime وجود دارد، landing،
-  profile categories و generation باید `is_active` خود رکورد مدل و `is_active`
-  pivot کلینیک را رعایت کنند.
+- landing، profile categories و generation باید فقط از مدل‌هایی استفاده کنند که
+  هم رکورد مدل و هم assignment آن در `clinic_ai_model_access` فعال است.
 - کلینیک یا مراجعه‌کننده نمی‌تواند مدل خاصی را انتخاب کند.
 - pause یا خرابی یک مدل نباید entitlement کلینیک را حذف کند؛ تا وقتی مدل سالم
   دیگری در pool وجود دارد سرویس ادامه می‌یابد.
@@ -801,6 +803,12 @@ provider و ظرفیت خریداری‌شده مقدار بیشتری را تض
 - Horizon tags باید حداقل tenant، category، model و generation ID را بدون PII
   ثبت کنند.
 
+در fallback سی‌پنل، scheduler هر دقیقه یک worker window حدود ۵۸ ثانیه‌ای اجرا
+می‌کند. فاصله بررسی job جدید حداکثر یک ثانیه است، اجرای هم‌زمان windowها با lock
+جلوگیری می‌شود و timeout worker باید از timeout خود job کمتر نباشد. مقدار
+`retry_after` هر connection نیز باید از timeout worker بزرگ‌تر باشد تا job پولی
+در زمان اجرای provider دوباره تحویل داده نشود.
+
 ## idempotency و جلوگیری از درخواست تکراری provider
 
 - ایجاد generation باید idempotent باشد.
@@ -967,8 +975,8 @@ category فعال نگاشت شود و هر پلن فقط یک مقدار اعت
   subscription فعال اضافه می‌کنند.
 - مصرف هر output، به اندازه `credit_cost` همان output، از موجودی کل کسر می‌شود؛
   مصرف از یک بسته یا سرویس خاص انجام نمی‌شود.
-- افزودن مدل جدید به یک category فعال به صورت خودکار ظرفیت pool همه کلینیک‌های
-  دارای entitlement آن category را افزایش می‌دهد.
+- افزودن مدل جدید به یک category فعال فقط پس از assignment آن توسط مدیر سیستم،
+  ظرفیت pool همان کلینیک‌های منتخب را افزایش می‌دهد.
 - حذف یا pause یک مدل، entitlement را تغییر نمی‌دهد.
 - top-up فقط به کلینیکی تعلق می‌گیرد که subscription پایه فعال دارد.
 - credit ledger باید source خرید، category مصرف‌شده و در صورت مصرف generation
@@ -1190,7 +1198,8 @@ status، duration، safe error class و correlation ID باشد.
 
 ### entitlement
 
-- کلینیک دارای category به همه مدل‌های eligible pool دسترسی اجرایی دارد.
+- کلینیک دارای category به همه مدل‌های eligible و فعال pool تخصیص‌یافته خود
+  دسترسی اجرایی دارد.
 - کلینیک بدون entitlement درخواست generation نمی‌سازد.
 - category غیرفعال‌شده توسط مدیر سیستم از landing همه کلینیک‌ها حذف می‌شود.
 - مدل غیرفعال‌شده توسط مدیر سیستم، کاربردهای وابسته همان کلینیک‌ها را از
@@ -1310,7 +1319,8 @@ vendor/bin/phpstan analyse
 1. system admin بتواند category و outputهای آن را از API و dashboard CRUD کند.
 2. system admin بتواند مدل sample یا GapGPT را با فرم مبتنی بر config بسازد.
 3. credentialها encrypted و masked باشند.
-4. entitlement کلینیک در سطح category اعمال شود و assignment مدل لازم نباشد.
+4. entitlement کلینیک در سطح category اعمال شود و حداقل یک assignment فعال مدل
+   توسط مدیر سیستم برای کلینیک وجود داشته باشد.
 5. مراجعه‌کننده بتواند هر output را مستقل و با ترتیب دلخواه درخواست کند.
 6. چند مدل یک category با الگوریتم کم‌بارترین مدل استفاده شوند.
 7. concurrency limit حتی زیر درخواست هم‌زمان نقض نشود.

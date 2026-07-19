@@ -145,7 +145,7 @@
                         @empty
                             <tr>
                                 <td colspan="8" class="px-4 py-12">
-                                    <x-admin.empty-state icon="gallery">{{ __('messages.none') }}</x-admin.empty-state>
+                                    <x-admin.empty-state icon="gallery">{{ __('ai_models.empty.category_outputs') }}</x-admin.empty-state>
                                 </td>
                             </tr>
                         @endforelse
@@ -185,7 +185,7 @@
                     </x-admin.mobile-list.card>
                 @empty
                     <x-admin.mobile-list.card>
-                        <x-admin.empty-state icon="gallery">{{ __('messages.none') }}</x-admin.empty-state>
+                        <x-admin.empty-state icon="gallery">{{ __('ai_models.empty.category_outputs') }}</x-admin.empty-state>
                     </x-admin.mobile-list.card>
                 @endforelse
             </x-admin.mobile-list>

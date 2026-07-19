@@ -18,7 +18,6 @@ use App\Models\Subscription;
 use App\Models\SubscriptionServiceEntitlement;
 use App\Models\Template;
 use App\Models\Tenant;
-use App\Models\TenantAiSetting;
 use App\Models\TenantDomain;
 use App\Models\TenantThemeSetting;
 use App\Models\Upload;
@@ -51,7 +50,6 @@ class HairVisionMvpTest extends TestCase
         config([
             'app.debug' => true,
             'hairvision.debug_fast_samples' => true,
-            'hairvision.default_ai_provider' => 'sample_image',
             'hairvision.otp.max_requests' => 2,
             'hairvision.otp.decay_seconds' => 600,
             'hairvision.otp.max_attempts' => 5,
@@ -66,7 +64,8 @@ class HairVisionMvpTest extends TestCase
             ->getJson('/api/v1/bootstrap')
             ->assertOk()
             ->assertJsonPath('tenant.slug', 'aria')
-            ->assertJsonPath('features.ai_provider', 'sample_image');
+            ->assertJsonPath('features.upload_enabled', true)
+            ->assertJsonMissingPath('features.ai_provider');
 
         $this->forHost('unknown.hairvision-ai.test')
             ->getJson('/api/v1/bootstrap')
@@ -1180,6 +1179,62 @@ class HairVisionMvpTest extends TestCase
         Queue::assertPushed(ProcessGenerationJob::class, fn (ProcessGenerationJob $job): bool => $job->generationJob->period === 'two_weeks');
     }
 
+    public function test_generation_job_without_assigned_model_fails_without_provider_fallback(): void
+    {
+        $tenant = $this->createTenant('Clinic One', 'aria', 'aria.hairvision-ai.test');
+        $tenant->aiModelAccesses()->detach();
+
+        $lead = Lead::create([
+            'tenant_id' => $tenant->id,
+            'phone' => '09125552222',
+            'phone_normalized' => '09125552222',
+            'phone_verified_at' => now(),
+            'status' => 'verified',
+        ]);
+
+        $upload = Upload::create([
+            'tenant_id' => $tenant->id,
+            'lead_id' => $lead->id,
+            'original_disk' => 'local',
+            'original_path' => 'uploads/unassigned-model.jpg',
+            'mime' => 'image/jpeg',
+            'size' => 1,
+            'status' => 'validated',
+        ]);
+
+        $group = GenerationGroup::create([
+            'tenant_id' => $tenant->id,
+            'lead_id' => $lead->id,
+            'upload_id' => $upload->id,
+            'status' => 'processing',
+        ]);
+
+        $job = GenerationJob::create([
+            'generation_group_id' => $group->id,
+            'tenant_id' => $tenant->id,
+            'lead_id' => $lead->id,
+            'upload_id' => $upload->id,
+            'provider_id' => AiProvider::query()->where('code', 'sample_image')->firstOrFail()->id,
+            'ai_model_access_id' => null,
+            'period' => 'two_weeks',
+            'status' => 'processing',
+            'model_name' => null,
+            'prompt' => 'Test prompt',
+        ]);
+
+        try {
+            (new ProcessGenerationJob($job))->handle();
+            $this->fail('A generation job without an assigned clinic model must fail.');
+        } catch (\RuntimeException $exception) {
+            $this->assertSame('Assigned clinic AI model could not be resolved.', $exception->getMessage());
+        }
+
+        $this->assertSame('failed', $job->refresh()->status);
+        $this->assertSame('failed', $group->refresh()->status);
+        $this->assertDatabaseMissing('generated_assets', ['generation_job_id' => $job->id]);
+        Http::assertNothingSent();
+    }
+
     public function test_tenant_b_cannot_access_tenant_a_assets(): void
     {
         $tenantA = $this->createTenant('Clinic One', 'aria', 'aria.hairvision-ai.test');
@@ -1292,7 +1347,7 @@ class HairVisionMvpTest extends TestCase
             'ssl_status' => 'unknown',
         ]);
 
-        $provider = AiProvider::query()->firstOrCreate(
+        AiProvider::query()->firstOrCreate(
             ['code' => 'sample_image'],
             [
                 'name' => 'Sample Image Provider',
@@ -1301,12 +1356,6 @@ class HairVisionMvpTest extends TestCase
                 'supports_async' => false,
             ]
         );
-
-        TenantAiSetting::create([
-            'tenant_id' => $tenant->id,
-            'provider_id' => $provider->id,
-            'is_default' => true,
-        ]);
 
         $access = AiModelAccess::query()->firstOrCreate(
             [

@@ -262,7 +262,7 @@
                     @empty
                         <tr>
                             <td colspan="7" class="px-4 py-12">
-                                <x-admin.empty-state icon="bell">{{ __('messages.none') }}</x-admin.empty-state>
+                                <x-admin.empty-state icon="bell">{{ __('notifications.empty_management') }}</x-admin.empty-state>
                             </td>
                         </tr>
                     @endforelse
@@ -293,7 +293,7 @@
                 </x-admin.mobile-list.card>
             @empty
                 <x-admin.mobile-list.card>
-                    <x-admin.empty-state icon="bell">{{ __('messages.none') }}</x-admin.empty-state>
+                    <x-admin.empty-state icon="bell">{{ __('notifications.empty_management') }}</x-admin.empty-state>
                 </x-admin.mobile-list.card>
             @endforelse
         </x-admin.mobile-list>

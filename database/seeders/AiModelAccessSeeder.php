@@ -2,12 +2,13 @@
 
 namespace Database\Seeders;
 
-use App\Models\AiModelAccess;
 use App\Models\AiModel;
+use App\Models\AiModelAccess;
 use App\Models\AiModelCategory;
 use App\Models\AiModelCategoryOutput;
 use App\Models\Tenant;
 use App\Models\User;
+use App\Services\AI\ExecutableAiModelSyncService;
 use Illuminate\Database\Seeder;
 
 class AiModelAccessSeeder extends Seeder
@@ -67,7 +68,7 @@ class AiModelAccessSeeder extends Seeder
         );
 
         $gapGptModelConfig = config('ai-models.models.gapgpt', []);
-        $gapGptAccess = AiModelAccess::query()->updateOrCreate(
+        $hairGapGptAccess = AiModelAccess::query()->updateOrCreate(
             [
                 'model_key' => 'gapgpt',
                 'usage_category_key' => 'hair_transplant',
@@ -75,36 +76,6 @@ class AiModelAccessSeeder extends Seeder
             ],
             [
                 'description' => __('ai_models.seed.gapgpt_access_description'),
-                'credentials' => [],
-                'settings' => [
-                    'endpoint_url' => $gapGptModelConfig['endpoint'] ?? 'https://api.gapgpt.app/v1/images/edits',
-                    'model' => $gapGptModelConfig['default_model'] ?? 'gpt-image-2',
-                    'size' => $gapGptModelConfig['default_size'] ?? '1024x1024',
-                    'response_format' => $gapGptModelConfig['default_response_format'] ?? 'url',
-                    'timeout_seconds' => $gapGptModelConfig['default_timeout'] ?? 900,
-                    'connect_timeout_seconds' => $gapGptModelConfig['default_connect_timeout'] ?? 30,
-                ],
-                'prompt' => null,
-                'credit_limit' => null,
-                'credit_used' => 0,
-                'usage_count' => 0,
-                'is_active' => false,
-                'is_demo' => false,
-                'is_protected' => false,
-                'priority' => 10,
-                'created_by' => $superAdmin->id,
-                'updated_by' => $superAdmin->id,
-            ]
-        );
-
-        $demoGapGptAccess = AiModelAccess::query()->updateOrCreate(
-            [
-                'model_key' => 'gapgpt',
-                'usage_category_key' => 'hair_transplant',
-                'name' => 'GapGPT واقعی کلینیک دمو',
-            ],
-            [
-                'description' => 'دسترسی فعال GapGPT برای کلینیک دمو',
                 'credentials' => [
                     'api_key' => env('HAIRVISION_DEMO_GAPGPT_API_KEY', 'seed-demo-gapgpt-api-key'),
                 ],
@@ -129,13 +100,49 @@ class AiModelAccessSeeder extends Seeder
             ]
         );
 
-        $this->seedExecutableSampleModel('hair_transplant', 'مدل نمونه HairVision کاشت مو', $demoAccess, $superAdmin);
-        $this->seedExecutableSampleModel('eyebrow_transplant', 'مدل نمونه HairVision کاشت ابرو', $eyebrowDemoAccess, $superAdmin);
+        $eyebrowGapGptAccess = AiModelAccess::query()->updateOrCreate(
+            [
+                'model_key' => 'gapgpt',
+                'usage_category_key' => 'eyebrow_transplant',
+                'name' => __('ai_models.seed.eyebrow_gapgpt_access_name'),
+            ],
+            [
+                'description' => __('ai_models.seed.eyebrow_gapgpt_access_description'),
+                'credentials' => [
+                    'api_key' => env('HAIRVISION_DEMO_GAPGPT_API_KEY', 'seed-demo-gapgpt-api-key'),
+                ],
+                'settings' => [
+                    'endpoint_url' => $gapGptModelConfig['endpoint'] ?? 'https://api.gapgpt.app/v1/images/edits',
+                    'model' => $gapGptModelConfig['default_model'] ?? 'gpt-image-2',
+                    'size' => $gapGptModelConfig['default_size'] ?? '1024x1024',
+                    'response_format' => $gapGptModelConfig['default_response_format'] ?? 'url',
+                    'timeout_seconds' => $gapGptModelConfig['default_timeout'] ?? 900,
+                    'connect_timeout_seconds' => $gapGptModelConfig['default_connect_timeout'] ?? 30,
+                ],
+                'prompt' => null,
+                'credit_limit' => null,
+                'credit_used' => 0,
+                'usage_count' => 0,
+                'is_active' => true,
+                'is_demo' => false,
+                'is_protected' => false,
+                'priority' => 1,
+                'created_by' => $superAdmin->id,
+                'updated_by' => $superAdmin->id,
+            ]
+        );
+
+        $this->seedExecutableSampleModel('hair_transplant', __('ai_models.seed.demo_access_name'), $demoAccess, $superAdmin);
+        $this->seedExecutableSampleModel('eyebrow_transplant', __('ai_models.seed.eyebrow_demo_access_name'), $eyebrowDemoAccess, $superAdmin);
+
+        $executableModels = app(ExecutableAiModelSyncService::class);
+        $executableModels->sync($hairGapGptAccess, $superAdmin);
+        $executableModels->sync($eyebrowGapGptAccess, $superAdmin);
 
         Tenant::query()
-            ->whereIn('slug', ['aria', 'noja'], 'and', false)
+            ->whereIn('slug', ['arya', 'noja'], 'and', false)
             ->get()
-            ->each(function (Tenant $tenant) use ($demoAccess, $eyebrowDemoAccess, $gapGptAccess, $superAdmin): void {
+            ->each(function (Tenant $tenant) use ($demoAccess, $eyebrowDemoAccess, $hairGapGptAccess, $eyebrowGapGptAccess, $superAdmin): void {
                 $tenant->aiModelAccesses()->syncWithoutDetaching([
                     $demoAccess->id => [
                         'is_active' => true,
@@ -145,7 +152,11 @@ class AiModelAccessSeeder extends Seeder
                         'is_active' => true,
                         'assigned_by' => $superAdmin->id,
                     ],
-                    $gapGptAccess->id => [
+                    $hairGapGptAccess->id => [
+                        'is_active' => false,
+                        'assigned_by' => $superAdmin->id,
+                    ],
+                    $eyebrowGapGptAccess->id => [
                         'is_active' => false,
                         'assigned_by' => $superAdmin->id,
                     ],
@@ -156,7 +167,11 @@ class AiModelAccessSeeder extends Seeder
 
         if ($demoTenant) {
             $demoTenant->aiModelAccesses()->syncWithoutDetaching([
-                $demoGapGptAccess->id => [
+                $hairGapGptAccess->id => [
+                    'is_active' => true,
+                    'assigned_by' => $superAdmin->id,
+                ],
+                $eyebrowGapGptAccess->id => [
                     'is_active' => true,
                     'assigned_by' => $superAdmin->id,
                 ],

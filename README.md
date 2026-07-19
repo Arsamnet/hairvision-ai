@@ -37,9 +37,8 @@ canonical references.
 - Hashed, expiring, rate-limited OTP for public leads and dashboard users.
 - Private upload and generated-asset storage.
 - Provider-agnostic AI model access layer.
-- Protected local `sample_image` provider as the default provider.
-- Optional assigned GapGPT image-edit access through encrypted dashboard
-  credentials.
+- Local `sample_image` model access assigned per clinic by a system admin.
+- Assigned GapGPT image-edit access through encrypted dashboard credentials.
 - Admin dashboard under `/admin` with OTP login, roles, permissions, tenant
   context, leads, CRM follow-ups, users, clinics, AI models, plans, billing,
   gateways, reports, and system settings.
@@ -61,7 +60,7 @@ npm run build
 Map local hosts:
 
 ```text
-127.0.0.1 aria.hairvision-ai.test
+127.0.0.1 arya.hairvision-ai.test
 127.0.0.1 hairvision-ai.test
 ```
 
@@ -76,9 +75,23 @@ php artisan horizon
 Open:
 
 ```text
-http://aria.hairvision-ai.test:8000
+http://arya.hairvision-ai.test:8000
 http://hairvision-ai.test:8000/admin
 ```
+
+## cPanel Queue Worker
+
+Use Horizon as the primary production worker. If shared cPanel hosting does not
+support a persistent worker, set `QUEUE_CONNECTION=database`, set
+`HAIRVISION_CPANEL_QUEUE_CRON_ENABLED=true`, keep both queue retry windows above
+`HAIRVISION_QUEUE_WORKER_TIMEOUT`, and run this cPanel Cron Job every minute:
+
+```cron
+* * * * * /usr/local/bin/php /home/CPANEL_USER/path/to/artisan schedule:run >> /home/CPANEL_USER/path/to/storage/logs/cron.log 2>&1
+```
+
+Do not enable the cPanel fallback while Horizon is running. Full environment and
+timeout settings are documented in [Engineering Architecture](docs/architecture.md#shared-cpanel-queue-fallback).
 
 ## Quality Gate
 

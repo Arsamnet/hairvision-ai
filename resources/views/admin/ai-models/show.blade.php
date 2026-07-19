@@ -105,7 +105,7 @@
                         <span dir="ltr">{{ $value }}</span>
                     </div>
                 @empty
-                    <p class="text-sm text-zinc-500">{{ __('messages.none') }}</p>
+                    <x-admin.empty-state icon="lock" class="py-4 md:col-span-2">{{ __('ai_models.empty.credentials') }}</x-admin.empty-state>
                 @endforelse
             </div>
         </x-admin.card>

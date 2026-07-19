@@ -60,10 +60,7 @@
                     </figure>
                 @else
                     <div class="mt-4 rounded-lg border border-dashed border-zinc-200 bg-zinc-50 px-4 py-10 text-center">
-                        <span class="mx-auto grid h-12 w-12 place-items-center rounded-lg bg-white text-zinc-400">
-                            <x-admin.icon name="sparkles" />
-                        </span>
-                        <p class="mt-3 text-sm font-bold text-zinc-500">{{ __('leads.uploads.empty') }}</p>
+                        <x-admin.empty-state icon="image">{{ __('leads.uploads.empty') }}</x-admin.empty-state>
                     </div>
                 @endif
             </section>
@@ -100,7 +97,7 @@
                             </div>
                         </div>
                     @empty
-                        <p class="rounded-lg bg-zinc-50 px-4 py-8 text-center text-sm text-zinc-500">{{ __('leads.generations.empty') }}</p>
+                        <x-admin.empty-state icon="sparkles" class="py-5">{{ __('leads.generations.empty') }}</x-admin.empty-state>
                     @endforelse
                 </div>
             </section>
@@ -184,7 +181,7 @@
                             @endcan
                         </article>
                     @empty
-                        <p class="rounded-lg bg-zinc-50 px-4 py-8 text-center text-sm text-zinc-500">{{ __('crm.empty') }}</p>
+                        <x-admin.empty-state icon="message" class="py-5">{{ __('crm.empty') }}</x-admin.empty-state>
                     @endforelse
                 </div>
             </section>

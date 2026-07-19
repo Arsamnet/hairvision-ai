@@ -2,9 +2,9 @@
 
 namespace Database\Seeders;
 
+use App\Models\SmsGateway;
 use App\Models\Tenant;
 use App\Models\TenantDomain;
-use App\Models\SmsGateway;
 use Illuminate\Database\Seeder;
 
 class TenantSeeder extends Seeder
@@ -13,13 +13,15 @@ class TenantSeeder extends Seeder
 
     public function run(): void
     {
-        $ariaTenant = Tenant::query()->updateOrCreate(
-            ['slug' => 'aria'],
-            [
-                'name' => 'کلینیک آریا',
-                'status' => 'active',
-            ]
-        );
+        $aryaTenant = Tenant::query()->where('slug', 'arya')->first()
+            ?? Tenant::query()->where('slug', 'aria')->first()
+            ?? new Tenant;
+
+        $aryaTenant->forceFill([
+            'name' => 'کلینیک آریا',
+            'slug' => 'arya',
+            'status' => 'active',
+        ])->save();
 
         $nojaTenant = Tenant::query()->updateOrCreate(
             ['slug' => 'noja'],
@@ -37,25 +39,29 @@ class TenantSeeder extends Seeder
             ]
         );
 
-        $this->upsertDomain($ariaTenant, 'aria.hairvision-ai.test', 'tenant_subdomain');
+        $this->upsertDomain($aryaTenant, 'arya.hairvision-ai.test', 'tenant_subdomain', 'aria.hairvision-ai.test');
         $this->upsertDomain($nojaTenant, 'noja.hairvision-ai.test', 'tenant_subdomain');
         $this->upsertDomain($demoTenant, 'demo.hairvision-ai.test', 'tenant_subdomain');
-        $this->upsertDomain($ariaTenant, 'hairvision-ai.test', 'platform_subdomain');
+        $this->upsertDomain($aryaTenant, 'hairvision-ai.test', 'platform_subdomain');
 
         $this->upsertDemoIppanelGateway($demoTenant);
     }
 
-    private function upsertDomain(Tenant $tenant, string $domain, string $type): void
+    private function upsertDomain(Tenant $tenant, string $domain, string $type, ?string $legacyDomain = null): void
     {
-        TenantDomain::query()->updateOrCreate(
-            ['domain' => $domain],
-            [
-                'tenant_id' => $tenant->id,
-                'type' => $type,
-                'status' => 'active',
-                'ssl_status' => 'unknown',
-            ]
-        );
+        $tenantDomain = TenantDomain::query()->where('domain', $domain)->first()
+            ?? ($legacyDomain
+                ? TenantDomain::query()->where('tenant_id', $tenant->id)->where('domain', $legacyDomain)->first()
+                : null)
+            ?? new TenantDomain;
+
+        $tenantDomain->forceFill([
+            'tenant_id' => $tenant->id,
+            'domain' => $domain,
+            'type' => $type,
+            'status' => 'active',
+            'ssl_status' => 'unknown',
+        ])->save();
     }
 
     private function upsertDemoIppanelGateway(Tenant $tenant): void

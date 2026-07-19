@@ -10,7 +10,7 @@ class TenantUserSeeder extends Seeder
 {
     public function run(): void
     {
-        $ariaTenant = Tenant::query()->where('slug', 'aria')->firstOrFail();
+        $aryaTenant = Tenant::query()->where('slug', 'arya')->firstOrFail();
 
         foreach ([
             '09217359491' => 'clinic_admin',
@@ -19,32 +19,35 @@ class TenantUserSeeder extends Seeder
         ] as $phone => $role) {
             $user = User::query()->where('phone_normalized', $phone)->firstOrFail();
 
-            $ariaTenant->users()->syncWithoutDetaching([
+            $aryaTenant->users()->syncWithoutDetaching([
                 $user->id => [
                     'role' => $role,
                     'status' => 'active',
                 ],
             ]);
 
-            $ariaTenant->users()->updateExistingPivot($user->id, [
+            $aryaTenant->users()->updateExistingPivot($user->id, [
                 'role' => $role,
                 'status' => 'active',
             ]);
         }
 
         $demoTenant = Tenant::query()->where('slug', 'demo')->firstOrFail();
-        $demoAdmin = User::query()->where('phone_normalized', '09004666673')->firstOrFail();
 
-        $demoTenant->users()->syncWithoutDetaching([
-            $demoAdmin->id => [
+        foreach (['09004666673', '09127072327'] as $phone) {
+            $demoAdmin = User::query()->where('phone_normalized', $phone)->firstOrFail();
+
+            $demoTenant->users()->syncWithoutDetaching([
+                $demoAdmin->id => [
+                    'role' => 'clinic_admin',
+                    'status' => 'active',
+                ],
+            ]);
+
+            $demoTenant->users()->updateExistingPivot($demoAdmin->id, [
                 'role' => 'clinic_admin',
                 'status' => 'active',
-            ],
-        ]);
-
-        $demoTenant->users()->updateExistingPivot($demoAdmin->id, [
-            'role' => 'clinic_admin',
-            'status' => 'active',
-        ]);
+            ]);
+        }
     }
 }
