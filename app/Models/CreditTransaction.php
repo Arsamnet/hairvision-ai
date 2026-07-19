@@ -23,10 +23,12 @@ class CreditTransaction extends Model
         'subscription_service_entitlement_id',
         'service_key',
         'type',
+        'reservation_status',
         'amount',
         'balance_after',
         'related_type',
         'related_id',
+        'generation_request_id',
         'description',
         'created_by',
     ];

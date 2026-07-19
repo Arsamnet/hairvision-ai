@@ -109,8 +109,6 @@ class ClinicController extends Controller
                 ->get(),
             'availableAccesses' => AiModelAccess::query()
                 ->active()
-                ->where('is_demo', false)
-                ->where('is_protected', false)
                 ->orderBy('usage_category_key')
                 ->orderBy('name')
                 ->get(),

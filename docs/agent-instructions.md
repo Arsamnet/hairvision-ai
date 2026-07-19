@@ -1,6 +1,6 @@
 # AI Agent Instructions
 
-Version: `1.0.0`
+Version: `2.0.0`
 
 This file is the compact operating prompt for AI agents. The primary guide is
 `AGENTS.md`; this file keeps the same rules inside `/docs`.
@@ -20,10 +20,11 @@ file for a small topic; update one of the canonical docs instead.
 
 ## Product Summary
 
-HairVision is a complete Laravel 13 multi-tenant SaaS for hair-transplant
-clinics. Public visitors enter through a tenant host, verify their mobile number
-by OTP, upload a private face/scalp photo, and receive staged preview images for
-`two_weeks`, `intermediate_regrowth`, and `final_result`.
+HairVision is a complete Laravel 13 multi-tenant SaaS for clinic AI image
+previews. Public visitors enter through a tenant host, verify their mobile
+number by OTP, keep a private current source image, and request eligible AI
+outputs from system-managed categories such as hair transplant, eyebrow
+transplant, or dynamically added services like under-eye filler.
 
 ## Core Rules
 

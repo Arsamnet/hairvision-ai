@@ -58,7 +58,7 @@
                         @php
                             $primaryDomain = $clinic->domains->first();
                             $subscription = $clinic->subscriptions->first();
-                            $remainingCredit = $subscription?->serviceEntitlements->sum(fn ($entitlement) => $entitlement->remainingCredit()) ?? 0;
+                            $remainingCredit = app(\App\Services\Billing\ServiceEntitlementService::class)->remainingCreditForSubscription($subscription);
                         @endphp
                         <tr class="transition hover:bg-zinc-50/80">
                             <td class="px-4 py-3 align-top">
@@ -105,7 +105,7 @@
                 @php
                     $primaryDomain = $clinic->domains->first();
                     $subscription = $clinic->subscriptions->first();
-                    $remainingCredit = $subscription?->serviceEntitlements->sum(fn ($entitlement) => $entitlement->remainingCredit()) ?? 0;
+                    $remainingCredit = app(\App\Services\Billing\ServiceEntitlementService::class)->remainingCreditForSubscription($subscription);
                 @endphp
                 <x-admin.mobile-list.card>
                     <div class="admin-mobile-list-card-header">

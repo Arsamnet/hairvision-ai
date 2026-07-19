@@ -22,9 +22,6 @@
                         @if($aiModelAccess->is_demo)
                             <x-admin.badge tone="teal">{{ __('ai_models.flags.demo') }}</x-admin.badge>
                         @endif
-                        @if($aiModelAccess->is_protected)
-                            <x-admin.badge tone="amber">{{ __('ai_models.flags.protected') }}</x-admin.badge>
-                        @endif
                     </div>
                 </div>
                 <div class="flex flex-wrap gap-2">
@@ -35,10 +32,6 @@
                         <x-admin.button :href="route('admin.ai-models.edit', $aiModelAccess)" variant="teal" size="sm" icon="edit">
                             <span>{{ __('ai_models.edit') }}</span>
                         </x-admin.button>
-                    @else
-                        @if($aiModelAccess->is_protected)
-                            <span class="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-bold text-amber-800">{{ __('ai_models.edit_disabled_protected') }}</span>
-                        @endif
                     @endcan
                     @can('toggle', $aiModelAccess)
                         <form method="POST" action="{{ route('admin.ai-models.toggle', $aiModelAccess) }}">

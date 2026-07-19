@@ -78,7 +78,7 @@ class RunAiModelAction
                 modelConfig: $modelConfig,
                 credentials: $access->credentials ?? [],
                 settings: $access->settings ?? [],
-                prompt: $access->prompt,
+                prompt: is_string($payload['prompt'] ?? null) ? $payload['prompt'] : null,
                 payload: $payload,
                 user: $user,
             );

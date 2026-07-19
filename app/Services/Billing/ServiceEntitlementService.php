@@ -2,12 +2,15 @@
 
 namespace App\Services\Billing;
 
+use App\Enums\CreditTransactionType;
+use App\Models\CreditTransaction;
 use App\Models\Subscription;
 use App\Models\SubscriptionServiceEntitlement;
 use App\Models\Tenant;
 use App\Support\JalaliDate;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
 /**
@@ -40,7 +43,9 @@ class ServiceEntitlementService
             ->where('tenant_id', $tenant->id)
             ->where('status', 'active')
             ->where('ends_at', '>', JalaliDate::nowDateTimeString())
-            ->whereHas('plan', fn (Builder $query) => $query->where('plan_type', 'base_subscription'))
+            ->whereHas('plan', fn (Builder $query) => $query
+                ->where('plan_type', 'base_subscription')
+                ->where('status', 'active'))
             ->latest('starts_at')
             ->latest('id');
 
@@ -133,7 +138,7 @@ class ServiceEntitlementService
             return $this->state(false, 'service_unavailable', 'subscriptions.errors.service_unavailable', $subscription);
         }
 
-        $remainingCredit = $entitlement->remainingCredit();
+        $remainingCredit = $this->remainingCreditForSubscription($subscription);
 
         $step++;
         if ($remainingCredit < $amount) {
@@ -183,19 +188,63 @@ class ServiceEntitlementService
             return collect();
         }
 
+        $remainingCredit = $this->remainingCreditForSubscription($subscription);
+        $totalCredit = $this->totalCreditForSubscription($subscription);
+
         $summary = $subscription->serviceEntitlements()
             ->orderBy('service_key')
             ->get()
             ->map(fn (SubscriptionServiceEntitlement $entitlement): array => [
                 'service_key' => $entitlement->service_key,
                 'label' => $this->services->label($entitlement->service_key),
-                'remaining_credit' => $entitlement->remainingCredit(),
+                'remaining_credit' => $remainingCredit,
                 'used_credit' => $entitlement->used_credit,
-                'total_credit' => $entitlement->totalCredit(),
-                'status' => $entitlement->is_active && $entitlement->remainingCredit() > 0 ? 'available' : 'credit_finished',
+                'total_credit' => $totalCredit,
+                'status' => $entitlement->is_active && $remainingCredit > 0 ? 'available' : 'credit_finished',
             ]);
 
         return $summary;
+    }
+
+    public function totalCreditForSubscription(?Subscription $subscription): int
+    {
+        if (! $subscription) {
+            return 0;
+        }
+
+        if (! CreditTransaction::query()->where('subscription_id', $subscription->id)->exists()) {
+            return (int) $subscription->serviceEntitlements()->sum(DB::raw('included_credit + purchased_credit'));
+        }
+
+        return (int) CreditTransaction::query()
+            ->where('subscription_id', $subscription->id)
+            ->whereIn('type', [
+                CreditTransactionType::Grant->value,
+                CreditTransactionType::TopUp->value,
+                CreditTransactionType::Adjustment->value,
+                CreditTransactionType::Refund->value,
+            ])
+            ->where('amount', '>', 0)
+            ->sum('amount');
+    }
+
+    public function remainingCreditForSubscription(?Subscription $subscription): int
+    {
+        if (! $subscription) {
+            return 0;
+        }
+
+        $legacyRemaining = max(0, (int) $subscription->serviceEntitlements()->sum(DB::raw('included_credit + purchased_credit - used_credit')));
+
+        if (! CreditTransaction::query()->where('subscription_id', $subscription->id)->exists()) {
+            return $legacyRemaining;
+        }
+
+        $ledgerRemaining = max(0, (int) CreditTransaction::query()
+            ->where('subscription_id', $subscription->id)
+            ->sum('amount'));
+
+        return $legacyRemaining > 0 ? min($ledgerRemaining, $legacyRemaining) : $ledgerRemaining;
     }
 
     /**

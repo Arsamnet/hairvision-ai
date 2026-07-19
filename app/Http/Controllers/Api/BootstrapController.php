@@ -3,7 +3,9 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Resources\AiModelCategoryResource;
 use App\Models\Tenant;
+use App\Services\Visitor\PublicApplicationAvailabilityService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -18,13 +20,14 @@ class BootstrapController extends Controller
     /**
      * Build public tenant identity, theme, and feature metadata.
      */
-    public function __invoke(Request $request): JsonResponse
+    public function __invoke(Request $request, PublicApplicationAvailabilityService $availability): JsonResponse
     {
         $scope = 'public.bootstrap';
 
         $tenant = $this->tenantFromRequest($request, $scope);
 
         $theme = $tenant->theme;
+        $categories = $availability->categoriesForTenant($tenant);
 
         $response = [
             'tenant' => [
@@ -40,6 +43,7 @@ class BootstrapController extends Controller
                 'ai_provider' => config('hairvision.default_ai_provider'),
                 'upload_enabled' => true,
             ],
+            'categories' => AiModelCategoryResource::collection($categories)->resolve($request),
         ];
 
         return response()->json($response);

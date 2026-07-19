@@ -23,7 +23,7 @@
                 <div class="mt-4 grid gap-3 lg:grid-cols-4">
                     <p class="rounded-lg bg-zinc-50 p-3"><span class="text-zinc-500">{{ __('payments.plan') }}:</span> <strong>{{ $activeSubscription->plan?->name }}</strong></p>
                     <p class="rounded-lg bg-zinc-50 p-3"><span class="text-zinc-500">{{ __('payments.ends_at') }}:</span> <strong><x-jalali-date :value="$activeSubscription->ends_at" /></strong></p>
-                    <p class="rounded-lg bg-zinc-50 p-3"><span class="text-zinc-500">{{ __('payments.credit') }}:</span> <strong>{{ number_format($serviceSummaries->sum('remaining_credit')) }}</strong></p>
+                    <p class="rounded-lg bg-zinc-50 p-3"><span class="text-zinc-500">{{ __('payments.credit') }}:</span> <strong>{{ number_format($remainingCredit) }} / {{ number_format($totalCredit) }}</strong></p>
                     <p class="rounded-lg bg-zinc-50 p-3"><span class="text-zinc-500">{{ __('payments.status') }}:</span> <strong>{{ __('payments.subscription_statuses.'.$activeSubscription->status) }}</strong></p>
                 </div>
                 <div class="mt-4">
@@ -32,14 +32,20 @@
                         @forelse($serviceSummaries as $service)
                             <div class="rounded-lg border border-zinc-100 bg-white p-3">
                                 <p class="font-bold text-zinc-950">{{ $service['label'] }}</p>
-                                <p class="mt-1 text-xs text-zinc-500">{{ __('subscriptions.remaining_credit') }}: {{ number_format($service['remaining_credit']) }}</p>
-                                <p class="mt-1 text-xs text-zinc-500">{{ __('subscriptions.used_credit') }}: {{ number_format($service['used_credit']) }}</p>
+                                <p class="mt-1 text-xs text-zinc-500">{{ __('subscriptions.statuses.'.$service['status']) }}</p>
                             </div>
                         @empty
                             <p class="rounded-lg bg-amber-50 px-3 py-2 text-sm font-bold text-amber-800">{{ __('dashboard.plan.no_service_credit') }}</p>
                         @endforelse
                     </div>
                 </div>
+                @can('permission', 'reports.user.view')
+                    <div class="mt-4 flex flex-wrap gap-2">
+                        <x-admin.button :href="route('admin.reports.credit-usage')" variant="secondary" size="sm" icon="chart">
+                            <span>{{ __('reports.credit_usage_title') }}</span>
+                        </x-admin.button>
+                    </div>
+                @endcan
             @else
                 <p class="mt-3 rounded-lg bg-amber-50 px-4 py-3 text-sm font-bold text-amber-800">{{ __('payments.no_active_subscription') }}</p>
             @endif

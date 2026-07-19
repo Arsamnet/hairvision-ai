@@ -178,4 +178,14 @@ class Tenant extends Model
     {
         return $this->hasMany(TenantLandingPageVisit::class);
     }
+
+    /**
+     * Notification delivery rows visible in this clinic's dashboard inbox.
+     *
+     * @return HasMany<ClinicNotificationRecipient, $this>
+     */
+    public function notificationRecipients(): HasMany
+    {
+        return $this->hasMany(ClinicNotificationRecipient::class);
+    }
 }

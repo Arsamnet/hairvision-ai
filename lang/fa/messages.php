@@ -10,6 +10,8 @@ return [
     'cancel' => 'لغو',
     'close' => 'بستن',
     'actions' => 'عملیات',
+    'view' => 'مشاهده',
+    'edit' => 'ویرایش',
     'delete' => 'حذف',
     'search' => 'جستجو',
     'quick_search' => 'جستجوی سریع',
@@ -60,4 +62,7 @@ return [
     'upload_id_invalid' => 'شناسه تصویر معتبر نیست.',
     'generation_service_required' => 'نوع سرویس انتخاب نشده است.',
     'generation_service_invalid' => 'نوع سرویس انتخاب‌شده معتبر نیست.',
+    'source_image_replaced' => 'تصویر اصلی جدید جایگزین شده است.',
+    'source_image_not_current' => 'تصویر انتخاب‌شده تصویر اصلی جاری نیست.',
+    'generation_output_invalid' => 'خروجی انتخاب‌شده معتبر نیست.',
 ];

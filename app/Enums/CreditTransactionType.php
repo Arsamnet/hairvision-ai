@@ -9,4 +9,6 @@ enum CreditTransactionType: string
     case Refund = 'refund';
     case Adjustment = 'adjustment';
     case TopUp = 'top_up';
+    case Reservation = 'reservation';
+    case Release = 'release';
 }

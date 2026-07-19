@@ -38,17 +38,12 @@ class AiModelAccessPolicy
 
     public function update(User $user, AiModelAccess $access): bool
     {
-        if ($access->is_demo || $access->is_protected) {
-            return false;
-        }
-
-        return $user->hasPermission('ai_models.edit')
-            && (bool) config("ai-models.models.{$access->model_key}.access_editable", true);
+        return $user->hasPermission('ai_models.edit');
     }
 
     public function delete(User $user, AiModelAccess $access): bool
     {
-        return $user->hasPermission('ai_models.delete') && ! $access->is_protected;
+        return $user->hasPermission('ai_models.delete');
     }
 
     public function toggle(User $user, AiModelAccess $access): bool

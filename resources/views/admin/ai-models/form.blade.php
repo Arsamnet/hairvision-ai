@@ -14,12 +14,6 @@
         ->flatMap(fn (array $model): array => $model['configurable_settings'] ?? [])
         ->unique()
         ->values();
-    $stageCatalog = app(\App\Services\Generation\GenerationStageCatalog::class);
-    $generationStages = collect(array_keys($usageCategories))
-        ->flatMap(fn (string $categoryKey): array => $stageCatalog->publicStages($categoryKey))
-        ->unique('key')
-        ->values()
-        ->all();
 @endphp
 
 <input type="hidden" name="_form" value="{{ $formKey }}">
@@ -94,30 +88,6 @@
             @endforeach
         </div>
     @endif
-
-    <label class="grid gap-1 text-sm font-bold md:col-span-2">
-        <span>{{ __('ai_models.prompt') }}</span>
-        <textarea name="prompt" rows="4" class="rounded-lg border border-zinc-200 px-3 py-2 text-sm leading-7 outline-none focus:border-teal-500" placeholder="{{ __('ai_models.prompt') }}">{{ old('prompt', $access?->prompt) }}</textarea>
-    </label>
-
-    <div class="grid gap-3 rounded-lg border border-zinc-100 bg-zinc-50 p-3 md:col-span-2">
-        <div>
-            <p class="text-sm font-bold text-zinc-700">{{ __('ai_models.stage_prompts') }}</p>
-            <p class="mt-1 text-xs leading-6 text-zinc-500">{{ __('ai_models.stage_prompt_hint') }}</p>
-        </div>
-        @foreach($generationStages as $stage)
-            <label class="grid gap-1 text-sm font-bold">
-                <span>{{ $stage['label'] }}</span>
-                <textarea
-                    name="settings[stage_prompts][{{ $stage['key'] }}]"
-                    rows="5"
-                    class="rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm leading-7 outline-none focus:border-teal-500"
-                    dir="ltr"
-                    placeholder="{{ $stage['label'] }}"
-                >{{ old('settings.stage_prompts.'.$stage['key'], data_get($access?->settings ?? [], 'stage_prompts.'.$stage['key'])) }}</textarea>
-            </label>
-        @endforeach
-    </div>
 
     <label class="grid gap-1 text-sm font-bold">
         <span>{{ __('ai_models.credit_limit') }}</span>

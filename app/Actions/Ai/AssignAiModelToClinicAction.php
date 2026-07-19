@@ -6,7 +6,6 @@ use App\Models\AiModelAccess;
 use App\Models\ClinicAiModelAccess;
 use App\Models\Tenant;
 use App\Models\User;
-use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
 use Throwable;
 
@@ -25,17 +24,6 @@ class AssignAiModelToClinicAction
 
         try {
             $assignment = DB::transaction(function () use ($clinic, $access, $actor, $isActive): ClinicAiModelAccess {
-                if ($isActive) {
-                    ClinicAiModelAccess::query()
-                        ->where('clinic_id', $clinic->id)
-                        ->where('is_active', true)
-                        ->whereHas('aiModelAccess', fn (Builder $query) => $query
-                            ->where('usage_category_key', $access->usage_category_key)
-                            ->whereKeyNot($access->id))
-                        ->update(['is_active' => false]);
-
-                }
-
                 $assignment = ClinicAiModelAccess::query()->updateOrCreate(
                     [
                         'clinic_id' => $clinic->id,

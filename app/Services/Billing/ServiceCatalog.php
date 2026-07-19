@@ -2,6 +2,10 @@
 
 namespace App\Services\Billing;
 
+use App\Models\AiModelCategory;
+use App\Support\AdminIcon;
+use Illuminate\Support\Facades\Schema;
+
 /**
  * Reads stable AI service keys and Persian label metadata from configuration.
  *
@@ -14,7 +18,27 @@ class ServiceCatalog
      */
     public function all(): array
     {
-        return config('hairvision.ai_services', []);
+        $configured = config('hairvision.ai_services', []);
+
+        if (! Schema::hasTable('ai_model_categories')) {
+            return $configured;
+        }
+
+        $categories = AiModelCategory::query()
+            ->where('status', 'active')
+            ->orderBy('sort_order')
+            ->orderBy('id')
+            ->get()
+            ->mapWithKeys(fn (AiModelCategory $category): array => [
+                $category->code => [
+                    'label' => $category->name,
+                    'description' => $category->description,
+                    'icon' => $category->resolvedIcon(),
+                ],
+            ])
+            ->all();
+
+        return array_replace($configured, $categories);
     }
 
     /**
@@ -23,7 +47,19 @@ class ServiceCatalog
     public function options(): array
     {
         return collect($this->all())
-            ->mapWithKeys(fn (array $service, string $key): array => [$key => __($service['label_key'] ?? 'services.'.$key)])
+            ->mapWithKeys(fn (array $service, string $key): array => [$key => $service['label'] ?? __($service['label_key'] ?? 'services.'.$key)])
+            ->all();
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    public function icons(): array
+    {
+        return collect($this->all())
+            ->mapWithKeys(fn (array $service, string $key): array => [
+                $key => AdminIcon::normalize($service['icon'] ?? null, AdminIcon::DEFAULT_CATEGORY_ICON),
+            ])
             ->all();
     }
 
@@ -37,7 +73,7 @@ class ServiceCatalog
         $service = $this->all()[$serviceKey] ?? [];
         $labelKey = $service['label_key'] ?? null;
 
-        return is_string($labelKey) ? __($labelKey) : $serviceKey;
+        return $service['label'] ?? (is_string($labelKey) ? __($labelKey) : $serviceKey);
     }
 
     public function defaultServiceKey(): string

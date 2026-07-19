@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Admin\AiModels;
 
+use App\Services\AI\AiModelResolver;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Validator;
@@ -25,16 +26,13 @@ class UpdateAiModelAccessRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'model_key' => ['required', 'string', Rule::in($this->editableModelKeys())],
-            'usage_category_key' => ['required', 'string', Rule::in(array_keys(config('ai-models.usage_categories', [])))],
+            'model_key' => ['required', 'string', Rule::in($this->modelKeys())],
+            'usage_category_key' => ['required', 'string', Rule::in(array_keys(app(AiModelResolver::class)->usageCategories()))],
             'name' => ['required', 'string', 'max:150'],
             'description' => ['nullable', 'string', 'max:1000'],
             'credentials' => ['array'],
             'credentials.*' => ['nullable', 'string', 'max:2000'],
             'settings' => ['array'],
-            'settings.stage_prompts' => ['nullable', 'array'],
-            'settings.stage_prompts.*' => ['nullable', 'string', 'max:20000'],
-            'prompt' => ['nullable', 'string', 'max:20000'],
             'credit_limit' => ['nullable', 'integer', 'min:0', 'max:4294967295'],
             'priority' => ['nullable', 'integer', 'min:0', 'max:100000'],
             'is_active' => ['nullable', 'boolean'],
@@ -53,11 +51,7 @@ class UpdateAiModelAccessRequest extends FormRequest
                 return;
             }
 
-            if (! (bool) ($model['access_editable'] ?? true)) {
-                $validator->errors()->add('model_key', __('ai_models.errors.model_not_editable'));
-            }
-
-            if (! in_array($usageCategoryKey, $model['supported_usage_categories'] ?? [], true)) {
+            if (! app(AiModelResolver::class)->modelSupportsUsageCategory($modelKey, $usageCategoryKey)) {
                 $validator->errors()->add('usage_category_key', __('ai_models.errors.unsupported_usage_category'));
             }
 
@@ -94,13 +88,6 @@ class UpdateAiModelAccessRequest extends FormRequest
             return false;
         }
 
-        $stagePrompts = collect((array) data_get($this->input('settings', []), 'stage_prompts'))
-            ->filter(fn (mixed $value): bool => filled($value));
-
-        if (($this->filled('prompt') || $stagePrompts->isNotEmpty()) && ! $user->hasPermission('ai_models.manage_prompt', $tenantId)) {
-            return false;
-        }
-
         if ($this->filled('credit_limit') && ! $user->hasPermission('ai_models.manage_credit', $tenantId)) {
             return false;
         }
@@ -111,10 +98,9 @@ class UpdateAiModelAccessRequest extends FormRequest
     /**
      * @return array<int, string>
      */
-    private function editableModelKeys(): array
+    private function modelKeys(): array
     {
         return collect(config('ai-models.models', []))
-            ->filter(fn (array $model): bool => (bool) ($model['access_editable'] ?? true))
             ->keys()
             ->values()
             ->all();

@@ -39,7 +39,7 @@ class TenantSeeder extends Seeder
 
         $this->upsertDomain($ariaTenant, 'aria.hairvision-ai.test', 'tenant_subdomain');
         $this->upsertDomain($nojaTenant, 'noja.hairvision-ai.test', 'tenant_subdomain');
-        $this->upsertDomain($demoTenant, 'demo.hairbision-ai.test', 'tenant_subdomain');
+        $this->upsertDomain($demoTenant, 'demo.hairvision-ai.test', 'tenant_subdomain');
         $this->upsertDomain($ariaTenant, 'hairvision-ai.test', 'platform_subdomain');
 
         $this->upsertDemoIppanelGateway($demoTenant);

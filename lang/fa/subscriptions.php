@@ -6,6 +6,7 @@ return [
     'remaining_credit' => 'اعتبار باقی‌مانده',
     'used_credit' => 'اعتبار مصرف‌شده',
     'total_credit' => 'اعتبار کل',
+    'available' => 'قابل استفاده',
     'expires_at' => 'تاریخ پایان',
 
     'statuses' => [

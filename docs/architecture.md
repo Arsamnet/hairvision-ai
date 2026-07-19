@@ -1,10 +1,61 @@
 # Engineering Architecture
 
-Version: `1.0.0`
+Version: `2.0.0`
 
 This document is the canonical engineering reference for HairVision. It
 consolidates architecture, data model, setup, coding standards, frontend rules,
 security, performance, debugging, and testing expectations.
+
+## Version 2 AI Category Architecture
+
+HairVision `2.0.0` moves AI service access from fixed config-only usage keys to
+system-managed AI model categories. Categories such as `hair_transplant`,
+`eyebrow_transplant`, and future keys like `filler_under_the_eyes` are
+system-owned product capabilities. They are used consistently by plan service
+credits, tenant entitlements, public profile categories, and AI model access
+records.
+
+Core concepts:
+
+- `ai_model_categories`: system-owned usage categories, no `tenant_id`.
+- `ai_model_category_outputs`: requestable outputs for a category, including
+  the server-side prompt used for that output.
+- `ai_models`: executable v2 model instances backed by a configured type.
+- `ai_model_output_configs`: per-output model settings such as sample asset
+  path, provider parameters, or output-specific adapter configuration.
+- `lead_profiles` and `lead_source_images`: tenant/lead-scoped current source
+  image with archived previous versions.
+- `generation_requests` and `generation_attempts`: independent output requests
+  and model execution attempts.
+
+Configured model types remain code-owned in `config/ai-models.php`. The
+database never creates provider types; it creates executable instances or legacy
+access records that reference a configured type such as `sample_image` or
+`gapgpt`.
+
+The dashboard exposes category CRUD under system management. Creating an active
+category immediately makes it available in plan service-credit inputs and AI
+model access forms. For example, a system admin can create
+`filler_under_the_eyes` with the Persian name `فیلر زیر چشم`, then grant credits
+for it in a plan and create a `sample_image` or `gapgpt` model access for that
+usage category.
+
+The category dashboard is a table-based system screen with a dedicated category
+icon and row action menu. Each row exposes view/edit plus exactly one lifecycle
+action: unused categories can be deleted, while categories referenced by models,
+plans, subscriptions, credit ledger rows, or generation requests can only be
+archived. Model counts include both v2 `ai_models` and legacy
+`ai_model_accesses`; output counts come from `ai_model_category_outputs`.
+Category view includes the category summary, usage references, and the standard
+outputs table. Output creation and editing happen in modals on the same view,
+with output row actions, clear parent-category context, placeholders, and prompt
+fields for each output. Output prompts are not exposed to public visitor APIs.
+
+Plans assign one or more category codes through a clear multi-select UI but
+carry one total credit amount.
+Base plans, add-ons, and top-ups add to the active subscription's global credit
+ledger. Generation consumes the selected output's `credit_cost` from that global
+balance rather than from a service-specific bucket.
 
 ## Runtime Shape
 
@@ -37,6 +88,19 @@ Browser
 Controllers validate, authorize, call services/actions/jobs, and return JSON,
 streams, redirects, or view shells. Business logic, provider logic, billing
 rules, and tenant scoping must not be duplicated in Blade or controllers.
+
+Clinic notifications use a system-authored message plus tenant delivery rows:
+`clinic_notifications` stores the plain and sanitized rich-text message, type,
+importance, optional visibility window, and targeting rules;
+`clinic_notification_recipients` snapshots the recipient tenant and stores read
+state. The system dashboard creates immediate or scheduled messages for all
+clinics, one clinic, or selected clinics, then optionally narrows that selected
+tenant set with filters such as active/inactive plan state, AI application
+entitlement, or assigned AI model access. The clinic dashboard header reads
+unread counts only from the current `adminTenant`, and opening a message records
+the first reader and read time on that tenant delivery row. Clinic inbox lists
+show metadata only; the message body is rendered after the tenant opens the
+message.
 
 ## Tech Stack
 
@@ -120,11 +184,16 @@ submit `upload_id`, not provider, tenant, model, or credentials.
 
 Configured model definitions live in `config/ai-models.php`; access records live
 in `ai_model_accesses`; clinic assignments live in `clinic_ai_model_access`.
-Only active assigned records for the required usage category may run.
+Only active assigned records for the required usage category may run. A clinic
+may have multiple active assigned access records for the same category. Routing
+uses the lowest numeric priority first while that model has queue capacity; when
+all assigned models are at capacity, the resolver selects the model with the
+lowest active queue load and then the lowest numeric priority.
 
-`sample_image` is the protected default provider for version `1.0.0`. It returns
-configured local sample paths, does not call the internet, and does not generate
-or mutate images.
+`sample_image` is the built-in local default provider. Admins with model
+management permissions can create and edit its access records like other model
+types. It returns configured local sample paths, does not call the internet, and
+does not generate or mutate images.
 
 GapGPT image edits must use multipart form data:
 
@@ -152,10 +221,20 @@ the provider response instead of issuing a duplicate request.
 
 Public generation requires:
 
-1. active base subscription
-2. active `hair_transplant` service entitlement
-3. enough remaining service credit for the three periods
-4. active assigned AI model access for `hair_transplant`
+1. active base subscription whose purchased plan definition is still active
+2. active service entitlement for the requested AI model category
+3. active AI model category/application
+4. enough remaining service credit for the requested output or staged flow
+5. active assigned/eligible AI model access for the requested category and
+   clinic
+6. active executable model/output config for the requested output
+
+`PublicApplicationAvailabilityService` is the shared runtime gate for public
+landing bootstrap, verified profile categories, dashboard availability
+summaries, and independent generation validation. It must hide applications
+when the system admin disables the category, disables the purchased plan,
+disables the global AI model access, disables the clinic model assignment, or
+when no executable output model remains.
 
 Plan types:
 
@@ -165,8 +244,17 @@ Plan types:
 
 Service credits are stored in `subscription_service_entitlements`; all grants,
 top-ups, uses, refunds, and adjustments are recorded in `credit_transactions`.
+`balance_after` represents the total active subscription balance for the clinic.
+Clinic billing screens show the active subscription summary. The separate
+clinic report page `گزارش مصرف` under `گزارش‌های من` shows positive credit
+grants individually and aggregate usage deductions by day for transparency.
 Credit consumption uses a database transaction and row lock. Credit is consumed
 only after provider execution succeeds.
+
+Plan service keys are resolved through `ServiceCatalog`, which reads active
+`ai_model_categories` when the v2 table exists and falls back to configured
+service keys before migrations are available. This keeps deployments safe while
+allowing new categories to be created from the dashboard without code changes.
 
 Payment verification is idempotent. `invoices.activated_at` prevents repeated
 activation from repeated callbacks. Gateway/provider failures are logged with
@@ -196,6 +284,10 @@ Core tables:
 - `uploads`
 - `ai_providers`, `tenant_ai_settings`, `ai_model_accesses`,
   `clinic_ai_model_access`, `ai_model_usage_logs`
+- `ai_model_categories`, `ai_model_category_outputs`, `ai_models`,
+  `ai_model_output_configs`
+- `lead_profiles`, `lead_source_images`
+- `generation_requests`, `generation_attempts`
 - `generation_groups`, `generation_jobs`, `generated_assets`
 - `templates`, `tenant_theme_settings`
 - `audit_logs`
@@ -219,6 +311,10 @@ Required invariants:
   photos.
 - feature migrations should be consolidated into the related migration while
   the schema is not production-migrated.
+
+V1 generation tables remain for compatibility. V2 additive migrations must not
+drop `ai_model_accesses`, `generation_groups`, or `generation_jobs` in the same
+release that introduces category-based generation.
 
 ## Jalali Dates and Numbers
 
@@ -460,6 +556,8 @@ Run Horizon through Supervisor, systemd, or the hosting panel process manager.
 - Eager load detail-page relationships intentionally.
 - Keep public assets local and avoid loading dashboard code into public flows.
 - Cache system settings and clear cache after updates.
+- Runtime code must read impactful settings such as invoice due days and
+  pagination limits from `SystemSettingService`, with safe config fallbacks.
 - Keep management reports aggregate-based.
 - Keep generation outside HTTP with Redis/Horizon outside tests.
 

@@ -64,7 +64,7 @@ class GenerationService
         $provider = $this->resolveProvider($upload->tenant_id, $modelAccess, $request);
 
         foreach ($stageKeys as $stageKey) {
-            $prompt = $this->stages->promptFor($modelAccess, $stageKey);
+            $prompt = $this->stages->promptFor($usageCategoryKey, $stageKey);
 
             $job = GenerationJob::create([
                 'generation_group_id' => $group->id,

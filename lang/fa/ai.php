@@ -18,6 +18,8 @@ return [
 
         'statuses' => [
             'pending' => 'در انتظار',
+            'queued' => 'در صف ساخت',
+            'dispatched' => 'ارسال‌شده به صف',
             'processing' => 'در حال ساخت',
             'completed' => 'آماده',
             'failed' => 'ناموفق',

@@ -21,16 +21,28 @@ class GeneratedAsset extends Model
         'generation_job_id',
         'tenant_id',
         'lead_id',
+        'lead_source_image_id',
+        'ai_model_category_id',
+        'ai_model_category_output_id',
+        'generation_request_id',
+        'generation_attempt_id',
         'period',
+        'version',
+        'is_current',
         'disk',
         'path',
         'mime',
         'size',
+        'checksum',
+        'archived_at',
         'provider_metadata_json',
     ];
 
     protected $casts = [
+        'version' => 'integer',
+        'is_current' => 'boolean',
         'provider_metadata_json' => 'array',
+        'archived_at' => 'datetime',
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
     ];
@@ -53,5 +65,15 @@ class GeneratedAsset extends Model
     public function generationJob(): BelongsTo
     {
         return $this->belongsTo(GenerationJob::class, 'generation_job_id');
+    }
+
+    /**
+     * V2 generation request that produced this asset, when applicable.
+     *
+     * @return BelongsTo<GenerationRequest, $this>
+     */
+    public function generationRequest(): BelongsTo
+    {
+        return $this->belongsTo(GenerationRequest::class);
     }
 }

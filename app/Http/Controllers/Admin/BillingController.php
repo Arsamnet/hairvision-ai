@@ -66,6 +66,8 @@ class BillingController extends Controller
             'invoices' => $invoices,
             'activeSubscription' => $activeSubscription,
             'serviceSummaries' => $entitlements->summaryForSubscription($activeSubscription),
+            'remainingCredit' => $entitlements->remainingCreditForSubscription($activeSubscription),
+            'totalCredit' => $entitlements->totalCreditForSubscription($activeSubscription),
             'canManageBilling' => $canManage,
             'showActiveSubscriptionBox' => $showActiveSubscriptionBox,
         ]);

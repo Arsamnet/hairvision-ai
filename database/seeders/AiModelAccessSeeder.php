@@ -3,6 +3,9 @@
 namespace Database\Seeders;
 
 use App\Models\AiModelAccess;
+use App\Models\AiModel;
+use App\Models\AiModelCategory;
+use App\Models\AiModelCategoryOutput;
 use App\Models\Tenant;
 use App\Models\User;
 use Illuminate\Database\Seeder;
@@ -23,13 +26,13 @@ class AiModelAccessSeeder extends Seeder
                 'description' => __('ai_models.seed.demo_access_description'),
                 'credentials' => [],
                 'settings' => [],
-                'prompt' => __('ai_models.seed.demo_prompt'),
+                'prompt' => null,
                 'credit_limit' => null,
                 'credit_used' => 0,
                 'usage_count' => 0,
                 'is_active' => true,
                 'is_demo' => true,
-                'is_protected' => true,
+                'is_protected' => false,
                 'priority' => 1,
                 'created_by' => $superAdmin->id,
                 'updated_by' => $superAdmin->id,
@@ -50,13 +53,13 @@ class AiModelAccessSeeder extends Seeder
                         'eyebrow_final_result' => config('hairvision.sample_images.eyebrow_final_result'),
                     ],
                 ],
-                'prompt' => __('ai_models.seed.eyebrow_demo_prompt'),
+                'prompt' => null,
                 'credit_limit' => null,
                 'credit_used' => 0,
                 'usage_count' => 0,
                 'is_active' => true,
                 'is_demo' => true,
-                'is_protected' => true,
+                'is_protected' => false,
                 'priority' => 1,
                 'created_by' => $superAdmin->id,
                 'updated_by' => $superAdmin->id,
@@ -80,9 +83,8 @@ class AiModelAccessSeeder extends Seeder
                     'response_format' => $gapGptModelConfig['default_response_format'] ?? 'url',
                     'timeout_seconds' => $gapGptModelConfig['default_timeout'] ?? 900,
                     'connect_timeout_seconds' => $gapGptModelConfig['default_connect_timeout'] ?? 30,
-                    'stage_prompts' => $this->gapGptStagePrompts(),
                 ],
-                'prompt' => '{stage_prompt}',
+                'prompt' => null,
                 'credit_limit' => null,
                 'credit_used' => 0,
                 'usage_count' => 0,
@@ -113,9 +115,8 @@ class AiModelAccessSeeder extends Seeder
                     'response_format' => $gapGptModelConfig['default_response_format'] ?? 'url',
                     'timeout_seconds' => $gapGptModelConfig['default_timeout'] ?? 900,
                     'connect_timeout_seconds' => $gapGptModelConfig['default_connect_timeout'] ?? 30,
-                    'stage_prompts' => $this->gapGptStagePrompts(),
                 ],
-                'prompt' => '{stage_prompt}',
+                'prompt' => null,
                 'credit_limit' => null,
                 'credit_used' => 0,
                 'usage_count' => 0,
@@ -127,6 +128,9 @@ class AiModelAccessSeeder extends Seeder
                 'updated_by' => $superAdmin->id,
             ]
         );
+
+        $this->seedExecutableSampleModel('hair_transplant', 'مدل نمونه HairVision کاشت مو', $demoAccess, $superAdmin);
+        $this->seedExecutableSampleModel('eyebrow_transplant', 'مدل نمونه HairVision کاشت ابرو', $eyebrowDemoAccess, $superAdmin);
 
         Tenant::query()
             ->whereIn('slug', ['aria', 'noja'], 'and', false)
@@ -158,6 +162,62 @@ class AiModelAccessSeeder extends Seeder
                 ],
             ]);
         }
+    }
+
+    private function seedExecutableSampleModel(
+        string $categoryCode,
+        string $name,
+        AiModelAccess $legacyAccess,
+        User $superAdmin
+    ): void {
+        $category = AiModelCategory::query()
+            ->where('code', $categoryCode)
+            ->with(['outputs' => fn ($query) => $query->active()->orderBy('sort_order')])
+            ->first();
+
+        if (! $category || $category->outputs->isEmpty()) {
+            return;
+        }
+
+        $model = AiModel::query()->updateOrCreate(
+            [
+                'ai_model_category_id' => $category->id,
+                'type' => 'sample_image',
+                'name' => $name,
+            ],
+            [
+                'status' => 'active',
+                'priority' => $legacyAccess->priority,
+                'concurrency_limit' => (int) data_get(config('ai-models.types.sample_image'), 'defaults.concurrency_limit', 10),
+                'settings' => [],
+                'credentials' => [],
+                'health_status' => 'healthy',
+                'legacy_ai_model_access_id' => $legacyAccess->id,
+                'created_by' => $superAdmin->id,
+                'updated_by' => $superAdmin->id,
+            ]
+        );
+
+        $category->outputs->each(function (AiModelCategoryOutput $output) use ($model): void {
+            $model->outputConfigs()->updateOrCreate(
+                [
+                    'ai_model_category_output_id' => $output->id,
+                ],
+                [
+                    'is_active' => true,
+                    'configuration' => [
+                        'sample_path' => $this->samplePathForOutput($output->code),
+                    ],
+                ]
+            );
+        });
+    }
+
+    private function samplePathForOutput(string $outputCode): string
+    {
+        return config('hairvision.generation.stages.'.$outputCode.'.sample_image')
+            ?? config('hairvision.sample_images.'.$outputCode)
+            ?? 'sample-results/'.$outputCode.'.jpg';
     }
 
     /**

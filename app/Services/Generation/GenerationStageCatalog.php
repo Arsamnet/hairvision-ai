@@ -2,7 +2,7 @@
 
 namespace App\Services\Generation;
 
-use App\Models\AiModelAccess;
+use App\Models\AiModelCategoryOutput;
 
 /**
  * Central source for public generation stages by service category.
@@ -88,31 +88,20 @@ class GenerationStageCatalog
         return is_string($prompt) ? $prompt : 'Create one realistic hair transplant preview image.';
     }
 
-    public function promptFor(AiModelAccess $access, string $stageKey): string
+    public function promptFor(string $usageCategoryKey, string $stageKey): string
     {
         $stageKey = $this->normalizeKey($stageKey);
-        $stagePrompt = data_get($access->settings ?? [], 'stage_prompts.'.$stageKey);
 
-        if (is_string($stagePrompt) && trim($stagePrompt) !== '') {
-            return $stagePrompt;
+        $outputPrompt = AiModelCategoryOutput::query()
+            ->where('code', $stageKey)
+            ->whereHas('category', fn ($query) => $query->where('code', $usageCategoryKey))
+            ->value('prompt');
+
+        if (is_string($outputPrompt) && trim($outputPrompt) !== '') {
+            return $outputPrompt;
         }
 
-        $basePrompt = trim((string) $access->prompt);
-        $defaultPrompt = $this->defaultPrompt($stageKey);
-
-        if ($basePrompt === '') {
-            return $defaultPrompt;
-        }
-
-        if (! str_contains($basePrompt, '{stage_prompt}')) {
-            return $basePrompt."\n\n".$defaultPrompt;
-        }
-
-        return strtr($basePrompt, [
-            '{stage_key}' => $stageKey,
-            '{stage_label}' => $this->label($stageKey),
-            '{stage_prompt}' => $defaultPrompt,
-        ]);
+        return $this->defaultPrompt($stageKey);
     }
 
     /**

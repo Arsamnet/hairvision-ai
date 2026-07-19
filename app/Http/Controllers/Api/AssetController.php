@@ -53,6 +53,14 @@ class AssetController extends Controller
     }
 
     /**
+     * Stream endpoint alias used by v2 generation resources.
+     */
+    public function stream(Request $request, string $uuid, LeadSessionService $leadSessionService): Response
+    {
+        return $this->show($request, $uuid, $leadSessionService);
+    }
+
+    /**
      * Get the tenant resolved by tenant middleware.
      */
     private function tenantFromRequest(Request $request, string $scope): Tenant

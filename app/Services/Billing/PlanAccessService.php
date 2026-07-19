@@ -35,6 +35,16 @@ class PlanAccessService
         if ($tenant instanceof Tenant) {
             $subscription = $this->entitlements->activeBaseSubscriptionForTenant($tenant);
 
+            if (! $subscription instanceof Subscription) {
+                $subscription = Subscription::query()
+                    ->with('plan')
+                    ->where('tenant_id', $tenant->id)
+                    ->whereHas('plan', fn ($query) => $query->where('plan_type', 'base_subscription'))
+                    ->latest('starts_at')
+                    ->latest('id')
+                    ->first();
+            }
+
         } else {
             $subscription = null;
 
@@ -61,6 +71,10 @@ class PlanAccessService
             $subscription->refresh();
 
             return $this->state(PlanAccessStatus::Expired, false, $subscription);
+        }
+
+        if ($subscription->status === 'active' && $subscription->plan?->status !== 'active') {
+            return $this->state(PlanAccessStatus::PlanDisabled, false, $subscription);
         }
 
         if ($subscription->status === 'active') {
@@ -99,6 +113,7 @@ class PlanAccessService
             'message_key' => match ($status) {
                 PlanAccessStatus::Expired => 'permissions.plan_expired',
                 PlanAccessStatus::CreditFinished => 'permissions.plan_credit_finished',
+                PlanAccessStatus::PlanDisabled => 'permissions.plan_disabled_by_system',
                 PlanAccessStatus::Inactive => 'permissions.plan_required',
                 default => 'dashboard.plan.'.$status->value,
             },

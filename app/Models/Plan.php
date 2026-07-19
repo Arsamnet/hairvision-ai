@@ -106,4 +106,25 @@ class Plan extends Model
 
         return [(string) $serviceKey => (int) $this->usage_limit];
     }
+
+    /**
+     * Return usage category keys unlocked by this plan.
+     *
+     * @return array<int, string>
+     */
+    public function serviceKeys(): array
+    {
+        $keys = $this->serviceEntitlements
+            ->where('is_active', true)
+            ->pluck('service_key')
+            ->map(fn (mixed $key): string => (string) $key)
+            ->values()
+            ->all();
+
+        if ($keys !== []) {
+            return $keys;
+        }
+
+        return [(string) ($this->service_key ?: 'hair_transplant')];
+    }
 }

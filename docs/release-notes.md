@@ -1,5 +1,97 @@
 # Release Notes
 
+## 2.0.0
+
+HairVision `2.0.0` starts the category-based AI model architecture.
+
+### Product
+
+- System admins can manage AI model usage categories from the dashboard.
+- System admins can activate or deactivate each AI application/category from
+  the category list; inactive applications are hidden from every clinic landing
+  page.
+- The category dashboard now uses the standard table layout, a dedicated
+  category icon, row-click view pages, inline output tables with add/edit
+  modals, and lifecycle-safe archive/delete actions.
+- Category outputs now require their own prompt; generation attempts snapshot
+  and use the selected output prompt while public APIs keep prompts hidden.
+- Active categories are available in plan service-credit forms.
+- Plan create/edit forms present category assignment as clearer multi-select
+  application options.
+- Active categories are available in AI model access forms.
+- Clinic model assignment dropdowns show every active model access and disable
+  records that are already assigned to the clinic.
+- Clinic dashboards now show landing application availability and explain when
+  an application is hidden because a system admin disabled the category, the
+  purchased plan, or the AI model used by that clinic.
+- System admins can send typed, importance-labeled rich-text notifications to
+  all clinics, one clinic, or selected clinics, then narrow those recipients by
+  active/inactive plan state, AI application, or assigned-model filters.
+- The notification composer shows a live count of clinics matching the current
+  selection and all active recipient filters.
+- Notifications can be sent immediately without a display window or scheduled
+  with explicit visibility dates.
+- Clinic dashboards now include a persistent unread notification badge in the
+  header and a tenant-scoped messages page with read tracking and a mark-all-read
+  action. Message bodies stay hidden in the list until the clinic opens them.
+- Newly created categories such as `filler_under_the_eyes` / `فیلر زیر چشم`
+  can be used without a code deploy.
+- `sample_image` and `gapgpt` can be selected for dynamically created
+  categories, and seeded demo records are unprotected and editable by permitted
+  system admins.
+
+### Architecture
+
+- Added `ai_model_categories` and `ai_model_category_outputs`.
+- Added executable v2 model tables: `ai_models` and
+  `ai_model_output_configs`.
+- Added public profile/source image tables and independent generation request
+  tables.
+- Added clinic notification and tenant delivery/read-state tables.
+- Added schema-driven model type registry in `config/ai-models.php`.
+- `ServiceCatalog` now reads active database categories and falls back to config
+  before migrations are available.
+- `AiModelResolver` now accepts database categories and wildcard model support.
+- Clinics can keep multiple active AI model assignments for one usage category.
+  Routing chooses the lowest numeric priority model while it has capacity, then
+  falls back to the least-loaded model when all assigned models are busy.
+- Public landing/profile category visibility is resolved by one shared
+  availability service that checks active category, active purchased plan,
+  active entitlement, active global model access, active clinic assignment, and
+  executable output configuration.
+- Plans now use one total credit amount with one or more assigned categories.
+  Base plans, add-ons, and top-ups contribute to the active clinic subscription's
+  global credit balance; output `credit_cost` is deducted from that total.
+- The clinic credit timeline moved to the standalone `گزارش مصرف` page under
+  `گزارش‌های من`, with individual grants/top-ups and daily aggregated usage
+  deductions.
+- System settings now use practical controls and affect invoice due days and
+  pagination limits at runtime.
+
+### API
+
+- Added public profile endpoints for current source image, categories, and
+  generation history.
+- Added independent output generation on `POST /api/v1/generations` while
+  preserving the legacy staged upload flow.
+- Added scoped asset stream alias: `GET /api/v1/assets/{uuid}/stream`.
+- Added authenticated system APIs for type registry, categories, outputs, and
+  v2 model instances.
+
+### Quality
+
+- Tests cover dynamic category creation, category visibility in plans, plan
+  service-credit persistence, category visibility in AI model forms, and
+  creating a sample-image model access for a new category.
+- Tests cover category archive/delete lifecycle rules and multiple active clinic
+  model assignments routed by priority and queue capacity.
+- Tests cover system category deactivation, global model deactivation, and
+  purchased plan deactivation hiding public applications and surfacing the
+  reason in the clinic dashboard.
+- Tests cover system-created clinic notifications, unread header counts,
+  tenant-scoped read tracking, mark-all-read, selected-clinic delivery,
+  inactive-plan targeting, and conditional recipient filters.
+
 ## 1.0.0
 
 HairVision `1.0.0` is the first complete release of the Laravel 13

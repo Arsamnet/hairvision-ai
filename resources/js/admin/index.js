@@ -6,6 +6,7 @@ import { bootMobileMenu, closeMobileMenu } from './mobile-menu.js';
 import { bootResponsiveControls } from './responsive-controls.js';
 import { bootSearchControls } from './search-controls.js';
 import { bootJalaliDatepickers } from './jalali-datepickers.js';
+import { bootNotifications } from './notifications.js';
 
 const closeUserMenus = () => {
     document.querySelectorAll('[data-admin-user-menu][open]').forEach((menu) => {
@@ -33,6 +34,7 @@ export const bootAdmin = () => {
     bootResponsiveControls();
     bootSearchControls();
     bootJalaliDatepickers();
+    bootNotifications();
 
     document.addEventListener('keydown', (event) => {
         if (event.key !== 'Escape') {

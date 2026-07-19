@@ -7,7 +7,11 @@ use App\Http\Controllers\Controller;
 use App\Models\Tenant;
 use App\Services\Admin\LeadDashboardService;
 use App\Services\Admin\SystemOverviewService;
+use App\Services\Billing\BillingService;
+use App\Services\Billing\CreditLedgerService;
 use App\Services\Billing\ServiceEntitlementService;
+use App\Services\Visitor\PublicApplicationAvailabilityService;
+use App\Support\Tenancy\HostClassifier;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\View\View;
@@ -26,7 +30,8 @@ class DashboardController extends Controller
         Request $request,
         LeadDashboardService $leads,
         SystemOverviewService $overview,
-        ServiceEntitlementService $entitlements
+        ServiceEntitlementService $entitlements,
+        PublicApplicationAvailabilityService $availability
     ): View {
         $scope = 'admin.dashboard.index';
 
@@ -60,13 +65,20 @@ class DashboardController extends Controller
         $convertedCount = $query ? (clone $query)->where('crm_stage', 'converted')->count() : 0;
         $recentLeads = $query ? (clone $query)->with('tenant')->latest()->limit(6)->get() : new Collection;
         $serviceSummaries = $entitlements->summaryForSubscription($activeSubscription);
+        $planSubscription = is_array($planAccess) ? ($planAccess['subscription'] ?? null) : null;
+        $dashboardSubscription = $activeSubscription ?: $planSubscription;
+        $applicationSummaries = $tenant instanceof Tenant
+            ? $availability->summariesForSubscription($tenant, $dashboardSubscription)
+            : collect();
 
         return view('admin.dashboard', [
             'tenant' => $tenant,
             'availableTenants' => $availableTenants,
             'planAccess' => $planAccess,
             'activeSubscription' => $activeSubscription,
+            'planSubscription' => $planSubscription,
             'serviceSummaries' => $serviceSummaries,
+            'applicationSummaries' => $applicationSummaries,
             'leadCount' => $leadCount,
             'newLeadCount' => $newLeadCount,
             'followUpCount' => $followUpCount,
@@ -102,6 +114,32 @@ class DashboardController extends Controller
             'availableTenants' => $availableTenants,
             'stageCounts' => $stageCounts,
             'tenantCounts' => $tenantCounts,
+        ]);
+    }
+
+    /**
+     * Show the clinic credit usage report.
+     */
+    public function creditUsageReport(
+        Request $request,
+        BillingService $billing,
+        ServiceEntitlementService $entitlements,
+        CreditLedgerService $ledger
+    ): View {
+        $tenant = $request->attributes->get('adminTenant');
+        $availableTenants = $request->attributes->get('adminTenants');
+        $activeSubscription = HostClassifier::isPrimaryHost($request->getHost())
+            ? null
+            : ($request->attributes->get('activeSubscription') ?: $billing->activeSubscription($request->user(), $tenant));
+
+        return view('admin.reports.credit-usage', [
+            'tenant' => $tenant,
+            'availableTenants' => $availableTenants,
+            'activeSubscription' => $activeSubscription,
+            'serviceSummaries' => $entitlements->summaryForSubscription($activeSubscription),
+            'remainingCredit' => $entitlements->remainingCreditForSubscription($activeSubscription),
+            'totalCredit' => $entitlements->totalCreditForSubscription($activeSubscription),
+            'creditTimeline' => $ledger->timelineForSubscription($activeSubscription),
         ]);
     }
 

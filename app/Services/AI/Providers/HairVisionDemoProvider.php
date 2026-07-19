@@ -68,7 +68,10 @@ class HairVisionDemoProvider implements AiModelProviderInterface
         GenerationStageCatalog $catalog,
         string $scope
     ): ?string {
-        $configured = data_get($request->settings, 'demo_images.'.$stageKey)
+        $configured = data_get($request->payload, 'output_config.sample_path')
+            ?? data_get($request->payload, 'sample_path')
+            ?? data_get($request->settings, 'sample_path')
+            ?? data_get($request->settings, 'demo_images.'.$stageKey)
             ?? $catalog->sampleImagePath($stageKey)
             ?? config('hairvision.sample_images.'.$stageKey);
 

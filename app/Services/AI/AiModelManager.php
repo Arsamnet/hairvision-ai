@@ -3,6 +3,7 @@
 namespace App\Services\AI;
 
 use App\Models\AiModelAccess;
+use App\Models\GenerationJob;
 use App\Models\Tenant;
 use App\Models\User;
 use App\Support\Pagination\PaginationParameters;
@@ -21,7 +22,10 @@ use Illuminate\Validation\ValidationException;
  */
 class AiModelManager
 {
-    public function __construct(private readonly AiModelResolver $resolver) {}
+    public function __construct(
+        private readonly AiModelResolver $resolver,
+        private readonly ExecutableAiModelSyncService $executableModels,
+    ) {}
 
     /**
      * Paginate AI model access records for admin screens.
@@ -66,7 +70,6 @@ class AiModelManager
             ->when($request->filled('flag'), function (Builder $query) use ($request): void {
                 match ($request->string('flag')->toString()) {
                     'demo' => $query->where('is_demo', true),
-                    'protected' => $query->where('is_protected', true),
                     default => null,
                 };
             })
@@ -104,6 +107,8 @@ class AiModelManager
             'updated_by' => $actor->id,
         ]);
 
+        $this->executableModels->sync($access, $actor);
+
         return $access;
     }
 
@@ -125,6 +130,7 @@ class AiModelManager
         ]);
 
         $access->refresh();
+        $this->executableModels->sync($access, $actor);
 
         return $access;
     }
@@ -144,6 +150,7 @@ class AiModelManager
         ])->save();
 
         $access->refresh();
+        $this->executableModels->sync($access, $actor);
 
         return $access;
     }
@@ -157,12 +164,6 @@ class AiModelManager
         $step = 0;
 
         $step++;
-        if ($access->is_protected) {
-            throw ValidationException::withMessages([
-                'ai_model_access' => __('ai_models.errors.protected_delete'),
-            ]);
-        }
-
         $accessId = $access->id;
 
         AiModelAccess::query()
@@ -193,26 +194,38 @@ class AiModelManager
             $step++;
         }
 
-        $access = $query
+        $accesses = $query
             ->orderByRaw('priority is null')
             ->orderBy('priority')
             ->orderBy('id')
-            ->first();
+            ->get()
+            ->filter(fn (AiModelAccess $access): bool => $access->hasAvailableCredit())
+            ->values();
 
         $step++;
-        if (! $access) {
+        if ($accesses->isEmpty()) {
+            $hasAssignedModels = $query->exists();
+
+            if ($hasAssignedModels) {
+                throw ValidationException::withMessages([
+                    'ai_model_access' => __('ai_models.errors.credit_finished'),
+                ]);
+            }
+
             throw ValidationException::withMessages([
                 'ai_model_access' => __('ai_models.errors.no_assigned_model'),
             ]);
         }
 
-        if (! $access->hasAvailableCredit()) {
-            throw ValidationException::withMessages([
-                'ai_model_access' => __('ai_models.errors.credit_finished'),
-            ]);
-        }
+        $loads = $this->activeQueueLoads($clinic, $accesses->pluck('id')->all());
 
-        return $access;
+        $withCapacity = $accesses->filter(fn (AiModelAccess $access): bool => ($loads[$access->id] ?? 0) < $this->concurrencyLimitForAccess($access));
+
+        $selected = $withCapacity->isNotEmpty()
+            ? $this->sortAccessesByPriority($withCapacity, $loads)->first()
+            : $this->sortAccessesByLoad($accesses, $loads)->first();
+
+        return $selected;
     }
 
     /**
@@ -238,6 +251,78 @@ class AiModelManager
             ->get();
 
         return $accesses;
+    }
+
+    /**
+     * Count unfinished legacy generation jobs per assigned model.
+     *
+     * @param  array<int, int>  $accessIds
+     * @return array<int, int>
+     */
+    private function activeQueueLoads(Tenant $clinic, array $accessIds): array
+    {
+        if ($accessIds === []) {
+            return [];
+        }
+
+        return GenerationJob::query()
+            ->where('tenant_id', $clinic->id)
+            ->whereIn('ai_model_access_id', $accessIds)
+            ->whereIn('status', ['pending', 'processing'])
+            ->selectRaw('ai_model_access_id, count(*) as aggregate')
+            ->groupBy('ai_model_access_id')
+            ->pluck('aggregate', 'ai_model_access_id')
+            ->map(fn (mixed $count): int => (int) $count)
+            ->all();
+    }
+
+    /**
+     * @param  Collection<int, AiModelAccess>  $accesses
+     * @param  array<int, int>  $loads
+     * @return Collection<int, AiModelAccess>
+     */
+    private function sortAccessesByPriority(Collection $accesses, array $loads): Collection
+    {
+        return $accesses
+            ->sort(fn (AiModelAccess $first, AiModelAccess $second): int => [
+                $first->priority ?? PHP_INT_MAX,
+                $loads[$first->id] ?? 0,
+                $first->id,
+            ] <=> [
+                $second->priority ?? PHP_INT_MAX,
+                $loads[$second->id] ?? 0,
+                $second->id,
+            ])
+            ->values();
+    }
+
+    /**
+     * @param  Collection<int, AiModelAccess>  $accesses
+     * @param  array<int, int>  $loads
+     * @return Collection<int, AiModelAccess>
+     */
+    private function sortAccessesByLoad(Collection $accesses, array $loads): Collection
+    {
+        return $accesses
+            ->sort(fn (AiModelAccess $first, AiModelAccess $second): int => [
+                $loads[$first->id] ?? 0,
+                $first->priority ?? PHP_INT_MAX,
+                $first->id,
+            ] <=> [
+                $loads[$second->id] ?? 0,
+                $second->priority ?? PHP_INT_MAX,
+                $second->id,
+            ])
+            ->values();
+    }
+
+    private function concurrencyLimitForAccess(AiModelAccess $access): int
+    {
+        return max(1, (int) data_get(
+            $access->settings,
+            'concurrency_limit',
+            data_get(config('ai-models.models.'.$access->model_key.'.defaults'), 'concurrency_limit', 1)
+        ));
     }
 
     /**
@@ -296,12 +381,12 @@ class AiModelManager
             'description' => $data['description'] ?? null,
             'credentials' => array_filter($credentials, fn (mixed $value): bool => filled($value)),
             'settings' => $this->filteredSettings((array) ($data['settings'] ?? $access?->settings ?? [])),
-            'prompt' => $data['prompt'] ?? null,
+            'prompt' => null,
             'credit_limit' => filled($data['credit_limit'] ?? null) ? (int) $data['credit_limit'] : null,
             'is_active' => (bool) ($data['is_active'] ?? false),
             'priority' => filled($data['priority'] ?? null) ? (int) $data['priority'] : null,
             'is_demo' => (bool) ($data['is_demo'] ?? $access?->is_demo ?? false),
-            'is_protected' => (bool) ($data['is_protected'] ?? $access?->is_protected ?? false),
+            'is_protected' => false,
         ];
     }
 
@@ -313,6 +398,8 @@ class AiModelManager
      */
     private function filteredSettings(array $settings): array
     {
+        unset($settings['stage_prompts']);
+
         return collect($settings)
             ->map(fn (mixed $value): mixed => is_array($value) ? $this->filteredSettings($value) : $value)
             ->filter(fn (mixed $value): bool => is_array($value) ? $value !== [] : filled($value))

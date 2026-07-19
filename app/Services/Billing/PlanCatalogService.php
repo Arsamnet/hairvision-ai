@@ -31,7 +31,7 @@ class PlanCatalogService
 
                 $plan = Plan::create($attributes);
 
-                $this->syncServiceCredits($plan, $data['service_credits'] ?? [], $scope);
+                $this->syncServiceCredits($plan, $data, $scope);
 
                 $plan->refresh();
 
@@ -59,7 +59,7 @@ class PlanCatalogService
 
                 $plan->update($attributes);
 
-                $this->syncServiceCredits($plan, $data['service_credits'] ?? [], $scope);
+                $this->syncServiceCredits($plan, $data, $scope);
 
                 $plan->refresh();
 
@@ -78,20 +78,20 @@ class PlanCatalogService
      */
     private function planAttributes(array $data, ?Plan $plan = null, string $scope = 'billing.plan_catalog.attributes'): array
     {
-        $credits = $this->normalizedCredits($data['service_credits'] ?? []);
+        $serviceKeys = $this->normalizedServiceKeys($data);
 
         $planType = PlanType::from($data['plan_type'] ?? $plan?->plan_type?->value ?? PlanType::BaseSubscription->value);
-        $firstService = array_key_first($credits) ?: ($data['service_key'] ?? $this->services->defaultServiceKey());
+        $firstService = $serviceKeys[0] ?? ($data['service_key'] ?? $this->services->defaultServiceKey());
 
         $attributes = [
             'name' => $data['name'],
             'description' => $data['description'] ?? null,
             'plan_type' => $planType,
-            'service_key' => $planType === PlanType::BaseSubscription && count($credits) > 1 ? null : $firstService,
+            'service_key' => count($serviceKeys) > 1 ? null : $firstService,
             'price' => (int) $data['price'],
             'currency' => $data['currency'],
             'duration_days' => $planType === PlanType::CreditTopUp ? null : (int) ($data['duration_days'] ?? 0),
-            'usage_limit' => array_sum($credits),
+            'usage_limit' => (int) ($data['usage_limit'] ?? 0),
             'features_json' => $plan?->features_json ?? [],
             'is_public' => (bool) ($data['is_public'] ?? false),
             'status' => $data['status'],
@@ -101,11 +101,11 @@ class PlanCatalogService
     }
 
     /**
-     * @param  array<string, mixed>  $credits
+     * @param  array<string, mixed>  $data
      */
-    private function syncServiceCredits(Plan $plan, array $credits, string $scope = 'billing.plan_catalog.service_credits'): void
+    private function syncServiceCredits(Plan $plan, array $data, string $scope = 'billing.plan_catalog.service_credits'): void
     {
-        $normalized = $this->normalizedCredits($credits);
+        $normalized = $this->normalizedPlanEntitlements($plan, $data);
         $keep = [];
 
         foreach ($normalized as $serviceKey => $credit) {
@@ -128,6 +128,24 @@ class PlanCatalogService
     }
 
     /**
+     * @return array<string, int>
+     */
+    private function normalizedPlanEntitlements(Plan $plan, array $data): array
+    {
+        $serviceKeys = $this->normalizedServiceKeys($data);
+
+        if ($serviceKeys === []) {
+            $serviceKeys = [$this->services->defaultServiceKey()];
+        }
+
+        $usageLimit = (int) $plan->usage_limit;
+
+        return collect($serviceKeys)
+            ->mapWithKeys(fn (string $serviceKey, int $index): array => [$serviceKey => $index === 0 ? $usageLimit : 0])
+            ->all();
+    }
+
+    /**
      * @param  array<string, mixed>  $credits
      * @return array<string, int>
      */
@@ -137,6 +155,33 @@ class PlanCatalogService
             ->mapWithKeys(fn (mixed $credit, string|int $serviceKey): array => [(string) $serviceKey => (int) $credit])
             ->filter(fn (int $credit, string $serviceKey): bool => $credit > 0 && $this->services->has($serviceKey))
             ->all();
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     * @return array<int, string>
+     */
+    private function normalizedServiceKeys(array $data): array
+    {
+        $keys = collect($data['service_keys'] ?? [])
+            ->map(fn (mixed $serviceKey): string => (string) $serviceKey)
+            ->filter(fn (string $serviceKey): bool => $this->services->has($serviceKey))
+            ->unique()
+            ->values();
+
+        if ($keys->isNotEmpty()) {
+            return $keys->all();
+        }
+
+        $credits = $this->normalizedCredits((array) ($data['service_credits'] ?? []));
+
+        if ($credits !== []) {
+            return array_keys($credits);
+        }
+
+        $serviceKey = (string) ($data['service_key'] ?? $this->services->defaultServiceKey());
+
+        return $this->services->has($serviceKey) ? [$serviceKey] : [];
     }
 
     private function resetDebugSteps(): void {}

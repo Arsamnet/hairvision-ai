@@ -34,7 +34,7 @@
                 ['name' => 'model_key', 'label' => __('ai_models.model'), 'type' => 'select', 'placeholder' => __('ai_models.all_models'), 'options' => collect(array_keys($models))->mapWithKeys(fn ($key) => [$key => $resolver->modelLabel($key)])->all()],
                 ['name' => 'usage_category_key', 'label' => __('ai_models.usage_category'), 'type' => 'select', 'placeholder' => __('ai_models.all_categories'), 'options' => collect(array_keys($usageCategories))->mapWithKeys(fn ($key) => [$key => $resolver->usageCategoryLabel($key)])->all()],
                 ['name' => 'status', 'label' => __('ai_models.status'), 'type' => 'select', 'placeholder' => __('ai_models.all_statuses'), 'options' => ['active' => __('ai_models.statuses.active'), 'inactive' => __('ai_models.statuses.inactive')]],
-                ['name' => 'flag', 'label' => __('ai_models.flags.normal'), 'type' => 'select', 'placeholder' => __('ai_models.all_flags'), 'options' => ['demo' => __('ai_models.flags.demo'), 'protected' => __('ai_models.flags.protected')]],
+                ['name' => 'flag', 'label' => __('ai_models.flags.normal'), 'type' => 'select', 'placeholder' => __('ai_models.all_flags'), 'options' => ['demo' => __('ai_models.flags.demo')]],
                 ['name' => 'credit_status', 'label' => __('ai_models.remaining_credit'), 'type' => 'select', 'placeholder' => __('ai_models.all_credit_statuses'), 'options' => collect(['available', 'finished', 'unlimited'])->mapWithKeys(fn ($status) => [$status => __('ai_models.credit_statuses.'.$status)])->all()],
             ]"
             :sorts="[
@@ -86,9 +86,6 @@
                                 <div class="mt-1 flex flex-wrap gap-1">
                                     @if($access->is_demo)
                                         <x-admin.badge tone="teal">{{ __('ai_models.flags.demo') }}</x-admin.badge>
-                                    @endif
-                                    @if($access->is_protected)
-                                        <x-admin.badge tone="amber">{{ __('ai_models.flags.protected') }}</x-admin.badge>
                                     @endif
                                 </div>
                             </td>
@@ -145,9 +142,6 @@
                     <div class="flex flex-wrap gap-1">
                         @if($access->is_demo)
                             <x-admin.badge tone="teal">{{ __('ai_models.flags.demo') }}</x-admin.badge>
-                        @endif
-                        @if($access->is_protected)
-                            <x-admin.badge tone="amber">{{ __('ai_models.flags.protected') }}</x-admin.badge>
                         @endif
                     </div>
 

@@ -18,8 +18,13 @@
         $planAccess = request()->attributes->get('planAccess', ['allowed' => true, 'status' => null, 'subscription' => null]);
         $planAllowsAccess = (bool) ($planAccess['allowed'] ?? true);
         $activeSubscription = $activeSubscription ?? request()->attributes->get('activeSubscription');
-        $serviceSummaries = $serviceSummaries ?? app(\App\Services\Billing\ServiceEntitlementService::class)->summaryForSubscription($activeSubscription);
-        $remainingServiceCredit = $activeSubscription ? $serviceSummaries->sum('remaining_credit') : 0;
+        $entitlementService = app(\App\Services\Billing\ServiceEntitlementService::class);
+        $serviceSummaries = $serviceSummaries ?? $entitlementService->summaryForSubscription($activeSubscription);
+        $remainingServiceCredit = $entitlementService->remainingCreditForSubscription($activeSubscription);
+        $canSeeClinicNotifications = $tenant && ($user?->hasPermission('notifications.view', $tenant?->id) ?? false);
+        $unreadClinicNotifications = $canSeeClinicNotifications
+            ? app(\App\Services\Notifications\ClinicNotificationService::class)->unreadCountForTenant($tenant)
+            : 0;
 
         $menuGroups = [
             [
@@ -59,6 +64,8 @@
                 'icon' => 'settings',
                 'items' => [
                     ['label' => __('menu.items.clinics'), 'route' => 'admin.clinics.index', 'active' => ['admin.clinics.index', 'admin.clinics.edit'], 'icon' => 'building', 'permissions' => ['tenants.list']],
+                    ['label' => __('menu.items.system_notifications'), 'route' => 'admin.system.notifications.index', 'active' => ['admin.system.notifications.*'], 'icon' => 'bell', 'permissions' => ['notifications.manage']],
+                    ['label' => __('menu.items.ai_model_categories'), 'route' => 'admin.system.ai-model-categories.index', 'active' => ['admin.system.ai-model-categories.*'], 'icon' => 'category', 'permissions' => ['ai_model_categories.view']],
                     ['label' => __('menu.items.ai_models'), 'route' => 'admin.ai-models.index', 'active' => ['admin.ai-models.*', 'admin.clinics.ai-models.*'], 'icon' => 'sparkles', 'permissions' => ['ai_models.list']],
                 ],
             ],
@@ -67,6 +74,7 @@
                 'icon' => 'chart',
                 'items' => [
                     ['label' => __('menu.items.user_reports'), 'route' => 'admin.reports', 'active' => ['admin.reports'], 'icon' => 'chart', 'permissions' => ['reports.user.view'], 'planRestricted' => true],
+                    ['label' => __('menu.items.credit_usage_report'), 'route' => 'admin.reports.credit-usage', 'active' => ['admin.reports.credit-usage'], 'icon' => 'credit-card', 'permissions' => ['reports.user.view'], 'planRestricted' => true, 'clinicOnly' => true],
                     ['label' => __('menu.items.management_reports'), 'route' => 'admin.system.reports.index', 'active' => ['admin.system.reports.*'], 'icon' => 'chart', 'permissions' => ['reports.management.view']],
                 ],
             ],
@@ -163,7 +171,15 @@
                         </a>
                     </div>
 
-                    <div class="admin-mobile-topbar-side admin-mobile-topbar-user">
+                    <div class="admin-mobile-topbar-side admin-mobile-topbar-user flex items-center justify-end gap-2">
+                        @if($canSeeClinicNotifications)
+                            <a href="{{ route('admin.notifications.index') }}" class="admin-icon-button admin-notification-button" aria-label="{{ __('notifications.inbox') }}" title="{{ __('notifications.inbox') }}">
+                                <x-admin.icon name="bell" class="h-5 w-5" />
+                                @if($unreadClinicNotifications > 0)
+                                    <span class="admin-notification-badge" dir="ltr">{{ $unreadClinicNotifications > 99 ? '99+' : number_format($unreadClinicNotifications) }}</span>
+                                @endif
+                            </a>
+                        @endif
                         @include('admin.partials.user-menu', [
                             'menuClass' => 'admin-user-menu admin-mobile-user-menu',
                             'triggerClass' => 'admin-user-menu-trigger admin-user-menu-avatar-trigger',
@@ -185,6 +201,15 @@
                             </span>
                         @elseif(($planAccess['status']->value ?? null) !== 'exempt')
                             <span class="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-bold text-amber-800">{{ __('dashboard.plan.'.($planAccess['status']->value ?? 'inactive')) }}</span>
+                        @endif
+
+                        @if($canSeeClinicNotifications)
+                            <a href="{{ route('admin.notifications.index') }}" class="admin-icon-button admin-notification-button" aria-label="{{ __('notifications.inbox') }}" title="{{ __('notifications.inbox') }}">
+                                <x-admin.icon name="bell" class="h-5 w-5" />
+                                @if($unreadClinicNotifications > 0)
+                                    <span class="admin-notification-badge" dir="ltr">{{ $unreadClinicNotifications > 99 ? '99+' : number_format($unreadClinicNotifications) }}</span>
+                                @endif
+                            </a>
                         @endif
 
                         @include('admin.partials.user-menu')

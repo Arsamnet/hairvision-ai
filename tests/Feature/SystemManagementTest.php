@@ -149,7 +149,7 @@ class SystemManagementTest extends TestCase
         $this->assertSame('کلینیک دمو', $demoTenant->name);
         $this->assertDatabaseHas('tenant_domains', [
             'tenant_id' => $demoTenant->id,
-            'domain' => 'demo.hairbision-ai.test',
+            'domain' => 'demo.hairvision-ai.test',
             'status' => 'active',
         ]);
         $this->assertSame('مهسا فرهمند', $demoAdmin->name);
@@ -1266,7 +1266,7 @@ class SystemManagementTest extends TestCase
             ->get('/admin/plans?'.http_build_query(['search' => 'پلن مدیریتی', 'status' => 'active', 'sort' => 'name', 'direction' => 'asc']))
             ->assertOk()
             ->assertSee('پلن مدیریتی')
-            ->assertSee(__('plans.hidden_from_clinics'))
+            ->assertSee(__('plans.statuses.active'))
             ->assertSee('create-plan-modal-toggle', false)
             ->assertSee('data-admin-modal-trigger="edit-plan-', false)
             ->assertSee('data-admin-table-container', false)
@@ -1279,12 +1279,17 @@ class SystemManagementTest extends TestCase
             '/<details[^>]*data-table-action-menu[^>]*>(?:(?!<\/details>).)*data-admin-modal-trigger="edit-plan-\d+"(?:(?!<\/details>).)*<\/details>/s',
             $plansResponse->getContent()
         );
+        $this->assertMatchesRegularExpression(
+            '/<input name="service_keys\[\]" type="checkbox" value="[^"]+" class="(?![^"]*\bsr-only\b)[^"]*"/',
+            $plansResponse->getContent()
+        );
 
         $this->actingAs($normalUser)
             ->forHost('hairvision-ai.test')
             ->get('/admin/plans')
             ->assertOk()
             ->assertSee(__('plans.current_plan'))
+            ->assertSee('data-current-plan="true"', false)
             ->assertSee(__('plans.same_active_plan_blocked'))
             ->assertSee(__('plans.fields.plan_type'))
             ->assertDontSee('پلن مدیریتی')
@@ -1952,6 +1957,8 @@ class SystemManagementTest extends TestCase
         $this->assertStringContainsString('export const closeActionMenus', file_get_contents($actionMenus));
         $this->assertStringContainsString('export const closeModal', file_get_contents($modals));
         $this->assertStringContainsString('preserveScrollPosition', file_get_contents($modals));
+        $this->assertStringContainsString('const modalTriggerSelector', file_get_contents($modals));
+        $this->assertStringContainsString('event.preventDefault();'.PHP_EOL.'        openModal(trigger.dataset.adminModalTrigger);', file_get_contents($modals));
         $this->assertStringContainsString('export const bootConfirmationModal', file_get_contents($confirmationModal));
         $this->assertStringContainsString('data-jdp-init-date', file_get_contents($jalaliDatepickers));
         $this->assertStringNotContainsString("initDate: 'attr'", file_get_contents($jalaliDatepickers));

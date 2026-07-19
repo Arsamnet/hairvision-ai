@@ -59,7 +59,7 @@
                 @method('PUT')
                 @include('admin.ai-models.form', [
                     'access' => $aiModelAccess,
-                    'models' => [$aiModelAccess->model_key => $modelConfig],
+                    'models' => $models,
                     'usageCategories' => $usageCategories,
                     'resolver' => $resolver,
                     'formKey' => 'edit_ai_model_access',

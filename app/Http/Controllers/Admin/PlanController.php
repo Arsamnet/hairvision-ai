@@ -9,8 +9,8 @@ use App\Models\Plan;
 use App\Models\Tenant;
 use App\Services\Billing\BillingService;
 use App\Services\Billing\PlanCatalogService;
-use App\Services\Billing\ServiceEntitlementService;
 use App\Services\Billing\ServiceCatalog;
+use App\Services\Billing\ServiceEntitlementService;
 use App\Support\Pagination\PaginationParameters;
 use App\Support\Query\DateRangeFilter;
 use App\Support\Query\SearchFilter;
@@ -57,6 +57,7 @@ class PlanController extends Controller
             'canManagePlans' => $canManagePlans,
             'activeSubscription' => $request->attributes->get('activeSubscription'),
             'serviceOptions' => $services->options(),
+            'serviceIcons' => $services->icons(),
             'planPurchaseStates' => $this->purchaseStates(
                 $plans->getCollection(),
                 $tenant instanceof Tenant ? $tenant : null,
@@ -70,6 +71,23 @@ class PlanController extends Controller
         $plans->create($request->validated());
 
         return back()->with('status', __('plans.created'));
+    }
+
+    public function show(Request $request, Plan $plan): View
+    {
+        $canManagePlans = $request->user()->hasAnyPermission(['plans.create', 'plans.edit', 'plans.delete', 'plans.manage']);
+        abort_unless($canManagePlans || ($plan->status === 'active' && $plan->is_public), 404);
+
+        $plan->load('serviceEntitlements');
+
+        return view('admin.plans.show', [
+            'tenant' => $request->attributes->get('adminTenant'),
+            'availableTenants' => $request->attributes->get('adminTenants'),
+            'plan' => $plan,
+            'serviceOptions' => app(ServiceCatalog::class)->options(),
+            'serviceIcons' => app(ServiceCatalog::class)->icons(),
+            'canManagePlans' => $canManagePlans,
+        ]);
     }
 
     public function update(UpdatePlanRequest $request, Plan $plan, PlanCatalogService $plans): RedirectResponse
@@ -110,23 +128,14 @@ class PlanController extends Controller
         $states = [];
 
         foreach ($plans as $plan) {
-            $serviceCredits = $plan->serviceCredits();
-            $serviceKeys = array_keys($serviceCredits);
-            $availableServices = collect($serviceCredits)
-                ->filter(function (int $credit, string $serviceKey) use ($tenant, $entitlements, $plan): bool {
+            $serviceKeys = $plan->serviceKeys();
+            $availableServices = collect($serviceKeys)
+                ->filter(function (string $serviceKey) use ($tenant, $entitlements): bool {
                     if (! $tenant) {
                         return false;
                     }
 
-                    $entitlement = $entitlements->activeEntitlement($tenant, $serviceKey);
-
-                    if (! $entitlement) {
-                        return false;
-                    }
-
-                    return $plan->isBaseSubscription()
-                        ? $entitlement->totalCredit() >= $credit
-                        : true;
+                    return (bool) $entitlements->activeEntitlement($tenant, $serviceKey);
                 })
                 ->values()
                 ->all();
@@ -149,7 +158,10 @@ class PlanController extends Controller
             } elseif ($activeSubscription?->plan_id === $plan->id) {
                 $canPurchase = false;
                 $reason = __('plans.same_active_plan_blocked');
-            } elseif ($hasAllServices) {
+            } elseif ($plan->isBaseSubscription() && $hasAllServices && $activeSubscription && $entitlements->totalCreditForSubscription($activeSubscription) >= (int) $plan->usage_limit) {
+                $canPurchase = false;
+                $reason = __('plans.purchase_disabled.already_available');
+            } elseif (! $plan->isBaseSubscription() && $hasAllServices) {
                 $canPurchase = false;
                 $reason = __('plans.purchase_disabled.already_available');
             }

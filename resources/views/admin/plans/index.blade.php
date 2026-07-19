@@ -24,6 +24,7 @@
                         </select>
                         <input name="price" type="number" class="h-11 rounded-lg border border-zinc-200 px-3 text-sm outline-none focus:border-teal-500" placeholder="{{ __('plans.fields.price') }}">
                         <input name="duration_days" type="number" class="h-11 rounded-lg border border-zinc-200 px-3 text-sm outline-none focus:border-teal-500" placeholder="{{ __('plans.fields.duration_days') }}">
+                        <input name="usage_limit" type="number" min="1" class="h-11 rounded-lg border border-zinc-200 px-3 text-sm outline-none focus:border-teal-500" placeholder="{{ __('plans.credit_amount') }}">
                         <input name="currency" value="ریال" class="h-11 rounded-lg border border-zinc-200 px-3 text-sm outline-none focus:border-teal-500" placeholder="{{ __('plans.fields.currency') }}">
                         <select name="status" class="h-11 rounded-lg border border-zinc-200 px-3 text-sm outline-none focus:border-teal-500">
                             @foreach(__('plans.statuses') as $status => $label)
@@ -34,14 +35,30 @@
                             <input name="is_public" type="checkbox" value="1" class="rounded border-zinc-300 text-teal-600" checked>
                             <span>{{ __('plans.visible_to_clinics') }}</span>
                         </label>
-                        <div class="grid gap-2 lg:col-span-4 lg:grid-cols-2">
-                            @foreach($serviceOptions as $serviceKey => $serviceLabel)
-                                <label class="text-xs font-bold text-zinc-600">
-                                    <span>{{ $serviceLabel }}</span>
-                                    <input name="service_credits[{{ $serviceKey }}]" type="number" min="0" value="{{ old('service_credits.'.$serviceKey, $serviceKey === 'hair_transplant' ? 100 : 0) }}" class="mt-1 h-11 w-full rounded-lg border border-zinc-200 px-3 text-sm outline-none focus:border-teal-500" placeholder="{{ __('plans.fields.usage_limit') }}">
+	                        <fieldset class="lg:col-span-4">
+	                            <legend class="mb-2 text-sm font-bold text-zinc-700">{{ __('plans.assigned_services') }}</legend>
+	                            @php
+	                                $selectedServiceKeys = old('_form') === 'create_plan'
+	                                    ? old('service_keys', ['hair_transplant'])
+	                                    : ['hair_transplant'];
+	                            @endphp
+	                            <div class="grid gap-2 md:grid-cols-2 xl:grid-cols-3">
+	                            @foreach($serviceOptions as $serviceKey => $serviceLabel)
+	                                <label class="flex min-h-16 cursor-pointer items-start gap-3 rounded-lg border border-zinc-200 bg-white px-3 py-3 text-sm transition has-[:checked]:border-teal-500 has-[:checked]:bg-teal-50">
+	                                    <input name="service_keys[]" type="checkbox" value="{{ $serviceKey }}" class="mt-1 rounded border-zinc-300 text-teal-600 focus:ring-teal-500" @checked(in_array($serviceKey, $selectedServiceKeys, true))>
+	                                    <span class="flex min-w-0 items-start gap-3">
+		                                        <span class="mt-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-zinc-50 text-teal-700 ring-1 ring-zinc-100">
+		                                            <x-admin.category-icon :icon="$serviceIcons[$serviceKey] ?? null" class="h-4 w-4" />
+		                                        </span>
+	                                        <span class="min-w-0">
+	                                            <span class="block font-bold text-zinc-800">{{ $serviceLabel }}</span>
+                                            <span class="mt-1 block truncate text-xs font-bold text-zinc-500" dir="ltr">{{ $serviceKey }}</span>
+                                        </span>
+                                    </span>
                                 </label>
                             @endforeach
-                        </div>
+                            </div>
+                        </fieldset>
                         <input name="description" class="h-11 rounded-lg border border-zinc-200 px-3 text-sm outline-none focus:border-teal-500 lg:col-span-3" placeholder="{{ __('plans.fields.description') }}">
                         <x-admin.button type="submit" icon="package">
                             <span>{{ __('plans.create') }}</span>
@@ -78,7 +95,8 @@
                             <th class="w-14 px-4 py-3">{{ __('messages.actions') }}</th>
                             <th class="px-4 py-3"><x-admin.table.sortable-heading sort="name" :label="__('plans.fields.name')" /></th>
                             <th class="px-4 py-3"><x-admin.table.sortable-heading sort="plan_type" :label="__('plans.fields.plan_type')" /></th>
-                            <th class="px-4 py-3">{{ __('plans.service_credits') }}</th>
+                        <th class="px-4 py-3">{{ __('plans.assigned_services') }}</th>
+                        <th class="px-4 py-3"><x-admin.table.sortable-heading sort="usage_limit" :label="__('plans.credit_amount')" /></th>
                             <th class="px-4 py-3"><x-admin.table.sortable-heading sort="price" :label="__('plans.fields.price')" /></th>
                             <th class="px-4 py-3"><x-admin.table.sortable-heading sort="duration_days" :label="__('plans.fields.duration_days')" /></th>
                             <th class="px-4 py-3"><x-admin.table.sortable-heading sort="status" :label="__('plans.fields.status')" /></th>
@@ -87,11 +105,12 @@
                     <tbody class="divide-y divide-zinc-100">
                         @forelse($plans as $plan)
                             @php
-                                $creditInputs = collect($plan->serviceCredits())->mapWithKeys(fn ($credit, $serviceKey) => ['service_credits['.$serviceKey.']' => $credit])->all();
+                                $serviceKeys = $plan->serviceKeys();
                             @endphp
                             <tr class="transition hover:bg-zinc-50/80">
                                 <td class="px-4 py-3 align-top">
                                     <x-admin.table.action-menu>
+                                        <x-admin.table.action-item :href="route('admin.plans.show', $plan)" icon="eye">{{ __('messages.view') }}</x-admin.table.action-item>
                                         <label
                                             for="edit-plan-{{ $plan->id }}-toggle"
                                             class="flex w-full cursor-pointer items-center gap-2 px-3 py-2 text-right text-xs font-bold text-zinc-700 transition hover:bg-teal-50 hover:text-teal-700"
@@ -103,25 +122,6 @@
                                             <x-admin.icon name="edit" class="h-4 w-4" />
                                             <span>{{ __('plans.edit') }}</span>
                                         </label>
-                                        <x-admin.table.action-item
-                                            :action="route('admin.system.plans.update', $plan)"
-                                            method="PUT"
-                                            icon="check"
-                                            :inputs="[
-                                                'name' => $plan->name,
-                                                'description' => $plan->description,
-                                                'plan_type' => $plan->plan_type->value,
-                                                'service_key' => $plan->service_key,
-                                                'price' => $plan->price,
-                                                'currency' => $plan->currency,
-                                                'duration_days' => $plan->duration_days,
-                                                'usage_limit' => $plan->usage_limit,
-                                                'is_public' => $plan->is_public ? 1 : 0,
-                                                'status' => $plan->status === 'active' ? 'inactive' : 'active',
-                                            ] + $creditInputs"
-                                        >
-                                            {{ $plan->status === 'active' ? __('plans.statuses.inactive') : __('plans.statuses.active') }}
-                                        </x-admin.table.action-item>
                                         <x-admin.table.action-item :action="route('admin.system.plans.destroy', $plan)" method="DELETE" icon="trash" danger :confirm="__('messages.confirm_delete')">{{ __('plans.delete') }}</x-admin.table.action-item>
                                     </x-admin.table.action-menu>
                                 </td>
@@ -134,23 +134,23 @@
                                 </td>
                                 <td class="px-4 py-3">
                                     <div class="flex flex-wrap gap-1">
-                                        @foreach($plan->serviceCredits() as $serviceKey => $credit)
-                                            <span class="rounded-full bg-zinc-100 px-2 py-1 text-xs text-nowrap font-bold text-zinc-700">{{ $serviceOptions[$serviceKey] ?? $serviceKey }}: {{ number_format($credit) }}</span>
+                                        @foreach($serviceKeys as $serviceKey)
+                                            <span class="rounded-full bg-zinc-100 px-2 py-1 text-xs text-nowrap font-bold text-zinc-700">{{ $serviceOptions[$serviceKey] ?? $serviceKey }}</span>
                                         @endforeach
                                     </div>
                                 </td>
+                                <td class="px-4 py-3" dir="ltr">{{ number_format($plan->usage_limit) }}</td>
                                 <td class="px-4 py-3" dir="ltr">{{ number_format($plan->price) }} {{ $plan->currency }}</td>
                                 <td class="px-4 py-3">{{ $plan->duration_days ? number_format($plan->duration_days) : __('messages.none') }}</td>
-                                <td class="px-4 py-3">
-                                    <div class="flex flex-wrap gap-1">
-                                        <x-admin.badge :tone="$plan->status === 'active' ? 'emerald' : 'zinc'">{{ __('plans.statuses.'.$plan->status) }}</x-admin.badge>
-                                        <x-admin.badge :tone="$plan->is_public ? 'teal' : 'amber'">{{ $plan->is_public ? __('plans.visible_to_clinics') : __('plans.hidden_from_clinics') }}</x-admin.badge>
-                                    </div>
-                                </td>
+	                                <td class="px-4 py-3">
+	                                    <div class="flex flex-wrap gap-1">
+	                                        <x-admin.badge :tone="$plan->status === 'active' ? 'emerald' : 'zinc'">{{ __('plans.statuses.'.$plan->status) }}</x-admin.badge>
+	                                    </div>
+	                                </td>
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="7" class="px-4 py-12">
+                                <td colspan="8" class="px-4 py-12">
                                     <x-admin.empty-state icon="package">{{ __('plans.empty') }}</x-admin.empty-state>
                                 </td>
                             </tr>
@@ -162,7 +162,7 @@
             <x-admin.mobile-list>
                 @forelse($plans as $plan)
                     @php
-                        $creditInputs = collect($plan->serviceCredits())->mapWithKeys(fn ($credit, $serviceKey) => ['service_credits['.$serviceKey.']' => $credit])->all();
+                        $serviceKeys = $plan->serviceKeys();
                     @endphp
                     <x-admin.mobile-list.card>
                         <div class="admin-mobile-list-card-header">
@@ -171,6 +171,7 @@
                                 <p class="admin-mobile-list-card-subtitle">{{ $plan->description ?: __('messages.none') }}</p>
                             </div>
                             <x-admin.table.action-menu>
+                                <x-admin.table.action-item :href="route('admin.plans.show', $plan)" icon="eye">{{ __('messages.view') }}</x-admin.table.action-item>
                                 <label
                                     for="edit-plan-{{ $plan->id }}-toggle"
                                     class="flex w-full cursor-pointer items-center gap-2 px-3 py-2 text-right text-xs font-bold text-zinc-700 transition hover:bg-teal-50 hover:text-teal-700"
@@ -182,25 +183,6 @@
                                     <x-admin.icon name="edit" class="h-4 w-4" />
                                     <span>{{ __('plans.edit') }}</span>
                                 </label>
-                                <x-admin.table.action-item
-                                    :action="route('admin.system.plans.update', $plan)"
-                                    method="PUT"
-                                    icon="check"
-                                    :inputs="[
-                                        'name' => $plan->name,
-                                        'description' => $plan->description,
-                                        'plan_type' => $plan->plan_type->value,
-                                        'service_key' => $plan->service_key,
-                                        'price' => $plan->price,
-                                        'currency' => $plan->currency,
-                                        'duration_days' => $plan->duration_days,
-                                        'usage_limit' => $plan->usage_limit,
-                                        'is_public' => $plan->is_public ? 1 : 0,
-                                        'status' => $plan->status === 'active' ? 'inactive' : 'active',
-                                    ] + $creditInputs"
-                                >
-                                    {{ $plan->status === 'active' ? __('plans.statuses.inactive') : __('plans.statuses.active') }}
-                                </x-admin.table.action-item>
                                 <x-admin.table.action-item :action="route('admin.system.plans.destroy', $plan)" method="DELETE" icon="trash" danger :confirm="__('messages.confirm_delete')">{{ __('plans.delete') }}</x-admin.table.action-item>
                             </x-admin.table.action-menu>
                         </div>
@@ -218,9 +200,10 @@
                                     <x-admin.badge :tone="$plan->is_public ? 'teal' : 'amber'">{{ $plan->is_public ? __('plans.visible_to_clinics') : __('plans.hidden_from_clinics') }}</x-admin.badge>
                                 </div>
                             </x-admin.mobile-list.field>
-                            <x-admin.mobile-list.field :label="__('plans.service_credits')">
-                                <span class="truncate">{{ collect($plan->serviceCredits())->map(fn ($credit, $serviceKey) => ($serviceOptions[$serviceKey] ?? $serviceKey).': '.number_format($credit))->join('، ') ?: __('messages.none') }}</span>
+                            <x-admin.mobile-list.field :label="__('plans.assigned_services')">
+                                <span class="truncate">{{ collect($serviceKeys)->map(fn ($serviceKey) => $serviceOptions[$serviceKey] ?? $serviceKey)->join('، ') ?: __('messages.none') }}</span>
                             </x-admin.mobile-list.field>
+                            <x-admin.mobile-list.field :label="__('plans.credit_amount')">{{ number_format($plan->usage_limit) }}</x-admin.mobile-list.field>
                         </dl>
                     </x-admin.mobile-list.card>
                 @empty
@@ -252,6 +235,7 @@
                         </select>
                         <input name="price" type="number" value="{{ old('price', $plan->price) }}" class="h-11 rounded-lg border border-zinc-200 px-3 text-sm outline-none focus:border-teal-500" placeholder="{{ __('plans.fields.price') }}">
                         <input name="duration_days" type="number" value="{{ old('duration_days', $plan->duration_days) }}" class="h-11 rounded-lg border border-zinc-200 px-3 text-sm outline-none focus:border-teal-500" placeholder="{{ __('plans.fields.duration_days') }}">
+                        <input name="usage_limit" type="number" min="1" value="{{ old('usage_limit', $plan->usage_limit) }}" class="h-11 rounded-lg border border-zinc-200 px-3 text-sm outline-none focus:border-teal-500" placeholder="{{ __('plans.credit_amount') }}">
                         <input name="currency" value="{{ old('currency', $plan->currency) }}" class="h-11 rounded-lg border border-zinc-200 px-3 text-sm outline-none focus:border-teal-500" placeholder="{{ __('plans.fields.currency') }}">
                         <select name="status" class="h-11 rounded-lg border border-zinc-200 px-3 text-sm outline-none focus:border-teal-500">
                             @foreach(__('plans.statuses') as $status => $label)
@@ -262,14 +246,30 @@
                             <input name="is_public" type="checkbox" value="1" class="rounded border-zinc-300 text-teal-600" @checked(old('is_public', $plan->is_public))>
                             <span>{{ __('plans.visible_to_clinics') }}</span>
                         </label>
-                        <div class="grid gap-2 lg:col-span-4 lg:grid-cols-2">
-                            @foreach($serviceOptions as $serviceKey => $serviceLabel)
-                                <label class="text-xs font-bold text-zinc-600">
-                                    <span>{{ $serviceLabel }}</span>
-                                    <input name="service_credits[{{ $serviceKey }}]" type="number" min="0" value="{{ old('service_credits.'.$serviceKey, $plan->serviceCredits()[$serviceKey] ?? 0) }}" class="mt-1 h-11 w-full rounded-lg border border-zinc-200 px-3 text-sm outline-none focus:border-teal-500" placeholder="{{ __('plans.fields.usage_limit') }}">
+	                        <fieldset class="lg:col-span-4">
+	                            <legend class="mb-2 text-sm font-bold text-zinc-700">{{ __('plans.assigned_services') }}</legend>
+	                            @php
+	                                $selectedServiceKeys = old('_form') === 'edit_plan_'.$plan->id
+	                                    ? old('service_keys', $plan->serviceKeys())
+	                                    : $plan->serviceKeys();
+	                            @endphp
+	                            <div class="grid gap-2 md:grid-cols-2 xl:grid-cols-3">
+	                            @foreach($serviceOptions as $serviceKey => $serviceLabel)
+	                                <label class="flex min-h-16 cursor-pointer items-start gap-3 rounded-lg border border-zinc-200 bg-white px-3 py-3 text-sm transition has-[:checked]:border-teal-500 has-[:checked]:bg-teal-50">
+	                                    <input name="service_keys[]" type="checkbox" value="{{ $serviceKey }}" class="mt-1 rounded border-zinc-300 text-teal-600 focus:ring-teal-500" @checked(in_array($serviceKey, $selectedServiceKeys, true))>
+	                                    <span class="flex min-w-0 items-start gap-3">
+		                                        <span class="mt-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-zinc-50 text-teal-700 ring-1 ring-zinc-100">
+		                                            <x-admin.category-icon :icon="$serviceIcons[$serviceKey] ?? null" class="h-4 w-4" />
+		                                        </span>
+	                                        <span class="min-w-0">
+	                                            <span class="block font-bold text-zinc-800">{{ $serviceLabel }}</span>
+                                            <span class="mt-1 block truncate text-xs font-bold text-zinc-500" dir="ltr">{{ $serviceKey }}</span>
+                                        </span>
+                                    </span>
                                 </label>
                             @endforeach
-                        </div>
+                            </div>
+                        </fieldset>
                         <input name="description" value="{{ old('description', $plan->description) }}" class="h-11 rounded-lg border border-zinc-200 px-3 text-sm outline-none focus:border-teal-500 lg:col-span-3" placeholder="{{ __('plans.fields.description') }}">
                         <x-admin.button type="submit" icon="check">
                             <span>{{ __('plans.update') }}</span>
@@ -317,73 +317,79 @@
             ]"
         />
 
-        <div class="grid gap-4 lg:grid-cols-2 xl:grid-cols-3">
+        <div class="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
             @forelse($plans as $plan)
                 @php
                     $state = $planPurchaseStates[$plan->id] ?? ['can_purchase' => true, 'reason' => null];
                     $typeTone = $plan->isCreditTopUp() ? 'amber' : ($plan->isServiceAddOn() ? 'teal' : 'emerald');
+                    $isCurrentPlan = $activeSubscription?->plan_id === $plan->id;
+                    $cardClasses = $isCurrentPlan
+                        ? 'border-emerald-300 bg-emerald-50/80 ring-emerald-200'
+                        : 'border-zinc-200 bg-white ring-zinc-200';
+                    $metricClasses = $isCurrentPlan
+                        ? 'bg-white/85 text-emerald-950 ring-emerald-100'
+                        : 'bg-zinc-50 text-zinc-950 ring-zinc-100';
                 @endphp
-                <section class="flex min-h-full flex-col rounded-lg bg-white p-5 shadow-sm ring-1 ring-zinc-200 transition hover:-translate-y-0.5 hover:shadow-md">
-                    <div class="flex items-start justify-between gap-3">
+                <section
+                    class="flex min-h-full flex-col rounded-lg border p-4 shadow-sm ring-1 transition hover:-translate-y-0.5 hover:shadow-md {{ $cardClasses }}"
+                    @if($isCurrentPlan) data-current-plan="true" @endif
+                >
+                    <div class="flex items-start justify-between gap-2">
                         <div class="min-w-0">
-                            <h2 class="break-words text-lg font-bold leading-7 text-zinc-950">{{ $plan->name }}</h2>
-                            <p class="mt-1 text-sm leading-6 text-zinc-500">{{ $plan->description }}</p>
+                            <h2 class="break-words text-base font-bold leading-6 text-zinc-950">{{ $plan->name }}</h2>
+                            @if($plan->description)
+                                <p class="mt-1 line-clamp-2 text-xs leading-5 {{ $isCurrentPlan ? 'text-emerald-800' : 'text-zinc-500' }}">{{ $plan->description }}</p>
+                            @endif
                         </div>
-                        <x-admin.badge :tone="$typeTone">{{ __('plans.types.'.$plan->plan_type->value) }}</x-admin.badge>
+                        <div class="flex shrink-0 flex-col items-end gap-1.5">
+                            @if($isCurrentPlan)
+                                <x-admin.badge tone="emerald">{{ __('plans.current_plan') }}</x-admin.badge>
+                            @endif
+                            <x-admin.badge :tone="$typeTone">{{ __('plans.types.'.$plan->plan_type->value) }}</x-admin.badge>
+                        </div>
                     </div>
 
-                    <dl class="mt-4 grid gap-3 text-sm sm:grid-cols-2">
-                        <div class="flex min-w-0 items-start gap-2 rounded-lg bg-zinc-50 p-3">
-                            <span class="mt-0.5 grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-white text-teal-700 ring-1 ring-zinc-100">
-                                <x-admin.icon name="credit-card" class="h-3.5 w-3.5" />
-                            </span>
-                            <div class="min-w-0">
-                                <dt class="text-xs font-bold text-zinc-500">{{ __('plans.fields.price') }}</dt>
-                                <dd class="mt-1 break-words font-bold leading-6 text-zinc-950">{{ number_format($plan->price) }} {{ $plan->currency }}</dd>
-                            </div>
+                    <dl class="mt-3 grid grid-cols-3 gap-2 text-xs">
+                        <div class="min-w-0 rounded-lg px-2.5 py-2 ring-1 {{ $metricClasses }}">
+                            <dt class="font-bold text-zinc-500">{{ __('plans.fields.price') }}</dt>
+                            <dd class="mt-1 break-words font-bold leading-5">{{ number_format($plan->price) }} {{ $plan->currency }}</dd>
                         </div>
-                        <div class="flex min-w-0 items-start gap-2 rounded-lg bg-zinc-50 p-3">
-                            <span class="mt-0.5 grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-white text-teal-700 ring-1 ring-zinc-100">
-                                <x-admin.icon name="calendar" class="h-3.5 w-3.5" />
-                            </span>
-                            <div class="min-w-0">
-                                <dt class="text-xs font-bold text-zinc-500">{{ __('plans.fields.duration_days') }}</dt>
-                                <dd class="mt-1 break-words font-bold leading-6 text-zinc-950">{{ $plan->duration_days ? number_format($plan->duration_days) : __('messages.none') }}</dd>
-                            </div>
+                        <div class="min-w-0 rounded-lg px-2.5 py-2 ring-1 {{ $metricClasses }}">
+                            <dt class="font-bold text-zinc-500">{{ __('plans.fields.duration_days') }}</dt>
+                            <dd class="mt-1 break-words font-bold leading-5">{{ $plan->duration_days ? number_format($plan->duration_days) : __('messages.none') }}</dd>
                         </div>
-                        <div class="flex min-w-0 items-start gap-2 rounded-lg bg-zinc-50 p-3">
-                            <span class="mt-0.5 grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-white text-teal-700 ring-1 ring-zinc-100">
-                                <x-admin.icon name="package" class="h-3.5 w-3.5" />
-                            </span>
-                            <div class="min-w-0">
-                                <dt class="text-xs font-bold text-zinc-500">{{ __('plans.fields.usage_limit') }}</dt>
-                                <dd class="mt-1 break-words font-bold leading-6 text-zinc-950">{{ number_format($plan->usage_limit) }}</dd>
-                            </div>
+                        <div class="min-w-0 rounded-lg px-2.5 py-2 ring-1 {{ $metricClasses }}">
+                            <dt class="font-bold text-zinc-500">{{ __('plans.fields.usage_limit') }}</dt>
+                            <dd class="mt-1 break-words font-bold leading-5">{{ number_format($plan->usage_limit) }}</dd>
                         </div>
                     </dl>
 
-                    <div class="mt-3 flex flex-wrap gap-2">
-                        @foreach($plan->serviceCredits() as $serviceKey => $credit)
-                            <span class="inline-flex max-w-full items-start gap-1.5 rounded-lg bg-teal-50 px-2.5 py-1.5 text-xs font-bold text-teal-700">
-                                <x-admin.icon name="sparkles" class="mt-0.5 h-3.5 w-3.5" />
-                                <span class="min-w-0 break-words leading-5">{{ $serviceOptions[$serviceKey] ?? $serviceKey }}: {{ number_format($credit) }}</span>
+                    <div class="mt-3 flex flex-wrap gap-1.5">
+                        @foreach($plan->serviceKeys() as $serviceKey)
+                            <span class="inline-flex max-w-full items-start gap-1.5 rounded-lg px-2 py-1 text-xs font-bold {{ $isCurrentPlan ? 'bg-emerald-100 text-emerald-800' : 'bg-teal-50 text-teal-700' }}">
+	                                <x-admin.category-icon :icon="$serviceIcons[$serviceKey] ?? null" class="mt-0.5 h-3 w-3" />
+                                <span class="min-w-0 break-words leading-5">{{ $serviceOptions[$serviceKey] ?? $serviceKey }}</span>
                             </span>
                         @endforeach
                     </div>
 
-                    <div class="mt-auto flex flex-wrap items-center gap-2 pt-4">
+                    <div class="mt-auto flex flex-wrap items-center gap-2 pt-3">
+                        <x-admin.button :href="route('admin.plans.show', $plan)" variant="secondary" size="compact-sm" icon="eye" icon-class="h-3.5 w-3.5">
+                            <span>{{ __('messages.view') }}</span>
+                        </x-admin.button>
+
                         @can('permission', 'billing.pay')
                             @if(! $state['can_purchase'])
-                                <x-admin.button type="button" variant="subtle" size="sm" icon="lock" class="cursor-not-allowed text-zinc-500 hover:bg-zinc-100" disabled aria-disabled="true">
+                                <x-admin.button type="button" variant="subtle" size="compact-sm" icon="lock" icon-class="h-3.5 w-3.5" class="cursor-not-allowed text-zinc-500 hover:bg-zinc-100" disabled aria-disabled="true">
                                     <span>{{ __('plans.not_purchasable') }}</span>
                                 </x-admin.button>
                                 @if($state['reason'])
-                                    <p class="text-xs font-bold leading-6 text-amber-700">{{ $state['reason'] }}</p>
+                                    <p class="basis-full text-xs font-bold leading-5 {{ $isCurrentPlan ? 'text-emerald-800' : 'text-amber-700' }}">{{ $state['reason'] }}</p>
                                 @endif
                             @else
                                 <form method="POST" action="{{ route('admin.plans.purchase', $plan) }}">
                                     @csrf
-                                    <x-admin.button type="submit" variant="teal" size="sm" icon="credit-card">
+                                    <x-admin.button type="submit" variant="teal" size="compact-sm" icon="credit-card" icon-class="h-3.5 w-3.5">
                                         <span>{{ $plan->isCreditTopUp() ? __('plans.buy_top_up') : ($plan->isServiceAddOn() ? __('plans.buy_add_on') : ($activeSubscription ? __('plans.upgrade') : __('plans.purchase_or_upgrade'))) }}</span>
                                     </x-admin.button>
                                 </form>

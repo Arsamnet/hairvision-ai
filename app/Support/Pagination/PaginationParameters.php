@@ -2,6 +2,7 @@
 
 namespace App\Support\Pagination;
 
+use App\Services\Settings\SystemSettingService;
 use Illuminate\Http\Request;
 
 /**
@@ -30,8 +31,19 @@ class PaginationParameters
         string $defaultSort = 'created_at',
         string $defaultDirection = 'desc'
     ): self {
-        $maxPerPage = (int) config('hairvision.pagination.max_per_page', 100);
-        $defaultPerPage = (int) config('hairvision.pagination.default_per_page', 15);
+        $settings = app(SystemSettingService::class);
+        $maxPerPage = (int) rescue(
+            fn () => $settings->get('api.pagination.max_per_page', config('hairvision.pagination.max_per_page', 100)),
+            config('hairvision.pagination.max_per_page', 100),
+            report: false
+        );
+        $defaultPerPage = (int) rescue(
+            fn () => $settings->get('api.pagination.default_per_page', config('hairvision.pagination.default_per_page', 15)),
+            config('hairvision.pagination.default_per_page', 15),
+            report: false
+        );
+        $maxPerPage = max(1, min($maxPerPage, 500));
+        $defaultPerPage = max(1, min($defaultPerPage, $maxPerPage));
         $perPageInput = $request->input('per_page', $defaultPerPage);
         $perPage = max(1, min((int) $perPageInput, $maxPerPage));
         $page = (int) $request->input('page', 1);

@@ -1,26 +1,98 @@
 # سند جامع قوانین محصول HairVision
 
-نسخه: `1.0.0`
+نسخه: `2.0.0`
 
 این سند مرجع فارسی قوانین حاکم بر HairVision است. هر تصمیم محصولی، فنی،
 امنیتی، مالی یا عملیاتی باید با این سند سازگار باشد. اگر قانون جدیدی برای
-محصول لازم شد، ابتدا همین سند به‌روزرسانی می‌شود و سپس کد تغییر می‌کند.
+محصول لازم شد، ابتدا همین سند به‌روزرسانی و سپس کد، تست‌ها و مستندات فنی مطابق
+آن تغییر داده می‌شوند.
+
+نسخه `2.0.0` ساختار ثابت «سه تصویر کاشت مو» را به یک پلتفرم عمومی،
+دسته‌بندی‌شده و قابل توسعه برای سرویس‌های تولید تصویر تبدیل می‌کند. در این
+نسخه دسته‌بندی مدل، نوع مدل، نمونه اجرایی مدل، خروجی قابل درخواست، دسترسی
+کلینیک و صف اجرای مدل مفاهیم مستقل هستند.
+
+## خلاصه تغییرات نسخه 2.0.0
+
+- دسته‌بندی‌های مدل هوش مصنوعی به منابع سیستمی قابل مدیریت با API و CRUD تبدیل
+  می‌شوند.
+- دسته‌بندی‌هایی مانند `hair_transplant` و `eyebrow_transplant` مبنای خرید،
+  entitlement و دسترسی کلینیک هستند.
+- نوع مدل مانند `sample_image` و `gapgpt` در فایل کانفیگ تعریف می‌شود و از طریق
+  دیتابیس ساخته یا حذف نمی‌شود.
+- هر رکورد مدل در دیتابیس یک نمونه اجرایی و قابل صف‌بندی از یک نوع مدل است.
+- فرم تنظیم مدل بر اساس schema تعریف‌شده در کانفیگ نوع مدل به صورت پویا ساخته
+  می‌شود.
+- خروجی‌ها دیگر به سه مرحله ثابت محدود نیستند و هر خروجی به صورت مستقل و به
+  درخواست مراجعه‌کننده تولید می‌شود.
+- در هر دسته‌بندی می‌توان چند مدل فعال داشت و درخواست‌ها بین مدل‌های واجد شرایط
+  با صف منطقی مستقل توزیع می‌شوند.
+- پروفایل مراجعه‌کننده در هر کلینیک یک تصویر اصلی جاری دارد؛ تصاویر قبلی و
+  خروجی‌های جایگزین‌شده برای آرشیو کلینیک نگهداری می‌شوند.
+- یک شماره موبایل می‌تواند در چند کلینیک lead مستقل داشته باشد، بدون اینکه
+  اطلاعات یا تصاویر بین tenantها به اشتراک گذاشته شود.
 
 ## هویت محصول
 
-HairVision یک SaaS چندمستاجری کامل برای کلینیک‌های کاشت مو است. هر کلینیک یک
-tenant مستقل دارد. مراجعه‌کننده از دامنه اختصاصی یا زیردامنه کلینیک وارد
-می‌شود، شماره موبایل را با OTP تایید می‌کند، به عنوان lead همان کلینیک ثبت
-می‌شود، تصویر چهره/اسکالپ را به صورت خصوصی بارگذاری می‌کند و سه خروجی
-مرحله‌ای دریافت می‌کند:
+HairVision یک SaaS چندمستاجری برای کلینیک‌هایی است که سرویس‌های مبتنی بر تولید
+یا ویرایش تصویر، از جمله کاشت مو و کاشت ابرو، ارائه می‌کنند. هر کلینیک یک
+`tenant` مستقل دارد. مراجعه‌کننده از دامنه اختصاصی یا زیردامنه کلینیک وارد
+می‌شود، شماره موبایل خود را با OTP تایید می‌کند، به عنوان lead همان کلینیک ثبت
+می‌شود، یک تصویر اصلی خصوصی بارگذاری می‌کند و سپس هر یک از خروجی‌های مجاز
+دسته‌بندی‌های خریداری‌شده توسط کلینیک را به صورت مستقل درخواست می‌کند.
+
+نمونه دسته‌بندی‌ها:
+
+- کاشت مو: `hair_transplant`
+- کاشت ابرو: `eyebrow_transplant`
+
+نمونه خروجی‌های دسته‌بندی کاشت مو:
 
 - دو هفته بعد از کاشت: `two_weeks`
 - مرحله رشد میانی: `intermediate_regrowth`
 - نتیجه نهایی: `final_result`
 
-نسخه `1.0.0` نخستین نسخه کامل محصول است و شامل جریان عمومی، داشبورد مدیریت،
-مدیریت مدل‌های AI، پلن‌ها، پرداخت، entitlement سرویس، اعتبار مصرفی، گزارش‌ها،
-تنظیمات سیستم و قوانین امنیتی مرتبط است.
+این خروجی‌ها فقط seed اولیه هستند. تعداد، عنوان و ترتیب خروجی‌های هر دسته‌بندی
+باید از داشبورد سیستم قابل مدیریت باشد و منطق عمومی نباید به این سه کلید hard
+code شود.
+
+## واژگان و مرز مفاهیم
+
+### دسته‌بندی مدل
+
+`AI Model Category` یک قابلیت محصولی قابل خرید و قابل ارائه به کلینیک است؛
+برای مثال کاشت مو یا کاشت ابرو. دسته‌بندی مبنای entitlement، اعتبار، نمایش در
+رابط مراجعه‌کننده و انتخاب pool مدل‌ها است.
+
+### خروجی دسته‌بندی
+
+`Category Output` یک نتیجه مستقل و قابل درخواست در یک دسته‌بندی است؛ برای مثال
+`final_result`. خروجی دارای کلید فنی پایدار، عنوان فارسی، توضیح، ترتیب نمایش،
+وضعیت فعال و هزینه اعتباری است.
+
+### نوع مدل
+
+`AI Model Type` یک adapter یا provider فنی است که فقط در کانفیگ برنامه تعریف
+می‌شود؛ برای مثال `sample_image` و `gapgpt`. نوع مدل مشخص می‌کند چه
+credentialها، تنظیمات عمومی و تنظیمات تکرارشونده برای هر خروجی لازم است.
+
+### نمونه مدل
+
+`AI Model` یک رکورد اجرایی در دیتابیس است که به یک دسته‌بندی و یک نوع مدل تعلق
+دارد. برای مثال می‌توان سه مدل فعال از نوع `gapgpt` در دسته‌بندی کاشت مو داشت.
+هر مدل credential، تنظیمات، محدودیت هم‌زمانی، وضعیت سلامت و تنظیمات خروجی مخصوص
+خود را دارد.
+
+### درخواست تولید
+
+`Generation Request` درخواست مراجعه‌کننده برای تولید یک خروجی مشخص از یک تصویر
+اصلی مشخص در یک دسته‌بندی است. مراجعه‌کننده مدل یا provider را انتخاب نمی‌کند.
+
+### تلاش اجرا
+
+`Generation Attempt` اجرای واقعی یک درخواست روی یک مدل مشخص است. retry دستی یا
+جابجایی کنترل‌شده به مدل دیگر باید تلاش جدید بسازد و تاریخچه تلاش قبلی را حفظ
+کند.
 
 ## اصول غیرقابل مذاکره
 
@@ -29,27 +101,32 @@ tenant مستقل دارد. مراجعه‌کننده از دامنه اختصا
   endpointهای `/api/v1` می‌گیرد.
 - UI عمومی و داشبورد فارسی و راست‌به‌چپ هستند.
 - UI عمومی از فونت محلی Vazirmatn استفاده می‌کند.
-- صفحه عمومی کلینیک سه بخش دارد: هدر tenant، بدنه HairVision، فوتر tenant.
-- متن‌های تست، setup، deployment و debugging نباید در صفحه مراجعه‌کننده دیده
-  شوند.
-- frontend عمومی نباید به CDN یا resource خارجی وابسته باشد. لوگو و تصاویر
-  theme فقط از دامنه اصلی HairVision مجازند.
+- frontend عمومی نباید به CDN یا resource خارجی وابسته باشد.
 - tenant هر درخواست عمومی فقط از host درخواست resolve می‌شود.
 - هیچ ورودی کاربر مانند `tenant_id`، slug یا domain مرجع tenant نیست.
 - هر رکورد متعلق به کلینیک باید `tenant_id` داشته باشد.
-- داده‌های متعلق به مراجعه‌کننده باید علاوه بر `tenant_id` با `lead_id` session
-  جاری scope شوند.
+- داده مراجعه‌کننده علاوه بر `tenant_id` باید با `lead_id` session جاری scope
+  شود.
+- یک شماره موبایل می‌تواند در چند tenant lead مستقل داشته باشد، اما هیچ
+  endpoint کلینیکی حق کشف یا نمایش ارتباط آن شماره با کلینیک‌های دیگر را ندارد.
 - OTP هرگز plain ذخیره، لاگ، seed، نمایش یا در response ارسال نمی‌شود.
-- تصاویر آپلودی و خروجی‌های تولیدشده هرگز در public webroot ذخیره نمی‌شوند.
-- منطق providerهای AI داخل controller قرار نمی‌گیرد.
-- provider پیش‌فرض نسخه `1.0.0` مدل نمونه HairVision / `SampleImageProvider`
-  است.
-- provider نمونه فقط فایل نمونه محلی را برمی‌گرداند و نباید اینترنت، AI خارجی،
-  تولید تصویر، ویرایش تصویر یا URL خارجی را صدا بزند.
-- provider واقعی فقط از مسیر AI model access فعال، credential رمزنگاری‌شده،
-  entitlement سرویس، اعتبار کافی و job اجرا می‌شود.
-- کارهای سنگین تولید تصویر خارج از تست با Redis Queue و Horizon اجرا می‌شوند.
-- هر تغییر رفتاری باید تست داشته باشد و کل test suite بعد از تغییر اجرا شود.
+- تصاویر آپلودی، نمونه‌های مدل و خروجی‌های تولیدشده هرگز در public webroot
+  ذخیره نمی‌شوند.
+- منطق provider، انتخاب مدل، رزرو اعتبار و مدیریت صف داخل controller قرار
+  نمی‌گیرد.
+- client عمومی هرگز provider، model، credential، prompt یا tenant را تعیین
+  نمی‌کند.
+- credential واقعی فقط به صورت رمزنگاری‌شده ذخیره و فقط در adapter مربوط مصرف
+  می‌شود.
+- provider نمونه نباید اینترنت، AI خارجی، ویرایش تصویر یا URL خارجی را صدا
+  بزند.
+- تماس provider واقعی فقط از طریق job و پس از entitlement معتبر، اعتبار کافی،
+  انتخاب مدل و رزرو ظرفیت انجام می‌شود.
+- Redis Queue و Horizon مسیر اجرای کارهای سنگین در محیط غیرتست هستند.
+- دیتابیس source of truth وضعیت درخواست، صف، تلاش‌ها، اعتبار و assetها است؛ Redis
+  فقط برای اجرای queue، lock، semaphore و cache استفاده می‌شود.
+- هیچ تماس خارجی provider داخل transaction دیتابیس انجام نمی‌شود.
+- هر تغییر رفتاری باید تست داشته باشد و کل test suite پس از تغییر اجرا شود.
 
 ## چندمستاجری
 
@@ -63,25 +140,32 @@ tenant همان کلینیک است. resolve در مسیرهای عمومی با
    می‌گیرد.
 5. host نامعتبر یا tenant غیرفعال باید `404` بدهد.
 
-در local ممکن است fallback محدود برای `localhost` و `127.0.0.1` وجود داشته
-باشد، اما تست و production باید host صریح tenant داشته باشند.
-
 همه queryهای tenant-owned باید با `tenant_id` محدود شوند. همه منابع
-visitor-owned، مانند upload، generation group، generation job و generated asset،
-باید با `tenant_id` و `lead_id` session جاری محدود شوند. فیلترهای dashboard مثل
-`clinic_id` فقط وقتی معتبرند که کاربر super admin باشد یا عضویت فعال همان
-کلینیک را داشته باشد.
+visitor-owned، از جمله lead profile، source image، generation request، attempt،
+generated asset و archive، باید با `tenant_id` و `lead_id` session جاری محدود
+شوند.
+
+وجود یک شماره موبایل در چند کلینیک مجاز است. uniqueness lead با ترکیب زیر
+اعمال می‌شود:
+
+```text
+unique(tenant_id, phone_normalized)
+```
+
+هر کلینیک فقط رکورد lead، تصاویر، درخواست‌ها و آرشیو tenant خود را می‌بیند.
+ورود در کلینیک دیگر session، تصویر اصلی یا خروجی‌های کلینیک فعلی را منتقل یا
+قابل مشاهده نمی‌کند.
 
 ## هویت، نشست و احراز هویت
 
 HairVision سه سطح session جدا دارد:
 
-- session مراجعه‌کننده عمومی برای lead verification و generation
+- session مراجعه‌کننده عمومی برای lead verification، profile و generation
 - session ادمین کلینیک روی host کلینیک
 - session ادمین پلتفرم روی host اصلی
 
-جداسازی cookieها مانع می‌شود login/logout یا session regeneration در داشبورد،
-session مراجعه‌کننده را در همان مرورگر خراب کند.
+session عمومی باید به host/tenant جاری وابسته باشد. داشتن `lead_id` متعلق به
+tenant دیگر حتی با UUID معتبر، مجوز دسترسی ایجاد نمی‌کند.
 
 ### OTP مراجعه‌کننده
 
@@ -91,387 +175,1165 @@ session مراجعه‌کننده را در همان مرورگر خراب کن�
 - OTP شش رقمی فقط به صورت hash در `otp_codes.code_hash` ذخیره می‌شود.
 - purpose عمومی `lead_login` است.
 - OTP expiring، single-use، attempt-limited و rate-limited است.
-- verify موفق lead را در tenant جاری create/update می‌کند و `lead_id` را در
-  session عمومی می‌گذارد.
+- verify موفق lead همان tenant را create/update می‌کند و `lead_id` را در session
+  عمومی tenant جاری می‌گذارد.
+- ورود همان شماره در tenant دیگر lead و session مستقل ایجاد می‌کند.
 
 ### OTP داشبورد
 
 - ورود داشبورد زیر `/admin` انجام می‌شود.
 - purpose در `otp_codes` برابر `admin_login` است.
-- user با شماره normalize شده پیدا می‌شود.
-- OTP داشبورد هم hash، expiring، single-use، attempt-limited و rate-limited است.
+- OTP داشبورد hash، expiring، single-use، attempt-limited و rate-limited است.
 - کد plain حتی در local debug نباید در صفحه verification دیده شود.
-- seed اولیه نسخه `1.0.0` درگاه پیامک `local` را به عنوان تنها درگاه سیستم
-  فعال و پیش‌فرض می‌سازد. درگاه سیستم `ippanel` seed می‌شود، اما غیرفعال و
-  غیرپیش‌فرض می‌ماند تا فقط بعد از پیکربندی و فعال‌سازی مدیریتی استفاده شود.
-- OTP عمومی و داشبورد باید از gateway سیستم فعال و پیش‌فرض ارسال شوند؛ فعال
-  کردن IPPanel عملیاتی یک تصمیم مدیریتی بعد از تنظیم credential معتبر است.
+- OTP عمومی و داشبورد باید از gateway سیستم فعال و پیش‌فرض ارسال شوند.
 
 ## کاربران، نقش‌ها و permissionها
 
-وضعیت عملیاتی نسخه `1.0.0` از جدول `users` برای کاربران داشبورد استفاده می‌کند
-و مرز access را با `users.access_scope` مشخص می‌کند:
+مرز access کاربران داشبورد با `users.access_scope` مشخص می‌شود:
 
-- `system`: کاربر سطح سیستم است و فقط roleهای `scope = platform` را می‌پذیرد.
-- `clinic`: کاربر سطح کلینیک است و فقط roleهای ثابت `clinic_admin`, `editor`,
-  `viewer` را می‌پذیرد.
-
-foundation جدول‌های `platform_users` و `clinic_users` برای تفکیک آینده وجود
-دارد، اما مسیر auth فعلی و بخش‌هایی از dashboard برای سازگاری هنوز از `users`
-و `tenant_user` استفاده می‌کنند. هر توسعه جدید باید دامنه کاربر را روشن کند:
-کاربر سیستم برای عملیات پلتفرم و کاربر کلینیکی برای عملیات کلینیک.
+- `system`: عملیات سطح پلتفرم
+- `clinic`: عملیات tenantهای مجاز
 
 نقش‌های پایه:
 
-- `super_admin`: دسترسی سیستمی و عبور صریح از مرز tenant در policy/service.
-- `clinic_admin`: مدیریت lead و کاربران کلینیک‌های مجاز.
-- `editor`: مشاهده lead و تغییر فیلدهای عملیاتی محدود مانند source،
-  `crm_stage` و note.
-- `viewer`: فقط مشاهده.
+- `super_admin`
+- `clinic_admin`
+- `editor`
+- `viewer`
 
-قوانین:
+backend authority است و پنهان‌کردن دکمه در UI امنیت محسوب نمی‌شود.
 
-- backend authority است؛ پنهان‌کردن دکمه در UI امنیت نیست.
-- permissionها در `permissions`، roleها در `roles` و اتصال در
-  `permission_role` ذخیره می‌شوند.
-- roleهای clinic ثابت و `scope = clinic` هستند و در مدیریت roleهای سیستمی
-  ویرایش یا حذف نمی‌شوند.
-- roleهای platform در مدیریت سطوح دسترسی سیستم قابل مدیریت‌اند.
-- کاربران غیر super admin نمی‌توانند `super_admin` یا roleهای سیستمی را به
-  کاربران بدهند.
-- clinic manager فقط می‌تواند roleهای `clinic_admin`, `editor`, `viewer` را در
-  کلینیک مجاز تخصیص دهد.
-- حذف lead مسیر عملیاتی آزاد ندارد و باید فقط با permission/policy صریح ممکن
-  شود.
+### پیام‌ها و اعلان‌های کلینیک
 
-permissionهای مهم شامل `users.*`, `tenants.*`, `leads.*`, `ai_models.*`,
-`plans.*`, `billing.*`, `roles.manage`, `permissions.manage`,
-`settings.manage`, `sms_gateways.*`, `payment_gateways.*`,
-`reports.management.view` و `reports.user.view` هستند.
+مدیر سیستم می‌تواند پیام‌هایی با نوع و سطح اهمیت مشخص برای کلینیک‌ها ارسال کند.
+پیام‌ها می‌توانند برای همه کلینیک‌ها، یک کلینیک مشخص، یا چند کلینیک انتخابی
+هدف‌گذاری شوند. شرط‌های عملیاتی مثل داشتن/نداشتن پلن فعال، دسترسی به یک کاربرد
+AI یا اتصال یک مدل AI مشخص، سطح ارسال جداگانه نیستند و فقط روی همان دامنه
+انتخاب‌شده اعمال می‌شوند. ارسال فوری پیام بدون بازه نمایش مجاز است؛ در ارسال
+زمان‌بندی‌شده، زمان شروع الزامی و زمان پایان اختیاری است.
+
+ارسال پیام باید recipientهای کلینیک را در زمان ایجاد پیام snapshot کند تا
+تاریخچه تحویل مستقل از تغییرات بعدی پلن، مدل یا entitlement باقی بماند. شمارنده
+هدر کلینیک فقط پیام‌های منتشرشده، قابل نمایش در زمان فعلی و خوانده‌نشده همان
+tenant را نشان می‌دهد. باز کردن پیام در داشبورد کلینیک، همان پیام را برای همان
+tenant خوانده‌شده می‌کند و شناسه، نام کاربر خواننده و زمان خواندن ثبت می‌شود.
+متن پیام در لیست پیام‌های کلینیک نمایش داده نمی‌شود و فقط بعد از باز شدن پیام
+قابل مشاهده است. اطلاعات کاربر خواننده و گزارش خوانده‌شده/خوانده‌نشده فقط در
+داشبورد مدیریت سیستم و صفحه وضعیت همان پیام قابل مشاهده است؛ در داشبورد کلینیک
+فقط زمان خواندن همان پیام در صفحه مشاهده پیام نمایش داده می‌شود.
+
+permissionهای جدید و مهم نسخه 2.0.0:
+
+- `ai_model_categories.view`
+- `ai_model_categories.create`
+- `ai_model_categories.update`
+- `ai_model_categories.delete`
+- `ai_model_category_outputs.manage`
+- `ai_model_types.view`
+- `ai_models.view`
+- `ai_models.create`
+- `ai_models.update`
+- `ai_models.delete`
+- `ai_models.activate`
+- `ai_models.test_connection`
+- `ai_model_jobs.view`
+- `ai_model_jobs.retry`
+- `ai_model_jobs.cancel`
+- `lead_archives.view`
+- `lead_archives.download`
+
+مدیریت دسته‌بندی، نوع‌های قابل استفاده، نمونه‌های مدل و وضعیت عملیاتی pool فقط
+در سطح سیستم انجام می‌شود. کاربران کلینیک مجاز نیستند prompt، credential، نوع
+مدل، تعداد مدل‌ها، ظرفیت مدل یا مدل منتخب هر job را تغییر دهند.
 
 ## جریان عمومی مراجعه‌کننده
 
 1. مراجعه‌کننده با دامنه tenant وارد landing کلینیک می‌شود.
-2. بازدید landing حتی قبل از lead در `tenant_landing_page_visits` ثبت می‌شود.
-   IP و user agent به صورت hash ذخیره می‌شوند.
-3. frontend از `/api/v1/bootstrap` اطلاعات tenant، theme و featureها را می‌گیرد.
-4. کاربر OTP درخواست می‌کند.
-5. بعد از verify موفق، lead verified در tenant جاری ساخته یا به‌روزرسانی می‌شود.
-6. upload فقط با session lead تاییدشده مجاز است.
-7. فایل upload در private storage ذخیره می‌شود.
-8. generation فقط برای upload متعلق به همان tenant و همان lead session مجاز است.
-9. status و results با polling خوانده می‌شوند.
-10. assetها فقط از endpointهای scoped stream می‌شوند و path storage هرگز به
-    client داده نمی‌شود.
+2. بازدید landing ثبت می‌شود.
+3. frontend از `/api/v1/bootstrap` اطلاعات tenant، theme، دسته‌بندی‌های قابل
+   استفاده و وضعیت session را می‌گیرد.
+4. کاربر OTP درخواست و تایید می‌کند.
+5. lead tenant جاری create/update می‌شود.
+6. پروفایل جاری از `/api/v1/profile` خوانده می‌شود.
+7. کاربر در صورت نیاز تصویر اصلی جدید بارگذاری می‌کند.
+8. سیستم تصویر قبلی را از حالت جاری خارج می‌کند و نسخه جدید را current می‌کند.
+9. frontend فقط خروجی‌های فعال دسته‌بندی‌هایی را نمایش می‌دهد که هم category
+   فعال، هم entitlement فعال، هم پلن پایه فعال، هم مدل فعال متصل به کلینیک، و
+   هم مدل/خروجی اجرایی فعال داشته باشند.
+10. کاربر هر خروجی دلخواه را جداگانه درخواست می‌کند.
+11. درخواست persisted می‌شود و ترک صفحه باعث لغو آن نمی‌شود.
+12. کاربر در مراجعه بعدی وضعیت `queued`, `processing`, `completed` یا `failed`
+    و نتیجه موجود را در پروفایل مشاهده می‌کند.
+13. asset فقط از endpoint خصوصی و scoped stream می‌شود.
 
-## لید، CRM و پیگیری
+## دسته‌بندی مدل‌های هوش مصنوعی
 
-lead متعلق به tenant است و uniqueness شماره با ترکیب `tenant_id +
-phone_normalized` اعمال می‌شود.
+دسته‌بندی‌ها در جدول `ai_model_categories` نگهداری می‌شوند و منابع سیستمی
+هستند؛ بنابراین `tenant_id` ندارند.
 
-فیلدهای مهم lead:
+فیلدهای پیشنهادی:
 
-- `tenant_id`
-- `full_name`
-- `phone`
-- `phone_normalized`
-- `source`
-- `phone_verified_at`
-- `status`
-- `crm_stage`
-- `crm_last_note_at`
-- `assigned_user_id`
-
-یادداشت‌ها و follow-upها در `lead_notes` ذخیره می‌شوند و باید `tenant_id` و
-`lead_id` داشته باشند. تغییر CRM follow-up باید داخل transaction فیلدهای
-`leads.crm_stage` و `leads.crm_last_note_at` را هم سازگار نگه دارد. تاریخ‌های
-business مانند `next_follow_up_at` و `completed_at` با فرمت جلالی
-`YYYY/MM/DD HH:mm:ss` ذخیره می‌شوند.
-
-## آپلود و assetهای خصوصی
-
-- upload فقط بعد از verify شماره و وجود `lead_id` معتبر مجاز است.
-- فایل باید image معتبر باشد و محدودیت نوع/حجم FormRequest را رعایت کند.
-- upload و generated asset در disk خصوصی ذخیره می‌شوند.
-- metadata شامل `tenant_id`, `lead_id`, disk, path, mime, size و status است.
-- original upload و resultها public نمی‌شوند.
-- public asset access باید tenant و lead session را چک کند.
-- dashboard asset access باید policy، tenant context، مالکیت lead/upload و
-  private storage را چک کند.
-
-## تولید تصویر و AI
-
-payload public generation فقط `upload_id` است. client نباید provider، tenant،
-credential یا model ارسال کند.
-
-پیش‌شرط‌ها:
-
-1. tenant از host resolve شده باشد.
-2. lead session تاییدشده وجود داشته باشد.
-3. upload متعلق به همان tenant و lead باشد.
-4. کلینیک اشتراک پایه فعال داشته باشد.
-5. entitlement فعال برای سرویس `hair_transplant` داشته باشد.
-6. اعتبار سرویس برای سه مرحله کافی باشد.
-7. AI model access فعال و assign شده به کلینیک برای `hair_transplant` وجود
-   داشته باشد.
-
-رفتار generation:
-
-- برای هر upload فقط یک generation group ساخته می‌شود؛ درخواست تکراری همان group
-  را reuse می‌کند.
-- سه job جدا برای `two_weeks`, `intermediate_regrowth`, `final_result` ساخته
-  می‌شود.
-- flow پیش‌فرض فقط اولین مرحله را dispatch می‌کند و بعد از تکمیل هر مرحله،
-  مرحله بعد dispatch می‌شود.
-- برای providerهای واقعی هزینه‌دار مانند GapGPT، stageها هم‌زمان به provider
-  ارسال نمی‌شوند تا ترتیب نمایش حفظ شود و در صورت خطا، ادامه مراحل بدون مصرف
-  هزینه متوقف شود.
-- هر job log، failure، asset و credit accounting مستقل دارد.
-- provider call واقعی نباید retry خودکار HTTP یا queue داشته باشد؛ timeoutها
-  باید به اندازه کافی بلند و با `retry_after` صف هماهنگ باشند تا درخواست
-  تکراری به مدل ارسال نشود.
-- اگر همه jobها completed شوند، group completed می‌شود و SMS نهایی ارسال
-  می‌شود.
-
-## مدل‌های AI و providerها
-
-مدل‌های قابل استفاده در `config/ai-models.php` تعریف می‌شوند و accessهای واقعی
-در `ai_model_accesses` ذخیره می‌شوند.
-
-usage categoryهای فعلی:
-
-- `hair_transplant`
-- `eyebrow_transplant`
-
-مدل‌های فعلی:
-
-- `sample_image`: مدل نمونه محافظت‌شده HairVision، local، بدون credential،
-  غیرقابل حذف، قابل toggle، بدون تماس خارجی.
-- `gapgpt`: مدل واقعی image edit، نیازمند credential رمزنگاری‌شده، قابل ایجاد و
-  ویرایش از داشبورد برای usageهای مجاز.
-
-قوانین امنیت AI:
-
-- credentialها در `AiModelAccess.credentials` با encrypted cast ذخیره می‌شوند.
-- credential نباید در config، seed، log، response یا Blade plain دیده شود.
-- update با credential خالی باید secret قبلی را حفظ کند.
-- usage log فقط metadata امن، status، referenceهای opaque و errorهای safe نگه
-  می‌دارد.
-- provider failure نباید اعتبار مدل یا اعتبار سرویس را مصرف کند.
-- protected demo access قابل حذف نیست.
-- کلینیک فقط می‌تواند accessهای active و assign شده خود را استفاده کند.
-- برای هر کلینیک و usage category فقط یک assignment فعال مجاز است.
-
-قانون GapGPT:
-
-- درخواست باید multipart باشد، نه JSON.
-- endpoint پیش‌فرض: `https://api.gapgpt.app/v1/images/edits`
-- field فایل: `image`
-- fieldها: `model = gpt-image-2`, `prompt`, `n = 1`,
-  `response_format = url`, `size = 1024x1024`
-- Laravel HTTP client باید multipart boundary را بسازد؛ نباید دستی
-  `Content-Type: application/json` تنظیم شود.
-- کلید واقعی GapGPT هرگز seed، commit، log، display یا document نمی‌شود.
-
-## SampleImageProvider
-
-provider نمونه فقط sample local را برمی‌گرداند:
-
-- `sample-results/two-weeks.jpg`
-- `sample-results/intermediate_regrowth.jpg`
-- `sample-results/final_result.jpg`
-
-خروجی نهایی باید به مسیر private زیر کپی شود:
-
-```text
-storage/app/private/tenants/{tenant_uuid}/leads/{lead_uuid}/results/{generation_group_uuid}/{period}.jpg
-```
-
-## اشتراک، پلن و اعتبار
-
-پلن‌ها سه نوع دارند:
-
-- `base_subscription`: اشتراک اصلی کلینیک
-- `service_add_on`: افزودن سرویس جدید به اشتراک پایه فعال
-- `credit_top_up`: افزایش اعتبار سرویس فعال
+- `id` یا UUID عمومی
+- `code`: کلید فنی unique، lowercase و پایدار
+- `name`: عنوان فارسی
+- `description`
+- `status`: `active`, `inactive`, `archived`
+- `sort_order`
+- `icon` یا شناسه icon داخلی اختیاری
+- `created_by`
+- `updated_by`
+- timestamps سیستمی
 
 قوانین:
 
-- هر کلینیک فقط یک base subscription فعال دارد.
-- خرید پلن پایه متفاوت، subscription قبلی را `replaced` می‌کند.
-- زمان و اعتبار باقی‌مانده به پلن جدید منتقل نمی‌شود.
-- خرید همان پلن فعال تا وقتی زمان و اعتبار دارد ممنوع است.
-- service add-on فقط با base subscription فعال قابل خرید است.
-- add-on تکراری برای سرویس فعال ممنوع است.
-- credit top-up زمان subscription را تغییر نمی‌دهد و سرویس جدید unlock نمی‌کند.
-- top-up فقط برای سرویس فعال موجود مجاز است.
+- `code` پس از استفاده در entitlement، invoice، generation یا ledger تغییر
+  نمی‌کند.
+- تغییر عنوان و توضیح مجاز است.
+- حذف hard فقط وقتی مجاز است که هیچ output، model، entitlement، invoice،
+  generation یا ledger مرتبطی وجود نداشته باشد.
+- در غیر این صورت API باید `409 Conflict` برگرداند و مدیر از `inactive` یا
+  `archived` استفاده کند.
+- دسته‌بندی غیرفعال برای خرید و درخواست جدید نمایش داده نمی‌شود، اما تاریخچه
+  آن قابل مشاهده می‌ماند.
+- APIها باید pagination، search، filter و sort backend داشته باشند.
 
-اعتبار سرویس در `subscription_service_entitlements` و ledger تغییرات در
-`credit_transactions` ذخیره می‌شود. مصرف اعتبار باید داخل transaction و با row
-lock انجام شود تا balance منفی و double-spend رخ ندهد. اتمام اعتبار یک سرویس
-فقط همان سرویس را block می‌کند و base subscription را expire نمی‌کند.
+### خروجی‌های دسته‌بندی
+
+خروجی‌های قابل درخواست در `ai_model_category_outputs` نگهداری می‌شوند.
+
+فیلدهای پیشنهادی:
+
+- `id`
+- `ai_model_category_id`
+- `code`: کلید پایدار در محدوده دسته‌بندی
+- `name`
+- `description`
+- `prompt`: پرامپت اجباری و محرمانه همان خروجی برای تولید تصویر
+- `sort_order`
+- `credit_cost`: هزینه هر تولید موفق یا واحد رزرو اعتبار
+- `is_active`
+- timestamps
+
+قوانین:
+
+- unique روی `(ai_model_category_id, code)` اعمال می‌شود.
+- خروجی با generation history حذف hard نمی‌شود و فقط غیرفعال می‌شود.
+- تغییر ترتیب یا عنوان نباید تاریخچه را خراب کند.
+- هر خروجی باید prompt مستقل خود را داشته باشد. در generation مستقل، snapshot
+  همین prompt روی تلاش اجرا ذخیره و همان متن برای اجرای provider استفاده می‌شود.
+- prompt خروجی در API عمومی، پروفایل مراجعه‌کننده یا پاسخ‌های visitor نمایش داده
+  نمی‌شود و فقط برای مدیران مجاز سیستم قابل مدیریت است.
+- تعداد خروجی قابل نمایش دسته‌بندی از خروجی‌های فعال آن به دست می‌آید و در
+  frontend hard code نمی‌شود.
+- هر مدل می‌تواند همه یا بخشی از خروجی‌های دسته‌بندی را پشتیبانی کند.
+- برای هر درخواست فقط مدل‌هایی eligible هستند که output config فعال برای همان
+  خروجی داشته باشند.
+
+## نوع مدل و کانفیگ پویا
+
+نوع‌های مدل در `config/ai-models.php` تعریف می‌شوند. نوع مدل رکورد CRUD دیتابیس
+نیست و deploy کد برای افزودن نوع جدید لازم است. API فقط registry امن و schema
+قابل نمایش نوع‌ها را برمی‌گرداند.
+
+هر type حداقل مشخصات زیر را تعریف می‌کند:
+
+- کلید type
+- عنوان نمایشی
+- provider class
+- قابلیت‌ها
+- schema credentialها
+- schema تنظیمات عمومی
+- schema تنظیمات هر خروجی
+- validation rules
+- defaultهای غیرحساس
+- قابلیت تست اتصال
+- timeout و سیاست اجرای امن
+
+نمونه ساختار مورد انتظار:
+
+```php
+<?php
+
+use App\AI\Providers\GapGptImageEditProvider;
+use App\AI\Providers\SampleImageProvider;
+
+return [
+    'types' => [
+        'sample_image' => [
+            'label' => 'مدل نمونه',
+            'provider' => SampleImageProvider::class,
+            'credentials' => [],
+            'settings' => [],
+            'output_fields' => [
+                [
+                    'key' => 'sample_asset_id',
+                    'label' => 'تصویر نمونه',
+                    'type' => 'private_image',
+                    'required' => true,
+                    'rules' => ['required', 'uuid'],
+                    'secret' => false,
+                ],
+            ],
+            'defaults' => [
+                'concurrency_limit' => 10,
+            ],
+        ],
+        'gapgpt' => [
+            'label' => 'GapGPT',
+            'provider' => GapGptImageEditProvider::class,
+            'credentials' => [
+                [
+                    'key' => 'api_key',
+                    'label' => 'API Key',
+                    'type' => 'secret',
+                    'required' => true,
+                    'rules' => ['required', 'string'],
+                    'secret' => true,
+                ],
+            ],
+            'settings' => [
+                [
+                    'key' => 'endpoint',
+                    'type' => 'url',
+                    'required' => true,
+                ],
+                [
+                    'key' => 'model',
+                    'type' => 'text',
+                    'required' => true,
+                ],
+                [
+                    'key' => 'size',
+                    'type' => 'select',
+                    'required' => true,
+                    'options' => ['1024x1024'],
+                ],
+                [
+                    'key' => 'timeout_seconds',
+                    'type' => 'integer',
+                    'required' => true,
+                ],
+            ],
+            'output_fields' => [
+                [
+                    'key' => 'prompt',
+                    'label' => 'پرامپت خروجی',
+                    'type' => 'textarea',
+                    'required' => true,
+                    'rules' => ['required', 'string', 'max:20000'],
+                    'secret' => false,
+                ],
+            ],
+            'defaults' => [
+                'endpoint' => 'https://api.gapgpt.app/v1/images/edits',
+                'model' => 'gpt-image-2',
+                'size' => '1024x1024',
+                'timeout_seconds' => 900,
+                'concurrency_limit' => 1,
+            ],
+        ],
+    ],
+];
+```
+
+قوانین کانفیگ:
+
+- config فقط schema و default غیرحساس دارد؛ secret واقعی در config، `.env`
+  مشترک، seed یا repository ذخیره نمی‌شود.
+- backend validation از schema type ساخته یا به FormRequest اختصاصی type delegate
+  می‌شود؛ validation فقط در JavaScript انجام نمی‌شود.
+- پاسخ registry نباید provider class، rule داخلی حساس یا default secret را
+  افشا کند.
+- fieldهای `secret` در API و Blade فقط masked هستند.
+- ارسال secret خالی در update به معنی حفظ مقدار قبلی است؛ حذف secret باید action
+  صریح و مجاز داشته باشد.
+- field ناشناخته در settings، credentials یا output config باید reject شود تا
+  mass assignment پنهان رخ ندهد.
+
+## نمونه‌های اجرایی مدل
+
+مدل‌ها در جدول `ai_models` ذخیره می‌شوند.
+
+فیلدهای پیشنهادی:
+
+- `id`
+- `ai_model_category_id`
+- `type`
+- `name`
+- `status`: `draft`, `active`, `paused`, `degraded`, `archived`
+- `priority`
+- `concurrency_limit`
+- `settings` با cast ساختاریافته
+- `credentials` با encrypted cast
+- `health_status`
+- `last_health_check_at`
+- `last_assigned_at`
+- `created_by`
+- `updated_by`
+- timestamps
+
+تنظیمات هر خروجی در `ai_model_output_configs` ذخیره می‌شود:
+
+- `ai_model_id`
+- `ai_model_category_output_id`
+- `is_active`
+- `configuration` شامل fieldهای output type
+- timestamps
+
+قوانین:
+
+- unique روی `(ai_model_id, ai_model_category_output_id)` اعمال می‌شود.
+- category مدل پس از داشتن generation history قابل تغییر نیست؛ برای انتقال باید
+  مدل جدید ساخته شود و مدل قبلی archive شود.
+- type مدل پس از استفاده قابل تغییر نیست.
+- تعداد عکس‌های قابل تولید توسط یک مدل برابر تعداد output configهای فعال آن
+  است. داشبورد می‌تواند ابتدا `output_count` را دریافت کند و سپس به همان تعداد
+  output دسته‌بندی را برای تنظیم نمایش دهد، اما مقدار نهایی از relationها مشتق
+  می‌شود و نباید به صورت counter ناسازگار ذخیره شود.
+- مدل sample برای هر output فعال باید `sample_asset_id` خصوصی داشته باشد.
+- مدل GapGPT برای هر output فعال باید prompt معتبر داشته باشد.
+- مدل بدون credential لازم، output config کامل یا health معتبر فعال نمی‌شود.
+- مدل دارای job در وضعیت processing حذف نمی‌شود؛ pause مانع assignment جدید
+  می‌شود و job جاری را قطع نمی‌کند.
+- حذف hard مدل دارای history ممنوع است؛ archive استفاده شود.
+
+## API مدیریت دسته‌بندی، خروجی و مدل
+
+تمام endpointهای این بخش فقط برای کاربر system با permission لازم قابل دسترسی
+هستند. نام دقیق route می‌تواند با conventions پروژه تطبیق داده شود، اما قرارداد
+منطقی زیر باید حفظ شود.
+
+### registry نوع‌ها
+
+```text
+GET /api/v1/system/ai-model-types
+GET /api/v1/system/ai-model-types/{type}
+```
+
+### دسته‌بندی‌ها
+
+```text
+GET    /api/v1/system/ai-model-categories
+POST   /api/v1/system/ai-model-categories
+GET    /api/v1/system/ai-model-categories/{category}
+PATCH  /api/v1/system/ai-model-categories/{category}
+DELETE /api/v1/system/ai-model-categories/{category}
+```
+
+### خروجی‌های دسته‌بندی
+
+```text
+GET    /api/v1/system/ai-model-categories/{category}/outputs
+POST   /api/v1/system/ai-model-categories/{category}/outputs
+GET    /api/v1/system/ai-model-categories/{category}/outputs/{output}
+PATCH  /api/v1/system/ai-model-categories/{category}/outputs/{output}
+DELETE /api/v1/system/ai-model-categories/{category}/outputs/{output}
+```
+
+### مدل‌ها
+
+```text
+GET    /api/v1/system/ai-models
+POST   /api/v1/system/ai-models
+GET    /api/v1/system/ai-models/{model}
+PATCH  /api/v1/system/ai-models/{model}
+DELETE /api/v1/system/ai-models/{model}
+POST   /api/v1/system/ai-models/{model}/activate
+POST   /api/v1/system/ai-models/{model}/pause
+POST   /api/v1/system/ai-models/{model}/test-connection
+GET    /api/v1/system/ai-models/{model}/jobs
+```
+
+قواعد API:
+
+- از API Resource برای خروجی امن و FormRequest برای validation استفاده شود.
+- secretها در response حذف یا masked شوند.
+- error validation فارسی و machine-readable باشد.
+- عملیات چندرکوردی مدل و output config داخل transaction انجام شود.
+- optimistic locking یا بررسی `updated_at` برای جلوگیری از overwrite تنظیمات
+  هم‌زمان در نظر گرفته شود.
+- test connection نباید secret یا raw provider response را برگرداند.
+- audit log تغییرات حساس مدل، credential، activation و category ثبت شود.
+
+## دسترسی کلینیک به دسته‌بندی‌ها
+
+دسترسی تجاری کلینیک در سطح دسته‌بندی است، اما نمایش عمومی و اجرای فعلی باید
+هم‌زمان از entitlement، وضعیت category، وضعیت پلن پایه، وضعیت مدل سیستم، اتصال
+فعال مدل به کلینیک، و output config فعال عبور کند. اگر هرکدام از این شرط‌ها
+غیرفعال باشد، آن کاربرد نباید در landing کلینیک دیده شود و درخواست جدید نباید
+ساخته شود.
+
+قوانین:
+
+- `subscription_service_entitlements.service_code` باید به `ai_model_categories.code`
+  یا یک foreign key پایدار به category نگاشت شود.
+- تا زمانی که جدول `clinic_ai_model_access` در runtime وجود دارد، landing،
+  profile categories و generation باید `is_active` خود رکورد مدل و `is_active`
+  pivot کلینیک را رعایت کنند.
+- کلینیک یا مراجعه‌کننده نمی‌تواند مدل خاصی را انتخاب کند.
+- pause یا خرابی یک مدل نباید entitlement کلینیک را حذف کند؛ تا وقتی مدل سالم
+  دیگری در pool وجود دارد سرویس ادامه می‌یابد.
+- اگر هیچ مدل eligible موجود نباشد، درخواست جدید با خطای localized و status
+  مناسب مانند `503 Service Unavailable` رد می‌شود و اعتبار مصرف نمی‌شود.
+- entitlement فعال، اعتبار مثبت و category فعال همگی برای درخواست جدید لازم‌اند.
+- مدیر سیستم می‌تواند هر category/application را از صفحه کاربردها فعال یا
+  غیرفعال کند. category غیرفعال برای همه کلینیک‌ها از landing حذف می‌شود، حتی
+  اگر entitlement و مدل کلینیک فعال باشند.
+- اگر مدل هوش مصنوعی در صفحه مدل‌ها غیرفعال شود، همه کلینیک‌هایی که فقط از آن
+  مدل برای آن کاربرد استفاده می‌کنند، آن کاربرد را در landing از دست می‌دهند و
+  داشبورد کلینیک باید علت را به صورت غیرفعال شدن مدل توسط مدیر سیستم نشان دهد.
+
+## پروفایل مراجعه‌کننده و تصویر اصلی
+
+پروفایل عمومی در محدوده `(tenant_id, lead_id)` تعریف می‌شود. یک مراجعه‌کننده در
+هر کلینیک فقط یک تصویر اصلی current دارد، ولی نسخه‌های قبلی برای آرشیو همان
+کلینیک حفظ می‌شوند.
+
+پیشنهاد مدل داده:
+
+- `lead_profiles`: یک رکورد برای هر lead tenant
+- `lead_source_images`: نسخه‌های تصویر اصلی
+- `generated_assets`: نسخه‌های خروجی تولیدشده
+
+فیلدهای مهم `lead_source_images`:
+
+- `tenant_id`
+- `lead_id`
+- `version`
+- `is_current`
+- `replaced_at`
+- `disk`, `path`, `mime`, `size`, `checksum`
+- `status`
+- timestamps
+
+قوانین جایگزینی تصویر اصلی:
+
+1. upload و validation فایل جدید کامل می‌شود.
+2. فایل روی private disk ذخیره و checksum ثبت می‌شود.
+3. داخل transaction و با lock روی profile، تصویر current قبلی `is_current=false`
+   و `replaced_at` می‌شود.
+4. تصویر جدید current می‌شود.
+5. خروجی‌های تصویر قبلی در نمای عمومی current نمایش داده نمی‌شوند.
+6. jobهای queued تصویر قبلی به صورت کنترل‌شده cancel می‌شوند؛ job processing
+   بدون قطع ناامن کامل می‌شود، اما نتیجه آن archived و غیرcurrent خواهد بود.
+7. فایل قبلی بلافاصله hard delete نمی‌شود؛ retention policy و دسترسی archive
+   کلینیک اعمال می‌شود.
+
+در رابط مراجعه‌کننده «حذف تصویر قبلی» به معنی خروج از پروفایل جاری است، نه حذف
+فوری تاریخچه کلینیک.
+
+## خروجی‌های جاری و آرشیو
+
+برای هر ترکیب زیر فقط یک نتیجه current در پروفایل عمومی وجود دارد:
+
+```text
+(tenant_id, lead_id, current_source_image_id, category_output_id)
+```
+
+قوانین:
+
+- request تکراری برای خروجی completed و current باید همان نتیجه را برگرداند و
+  job جدید نسازد.
+- تولید مجدد باید action صریح مانند `regenerate` داشته باشد.
+- هنگام تولید مجدد، نتیجه جدید پس از موفقیت current می‌شود و نتیجه قبلی archive
+  می‌شود.
+- تا قبل از موفقیت نتیجه جدید، نتیجه completed قبلی می‌تواند در UI باقی بماند
+  و وضعیت «در حال تولید نسخه جدید» نمایش داده شود.
+- failure نسخه جدید نباید نتیجه موفق قبلی را حذف کند.
+- مراجعه‌کننده فقط profile جاری و وضعیت درخواست‌های متعلق به خود را می‌بیند.
+- کلینیک با permission مناسب می‌تواند تمام نسخه‌های source image، نتایج،
+  درخواست‌ها و تلاش‌ها را در archive همان tenant ببیند.
+- آرشیو tenant دیگر تحت هیچ شرایطی قابل مشاهده نیست.
+
+## API پروفایل و تولید عمومی
+
+endpointهای عمومی فقط پس از lead verification و resolve tenant معتبر قابل
+استفاده‌اند.
+
+```text
+GET  /api/v1/profile
+POST /api/v1/profile/source-image
+GET  /api/v1/profile/source-images/current
+GET  /api/v1/profile/categories
+GET  /api/v1/profile/generations
+POST /api/v1/generations
+GET  /api/v1/generations/{generation}
+POST /api/v1/generations/{generation}/regenerate
+GET  /api/v1/assets/{asset}/stream
+```
+
+payload درخواست generation فقط شامل شناسه‌های domain-safe است:
+
+```json
+{
+  "source_image_id": "uuid",
+  "category_id": "uuid",
+  "output_id": "uuid",
+  "idempotency_key": "client-generated-uuid"
+}
+```
+
+قوانین:
+
+- `source_image_id` باید current و متعلق به tenant و lead session باشد.
+- category باید active و دارای entitlement فعال tenant باشد.
+- output باید active و متعلق به category باشد.
+- client حق ارسال `model_id`, `provider`, `prompt`, `credentials`, `tenant_id` یا
+  `credit_cost` ندارد.
+- `Idempotency-Key` header نیز می‌تواند جایگزین field payload شود؛ قرارداد باید
+  در کل پروژه یکسان باشد.
+- unique idempotency در محدوده tenant و lead اعمال شود.
+- API creation باید سریع پاسخ دهد و منتظر provider نماند.
+- status response باید حداقل شامل `queued`, `processing`, `completed`, `failed`,
+  `cancelled`، زمان‌ها و asset امن باشد.
+
+## تولید مستقل خروجی‌ها
+
+جریان ثابت و زنجیره‌ای سه مرحله حذف می‌شود. هر output یک درخواست مستقل دارد.
+
+مثال:
+
+- اگر مراجعه‌کننده فقط `final_result` را بخواهد، فقط همان درخواست و job ساخته
+  می‌شود.
+- اگر بعدا `intermediate_regrowth` را بخواهد، درخواست دوم مستقل ساخته می‌شود.
+- نبودن خروجی اول مانع تولید خروجی دوم یا سوم نیست.
+- ترتیب کلیک کاربر، ترتیب صف درخواست‌های خودش را تعیین می‌کند، نه یک dependency
+  hard-coded بین outputها.
+
+برای هر request یک رکورد پایدار و حداقل یک attempt ساخته می‌شود. group می‌تواند
+برای نمایش دسته‌ای استفاده شود، اما correctness نباید به وجود یک batch سه‌تایی
+وابسته باشد.
+
+## مدل داده تولید
+
+نام جدول‌ها می‌تواند با ساختار موجود تطبیق یابد، اما مفهوم‌های زیر باید مستقل
+باشند:
+
+### `generation_requests`
+
+- tenant و lead
+- source image
+- category و output
+- status
+- current result asset
+- idempotency key
+- requested_at, completed_at, failed_at
+- safe error code/message
+- credit reservation reference
+
+### `generation_attempts`
+
+- generation request
+- assigned model
+- status: `queued`, `reserved`, `dispatched`, `processing`, `completed`, `failed`,
+  `cancelled`, `expired`
+- queue position metadata
+- provider request opaque reference
+- provider call started/finished timestamps
+- attempt number
+- safe failure classification
+
+### `generated_assets`
+
+- tenant و lead
+- source image
+- category و output
+- generation request و attempt
+- version
+- is_current
+- private storage metadata
+- checksum
+- archived_at
+
+همه foreign keyها، unique constraintها و indexهای لازم برای queryهای tenant،
+lead، category، output، model و status تعریف شوند.
+
+## انتخاب مدل و توزیع بار
+
+برای هر generation request، سیستم فقط مدل‌های زیر را eligible می‌داند:
+
+- category مدل با category درخواست یکسان است.
+- مدل `active` است.
+- health مدل اجازه assignment می‌دهد.
+- credential و settings معتبر هستند.
+- output config فعال برای output درخواست وجود دارد.
+- مدل archived، paused یا circuit-open نیست.
+
+هر مدل `concurrency_limit` دارد. مقدار پیش‌فرض GapGPT برابر 1 است، مگر مستندات
+provider و ظرفیت خریداری‌شده مقدار بیشتری را تضمین کند.
+
+الگوریتم assignment باید داخل transaction کوتاه و با lock انجام شود:
+
+1. مدل‌های eligible مرتب و lock شوند.
+2. بار هر مدل از attemptهای غیرنهایی محاسبه شود.
+3. ابتدا مدل‌هایی انتخاب‌پذیرند که `processing/reserved < concurrency_limit`
+   دارند.
+4. بین مدل‌های دارای ظرفیت، اولویت عددی کمتر مقدم است؛ یعنی اولویت `10` قبل از
+   `20` و `30` انتخاب می‌شود تا ظرفیت همان مدل پر شود.
+5. اگر همه مدل‌ها مشغول‌اند، مدلی با کمترین تعداد attempt غیرنهایی انتخاب شود.
+6. در تساوی، اولویت عددی کمتر، سپس `last_assigned_at` قدیمی‌تر و سپس شناسه
+   پایدار برای tie-break استفاده شود تا starvation کاهش یابد.
+7. attempt با `ai_model_id` منتخب ثبت شود.
+8. `last_assigned_at` مدل به‌روزرسانی شود.
+
+محاسبه بار و ایجاد attempt باید در یک مرز اتمیک باشند تا دو درخواست هم‌زمان هر
+دو یک مدل ظاهرا خالی را بدون رعایت ظرفیت انتخاب نکنند.
+
+## صف منطقی هر مدل
+
+هر مدل یک صف منطقی در دیتابیس دارد، حتی اگر همه jobها روی یک Redis queue مشترک
+اجرا شوند.
+
+قوانین:
+
+- attempt در ابتدا `queued` است و به مدل مشخص assign شده است.
+- فقط تا سقف `concurrency_limit` attempt هر مدل به `reserved/dispatched` می‌رود.
+- `ModelQueueCoordinator` مسئول enqueue، dispatch ظرفیت‌های آزاد، آزادسازی slot
+  و dispatch مورد بعدی همان مدل است.
+- پس از completed/failed/cancelled شدن attempt، coordinator بلافاصله قدیمی‌ترین
+  job queued همان مدل را dispatch می‌کند.
+- command زمان‌بندی‌شده باید reservationهای stale، worker crash و jobهای گیرکرده
+  را recover کند.
+- Redis lock/semaphore برای جلوگیری از اجرای هم‌زمان بیش از ظرفیت استفاده
+  می‌شود، اما رکوردهای دیتابیس مرجع نهایی هستند.
+- queue name پویا نباید مستلزم ساخت دستی worker برای هر مدل شود؛ معماری shared
+  queue با assignment و semaphore ترجیح دارد.
+- Horizon tags باید حداقل tenant، category، model و generation ID را بدون PII
+  ثبت کنند.
+
+## idempotency و جلوگیری از درخواست تکراری provider
+
+- ایجاد generation باید idempotent باشد.
+- قبل از تماس provider، `provider_call_started_at` و attempt state به صورت اتمیک
+  ثبت می‌شوند.
+- پس از شروع تماس provider واقعی، retry خودکار queue یا HTTP که ممکن است هزینه
+  دوباره ایجاد کند ممنوع است.
+- timeout، `retry_after` و job timeout باید هماهنگ باشند.
+- failure قبل از شروع تماس provider می‌تواند به صورت امن redispatch شود.
+- failure مبهم پس از شروع تماس باید `requires_review` یا failure قابل بررسی شود؛
+  retry فقط با action مدیریتی و ایجاد attempt جدید انجام می‌شود.
+- provider reference باید opaque باشد و raw response ذخیره یا نمایش داده نشود.
+
+## اعتبار و رزرو مصرف
+
+entitlement در سطح دسته‌بندی/کاربرد است، اما موجودی اعتبار در سطح کل subscription
+فعال کلینیک نگهداری و مصرف می‌شود. مدل، provider یا بسته خریداری‌شده محل مصرف
+اعتبار را تعیین نمی‌کند.
+
+قبل از enqueue:
+
+1. entitlement فعال category بررسی می‌شود تا کلینیک اجازه دیدن و درخواست آن
+   کاربرد را داشته باشد.
+2. هزینه output از `credit_cost` معتبر خوانده می‌شود.
+3. موجودی کل اعتبار subscription فعال داخل transaction و با row lock بررسی
+   می‌شود.
+4. یک ledger entry از نوع `reservation` یا `use` با `balance_after` کل اعتبار
+   ثبت می‌شود.
+
+پس از نتیجه:
+
+- در success، reservation به `consumed` تبدیل می‌شود.
+- در failure قطعی قبل یا حین provider که خروجی معتبر ایجاد نکرده، reservation
+  `released` می‌شود.
+- در وضعیت مبهم پس از provider call، رزرو تا reconciliation باقی می‌ماند و بدون
+  تصمیم صریح مصرف یا آزاد نمی‌شود.
+- idempotency مانع رزرو دوباره برای یک request تکراری می‌شود.
+- balance کل کلینیک منفی نمی‌شود و double-spend با transaction و row lock ممنوع
+  است.
+
+مدل sample می‌تواند بر اساس سیاست محصول هزینه صفر یا هزینه تعریف‌شده output را
+داشته باشد؛ این تصمیم در category output/plan است، نه داخل provider.
+
+## SampleImageProvider
+
+`sample_image` یک نوع مدل local و داخلی است که مانند سایر مدل‌ها توسط مدیران
+دارای مجوز قابل ایجاد و ویرایش است.
+
+قوانین:
+
+- هیچ credential خارجی ندارد.
+- برای هر output فعال یک asset نمونه خصوصی توسط مدیر سیستم بارگذاری می‌شود.
+- asset نمونه باید در storage خصوصی سیستمی نگهداری شود، نه public webroot.
+- هنگام اجرا، فایل نمونه به مسیر نتیجه tenant/lead کپی می‌شود.
+- provider نمونه نباید source image را به سرویس خارجی بفرستد.
+- provider نمونه نباید URL خارجی را download کند.
+- حذف asset نمونه‌ای که مدل فعال به آن ارجاع دارد ممنوع است.
+- تعداد outputهای sample از output configهای فعال همان مدل به دست می‌آید.
+
+مسیر پیشنهادی نتیجه:
+
+```text
+storage/app/private/tenants/{tenant_uuid}/leads/{lead_uuid}/results/{source_image_uuid}/{category_code}/{output_code}/{asset_uuid}.jpg
+```
+
+## GapGPT Provider
+
+`gapgpt` یک نوع مدل واقعی image edit است.
+
+تنظیمات مدل:
+
+- API key رمزنگاری‌شده
+- endpoint
+- model
+- size
+- timeout
+- concurrency limit
+- تنظیمات غیرحساس مجاز تعریف‌شده در schema
+
+تنظیم هر output:
+
+- prompt مستقل و اجباری
+- تنظیمات خروجی دیگری که در schema type تعریف شده‌اند
+
+قوانین درخواست:
+
+- درخواست multipart است، نه JSON.
+- endpoint پیش‌فرض:
+  `https://api.gapgpt.app/v1/images/edits`
+- field فایل: `image`
+- fieldها: `model`, `prompt`, `n = 1`, `response_format = url`, `size`
+- Laravel HTTP client باید multipart boundary را بسازد.
+- `Content-Type: application/json` به صورت دستی تنظیم نمی‌شود.
+- API key، prompt کامل، source image bytes، private path و raw response لاگ
+  نمی‌شوند.
+- URL خروجی provider باید با allowlist و محدودیت اندازه/نوع download شود و سپس
+  در private storage ذخیره شود؛ URL خارجی مستقیما به client داده نمی‌شود.
+- test connection باید درخواست کم‌هزینه یا endpoint مناسب provider را استفاده
+  کند و بدون رضایت مدیر generation هزینه‌دار اجرا نکند.
+
+## circuit breaker و سلامت مدل
+
+برای جلوگیری از ارسال مداوم job به مدل خراب:
+
+- failureهای قابل انتساب به provider طبقه‌بندی شوند.
+- پس از آستانه مشخص failure متوالی، مدل به `degraded` یا circuit-open برود.
+- مدل circuit-open assignment جدید نمی‌گیرد.
+- پس از cooldown، health check محدود یا half-open اجرا می‌شود.
+- auth failure یا credential invalid باید مدل را تا اصلاح مدیر pause/degraded
+  کند.
+- خطای ورودی یک lead نباید سلامت کلی مدل را خراب کند.
+- تغییر health و circuit state audit شود.
+
+## آپلود و assetهای خصوصی
+
+- upload فقط پس از verify شماره و وجود lead session معتبر مجاز است.
+- فایل باید image واقعی باشد و محدودیت MIME، extension، size، dimensions و
+  decompression bomb را رعایت کند.
+- نام فایل کاربر برای path نهایی استفاده نمی‌شود.
+- checksum برای تشخیص فایل و integrity ثبت می‌شود.
+- source، sample و generated asset در disk خصوصی ذخیره می‌شوند.
+- storage path هرگز به client داده نمی‌شود.
+- stream endpoint باید tenant، lead/session یا dashboard policy، مالکیت و status
+  را بررسی کند.
+- archive download کلینیک باید audit log داشته باشد.
+- retention، purge و legal hold باید به صورت command/job قابل اجرا و مستند باشند.
+
+## لید، CRM و آرشیو کلینیک
+
+lead متعلق به tenant است و uniqueness شماره با `(tenant_id, phone_normalized)`
+اعمال می‌شود.
+
+صفحه lead در داشبورد کلینیک باید بخش‌های زیر را داشته باشد:
+
+- اطلاعات lead و CRM
+- تصویر اصلی current
+- خروجی‌های current به تفکیک دسته‌بندی
+- درخواست‌های queued/processing/failed
+- آرشیو تصاویر اصلی قبلی
+- آرشیو همه نسخه‌های خروجی
+- تاریخچه attemptها و مدل استفاده‌شده بدون credential یا diagnostics حساس
+
+کلینیک فقط تاریخچه tenant خود را مشاهده می‌کند. مدل استفاده‌شده می‌تواند برای
+عملیات و پشتیبانی نمایش داده شود، اما prompt سیستمی، credential و raw payload
+برای کاربران کلینیک مخفی است.
+
+## اشتراک، پلن و entitlement
+
+پلن‌ها سه نوع دارند:
+
+- `base_subscription`
+- `service_add_on`
+- `credit_top_up`
+
+قوانین پایه نسخه قبلی حفظ می‌شوند، با این تغییر که service قابل خرید باید به
+category فعال نگاشت شود و هر پلن فقط یک مقدار اعتبار کل (`usage_limit`) دارد.
+
+- entitlement دسته‌بندی تعیین می‌کند کلینیک چه گروهی از خروجی‌ها را می‌بیند.
+- status خود Plan خریداری‌شده نیز runtime است؛ اگر مدیر سیستم Plan خریداری‌شده
+  را غیرفعال کند، subscription پایه دیگر برای landing و درخواست عمومی active
+  محسوب نمی‌شود و داشبورد کلینیک باید صریحاً نشان دهد این غیرفعال‌سازی توسط
+  مدیر سیستم اعمال شده است.
+- پلن پایه، سرویس افزوده و بسته افزایش اعتبار همگی اعتبار را به موجودی کل
+  subscription فعال اضافه می‌کنند.
+- مصرف هر output، به اندازه `credit_cost` همان output، از موجودی کل کسر می‌شود؛
+  مصرف از یک بسته یا سرویس خاص انجام نمی‌شود.
+- افزودن مدل جدید به یک category فعال به صورت خودکار ظرفیت pool همه کلینیک‌های
+  دارای entitlement آن category را افزایش می‌دهد.
+- حذف یا pause یک مدل، entitlement را تغییر نمی‌دهد.
+- top-up فقط به کلینیکی تعلق می‌گیرد که subscription پایه فعال دارد.
+- credit ledger باید source خرید، category مصرف‌شده و در صورت مصرف generation
+  request را reference کند.
+- داشبورد کلینیک باید گردش اعتبار را در صفحه مستقل «گزارش مصرف» زیر
+  «گزارش‌های من» نشان دهد: هر grant/top-up به عنوان ردیف مستقل و مصرف‌ها به
+  صورت مجموع مصرف روزانه.
 
 ## پرداخت و فاکتور
 
-جریان پرداخت:
+جریان پرداخت و activation idempotent نسخه قبلی حفظ می‌شود. line item پلن یا
+add-on باید category/service code پایدار را نگه دارد تا تغییر نام category
+تاریخچه مالی را خراب نکند.
 
-1. کاربر کلینیک یا مدیر مجاز plan را انتخاب می‌کند.
-2. `BillingService::invoiceForPlan` قوانین خرید را validate می‌کند.
-3. invoice pending برای tenant ساخته می‌شود.
-4. payment با gateway پیش‌فرض شروع می‌شود.
-5. کاربر به gateway هدایت می‌شود.
-6. callback به مسیر verify برمی‌گردد.
-7. payment و invoice paid می‌شوند.
-8. activation دقیقا یک بار انجام می‌شود.
+credential درگاه، authority کامل، raw callback و stack trace نباید در UI یا
+JSON نمایش داده شود.
 
-`invoices.activated_at` جلوی activation تکراری callback را می‌گیرد. خطاهای
-gateway با context امن log می‌شوند و به کاربر فقط پیام generic فارسی داده
-می‌شود. authority، credential، raw payload، stack trace و provider diagnostics
-نباید در UI یا JSON دیده شوند.
+## داشبورد مدیریت سیستم
 
-## درگاه‌های پیامک
+داشبورد سیستم باید بخش‌های زیر را اضافه یا بازطراحی کند:
 
-- SMS gatewayها scopeهای `system` و `tenant` دارند.
-- gateway سیستم برای OTP و پیام‌های پلتفرم استفاده می‌شود.
-- gateway tenant تنظیمات پیامک یک کلینیک است و با `tenant_id` همان کلینیک ذخیره
-  می‌شود.
-- هر کلینیک حداکثر یک gateway پیامک کلینیکی دارد.
-- gateway کلینیک دارایی کاربر نیست؛ metadata خود کلینیک است.
-- credentialها encrypted هستند و فقط masked نمایش داده می‌شوند.
-- default کردن gateway باید defaultهای دیگر همان scope و owner را unset کند.
+### دسته‌بندی مدل‌ها
 
-## داشبورد مدیریت
+- صفحه list باید با آیکون اختصاصی کاربردها و ردیف‌های جدول استاندارد داشبورد
+  نمایش داده شود، نه cardهای مستقل.
+- list باید search/filter/sort/pagination داشته باشد.
+- هر ردیف باید actionهای مجاز مشاهده، ویرایش، آرشیو و حذف را در action menu
+  استاندارد داشته باشد.
+- کاربردی که هیچ استفاده عملیاتی ندارد فقط قابل حذف است.
+- کاربردی که در مدل، پلن، subscription، ledger یا درخواست تولید استفاده شده فقط
+  قابل آرشیو است و حذف مستقیم ندارد.
+- شمارنده خروجی‌ها باید از `ai_model_category_outputs` و شمارنده مدل‌ها باید از
+  مجموع مدل‌های v2 (`ai_models`) و دسترسی‌های legacy (`ai_model_accesses`) همان
+  code محاسبه شود.
+- مشاهده کاربرد باید خروجی‌های دسته‌بندی، پرامپت خروجی، هزینه اعتبار و وضعیت را
+  فقط خواندنی نشان دهد.
+- مشاهده کاربرد نباید modal باشد؛ صفحه مشاهده فقط خواندنی است.
+- مدیریت خروجی‌ها باید صفحه جداگانه داشته باشد و هر خروجی در جدول با action menu
+  و فرم‌های دارای placeholder مدیریت شود. صفحه خروجی‌ها باید نام، کد و وضعیت
+  کاربرد والد را واضح نمایش دهد.
 
-داشبورد زیر `/admin` است و با Blade، session auth، policy و route middleware
-کار می‌کند.
+### پلن‌ها و اعتبار
 
-قابلیت‌های نسخه `1.0.0`:
+- ردیف پلن‌ها باید با action مشاهده و row-click به صفحه مشاهده پلن برود.
+- هر پلن فقط یک فیلد اعتبار کل دارد.
+- هر پلن، از جمله پلن پایه، می‌تواند به یک یا چند کاربرد/category تخصیص داده
+  شود.
+- انتخاب کاربردها در فرم ایجاد و ویرایش پلن باید به صورت گزینه‌های خوانا و
+  چندانتخابی با نام و کد فنی کاربرد باشد.
+- صفحه مشاهده پلن باید نوع پلن، اعتبار کل، قیمت، مدت، وضعیت و کاربردهای
+  تخصیص‌یافته را خواندنی نشان دهد.
+- موجودی داشبورد و billing باید از ledger کل subscription فعال محاسبه شود، نه
+  از جمع مانده‌های جداگانه سرویس‌ها.
 
-- mobile OTP login
-- dashboard overview برای system و clinic context
-- lead list/detail/create/edit و CRM follow-up
-- private upload preview از route مجاز
-- user management
-- clinic management
-- AI model access management و clinic assignment
-- roles, permissions, settings
-- SMS و payment gateways
-- plan definitions, billing, invoices, payments, subscriptions
-- user و management reports
-- active-plan gating برای کاربران عادی
+### تنظیمات سیستم
 
-رفتار UI:
+- صفحه تنظیمات سیستم باید کنترل‌های مناسب نوع داده داشته باشد: input عددی،
+  select بولی و textarea JSON.
+- تنظیمات اثرگذار فعلی: مهلت پرداخت فاکتور، تعداد پیش‌فرض و حداکثر صفحه‌بندی،
+  نام سیستم، شماره پشتیبانی و کاتالوگ وضعیت‌ها.
+- ذخیره تنظیمات باید cache تنظیمات را پاک کند و منطق runtime از مقدار جدید
+  استفاده کند.
 
-- super admin با context global شروع می‌کند.
-- clinic filter داخل صفحات مرتبط است، نه header جهانی.
-- باکس «اشتراک فعال» فقط در context/host کلینیک نمایش داده می‌شود و بخشی از
-  داشبورد ادمین سیستم نیست.
-- light theme پیش‌فرض است؛ dark mode فقط با انتخاب persisted فعال می‌شود.
-- زیر `1024px` حالت mobile/tablet و از `1024px` حالت desktop است.
-- همه صفحه‌های داشبورد سیستم و کلینیک باید بالای محتوای اصلی مسیر سایت
-  فارسی، RTL و قابل دسترس داشته باشند؛ این مسیر از component مشترک layout
-  رندر می‌شود و نباید در صفحه‌ها تکرار شود.
-- لیست‌های مهم search/filter/sort/pagination backend دارند.
-- جدول‌های مهم در mobile/tablet به card تبدیل می‌شوند.
-- actionهای ردیفی از منوی سه‌نقطه shared استفاده می‌کنند.
-- اگر ردیف جدول در منوی عملیات اکشن مشاهده داشته باشد، کلیک روی خود ردیف به
-  صفحه مشاهده همان رکورد می‌رود و نشانگر ماوس روی آن ردیف به شکل دست است.
-- متن اکشن‌های ردیفی برای صفحه show باید «مشاهده» باشد، نه «جزئیات».
-- create-capable list pageها فرم create را در modal بالای لیست ارائه می‌کنند.
-- iconهای dashboard از `x-admin.icon` و UIcons محلی هستند، نه CDN یا SVG
-  پراکنده.
+### مدل‌های هوش مصنوعی
 
-کاربران عادی بدون plan فعال هنوز می‌توانند overview، plans، billing/invoices،
-tenant switch/logout و settings مجاز خود را ببینند؛ routeهای operational با
-middleware `active_plan` block می‌شوند. super admin و کاربران system-management
-با permission مناسب از این gating معاف‌اند.
+فرم create/edit به ترتیب زیر عمل می‌کند:
+
+1. انتخاب دسته‌بندی
+2. انتخاب type از registry کانفیگ
+3. وارد کردن نام و ظرفیت
+4. رندر پویا و server-driven تنظیمات type
+5. تعیین تعداد outputهای پشتیبانی‌شده یا انتخاب outputهای دسته‌بندی
+6. رندر fieldهای تکرارشونده هر output
+7. برای sample، upload تصویر نمونه هر output
+8. برای GapGPT، prompt هر output و تنظیمات API
+9. ذخیره امن credential
+10. test connection/validation
+11. activation پس از کامل بودن تنظیمات
+
+نمایش مدل:
+
+- category و type
+- status و health
+- concurrency limit
+- تعداد queued/reserved/processing
+- آخرین assignment و آخرین health check
+- outputهای پشتیبانی‌شده
+- credential فقط masked
+- actionهای pause، activate، test و archive با permission
+
+### مانیتور صف مدل
+
+- فیلتر بر اساس category، model، tenant و status
+- تعداد jobهای هر مدل
+- زمان انتظار قدیمی‌ترین job
+- attempts stale یا requires review
+- retry/cancel کنترل‌شده با audit log
+- عدم نمایش PII یا تصویر در log summary مگر از route خصوصی مجاز
+
+## داشبورد کلینیک
+
+کاربر کلینیک با permission مناسب باید بتواند:
+
+- lead و پروفایل current را ببیند.
+- خروجی‌های current را به تفکیک category ببیند.
+- وضعیت jobهای مراجعه‌کننده را ببیند.
+- source image و generated assetهای آرشیوی tenant خود را مشاهده کند.
+- تاریخچه replacement و regeneration را ببیند.
+
+کاربر کلینیک حق انتخاب مدل، تغییر prompt، دیدن credential یا تغییر صف سیستم را
+ندارد.
+
+## رفتار رابط عمومی
+
+- تعداد کارت‌های خروجی از API می‌آید.
+- هر کارت action مستقل «تولید تصویر» دارد.
+- کلیک روی خروجی سوم نیازمند تولید خروجی اول یا دوم نیست.
+- status هر کارت مستقل است.
+- refresh یا ترک صفحه باعث از بین رفتن status نمی‌شود.
+- هنگام بازگشت، profile و generation list از سرور hydrate می‌شوند.
+- اگر نتیجه قبلی موجود و regeneration در حال اجرا باشد، نتیجه قبلی همراه با
+  indicator نمایش داده می‌شود.
+- upload تصویر جدید باید قبل از جایگزینی، اثر آن بر jobهای جاری و خروجی‌های
+  فعلی را به صورت واضح به کاربر اعلام کند.
+- frontend نباید تعداد سه، نام stageها یا provider را hard code کند.
 
 ## تاریخ، عدد و زبان
 
-- زبان کاربر فارسی است.
-- اعداد فارسی، عربی و لاتین در ورودی‌های پشتیبانی‌شده پذیرفته و normalize
-  می‌شوند.
-- normalization فقط با `App\Support\NumberNormalizer` و validationهای مرتبط مثل
-  `SupportedDigits` انجام شود.
-- تاریخ‌های business/user-facing با تقویم جلالی ذخیره و نمایش داده می‌شوند.
-- فرمت datetime جلالی: `YYYY/MM/DD HH:mm:ss`
-- ستون‌های business datetime از `char(19)` استفاده می‌کنند تا sort/filter
-  رشته‌ای درست بماند.
-- timestampهای سیستمی لاراول مانند `created_at`, `updated_at`, queue timestamp و
-  OTP expiration در storage میلادی می‌مانند و فقط برای نمایش تبدیل می‌شوند.
-- تبدیل تاریخ فقط از `App\Support\JalaliDate`، ruleهای `JalaliDate` و
-  `JalaliDateTime` و componentهای Blade مربوط انجام شود.
-- datepicker باید محلی و از Vite bundle باشد، نه CDN.
-- copy کاربر در `lang/fa` نگهداری می‌شود؛ keyهای فنی مانند permission code،
-  route name، provider code و status داخلی انگلیسی و پایدار می‌مانند.
+قوانین زبان فارسی، RTL، NumberNormalizer و JalaliDate نسخه قبلی حفظ می‌شوند.
+کلیدهای فنی مانند category code، output code، provider type، route name و status
+انگلیسی و پایدار می‌مانند.
 
-## امنیت، خطا و لاگ
+## امنیت، خطا، لاگ و audit
 
-اولویت‌های امنیتی:
+اولویت‌ها:
 
-- جلوگیری از نشت داده بین tenantها.
-- محافظت از OTP، session و credentialها.
-- خصوصی‌ماندن تصاویر مراجعه‌کننده و خروجی‌ها.
-- جلوگیری از UUID guessing برای assetها.
-- جلوگیری از external resource injection در theme.
-- جلوگیری از تماس accidental با provider واقعی.
-- جلوگیری از نشت CRM note، invoice، gateway و payloadهای حساس.
+- جلوگیری از نشت cross-tenant
+- حفاظت از OTP، session، credential و prompt سیستمی
+- خصوصی ماندن source، sample و result
+- جلوگیری از duplicate provider call و duplicate charge
+- جلوگیری از oversubscription ظرفیت مدل و اعتبار
+- audit تغییرات مدل و عملیات آرشیو
 
-قوانین خطا:
+نباید لاگ شوند:
 
-- failureهای operational، gateway، provider، queue handoff و write flowهای حساس
-  باید در مرز controller/service/job/adapter catch شوند.
-- exception واقعی با context غیرحساس log شود.
-- کاربر فقط پیام generic و localized ببیند.
-- OTP، credential، bearer token، private path، full gateway authority، payload
-  upload، raw provider response و stack trace نباید log یا نمایش داده شود.
-- debug traceهای چندمرحله‌ای از instrumentation مرکزی عبور کنند، در فایل‌های
-  عادی import دستی لاگر اضافه نشود، و وقتی `APP_DEBUG=false` خاموش باشند.
+- OTP
+- API key و credential
+- bearer token و cookie
+- source image bytes
+- private storage path کامل
+- prompt کامل در log عمومی
+- raw provider response
+- URL امضاشده کامل
+- شماره موبایل plain در log عملیاتی
+- stack trace در response
+
+لاگ امن می‌تواند شامل UUIDهای opaque، category code، output code، model ID،
+status، duration، safe error class و correlation ID باشد.
+
+## migration از نسخه 1.0.0
+
+تغییر باید بدون حذف تاریخچه و به صورت مرحله‌ای انجام شود.
+
+### مرحله 1: schema افزایشی
+
+- ساخت `ai_model_categories`
+- ساخت `ai_model_category_outputs`
+- ساخت/تطبیق `ai_models`
+- ساخت `ai_model_output_configs`
+- ساخت/تطبیق `generation_requests`
+- ساخت `generation_attempts`
+- افزودن version/current/archive به source و generated assets
+- افزودن reservation state به credit ledger در صورت نبود
+
+### مرحله 2: seed و backfill
+
+- ساخت category کاشت مو و کاشت ابرو از usageهای موجود
+- ساخت outputهای `two_weeks`, `intermediate_regrowth`, `final_result` برای کاشت
+  مو
+- تبدیل هر `ai_model_access` فعلی به یک `ai_model` اجرایی
+- انتقال encrypted credential بدون decrypt/re-encrypt غیرضروری در log
+- ساخت output configهای مدل‌های موجود
+- نگاشت sample resultهای فعلی به private sample assets
+- نگاشت entitlementهای service به category
+- نگاشت generation group/job/assetهای قبلی به request/output/attempt جدید
+
+### مرحله 3: سازگاری و cutover
+
+- feature flag برای flow جدید
+- dual-read محدود فقط در دوره migration در صورت نیاز
+- توقف write به ساختار legacy پس از صحت backfill
+- اجرای integrity command و گزارش orphanها
+- فعال‌سازی flow جدید برای tenant آزمایشی و سپس rollout کامل
+
+### مرحله 4: cleanup
+
+- حذف route و service legacy فقط بعد از تایید داده و تست rollback
+- جدول‌ها یا ستون‌های legacy دارای history ابتدا deprecated و سپس در release
+  جداگانه حذف شوند.
+- migration destructive در همان release cutover انجام نشود.
 
 ## تست و کیفیت
 
-هر تغییر رفتاری باید تست داشته باشد. suite باید موارد زیر را پوشش دهد یا بعد
-از تغییر مرتبط به‌روزرسانی شود:
+هر تغییر رفتاری باید تست داشته باشد. حداقل پوشش نسخه 2.0.0:
 
-- tenant resolution و unknown host
-- landing visit tracking
-- OTP hash/rate-limit/digit normalization
-- lead verification
-- upload authorization و validation
+### دسته‌بندی و مدل
+
+- CRUD و authorization دسته‌بندی
+- code immutability پس از استفاده
+- delete conflict برای category/output/model دارای history
+- CRUD خروجی دسته‌بندی
+- registry type از config
+- dynamic validation برای sample و GapGPT
+- reject fieldهای ناشناخته
+- encrypted credential و masking
+- حفظ secret در update خالی
+- activation فقط با config کامل
+- tenant user نتواند model/category مدیریت کند
+
+### entitlement
+
+- کلینیک دارای category به همه مدل‌های eligible pool دسترسی اجرایی دارد.
+- کلینیک بدون entitlement درخواست generation نمی‌سازد.
+- category غیرفعال‌شده توسط مدیر سیستم از landing همه کلینیک‌ها حذف می‌شود.
+- مدل غیرفعال‌شده توسط مدیر سیستم، کاربردهای وابسته همان کلینیک‌ها را از
+  landing حذف می‌کند و در داشبورد کلینیک علت مشخص می‌شود.
+- Plan خریداری‌شده غیرفعال‌شده توسط مدیر سیستم، کاربردهای عمومی آن subscription
+  را پنهان می‌کند و در داشبورد کلینیک علت مشخص می‌شود.
+- pause یک مدل entitlement را حذف نمی‌کند.
+- نبود مدل eligible خطای امن و بدون مصرف اعتبار می‌دهد.
+
+### generation مستقل
+
+- درخواست مستقیم خروجی سوم بدون خروجی اول و دوم
+- درخواست خروجی‌ها با ترتیب دلخواه
+- idempotency درخواست تکراری
+- regenerate نسخه جدید و archive نسخه قبلی
+- failure regenerate نتیجه موفق قبلی را حفظ می‌کند.
+- ترک session/page و بازیابی status در ورود بعدی
+- scoping کامل tenant و lead
+
+### انتخاب مدل و queue
+
+- انتخاب مدل idle
+- انتخاب کم‌بارترین مدل وقتی همه مشغول‌اند
+- tie-break منصفانه
+- رعایت concurrency limit در درخواست هم‌زمان
+- صف منطقی مستقل مدل
+- dispatch job بعدی پس از آزاد شدن slot
+- recovery reservation stale
+- pause مدل مانع assignment جدید و نه job جاری
+- مدل فاقد output config eligible نباشد.
+- circuit breaker و health state
+
+### اعتبار
+
+- reservation اتمیک
+- جلوگیری از double reservation با idempotency
+- consume در success
+- release در failure قطعی
+- حفظ reservation در outcome مبهم
+- جلوگیری از balance منفی در concurrency
+
+### پروفایل و آرشیو
+
+- فقط یک source current برای lead tenant
+- upload جدید source قبلی را archive کند.
+- job queued source قبلی cancel شود.
+- نتیجه job processing قبلی current نشود.
+- current result unique برای source/category/output
+- کلینیک archive tenant خود را ببیند.
+- مراجعه‌کننده و tenant دیگر archive را نبینند.
+- همان شماره در دو tenant پروفایل مستقل داشته باشد.
+
+### providerها
+
+- sample هیچ network call نداشته باشد.
+- sample asset خصوصی و scoped کپی شود.
+- GapGPT multipart صحیح باشد.
+- prompt درست output منتخب استفاده شود.
+- no automatic retry پس از provider call started
+- download URL provider validate و خصوصی ذخیره شود.
+- secret و raw response در log/response نباشد.
+
+### regression
+
+- tenant resolution
+- OTP hash/rate limit/digit normalization
 - session cookie separation
-- generation با sample provider و GapGPT
-- tenant isolation برای assetها و CRM
-- admin OTP و dashboard scoping
-- role/permission enforcement
-- user, clinic, AI model و system management
-- SMS gateway scoping و credential masking
-- billing, invoice, payment, subscription و credit ledger
-- AI service access blocking
-- Jalali date و number normalization
-- responsive dashboard component contracts
+- CRM isolation
+- dashboard policy
+- billing و invoice idempotency
+- Jalali و number normalization
+- responsive component contracts
 
-دستور اصلی:
+دستورهای اصلی:
 
 ```bash
 php artisan test
 ```
 
-در صورت تغییر CSS، JavaScript، Blade، font یا Vite:
+در صورت تغییر frontend، Blade، CSS، JavaScript، font یا Vite:
 
 ```bash
 npm run build
 ```
 
+در صورت وجود static analysis و formatter پروژه، اجرای آن‌ها نیز الزامی است؛
+برای مثال:
+
+```bash
+vendor/bin/pint --test
+vendor/bin/phpstan analyse
+```
+
+نام دقیق command باید از `composer.json` پروژه خوانده شود و command فرضی به CI
+تحمیل نشود.
+
+## مستندات الزامی
+
+علاوه بر به‌روزرسانی همین سند، حداقل مستندات زیر ایجاد یا اصلاح شوند:
+
+- معماری دسته‌بندی، type و model instance
+- schema کانفیگ type جدید
+- قرارداد API و OpenAPI
+- state machine generation request و attempt
+- الگوریتم انتخاب مدل و queue coordinator
+- credit reservation/reconciliation
+- سیاست private asset و archive/retention
+- راهنمای افزودن provider جدید
+- runbook مدل degraded، queue stuck و outcome مبهم
+- migration و rollback نسخه 2.0.0
+- تغییرات dashboard و public profile
+
+## معیار پذیرش نهایی
+
+تغییر زمانی کامل است که:
+
+1. system admin بتواند category و outputهای آن را از API و dashboard CRUD کند.
+2. system admin بتواند مدل sample یا GapGPT را با فرم مبتنی بر config بسازد.
+3. credentialها encrypted و masked باشند.
+4. entitlement کلینیک در سطح category اعمال شود و assignment مدل لازم نباشد.
+5. مراجعه‌کننده بتواند هر output را مستقل و با ترتیب دلخواه درخواست کند.
+6. چند مدل یک category با الگوریتم کم‌بارترین مدل استفاده شوند.
+7. concurrency limit حتی زیر درخواست هم‌زمان نقض نشود.
+8. درخواست پس از ترک صفحه persisted و در ورود بعدی قابل مشاهده باشد.
+9. هر lead در هر tenant یک source image current داشته باشد.
+10. source و resultهای قبلی برای کلینیک archive و برای tenant دیگر غیرقابل دسترس
+    باشند.
+11. migration تاریخچه نسخه قبلی را حذف نکند.
+12. تمام تست‌ها، build و checks پروژه موفق باشند.
+13. مستندات و OpenAPI با رفتار نهایی کد منطبق باشند.
+
 ## قانون تصمیم‌گیری برای توسعه بعدی
 
 قبل از هر تغییر بپرسید:
 
-1. داده متعلق به کل سیستم است یا یک کلینیک؟
-2. اگر user لازم دارد، کاربر سیستمی است یا کلینیکی؟
-3. آیا `tenant_id` لازم دارد؟
-4. tenant از host یا context مجاز resolve می‌شود؟
-5. role و permission در سطح system است یا clinic؟
-6. آیا credential، OTP، private path یا payload حساس نشت نمی‌کند؟
-7. آیا public Blade از `/api/v1` عبور می‌کند؟
-8. آیا رفتار جدید تست دارد؟
-9. آیا داکیومنت موجود باید به‌روزرسانی شود یا واقعاً فایل جدید لازم است؟
+1. داده system-owned است یا tenant-owned؟
+2. category، type، model instance، output، request و attempt با هم اشتباه نشده‌اند؟
+3. آیا tenant فقط از host/context مجاز resolve شده است؟
+4. آیا lead و asset با tenant و session جاری scope شده‌اند؟
+5. آیا client در حال انتخاب model/provider/prompt نیست؟
+6. آیا credential، OTP، prompt، private path یا raw provider payload نشت نمی‌کند؟
+7. آیا ظرفیت مدل و اعتبار به صورت اتمیک رزرو شده‌اند؟
+8. آیا provider call ممکن است تکراری و هزینه‌زا شود؟
+9. آیا خروجی current و archive با versioning صحیح مدیریت می‌شوند؟
+10. آیا رفتار در چند tenant با یک شماره موبایل ایزوله باقی می‌ماند؟
+11. آیا API، تست، migration، rollback و documentation به‌روزرسانی شده‌اند؟

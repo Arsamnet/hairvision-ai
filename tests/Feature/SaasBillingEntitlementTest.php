@@ -267,7 +267,7 @@ class SaasBillingEntitlementTest extends TestCase
             'credit_limit' => null,
             'is_active' => true,
             'is_demo' => true,
-            'is_protected' => true,
+            'is_protected' => false,
             'priority' => 1,
         ]);
 

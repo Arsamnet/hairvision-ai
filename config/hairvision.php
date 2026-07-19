@@ -46,7 +46,7 @@ return [
 
     'generation' => [
         'message_interval_ms' => (int) env('HAIRVISION_GENERATION_MESSAGE_INTERVAL_MS', 10000),
-        'poll_interval_ms' => (int) env('HAIRVISION_GENERATION_POLL_INTERVAL_MS', 5000),
+        'poll_interval_ms' => (int) env('HAIRVISION_GENERATION_POLL_INTERVAL_MS', 10000),
 
         /*
         |--------------------------------------------------------------------------

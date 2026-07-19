@@ -9,6 +9,7 @@ use App\Models\Subscription;
 use App\Models\Tenant;
 use App\Models\User;
 use App\Services\Payment\PaymentGatewayService;
+use App\Services\Settings\SystemSettingService;
 use App\Support\JalaliDate;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
@@ -27,6 +28,7 @@ class BillingService
         private readonly PaymentGatewayService $gateways,
         private readonly SubscriptionActivationService $activation,
         private readonly ServiceEntitlementService $entitlements,
+        private readonly SystemSettingService $settings,
     ) {}
 
     /**
@@ -54,8 +56,8 @@ class BillingService
                     'number' => $this->nextInvoiceNumber($plan),
                     'amount' => $plan->price,
                     'currency' => $plan->currency,
-                    'due_at' => now()->addDays(7),
-                    'expires_at' => now()->addDays(7),
+                    'due_at' => now()->addDays($this->invoiceDueDays()),
+                    'expires_at' => now()->addDays($this->invoiceDueDays()),
                     'metadata_json' => [
                         'plan_type' => $plan->plan_type->value,
                         'service_key' => $plan->service_key,
@@ -79,7 +81,11 @@ class BillingService
         $scope = 'billing.invoice_for_clinic_plan';
 
         try {
-            $this->activation->validatePurchase($actor, $plan, $tenant);
+            if ($plan->status !== 'active') {
+                throw ValidationException::withMessages([
+                    'plan' => __('plans.inactive_plan'),
+                ]);
+            }
             $discountAmount = max(0, min($discountAmount, (int) $plan->price));
             $invoiceAmount = max(0, (int) $plan->price - $discountAmount);
 
@@ -94,8 +100,8 @@ class BillingService
                     'number' => $this->nextInvoiceNumber($plan),
                     'amount' => $invoiceAmount,
                     'currency' => $plan->currency,
-                    'due_at' => now()->addDays(7),
-                    'expires_at' => now()->addDays(7),
+                    'due_at' => now()->addDays($this->invoiceDueDays()),
+                    'expires_at' => now()->addDays($this->invoiceDueDays()),
                     'metadata_json' => [
                         'plan_type' => $plan->plan_type->value,
                         'service_key' => $plan->service_key,
@@ -433,7 +439,9 @@ class BillingService
             ->with('plan')
             ->where('status', 'active')
             ->where('ends_at', '>', JalaliDate::nowDateTimeString())
-            ->whereHas('plan', fn (Builder $query) => $query->where('plan_type', 'base_subscription'));
+            ->whereHas('plan', fn (Builder $query) => $query
+                ->where('plan_type', 'base_subscription')
+                ->where('status', 'active'));
 
         if ($tenant) {
             $query->where(function (Builder $query) use ($tenant): void {
@@ -486,6 +494,11 @@ class BillingService
     }
 
     private function resetDebugSteps(): void {}
+
+    private function invoiceDueDays(): int
+    {
+        return max(1, min(90, (int) $this->settings->get('billing.invoice_due_days', 7)));
+    }
 
     private function planContext(Plan $plan): array
     {

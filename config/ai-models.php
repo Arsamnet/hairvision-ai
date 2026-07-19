@@ -4,6 +4,109 @@ use App\Services\AI\Providers\GapGptImageEditProvider;
 use App\Services\AI\Providers\HairVisionDemoProvider;
 
 return [
+    'types' => [
+        'sample_image' => [
+            'key' => 'sample_image',
+            'label' => 'مدل نمونه',
+            'provider' => HairVisionDemoProvider::class,
+            'credentials' => [],
+            'settings' => [],
+            'output_fields' => [
+                [
+                    'key' => 'sample_path',
+                    'label' => 'مسیر تصویر نمونه خصوصی',
+                    'type' => 'text',
+                    'required' => true,
+                    'rules' => ['required', 'string', 'max:500'],
+                    'secret' => false,
+                ],
+            ],
+            'defaults' => [
+                'concurrency_limit' => 10,
+            ],
+            'timeouts' => [
+                'provider_seconds' => 5,
+            ],
+            'testable' => false,
+        ],
+        'gapgpt' => [
+            'key' => 'gapgpt',
+            'label' => 'GapGPT',
+            'provider' => GapGptImageEditProvider::class,
+            'credentials' => [
+                [
+                    'key' => 'api_key',
+                    'label' => 'API Key',
+                    'type' => 'secret',
+                    'required' => true,
+                    'rules' => ['required', 'string', 'max:2000'],
+                    'secret' => true,
+                ],
+            ],
+            'settings' => [
+                [
+                    'key' => 'endpoint',
+                    'label' => 'Endpoint',
+                    'type' => 'url',
+                    'required' => true,
+                    'rules' => ['required', 'url'],
+                    'default' => 'https://api.gapgpt.app/v1/images/edits',
+                    'secret' => false,
+                ],
+                [
+                    'key' => 'model',
+                    'label' => 'Model',
+                    'type' => 'text',
+                    'required' => true,
+                    'rules' => ['required', 'string', 'max:100'],
+                    'default' => 'gpt-image-2',
+                    'secret' => false,
+                ],
+                [
+                    'key' => 'size',
+                    'label' => 'Size',
+                    'type' => 'select',
+                    'required' => true,
+                    'rules' => ['required', 'in:1024x1024'],
+                    'options' => ['1024x1024'],
+                    'default' => '1024x1024',
+                    'secret' => false,
+                ],
+                [
+                    'key' => 'timeout_seconds',
+                    'label' => 'Timeout',
+                    'type' => 'integer',
+                    'required' => true,
+                    'rules' => ['required', 'integer', 'min:60', 'max:1800'],
+                    'default' => 900,
+                    'secret' => false,
+                ],
+            ],
+            'output_fields' => [
+                [
+                    'key' => 'prompt',
+                    'label' => 'پرامپت خروجی',
+                    'type' => 'textarea',
+                    'required' => true,
+                    'rules' => ['required', 'string', 'max:20000'],
+                    'secret' => false,
+                ],
+            ],
+            'defaults' => [
+                'endpoint' => 'https://api.gapgpt.app/v1/images/edits',
+                'model' => 'gpt-image-2',
+                'size' => '1024x1024',
+                'timeout_seconds' => 900,
+                'concurrency_limit' => 1,
+            ],
+            'timeouts' => [
+                'provider_seconds' => 900,
+                'connect_seconds' => 30,
+            ],
+            'testable' => true,
+        ],
+    ],
+
     'usage_categories' => [
         'hair_transplant' => [
             'key' => 'hair_transplant',
@@ -27,20 +130,20 @@ return [
             'driver' => HairVisionDemoProvider::class,
             'required_credentials' => [],
             'optional_credentials' => [],
-            'supported_usage_categories' => ['hair_transplant', 'eyebrow_transplant'],
+            'supported_usage_categories' => ['*'],
             'default_timeout' => 5,
             'endpoint' => null,
             'is_system' => true,
             'is_demo' => true,
-            'is_protected' => true,
+            'is_protected' => false,
             'requires_credentials' => false,
             'supports_prompt' => true,
             'supports_image_edit' => true,
             'supports_prompt_customization' => true,
             'supports_credit_based_usage' => true,
             'supports_concurrent_stage_dispatch' => false,
-            'access_creatable' => false,
-            'access_editable' => false,
+            'access_creatable' => true,
+            'access_editable' => true,
         ],
         'gapgpt' => [
             'key' => 'gapgpt',
@@ -59,7 +162,7 @@ return [
                 'timeout_seconds',
                 'connect_timeout_seconds',
             ],
-            'supported_usage_categories' => ['hair_transplant', 'eyebrow_transplant'],
+            'supported_usage_categories' => ['*'],
             'default_timeout' => 900,
             'default_connect_timeout' => 30,
             'endpoint' => 'https://api.gapgpt.app/v1/images/edits',

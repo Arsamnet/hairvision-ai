@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Jobs\ProcessGenerationJob;
 use App\Models\AiModelAccess;
+use App\Models\AiModelCategoryOutput;
 use App\Models\AiProvider;
 use App\Models\CreditTransaction;
 use App\Models\GeneratedAsset;
@@ -183,19 +184,39 @@ class HairVisionMvpTest extends TestCase
             'primary_color' => '#123456',
         ]);
 
-        $this->forHost('aria.hairvision-ai.test')
+        $response = $this->forHost('aria.hairvision-ai.test')
             ->get('/')
             ->assertOk()
             ->assertSee('--hv-primary-color: #123456;', false)
             ->assertDontSee('src="/theme/logo.svg"', false)
             ->assertSee('id="otpCountdown"', false)
             ->assertSee('id="resendOtp"', false)
+            ->assertSee('id="phoneEntryPanel"', false)
+            ->assertSee('id="otpEntryPanel" class="hidden', false)
+            ->assertSee('id="mobileError"', false)
+            ->assertSee('id="outputChoicePanel"', false)
+            ->assertSee('روی هر خروجی بزنید')
+            ->assertSee('/theme/category-icons/hair-transplant.svg', false)
+            ->assertSee('/theme/category-icons/eyebrow-transplant.svg', false)
+            ->assertDontSee('/theme/landing/hair-ai-consultation.jpg', false)
             ->assertSee('ارسال مجدد کد')
             ->assertDontSee('ارسال مجدد تا')
+            ->assertDontSee('id="sidebarTitle"', false)
+            ->assertDontSee('hv-hero-panel', false)
+            ->assertDontSee('id="resultsStatusBox"', false)
             ->assertSee('تغییر شماره')
             ->assertSee('id="downloadImageModal"', false)
             ->assertSee('data-gallery-download', false)
             ->assertSee('fi-rr-cross-small', false);
+
+        $this->assertSame(1, substr_count($response->getContent(), 'id="generationError"'));
+        $this->assertStringContainsString('#landingApp button:not(:disabled)', $response->getContent());
+        $this->assertStringContainsString('cursor: pointer', $response->getContent());
+        $this->assertStringContainsString("label: 'تصویر اصلی'", file_get_contents(resource_path('js/landing.js')));
+        $this->assertStringContainsString('generationDisplayItemsFromJobs', file_get_contents(resource_path('js/landing.js')));
+        $this->assertStringContainsString('items.length > 0 ? originalGalleryItem()', file_get_contents(resource_path('js/landing.js')));
+        $this->assertStringContainsString('category?.card_image_url', file_get_contents(resource_path('js/landing.js')));
+        $this->assertStringContainsString('در حال ساخت', file_get_contents(resource_path('js/landing.js')));
     }
 
     public function test_otp_request_sends_system_ippanel_pattern_when_configured(): void
@@ -535,7 +556,7 @@ class HairVisionMvpTest extends TestCase
             'credit_limit' => null,
             'is_active' => true,
             'is_demo' => true,
-            'is_protected' => true,
+            'is_protected' => false,
             'priority' => 0,
         ]);
 
@@ -646,7 +667,6 @@ class HairVisionMvpTest extends TestCase
                 'size' => '1024x1024',
                 'response_format' => 'url',
             ],
-            'prompt' => '{stage_prompt}',
             'credit_limit' => 3,
             'is_active' => true,
             'priority' => 0,
@@ -704,8 +724,14 @@ class HairVisionMvpTest extends TestCase
             ->values()
             ->all();
 
-        $this->assertCount(3, array_unique($prompts));
-        $this->assertTrue(collect($prompts)->every(fn (string $prompt): bool => str_contains($prompt, 'exactly one')));
+        $expectedPrompts = AiModelCategoryOutput::query()
+            ->whereHas('category', fn ($query) => $query->where('code', 'hair_transplant'))
+            ->orderBy('sort_order')
+            ->orderBy('id')
+            ->pluck('prompt')
+            ->all();
+
+        $this->assertSame($expectedPrompts, $prompts);
         $this->assertTrue($gapGptRequests->every(fn (array $record): bool => $this->multipartField($record[0]->body(), 'model') === 'gpt-image-2'));
         $this->assertTrue($gapGptRequests->every(fn (array $record): bool => $this->multipartField($record[0]->body(), 'n') === '1'));
         $this->assertTrue($gapGptRequests->every(fn (array $record): bool => $this->multipartField($record[0]->body(), 'response_format') === 'url'));
@@ -1290,11 +1316,10 @@ class HairVisionMvpTest extends TestCase
             ],
             [
                 'credentials' => [],
-                'prompt' => 'Sample hair growth preview',
                 'credit_limit' => null,
                 'is_active' => true,
                 'is_demo' => true,
-                'is_protected' => true,
+                'is_protected' => false,
                 'priority' => 1,
             ]
         );

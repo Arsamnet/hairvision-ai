@@ -1,7 +1,8 @@
 const modalToggleSelector = '[data-admin-modal-toggle]';
+const modalTriggerSelector = '[data-admin-modal-trigger]';
 const modalCloseSelector = '[data-admin-modal-close]';
 const modalBackdropSelector = '[data-admin-modal-backdrop]';
-const modalLabelControlSelector = '[data-admin-modal-trigger], [data-admin-modal-label-close]';
+const modalLabelControlSelector = `${modalTriggerSelector}, [data-admin-modal-label-close]`;
 
 const modalToggle = (modalId) => document.querySelector(`${modalToggleSelector}[data-admin-modal-toggle="${modalId}"]`);
 
@@ -25,8 +26,11 @@ export const openModal = (modalId) => {
     const toggle = modalToggle(modalId);
 
     if (toggle) {
-        toggle.checked = true;
-        syncModalScrollLock();
+        preserveScrollPosition(() => {
+            toggle.checked = true;
+            toggle.dispatchEvent(new Event('change', { bubbles: true }));
+            syncModalScrollLock();
+        });
     }
 };
 
@@ -60,6 +64,17 @@ export const bootAdminModals = () => {
 
         event.preventDefault();
         closeModal(closeControl.dataset.adminModalClose || closeControl.dataset.adminModalBackdrop);
+    });
+
+    document.addEventListener('click', (event) => {
+        const trigger = event.target.closest(modalTriggerSelector);
+
+        if (! trigger) {
+            return;
+        }
+
+        event.preventDefault();
+        openModal(trigger.dataset.adminModalTrigger);
     });
 
     document.addEventListener('keydown', (event) => {

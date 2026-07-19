@@ -4,7 +4,9 @@ namespace App\Services\AI;
 
 use App\Contracts\Ai\AiModelProviderInterface;
 use App\Models\AiModelAccess;
+use App\Models\AiModelCategory;
 use Illuminate\Support\Arr;
+use Illuminate\Support\Facades\Schema;
 use InvalidArgumentException;
 
 /**
@@ -31,7 +33,28 @@ class AiModelResolver
      */
     public function usageCategories(): array
     {
-        return config('ai-models.usage_categories', []);
+        $configured = config('ai-models.usage_categories', []);
+
+        if (! Schema::hasTable('ai_model_categories')) {
+            return $configured;
+        }
+
+        $categories = AiModelCategory::query()
+            ->whereIn('status', ['active', 'inactive'])
+            ->orderBy('sort_order')
+            ->orderBy('id')
+            ->get()
+            ->mapWithKeys(fn (AiModelCategory $category): array => [
+                $category->code => [
+                    'key' => $category->code,
+                    'label' => $category->name,
+                    'description' => $category->description,
+                    'status' => $category->status,
+                ],
+            ])
+            ->all();
+
+        return array_replace($configured, $categories);
     }
 
     /**
@@ -106,6 +129,10 @@ class AiModelResolver
 
         $step++;
         $supported = Arr::wrap($this->model($modelKey)['supported_usage_categories'] ?? []);
+        if (in_array('*', $supported, true)) {
+            return $this->hasUsageCategory($usageCategoryKey);
+        }
+
         $supports = in_array($usageCategoryKey, $supported, true);
 
         return $supports;
@@ -157,7 +184,7 @@ class AiModelResolver
     {
         $category = $this->usageCategories()[$key] ?? [];
         $labelKey = $category['label_key'] ?? null;
-        $label = is_string($labelKey) ? __($labelKey) : $key;
+        $label = $category['label'] ?? (is_string($labelKey) ? __($labelKey) : $key);
 
         return $label;
     }

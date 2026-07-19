@@ -114,17 +114,14 @@ class SubscriptionActivationService
             ]);
         }
 
-        $serviceCredits = $plan->serviceCredits();
+        $serviceKeys = $plan->serviceKeys();
 
-        if ($active && $serviceCredits !== []) {
-            $alreadyAvailable = collect($serviceCredits)
-                ->every(function (int $credit, string $serviceKey) use ($tenant): bool {
-                    $entitlement = $this->entitlements->activeEntitlement($tenant, $serviceKey);
+        if ($active && $serviceKeys !== []) {
+            $alreadyAvailable = collect($serviceKeys)
+                ->every(fn (string $serviceKey): bool => (bool) $this->entitlements->activeEntitlement($tenant, $serviceKey));
+            $activeTotalCredit = $this->entitlements->totalCreditForSubscription($active);
 
-                    return $entitlement && $entitlement->totalCredit() >= $credit;
-                });
-
-            if ($alreadyAvailable) {
+            if ($alreadyAvailable && $activeTotalCredit >= (int) $plan->usage_limit) {
                 throw ValidationException::withMessages([
                     'plan' => __('plans.service_access_already_available'),
                 ]);
@@ -134,7 +131,7 @@ class SubscriptionActivationService
 
     private function validateServiceAddOnPurchase(Plan $plan, Tenant $tenant, string $scope = 'billing.subscription_activation.validate_service_add_on'): void
     {
-        $serviceCredits = $plan->serviceCredits();
+        $serviceKeys = $plan->serviceKeys();
 
         $subscription = $this->entitlements->activeBaseSubscriptionForTenant($tenant);
 
@@ -144,7 +141,7 @@ class SubscriptionActivationService
             ]);
         }
 
-        foreach (array_keys($serviceCredits) as $serviceKey) {
+        foreach ($serviceKeys as $serviceKey) {
             if ($this->entitlements->activeEntitlement($tenant, $serviceKey)) {
                 throw ValidationException::withMessages([
                     'plan' => __('subscriptions.errors.service_duplicate', [
@@ -158,7 +155,7 @@ class SubscriptionActivationService
 
     private function validateCreditTopUpPurchase(Plan $plan, Tenant $tenant, string $scope = 'billing.subscription_activation.validate_credit_top_up'): void
     {
-        $serviceCredits = $plan->serviceCredits();
+        $serviceKeys = $plan->serviceKeys();
 
         $subscription = $this->entitlements->activeBaseSubscriptionForTenant($tenant);
 
@@ -168,7 +165,7 @@ class SubscriptionActivationService
             ]);
         }
 
-        foreach (array_keys($serviceCredits) as $serviceKey) {
+        foreach ($serviceKeys as $serviceKey) {
             if (! $this->entitlements->activeEntitlement($tenant, $serviceKey)) {
                 throw ValidationException::withMessages([
                     'plan' => __('subscriptions.errors.top_up_requires_service', [
@@ -198,7 +195,8 @@ class SubscriptionActivationService
             ]);
 
         $serviceCredits = $plan->serviceCredits();
-        $totalCredit = array_sum($serviceCredits);
+        $serviceKeys = array_keys($serviceCredits);
+        $totalCredit = (int) $plan->usage_limit;
 
         $subscription = Subscription::create([
             'tenant_id' => $tenant->id,
@@ -212,7 +210,9 @@ class SubscriptionActivationService
             'usage_used' => 0,
         ]);
 
-        foreach ($serviceCredits as $serviceKey => $credit) {
+        $grantEntitlement = null;
+
+        foreach ($serviceKeys as $serviceKey) {
             $entitlement = SubscriptionServiceEntitlement::create([
                 'tenant_id' => $tenant->id,
                 'subscription_id' => $subscription->id,
@@ -220,7 +220,7 @@ class SubscriptionActivationService
                 'service_key' => $serviceKey,
                 'source_type' => ServiceEntitlementSource::BasePlan->value,
                 'source_id' => $plan->id,
-                'included_credit' => $credit,
+                'included_credit' => $serviceCredits[$serviceKey] ?? 0,
                 'purchased_credit' => 0,
                 'used_credit' => 0,
                 'is_active' => true,
@@ -228,15 +228,18 @@ class SubscriptionActivationService
                 'ends_at' => $subscription->ends_at,
             ]);
 
+            $grantEntitlement ??= $entitlement;
+        }
+
+        if ($grantEntitlement && $totalCredit > 0) {
             $this->ledger->grant(
-                $entitlement,
-                $credit,
+                $grantEntitlement,
+                $totalCredit,
                 CreditTransactionType::Grant,
                 $invoice,
                 $user,
                 __('credits.descriptions.base_grant', ['plan' => $plan->name])
             );
-
         }
 
         $subscription->refresh();
@@ -262,7 +265,12 @@ class SubscriptionActivationService
             ]);
         }
 
-        foreach ($plan->serviceCredits() as $serviceKey => $credit) {
+        $serviceCredits = $plan->serviceCredits();
+        $serviceKeys = array_keys($serviceCredits);
+        $totalCredit = (int) $plan->usage_limit;
+        $grantEntitlement = null;
+
+        foreach ($serviceKeys as $serviceKey) {
             $entitlement = SubscriptionServiceEntitlement::create([
                 'tenant_id' => $tenant->id,
                 'subscription_id' => $subscription->id,
@@ -270,7 +278,7 @@ class SubscriptionActivationService
                 'service_key' => $serviceKey,
                 'source_type' => ServiceEntitlementSource::AddOn->value,
                 'source_id' => $plan->id,
-                'included_credit' => $credit,
+                'included_credit' => $serviceCredits[$serviceKey] ?? 0,
                 'purchased_credit' => 0,
                 'used_credit' => 0,
                 'is_active' => true,
@@ -278,15 +286,18 @@ class SubscriptionActivationService
                 'ends_at' => $subscription->ends_at,
             ]);
 
+            $grantEntitlement ??= $entitlement;
+        }
+
+        if ($grantEntitlement && $totalCredit > 0) {
             $this->ledger->grant(
-                $entitlement,
-                $credit,
+                $grantEntitlement,
+                $totalCredit,
                 CreditTransactionType::Grant,
                 $invoice,
                 $user,
                 __('credits.descriptions.add_on_grant', ['plan' => $plan->name])
             );
-
         }
 
         $subscription->refresh();
@@ -312,7 +323,10 @@ class SubscriptionActivationService
             ]);
         }
 
-        foreach ($plan->serviceCredits() as $serviceKey => $credit) {
+        $serviceKey = $plan->serviceKeys()[0] ?? $this->services->defaultServiceKey();
+        $credit = (int) $plan->usage_limit;
+
+        if ($credit > 0) {
             $entitlement = $this->entitlements->activeEntitlement($tenant, $serviceKey, lock: true);
 
             if (! $entitlement) {
@@ -330,7 +344,6 @@ class SubscriptionActivationService
                 $user,
                 __('credits.descriptions.top_up', ['plan' => $plan->name])
             );
-
         }
 
         $subscription->refresh();

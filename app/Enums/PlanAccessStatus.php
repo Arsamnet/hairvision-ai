@@ -9,4 +9,5 @@ enum PlanAccessStatus: string
     case Inactive = 'inactive';
     case Expired = 'expired';
     case CreditFinished = 'credit_finished';
+    case PlanDisabled = 'plan_disabled';
 }

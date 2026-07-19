@@ -7,7 +7,8 @@
     @php
         $planStatus = $planAccess['status']->value ?? 'inactive';
         $planMessage = __('dashboard.plan.'.$planStatus);
-        $remainingCredit = $activeSubscription ? $serviceSummaries->sum('remaining_credit') : 0;
+        $displaySubscription = $activeSubscription ?: ($planSubscription ?? null);
+        $remainingCredit = app(\App\Services\Billing\ServiceEntitlementService::class)->remainingCreditForSubscription($displaySubscription);
     @endphp
 
     <section class="mb-5 overflow-hidden rounded-lg border border-teal-100 bg-white shadow-sm">
@@ -42,18 +43,26 @@
             </div>
 
             <div class="border-t border-teal-100 p-5 sm:p-6 lg:border-r lg:border-t-0 bg-white dark:bg-zinc-950">
-                @if($activeSubscription)
-                    <p class="text-sm font-bold text-zinc-500 dark:text-zinc-400">{{ $activeSubscription->plan?->name }}</p>
+                @if($displaySubscription)
+                    <div class="flex flex-wrap items-center gap-2">
+                        <p class="text-sm font-bold text-zinc-500 dark:text-zinc-400">{{ $displaySubscription->plan?->name }}</p>
+                        @if($planStatus === 'plan_disabled')
+                            <x-admin.badge tone="amber">{{ __('dashboard.plan.disabled_by_system_badge') }}</x-admin.badge>
+                        @endif
+                    </div>
                     <p class="mt-3 text-2xl font-bold text-zinc-950 dark:text-zinc-100">{{ __('dashboard.plan.remaining_credit', ['count' => number_format($remainingCredit)]) }}</p>
-                    <p class="mt-2 text-sm text-zinc-600 dark:text-zinc-300">{{ __('dashboard.plan.active_until', ['date' => \App\Support\JalaliDate::toJalaliDate($activeSubscription->ends_at)]) }}</p>
+                    <p class="mt-2 text-sm text-zinc-600 dark:text-zinc-300">{{ __('dashboard.plan.active_until', ['date' => \App\Support\JalaliDate::toJalaliDate($displaySubscription->ends_at)]) }}</p>
                     <div class="mt-4 space-y-2">
-                        <p class="text-xs font-bold text-zinc-500 dark:text-zinc-400">{{ __('dashboard.plan.service_credits') }}</p>
-                        @forelse($serviceSummaries as $service)
+                        <p class="text-xs font-bold text-zinc-500 dark:text-zinc-400">{{ __('dashboard.applications.title') }}</p>
+                        @forelse($applicationSummaries as $application)
                             <div class="rounded-lg bg-white/80 px-3 py-2 text-xs ring-1 ring-zinc-100 dark:bg-white/[0.04] dark:ring-white/10">
                                 <div class="flex items-center justify-between gap-3">
-                                    <span class="font-bold text-zinc-800 dark:text-zinc-100">{{ $service['label'] }}</span>
-                                    <span class="text-zinc-600 dark:text-zinc-300">{{ number_format($service['remaining_credit']) }} / {{ number_format($service['total_credit']) }}</span>
+                                    <span class="font-bold text-zinc-800 dark:text-zinc-100">{{ $application['label'] }}</span>
+                                    <x-admin.badge :tone="$application['available'] ? 'emerald' : 'amber'">
+                                        {{ $application['available'] ? __('subscriptions.available') : __('dashboard.applications.unavailable') }}
+                                    </x-admin.badge>
                                 </div>
+                                <p class="mt-2 leading-5 text-zinc-600 dark:text-zinc-300">{{ $application['message'] }}</p>
                             </div>
                         @empty
                             <p class="rounded-lg bg-amber-50 px-3 py-2 text-xs font-bold text-amber-800 dark:bg-amber-300/10 dark:text-amber-200 dark:ring-1 dark:ring-amber-300/15">{{ __('dashboard.plan.no_service_credit') }}</p>

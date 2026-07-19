@@ -1,14 +1,16 @@
 <?php
 
 use App\Http\Controllers\Admin\AiModelAccessController;
+use App\Http\Controllers\Admin\AiModelCategoryController;
 use App\Http\Controllers\Admin\AuthController;
 use App\Http\Controllers\Admin\BillingController;
-use App\Http\Controllers\Admin\ClinicController;
 use App\Http\Controllers\Admin\ClinicAiModelAccessController;
+use App\Http\Controllers\Admin\ClinicController;
+use App\Http\Controllers\Admin\ClinicNotificationController;
 use App\Http\Controllers\Admin\DashboardController;
-use App\Http\Controllers\Admin\LeadGeneratedAssetController;
 use App\Http\Controllers\Admin\LeadController;
 use App\Http\Controllers\Admin\LeadFollowUpController;
+use App\Http\Controllers\Admin\LeadGeneratedAssetController;
 use App\Http\Controllers\Admin\LeadUploadController;
 use App\Http\Controllers\Admin\ManagementReportController;
 use App\Http\Controllers\Admin\PaymentGatewayController;
@@ -17,6 +19,7 @@ use App\Http\Controllers\Admin\PlanController;
 use App\Http\Controllers\Admin\RoleController;
 use App\Http\Controllers\Admin\SmsGatewayController;
 use App\Http\Controllers\Admin\SystemDashboardController;
+use App\Http\Controllers\Admin\SystemClinicNotificationController;
 use App\Http\Controllers\Admin\SystemSettingController;
 use App\Http\Controllers\Admin\TenantSwitchController;
 use App\Http\Controllers\Admin\UserController;
@@ -65,6 +68,9 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
         Route::post('/tenant', TenantSwitchController::class)->name('tenant.switch');
         Route::post('/filter-presets', [UserSavedFilterController::class, 'store'])->name('filter-presets.store');
         Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
+        Route::get('/notifications', [ClinicNotificationController::class, 'index'])->middleware('permission:notifications.view')->name('notifications.index');
+        Route::patch('/notifications/read-all', [ClinicNotificationController::class, 'markAllRead'])->middleware('permission:notifications.view')->name('notifications.read-all');
+        Route::get('/notifications/{notification}', [ClinicNotificationController::class, 'show'])->middleware('permission:notifications.view')->name('notifications.show');
         Route::get('/leads', [LeadController::class, 'index'])->name('leads.index');
         Route::get('/leads/create', [LeadController::class, 'create'])->name('leads.create');
         Route::post('/leads', [LeadController::class, 'store'])->name('leads.store');
@@ -104,8 +110,10 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
         Route::get('/clinics/{clinic}/edit', [ClinicController::class, 'edit'])->middleware('permission:tenants.edit')->name('clinics.edit');
         Route::put('/clinics/{clinic}', [ClinicController::class, 'update'])->middleware('permission:tenants.edit')->name('clinics.update');
         Route::delete('/clinics/{clinic}', [ClinicController::class, 'destroy'])->middleware('permission:tenants.delete')->name('clinics.destroy');
+        Route::get('/reports/credit-usage', [DashboardController::class, 'creditUsageReport'])->middleware('permission:reports.user.view')->name('reports.credit-usage');
         Route::get('/reports', [DashboardController::class, 'reports'])->middleware('permission:reports.user.view')->name('reports');
         Route::get('/plans', [PlanController::class, 'index'])->middleware('permission:plans.list')->name('plans.index');
+        Route::get('/plans/{plan}', [PlanController::class, 'show'])->middleware('permission:plans.list')->name('plans.show');
         Route::post('/plans/{plan}/purchase', [PlanController::class, 'purchase'])->middleware('permission:billing.pay')->name('plans.purchase');
         Route::get('/billing', [BillingController::class, 'index'])->middleware('permission:billing.list')->name('billing.index');
         Route::match(['get', 'post'], '/billing/invoices/{invoice}/pay', [BillingController::class, 'pay'])->middleware('permission:billing.pay')->name('billing.pay');
@@ -130,6 +138,19 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
             Route::get('/payment-gateways', [PaymentGatewayController::class, 'index'])->middleware('permission:payment_gateways.list')->name('payment-gateways.index');
             Route::post('/payment-gateways', [PaymentGatewayController::class, 'store'])->middleware('permission:payment_gateways.create')->name('payment-gateways.store');
             Route::put('/payment-gateways/{paymentGateway}', [PaymentGatewayController::class, 'update'])->middleware('permission:payment_gateways.edit')->name('payment-gateways.update');
+            Route::get('/notifications', [SystemClinicNotificationController::class, 'index'])->middleware('permission:notifications.manage')->name('notifications.index');
+            Route::post('/notifications', [SystemClinicNotificationController::class, 'store'])->middleware('permission:notifications.manage')->name('notifications.store');
+            Route::get('/notifications/{notification}', [SystemClinicNotificationController::class, 'show'])->middleware('permission:notifications.manage')->name('notifications.show');
+            Route::get('/ai-model-categories', [AiModelCategoryController::class, 'index'])->middleware('permission:ai_model_categories.view')->name('ai-model-categories.index');
+            Route::post('/ai-model-categories', [AiModelCategoryController::class, 'store'])->middleware('permission:ai_model_categories.create')->name('ai-model-categories.store');
+            Route::get('/ai-model-categories/{category}', [AiModelCategoryController::class, 'show'])->middleware('permission:ai_model_categories.view')->name('ai-model-categories.show');
+            Route::put('/ai-model-categories/{category}', [AiModelCategoryController::class, 'update'])->middleware('permission:ai_model_categories.update')->name('ai-model-categories.update');
+            Route::patch('/ai-model-categories/{category}/toggle', [AiModelCategoryController::class, 'toggle'])->middleware('permission:ai_model_categories.update')->name('ai-model-categories.toggle');
+            Route::patch('/ai-model-categories/{category}/archive', [AiModelCategoryController::class, 'archive'])->middleware('permission:ai_model_categories.update')->name('ai-model-categories.archive');
+            Route::delete('/ai-model-categories/{category}', [AiModelCategoryController::class, 'destroy'])->middleware('permission:ai_model_categories.delete')->name('ai-model-categories.destroy');
+            Route::post('/ai-model-categories/{category}/outputs', [AiModelCategoryController::class, 'storeOutput'])->middleware('permission:ai_model_category_outputs.manage')->name('ai-model-categories.outputs.store');
+            Route::put('/ai-model-categories/{category}/outputs/{output}', [AiModelCategoryController::class, 'updateOutput'])->middleware('permission:ai_model_category_outputs.manage')->name('ai-model-categories.outputs.update');
+            Route::delete('/ai-model-categories/{category}/outputs/{output}', [AiModelCategoryController::class, 'destroyOutput'])->middleware('permission:ai_model_category_outputs.manage')->name('ai-model-categories.outputs.destroy');
             Route::post('/plans', [PlanController::class, 'store'])->middleware('permission:plans.create,plans.manage')->name('plans.store');
             Route::put('/plans/{plan}', [PlanController::class, 'update'])->middleware('permission:plans.edit,plans.manage')->name('plans.update');
             Route::delete('/plans/{plan}', [PlanController::class, 'destroy'])->middleware('permission:plans.delete,plans.manage')->name('plans.destroy');

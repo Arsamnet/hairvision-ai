@@ -67,6 +67,8 @@ class SystemSettingController extends Controller
     {
         return match ($setting->type) {
             'json' => json_decode((string) $value, true, flags: JSON_THROW_ON_ERROR),
+            'boolean' => filter_var($value, FILTER_VALIDATE_BOOLEAN),
+            'integer' => (int) $value,
             default => $value,
         };
     }

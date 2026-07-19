@@ -4,10 +4,12 @@ namespace App\Services\Billing;
 
 use App\Enums\CreditTransactionType;
 use App\Models\CreditTransaction;
+use App\Models\Subscription;
 use App\Models\SubscriptionServiceEntitlement;
 use App\Models\Tenant;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use Throwable;
@@ -60,12 +62,13 @@ class CreditLedgerService
 
                 $locked->increment('purchased_credit', $amount);
                 $locked->refresh();
+                $balanceAfter = $this->ledgerBalanceForSubscription($locked->subscription_id, fallbackToEntitlements: false) + $amount;
 
                 return $this->createTransaction(
                     $locked,
                     CreditTransactionType::TopUp,
                     $amount,
-                    $locked->remainingCredit(),
+                    $balanceAfter,
                     $related,
                     $actor,
                     $description,
@@ -112,7 +115,7 @@ class CreditLedgerService
                     ]);
                 }
 
-                $remainingBefore = $entitlement->remainingCredit();
+                $remainingBefore = $this->ledgerBalanceForSubscription($subscription->id);
 
                 if ($remainingBefore < $amount) {
                     throw ValidationException::withMessages([
@@ -127,12 +130,13 @@ class CreditLedgerService
                 ])->save();
 
                 $entitlement->refresh();
+                $balanceAfter = $remainingBefore - $amount;
 
                 return $this->createTransaction(
                     $entitlement,
                     CreditTransactionType::Use,
                     -$amount,
-                    $entitlement->remainingCredit(),
+                    $balanceAfter,
                     $related,
                     $actor,
                     $description,
@@ -163,12 +167,13 @@ class CreditLedgerService
                 $locked = SubscriptionServiceEntitlement::query()
                     ->lockForUpdate()
                     ->findOrFail($entitlement->id);
+                $balanceAfter = $this->ledgerBalanceForSubscription($locked->subscription_id, fallbackToEntitlements: false) + $amount;
 
                 return $this->createTransaction(
                     $locked,
                     $type,
                     $amount,
-                    $locked->remainingCredit(),
+                    $balanceAfter,
                     $related,
                     $actor,
                     $description,
@@ -208,6 +213,76 @@ class CreditLedgerService
         ]);
 
         return $transaction;
+    }
+
+    public function ledgerBalanceForSubscription(int $subscriptionId, bool $fallbackToEntitlements = true): int
+    {
+        if ($fallbackToEntitlements && ! CreditTransaction::query()->where('subscription_id', $subscriptionId)->exists()) {
+            $subscription = Subscription::query()->find($subscriptionId);
+
+            return max(0, (int) ($subscription?->serviceEntitlements()
+                ->sum(DB::raw('included_credit + purchased_credit - used_credit')) ?? 0));
+        }
+
+        return (int) CreditTransaction::query()
+            ->where('subscription_id', $subscriptionId)
+            ->sum('amount');
+    }
+
+    public function ledgerBalanceForTenant(Tenant $tenant): int
+    {
+        $subscription = $this->entitlements->activeBaseSubscriptionForTenant($tenant);
+
+        if (! $subscription) {
+            return 0;
+        }
+
+        return $this->ledgerBalanceForSubscription($subscription->id);
+    }
+
+    /**
+     * Return credit movements for clinic transparency.
+     *
+     * @return Collection<int, array{date: string, type: string, amount: int, balance_after: int|null, description: string|null, created_at: mixed}>
+     */
+    public function timelineForSubscription(?Subscription $subscription): Collection
+    {
+        if (! $subscription) {
+            return collect();
+        }
+
+        $positiveRows = $subscription->creditTransactions()
+            ->where('amount', '>', 0)
+            ->orderByDesc('created_at')
+            ->get()
+            ->map(fn (CreditTransaction $transaction): array => [
+                'date' => $transaction->created_at?->toDateString() ?? '',
+                'type' => $transaction->type,
+                'amount' => $transaction->amount,
+                'balance_after' => $transaction->balance_after,
+                'description' => $transaction->description,
+                'created_at' => $transaction->created_at,
+            ]);
+
+        $dailyUseRows = $subscription->creditTransactions()
+            ->where('amount', '<', 0)
+            ->selectRaw('date(created_at) as movement_date, sum(amount) as amount, min(created_at) as first_created_at, max(created_at) as last_created_at')
+            ->groupBy('movement_date')
+            ->orderByDesc('movement_date')
+            ->get()
+            ->map(fn (mixed $row): array => [
+                'date' => (string) $row->movement_date,
+                'type' => CreditTransactionType::Use->value,
+                'amount' => (int) $row->amount,
+                'balance_after' => null,
+                'description' => __('credits.descriptions.daily_usage'),
+                'created_at' => $row->last_created_at,
+            ]);
+
+        return $positiveRows
+            ->concat($dailyUseRows)
+            ->sortByDesc('created_at')
+            ->values();
     }
 
     /**

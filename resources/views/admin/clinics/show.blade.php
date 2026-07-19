@@ -5,8 +5,11 @@
 
 @php
     $activeSubscription = $clinic->subscriptions->firstWhere('status', 'active') ?? $clinic->subscriptions->first();
-    $remainingCredit = $activeSubscription?->serviceEntitlements->sum(fn ($entitlement) => $entitlement->remainingCredit()) ?? 0;
-    $totalCredit = $activeSubscription?->serviceEntitlements->sum(fn ($entitlement) => $entitlement->totalCredit()) ?? 0;
+    $entitlementService = app(\App\Services\Billing\ServiceEntitlementService::class);
+    $remainingCredit = $entitlementService->remainingCreditForSubscription($activeSubscription);
+    $totalCredit = $entitlementService->totalCreditForSubscription($activeSubscription);
+    $assignedAccessIds = $assignedAccesses->pluck('id')->map(fn ($id): int => (int) $id)->all();
+    $hasAddableAccess = $availableAccesses->contains(fn ($access): bool => ! in_array((int) $access->id, $assignedAccessIds, true));
     $subscriptionTone = match ($activeSubscription?->status) {
         'active' => 'emerald',
         'expired' => 'amber',
@@ -116,7 +119,7 @@
                         @foreach($activeSubscription->serviceEntitlements as $entitlement)
                             <div class="rounded-lg bg-zinc-50 p-3 text-sm">
                                 <p class="font-bold">{{ $serviceOptions[$entitlement->service_key] ?? $entitlement->service_key }}</p>
-                                <p class="mt-2 text-xs text-zinc-500">{{ __('subscriptions.remaining_credit') }}: <span dir="ltr">{{ number_format($entitlement->remainingCredit()) }} / {{ number_format($entitlement->totalCredit()) }}</span></p>
+                                <p class="mt-2 text-xs text-zinc-500">{{ __('subscriptions.available') }}</p>
                             </div>
                         @endforeach
                     </div>
@@ -178,21 +181,38 @@
                 </div>
                 @can('assignToClinic', App\Models\AiModelAccess::class)
                     @if($availableAccesses->isNotEmpty())
-                        <form method="POST" action="{{ route('admin.clinics.ai-models.store', $clinic) }}" class="grid gap-2 lg:grid-cols-[minmax(16rem,1fr)_10rem_8rem]">
-                            @csrf
-                            <select name="ai_model_access_id" class="h-10 rounded-lg border border-zinc-200 px-3 text-sm outline-none focus:border-teal-500">
-                                @foreach($availableAccesses as $access)
-                                    <option value="{{ $access->id }}">{{ $access->name }} - {{ $resolver->usageCategoryLabel($access->usage_category_key) }}</option>
-                                @endforeach
-                            </select>
-                            <label class="flex h-10 items-center gap-2 rounded-lg bg-zinc-50 px-3 text-sm font-bold">
-                                <input type="checkbox" name="is_active" value="1" checked>
-                                <span>{{ __('ai_models.statuses.active') }}</span>
-                            </label>
-                            <x-admin.button type="submit" icon="plus" size="compact">
-                                <span>{{ __('ai_models.assign') }}</span>
-                            </x-admin.button>
-                        </form>
+                        <x-admin.modal
+                            id="assign-clinic-ai-model-modal"
+                            :label="__('ai_models.assign')"
+                            :title="__('ai_models.assign')"
+                            icon="plus"
+                            :open="$errors->any() && old('_form') === 'assign_clinic_ai_model_'.$clinic->id"
+                        >
+                            <form method="POST" action="{{ route('admin.clinics.ai-models.store', $clinic) }}" class="grid gap-3">
+                                @csrf
+                                <input type="hidden" name="_form" value="assign_clinic_ai_model_{{ $clinic->id }}">
+                                <x-admin.validation-summary for="assign_clinic_ai_model_{{ $clinic->id }}" />
+                                <label class="grid gap-1 text-sm font-bold">
+                                    <span>{{ __('ai_models.available_accesses') }}</span>
+                                    <select name="ai_model_access_id" class="h-11 rounded-lg border border-zinc-200 px-3 text-sm outline-none focus:border-teal-500 disabled:bg-zinc-100 disabled:text-zinc-400" @disabled(! $hasAddableAccess)>
+                                        <option value="" disabled selected>{{ __('ai_models.select_access') }}</option>
+                                        @foreach($availableAccesses as $access)
+                                            @php($isAssigned = in_array((int) $access->id, $assignedAccessIds, true))
+                                            <option value="{{ $access->id }}" @disabled($isAssigned)>
+                                                {{ $access->name }} - {{ $resolver->usageCategoryLabel($access->usage_category_key) }} @if($isAssigned)({{ __('ai_models.already_assigned') }})@endif
+                                            </option>
+                                        @endforeach
+                                    </select>
+                                </label>
+                                <label class="flex h-11 items-center gap-2 rounded-lg bg-zinc-50 px-3 text-sm font-bold">
+                                    <input type="checkbox" name="is_active" value="1" checked @disabled(! $hasAddableAccess)>
+                                    <span>{{ __('ai_models.statuses.active') }}</span>
+                                </label>
+                                <x-admin.button type="submit" icon="plus" :disabled="! $hasAddableAccess" class="{{ ! $hasAddableAccess ? 'opacity-50 pointer-events-none' : '' }}">
+                                    <span>{{ __('ai_models.assign') }}</span>
+                                </x-admin.button>
+                            </form>
+                        </x-admin.modal>
                     @endif
                 @endcan
             </div>

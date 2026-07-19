@@ -4,11 +4,16 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\StoreGenerationRequest;
+use App\Http\Resources\GenerationRequestResource;
+use App\Models\AiModelCategory;
+use App\Models\AiModelCategoryOutput;
 use App\Models\GenerationGroup;
 use App\Models\GenerationJob;
+use App\Models\LeadSourceImage;
 use App\Models\Tenant;
 use App\Models\Upload;
 use App\Services\Generation\GenerationStageCatalog;
+use App\Services\Generation\IndependentGenerationService;
 use App\Services\GenerationService;
 use App\Services\LeadSessionService;
 use Illuminate\Http\JsonResponse;
@@ -29,13 +34,46 @@ class GenerationController extends Controller
         StoreGenerationRequest $request,
         GenerationService $generationService,
         LeadSessionService $leadSessionService,
-        GenerationStageCatalog $stages
+        GenerationStageCatalog $stages,
+        IndependentGenerationService $independentGenerations
     ): JsonResponse {
         $scope = 'generation.store';
 
         $tenant = $this->tenantFromRequest($request, $scope);
 
         $lead = $leadSessionService->verifiedLead($request, $tenant, __('auth.verify_phone_to_view_results'));
+
+        if ($request->filled('source_image_id')) {
+            $source = LeadSourceImage::query()
+                ->where('uuid', $request->string('source_image_id')->toString())
+                ->where('tenant_id', $tenant->id)
+                ->where('lead_id', $lead->id)
+                ->firstOrFail();
+
+            $category = AiModelCategory::query()
+                ->where('uuid', $request->string('category_id')->toString())
+                ->firstOrFail();
+
+            $output = AiModelCategoryOutput::query()
+                ->where('uuid', $request->string('output_id')->toString())
+                ->where('ai_model_category_id', $category->id)
+                ->firstOrFail();
+
+            $idempotencyKey = $request->string('idempotency_key')->toString()
+                ?: (string) $request->header('Idempotency-Key');
+
+            $generation = $independentGenerations->create(
+                $lead,
+                $source,
+                $category,
+                $output,
+                $idempotencyKey
+            );
+
+            return (new GenerationRequestResource($generation->load(['sourceImage', 'category', 'output', 'currentAsset', 'attempts'])))
+                ->response()
+                ->setStatusCode(Response::HTTP_CREATED);
+        }
 
         $upload = Upload::query()
             ->where('uuid', '=', $request->post('upload_id'))

@@ -27,13 +27,24 @@ class StoreGenerationRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'upload_id' => ['required', 'uuid'],
+            'upload_id' => ['required_without:source_image_id', 'uuid'],
             'usage_category_key' => [
                 'sometimes',
                 'string',
                 Rule::in(array_keys(config('hairvision.generation.services', ['hair_transplant' => []]))),
             ],
+            'source_image_id' => ['required_without:upload_id', 'uuid'],
+            'category_id' => ['required_with:source_image_id', 'uuid'],
+            'output_id' => ['required_with:source_image_id', 'uuid'],
+            'idempotency_key' => ['required_with:source_image_id', 'uuid'],
         ];
+    }
+
+    protected function prepareForValidation(): void
+    {
+        if ($this->filled('source_image_id') && ! $this->filled('idempotency_key') && $this->header('Idempotency-Key')) {
+            $this->merge(['idempotency_key' => $this->header('Idempotency-Key')]);
+        }
     }
 
     /**

@@ -7,7 +7,7 @@ use App\Data\Ai\AiModelRequestData;
 use App\Data\Ai\AiModelResponseData;
 
 /**
- * Local demo provider for the protected mockup model.
+ * Local demo provider for the mockup model.
  *
  * This provider never calls external AI services and never generates images.
  *
