@@ -43,7 +43,7 @@ class ExecutableAiModelSyncService
             'status' => $isActive ? 'active' : 'paused',
             'priority' => $access->priority ?? 100,
             'concurrency_limit' => $this->concurrencyLimitFor($access),
-            'settings' => [],
+            'settings' => $access->settings ?? [],
             'credentials' => [],
             'health_status' => $model->exists ? $model->health_status : 'unknown',
             'paused_at' => $isActive ? null : ($model->paused_at ?? now()),

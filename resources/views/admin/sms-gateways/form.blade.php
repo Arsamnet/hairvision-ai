@@ -28,7 +28,7 @@
     </label>
     <label class="block">
         <span class="text-sm font-bold text-zinc-600">{{ __('sms.from_number') }}</span>
-        <input name="from_number" value="{{ old('from_number', data_get($gateway?->settings_json, 'from_number', data_get($gateway?->settings_json, 'sender'))) }}" class="mt-2 h-11 w-full rounded-lg border border-zinc-200 px-3 text-sm outline-none focus:border-teal-500" dir="ltr">
+        <input name="from_number" value="{{ old('from_number', data_get($gateway?->settings_json, 'from_number', data_get($gateway?->settings_json, 'sender'))) }}" inputmode="numeric" data-digit-input class="mt-2 h-11 w-full rounded-lg border border-zinc-200 px-3 text-sm outline-none focus:border-teal-500" dir="ltr">
     </label>
     <label class="flex min-h-11 items-center gap-2 rounded-lg bg-zinc-50 px-3 text-sm font-bold md:col-span-2">
         <input type="hidden" name="is_active" value="0">

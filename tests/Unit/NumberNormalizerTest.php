@@ -29,4 +29,18 @@ class NumberNormalizerTest extends TestCase
     {
         $this->assertSame('۱۲۳۴۵۶', NumberNormalizer::toPersianDigits('123456'));
     }
+
+    public function test_it_normalizes_grouped_numbers_from_all_supported_digit_scripts(): void
+    {
+        $this->assertSame('4500000', NumberNormalizer::normalizeNumericString('۴٬۵۰۰٬۰۰۰'));
+        $this->assertSame('4500000', NumberNormalizer::normalizeNumericString('٤,٥٠٠,٠٠٠'));
+        $this->assertSame('4500000', NumberNormalizer::normalizeNumericString('4,500,000'));
+        $this->assertSame('123.45', NumberNormalizer::normalizeNumericString('۱۲۳٫۴۵'));
+    }
+
+    public function test_it_does_not_mutate_non_numeric_or_invalidly_grouped_text(): void
+    {
+        $this->assertSame('پلن ۱۲۳', NumberNormalizer::normalizeNumericString('پلن ۱۲۳'));
+        $this->assertSame('۱۲,۳۴', NumberNormalizer::normalizeNumericString('۱۲,۳۴'));
+    }
 }

@@ -84,7 +84,7 @@
 	                                </select>
                                     <label class="text-xs font-bold text-zinc-600">
                                         <span>{{ __('clinics.discount_amount') }}</span>
-                                        <input name="discount_amount" type="number" min="0" value="{{ old('discount_amount', 0) }}" class="mt-1 h-11 w-full rounded-lg border border-zinc-200 px-3 text-sm outline-none focus:border-teal-500" dir="ltr">
+                                        <input name="discount_amount" type="text" inputmode="numeric" data-number-input min="0" value="{{ old('discount_amount', 0) }}" class="mt-1 h-11 w-full rounded-lg border border-zinc-200 px-3 text-sm outline-none focus:border-teal-500" dir="ltr">
                                     </label>
 	                                <p class="rounded-lg bg-amber-50 px-4 py-3 text-sm font-bold leading-6 text-amber-800">{{ __('clinics.assign_plan_invoice_hint') }}</p>
                                 <x-admin.button type="submit" icon="check">

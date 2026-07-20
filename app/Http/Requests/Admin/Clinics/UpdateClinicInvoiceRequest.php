@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Admin\Clinics;
 
 use App\Rules\JalaliDateTime;
+use App\Support\StateCatalog;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -29,7 +30,7 @@ class UpdateClinicInvoiceRequest extends FormRequest
             'user_id' => ['nullable', Rule::exists('users', 'id')->where('status', 'active')],
             'amount' => ['required', 'integer', 'min:0'],
             'currency' => ['required', 'string', 'max:8'],
-            'status' => ['required', 'in:pending,failed,paid,canceled'],
+            'status' => ['required', Rule::in(StateCatalog::values('invoices.statuses'))],
             'due_at' => ['nullable', new JalaliDateTime],
             'expires_at' => ['nullable', new JalaliDateTime],
             'note' => ['nullable', 'string', 'max:1000'],

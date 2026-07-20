@@ -22,7 +22,12 @@ class SystemSettingController extends Controller
         return view('admin.system.settings.edit', [
             'tenant' => $request->attributes->get('adminTenant'),
             'availableTenants' => $request->attributes->get('adminTenants'),
-            'settings' => SystemSetting::query()->orderBy('group')->orderBy('key')->get()->groupBy('group'),
+            'settings' => SystemSetting::query()
+                ->where('group', '!=', 'catalog')
+                ->orderBy('group')
+                ->orderBy('key')
+                ->get()
+                ->groupBy('group'),
         ]);
     }
 
@@ -32,7 +37,7 @@ class SystemSettingController extends Controller
             'settings' => ['required', 'array'],
         ])['settings'];
 
-        foreach (SystemSetting::query()->get() as $setting) {
+        foreach (SystemSetting::query()->where('group', '!=', 'catalog')->get() as $setting) {
             if (! array_key_exists($setting->key, $submitted)) {
                 continue;
             }

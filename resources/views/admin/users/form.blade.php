@@ -33,7 +33,7 @@
     </label>
     <label class="block">
         <span class="text-sm font-bold text-zinc-600">{{ __('system.mobile') }}</span>
-        <input name="phone_normalized" value="{{ old('phone_normalized', $dashboardUser?->phone_normalized) }}" class="mt-2 h-11 w-full rounded-lg border border-zinc-200 px-3 text-sm outline-none focus:border-teal-500" dir="ltr">
+        <input name="phone_normalized" value="{{ old('phone_normalized', $dashboardUser?->phone_normalized) }}" inputmode="numeric" data-digit-input class="mt-2 h-11 w-full rounded-lg border border-zinc-200 px-3 text-sm outline-none focus:border-teal-500" dir="ltr">
     </label>
     <label class="block">
         <span class="text-sm font-bold text-zinc-600">{{ __('system.users.email') }}</span>
@@ -43,8 +43,8 @@
     <label class="block">
         <span class="text-sm font-bold text-zinc-600">{{ __('system.access_scope') }}</span>
         <select name="access_scope" data-user-access-scope class="mt-2 h-11 w-full rounded-lg border border-zinc-200 px-3 text-sm outline-none focus:border-teal-500">
-            @foreach(['system', 'clinic'] as $scope)
-                <option value="{{ $scope }}" @selected($selectedScope === $scope)>{{ __('system.user_access_scopes.'.$scope) }}</option>
+            @foreach(\App\Support\StateCatalog::options('users.access_scopes') as $scope => $label)
+                <option value="{{ $scope }}" @selected($selectedScope === $scope)>{{ $label }}</option>
             @endforeach
         </select>
     </label>
@@ -75,8 +75,8 @@
     <label class="block">
         <span class="text-sm font-bold text-zinc-600">{{ __('system.status') }}</span>
         <select name="status" class="mt-2 h-11 w-full rounded-lg border border-zinc-200 px-3 text-sm outline-none focus:border-teal-500">
-            @foreach(['active', 'inactive'] as $status)
-                <option value="{{ $status }}" @selected(old('status', $dashboardUser?->status ?? 'active') === $status)>{{ __('system.statuses.'.$status) }}</option>
+            @foreach(\App\Support\StateCatalog::options('users.statuses') as $status => $label)
+                <option value="{{ $status }}" @selected(old('status', $dashboardUser?->status ?? 'active') === $status)>{{ $label }}</option>
             @endforeach
         </select>
     </label>

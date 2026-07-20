@@ -11,6 +11,7 @@ use App\Models\Subscription;
 use App\Models\SubscriptionServiceEntitlement;
 use App\Models\Tenant;
 use App\Models\User;
+use App\Services\AI\ClinicAiModelProvisioningService;
 use App\Support\JalaliDate;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
@@ -28,6 +29,7 @@ class SubscriptionActivationService
         private readonly ServiceEntitlementService $entitlements,
         private readonly CreditLedgerService $ledger,
         private readonly ServiceCatalog $services,
+        private readonly ClinicAiModelProvisioningService $modelProvisioning,
     ) {}
 
     /**
@@ -35,7 +37,7 @@ class SubscriptionActivationService
      *
      * @throws ValidationException
      */
-    public function validatePurchase(?User $user, Plan $plan, ?Tenant $tenant): void
+    public function validatePurchase(?User $user, Plan $plan, ?Tenant $tenant, ?array $modelAccessIds = null): void
     {
         $this->resetDebugSteps();
 
@@ -60,9 +62,21 @@ class SubscriptionActivationService
                 PlanType::CreditTopUp => $this->validateCreditTopUpPurchase($plan, $tenant, $scope),
             };
 
+            $this->modelProvisioning->assertPlanProvisionable($plan, $modelAccessIds);
+
         } catch (Throwable $exception) {
             throw $exception;
         }
+    }
+
+    /**
+     * Return the validated plan-model selection to snapshot on an invoice.
+     *
+     * @return array<int, int>
+     */
+    public function modelAccessIdsForPlan(Plan $plan): array
+    {
+        return $this->modelProvisioning->modelAccessIdsForPlan($plan);
     }
 
     /**
@@ -242,6 +256,13 @@ class SubscriptionActivationService
             );
         }
 
+        $this->modelProvisioning->provisionPlan(
+            $tenant,
+            $plan,
+            $user,
+            $invoice->aiModelAccessIdsSnapshot(),
+        );
+
         $subscription->refresh();
 
         return $subscription;
@@ -299,6 +320,13 @@ class SubscriptionActivationService
                 __('credits.descriptions.add_on_grant', ['plan' => $plan->name])
             );
         }
+
+        $this->modelProvisioning->provisionPlan(
+            $tenant,
+            $plan,
+            $user,
+            $invoice->aiModelAccessIdsSnapshot(),
+        );
 
         $subscription->refresh();
 

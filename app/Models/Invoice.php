@@ -82,4 +82,25 @@ class Invoice extends Model
     {
         return $this->hasMany(Payment::class);
     }
+
+    /**
+     * Return the purchased plan-model snapshot, or null for legacy invoices.
+     *
+     * @return array<int, int>|null
+     */
+    public function aiModelAccessIdsSnapshot(): ?array
+    {
+        $metadata = $this->metadata_json ?? [];
+
+        if (! array_key_exists('ai_model_access_ids', $metadata)) {
+            return null;
+        }
+
+        return collect($metadata['ai_model_access_ids'] ?? [])
+            ->map(fn (mixed $id): int => (int) $id)
+            ->filter(fn (int $id): bool => $id > 0)
+            ->unique()
+            ->values()
+            ->all();
+    }
 }

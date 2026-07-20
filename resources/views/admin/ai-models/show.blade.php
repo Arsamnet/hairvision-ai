@@ -97,6 +97,37 @@
         </x-admin.card>
 
         <x-admin.card>
+            @php
+                $inputImageProcessingEnabled = filter_var(
+                    data_get($aiModelAccess->settings ?? [], 'input_image_processing_enabled', false),
+                    FILTER_VALIDATE_BOOLEAN,
+                );
+            @endphp
+            <div class="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                    <h3 class="text-base font-bold">{{ __('ai_models.input_image_processing_title') }}</h3>
+                    <p class="mt-1 text-sm text-zinc-500">{{ __('ai_models.input_image_processing_hint') }}</p>
+                </div>
+                <x-admin.badge :tone="$inputImageProcessingEnabled ? 'emerald' : 'zinc'">
+                    {{ $inputImageProcessingEnabled ? __('ai_models.statuses.active') : __('ai_models.statuses.inactive') }}
+                </x-admin.badge>
+            </div>
+
+            @if($inputImageProcessingEnabled)
+                <div class="mt-4 grid gap-3 md:grid-cols-2">
+                    <div class="rounded-lg bg-zinc-50 p-3">
+                        <p class="text-xs font-bold text-zinc-500">{{ __('ai_models.input_image_max_dimension') }}</p>
+                        <p class="mt-1 font-bold" dir="ltr">{{ number_format((int) data_get($aiModelAccess->settings, 'input_image_max_dimension')) }} px</p>
+                    </div>
+                    <div class="rounded-lg bg-zinc-50 p-3">
+                        <p class="text-xs font-bold text-zinc-500">{{ __('ai_models.input_image_jpeg_quality') }}</p>
+                        <p class="mt-1 font-bold" dir="ltr">{{ number_format((int) data_get($aiModelAccess->settings, 'input_image_jpeg_quality')) }}</p>
+                    </div>
+                </div>
+            @endif
+        </x-admin.card>
+
+        <x-admin.card>
             <h3 class="text-base font-bold">{{ __('ai_models.credentials') }}</h3>
             <div class="mt-3 grid gap-2 md:grid-cols-2">
                 @forelse($aiModelAccess->maskedCredentials() as $key => $value)

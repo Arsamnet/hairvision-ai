@@ -12,6 +12,7 @@ use App\Models\Tenant;
 use App\Models\TenantDomain;
 use App\Models\Upload;
 use App\Models\User;
+use App\Services\AI\ExecutableAiModelSyncService;
 use App\Services\Billing\BillingService;
 use App\Services\Billing\CreditLedgerService;
 use App\Support\JalaliDate;
@@ -22,6 +23,28 @@ use Tests\TestCase;
 class SaasBillingEntitlementTest extends TestCase
 {
     use RefreshDatabase;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        foreach (['hair_transplant', 'eyebrow_transplant'] as $serviceKey) {
+            $access = AiModelAccess::query()->create([
+                'model_key' => 'sample_image',
+                'usage_category_key' => $serviceKey,
+                'name' => 'Default '.$serviceKey.' access',
+                'credentials' => [],
+                'settings' => [],
+                'credit_limit' => null,
+                'is_active' => true,
+                'is_demo' => true,
+                'is_protected' => false,
+                'priority' => 10,
+            ]);
+
+            app(ExecutableAiModelSyncService::class)->sync($access);
+        }
+    }
 
     public function test_base_plan_can_grant_multiple_services_and_only_one_active_base_subscription_exists(): void
     {
@@ -49,6 +72,13 @@ class SaasBillingEntitlementTest extends TestCase
             'service_key' => 'eyebrow_transplant',
             'included_credit' => 600,
         ]);
+        $this->assertEqualsCanonicalizing(
+            ['hair_transplant', 'eyebrow_transplant'],
+            $tenant->aiModelAccesses()
+                ->wherePivot('is_active', true)
+                ->pluck('usage_category_key')
+                ->all()
+        );
 
         $this->expectException(ValidationException::class);
         $billing->invoiceForPlan($user, $plan, $tenant);
@@ -71,9 +101,54 @@ class SaasBillingEntitlementTest extends TestCase
             'source_type' => 'add_on',
             'included_credit' => 5,
         ]);
+        $this->assertTrue($tenant->aiModelAccesses()
+            ->where('usage_category_key', 'eyebrow_transplant')
+            ->wherePivot('is_active', true)
+            ->exists());
 
         $this->expectException(ValidationException::class);
         $billing->invoiceForPlan($user, $addOn, $tenant);
+    }
+
+    public function test_paid_invoice_assigns_the_exact_model_selected_on_the_plan(): void
+    {
+        [$tenant, $user] = $this->clinicUser();
+        $plan = $this->plan('پلن با مدل اختصاصی', 'base_subscription', ['hair_transplant' => 10]);
+        $defaultAccess = AiModelAccess::query()
+            ->where('usage_category_key', 'hair_transplant')
+            ->firstOrFail();
+        $selectedAccess = AiModelAccess::query()->create([
+            'model_key' => 'sample_image',
+            'usage_category_key' => 'hair_transplant',
+            'name' => 'Plan-selected hair model',
+            'credentials' => [],
+            'settings' => [],
+            'credit_limit' => null,
+            'is_active' => true,
+            'priority' => 100,
+        ]);
+        app(ExecutableAiModelSyncService::class)->sync($selectedAccess);
+        $plan->aiModelAccesses()->sync([$selectedAccess->id]);
+
+        $billing = app(BillingService::class);
+        $invoice = $billing->invoiceForPlan($user, $plan, $tenant);
+
+        $this->assertSame([$selectedAccess->id], $invoice->aiModelAccessIdsSnapshot());
+
+        // A later plan edit must not change the already issued invoice.
+        $plan->aiModelAccesses()->sync([$defaultAccess->id]);
+        $billing->activatePlan($user, $plan, $invoice, $tenant);
+
+        $this->assertDatabaseHas('clinic_ai_model_access', [
+            'clinic_id' => $tenant->id,
+            'ai_model_access_id' => $selectedAccess->id,
+            'is_active' => true,
+            'assigned_by' => $user->id,
+        ]);
+        $this->assertDatabaseMissing('clinic_ai_model_access', [
+            'clinic_id' => $tenant->id,
+            'ai_model_access_id' => $defaultAccess->id,
+        ]);
     }
 
     public function test_credit_top_up_adds_credit_without_extending_subscription_or_unlocking_new_service(): void
@@ -112,6 +187,80 @@ class SaasBillingEntitlementTest extends TestCase
 
         $this->expectException(ValidationException::class);
         $billing->invoiceForPlan($user, $eyebrowTopUp, $tenant);
+    }
+
+    public function test_plan_purchase_is_rejected_before_payment_when_an_application_has_no_executable_model(): void
+    {
+        [$tenant, $user] = $this->clinicUser();
+        $plan = $this->plan('پلن بدون مدل', 'base_subscription', ['hair_transplant' => 10]);
+
+        AiModelAccess::query()
+            ->where('usage_category_key', 'hair_transplant')
+            ->update(['is_active' => false]);
+
+        try {
+            app(BillingService::class)->invoiceForPlan($user, $plan, $tenant);
+            $this->fail('A plan without an executable model must not reach payment.');
+        } catch (ValidationException $exception) {
+            $this->assertSame(
+                __('subscriptions.errors.service_model_unavailable', ['service' => 'کاشت مو']),
+                data_get($exception->errors(), 'plan.0')
+            );
+        }
+
+        $this->assertDatabaseMissing('invoices', [
+            'tenant_id' => $tenant->id,
+            'plan_id' => $plan->id,
+        ]);
+    }
+
+    public function test_provisioning_assigns_complementary_models_to_cover_all_application_outputs(): void
+    {
+        [$tenant, $user] = $this->clinicUser();
+        $plan = $this->plan('پلن با مدل‌های مکمل', 'base_subscription', ['hair_transplant' => 10]);
+
+        AiModelAccess::query()
+            ->where('usage_category_key', 'hair_transplant')
+            ->update(['is_active' => false]);
+
+        $first = AiModelAccess::query()->create([
+            'model_key' => 'sample_image',
+            'usage_category_key' => 'hair_transplant',
+            'name' => 'Hair model A',
+            'credentials' => [],
+            'settings' => [],
+            'credit_limit' => null,
+            'is_active' => true,
+            'priority' => 10,
+        ]);
+        $second = AiModelAccess::query()->create([
+            'model_key' => 'sample_image',
+            'usage_category_key' => 'hair_transplant',
+            'name' => 'Hair model B',
+            'credentials' => [],
+            'settings' => [],
+            'credit_limit' => null,
+            'is_active' => true,
+            'priority' => 20,
+        ]);
+
+        $firstModel = app(ExecutableAiModelSyncService::class)->sync($first);
+        $secondModel = app(ExecutableAiModelSyncService::class)->sync($second);
+        $outputIds = $firstModel->category->outputs()->active()->pluck('id');
+
+        $firstModel->outputConfigs()->where('ai_model_category_output_id', '!=', $outputIds->first())->update(['is_active' => false]);
+        $secondModel->outputConfigs()->where('ai_model_category_output_id', $outputIds->first())->update(['is_active' => false]);
+
+        $billing = app(BillingService::class);
+        $billing->activatePlan($user, $plan, $billing->invoiceForPlan($user, $plan, $tenant), $tenant);
+
+        $this->assertEqualsCanonicalizing(
+            [$first->id, $second->id],
+            $tenant->aiModelAccesses()
+                ->wherePivot('is_active', true)
+                ->pluck('ai_model_accesses.id')
+                ->all()
+        );
     }
 
     public function test_upgrade_replaces_base_plan_without_carrying_remaining_credit(): void

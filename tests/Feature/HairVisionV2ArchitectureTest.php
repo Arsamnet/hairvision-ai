@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Actions\Ai\RunAiModelAction;
 use App\Jobs\ProcessGenerationAttempt;
 use App\Models\AiModel;
 use App\Models\AiModelAccess;
@@ -16,10 +17,12 @@ use App\Models\Tenant;
 use App\Models\TenantDomain;
 use App\Models\User;
 use App\Services\AI\AiModelTypeRegistry;
+use App\Services\Billing\CreditLedgerService;
 use App\Support\JalaliDate;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Queue;
+use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
 use Tests\TestCase;
@@ -312,8 +315,8 @@ class HairVisionV2ArchitectureTest extends TestCase
         $attempt = GenerationAttempt::query()->with('generationRequest')->firstOrFail();
 
         (new ProcessGenerationAttempt($attempt))->handle(
-            app(\App\Actions\Ai\RunAiModelAction::class),
-            app(\App\Services\Billing\CreditLedgerService::class),
+            app(RunAiModelAction::class),
+            app(CreditLedgerService::class),
         );
 
         $this->assertDatabaseHas('generation_attempts', [
@@ -447,7 +450,7 @@ class HairVisionV2ArchitectureTest extends TestCase
             ->assertSee($category->cardImageUrl(), false)
             ->assertSee('data-admin-modal-trigger="show-create-output-', false);
 
-        $this->assertFalse(\Illuminate\Support\Facades\Route::has('admin.system.ai-model-categories.outputs.index'));
+        $this->assertFalse(Route::has('admin.system.ai-model-categories.outputs.index'));
 
         $this->actingAs($admin)
             ->forHost('hairvision-ai.test')
@@ -482,29 +485,6 @@ class HairVisionV2ArchitectureTest extends TestCase
 
         $this->actingAs($admin)
             ->forHost('hairvision-ai.test')
-            ->post(route('admin.system.plans.store'), [
-                '_form' => 'create_plan',
-                'name' => 'پلن فیلر زیر چشم',
-                'plan_type' => 'service_add_on',
-                'price' => 1000000,
-                'currency' => 'ریال',
-                'duration_days' => 30,
-                'status' => 'active',
-                'is_public' => '1',
-                'service_credits' => [
-                    'filler_under_the_eyes' => 25,
-                ],
-            ])
-            ->assertRedirect();
-
-        $this->assertDatabaseHas('plan_service_entitlements', [
-            'service_key' => 'filler_under_the_eyes',
-            'credit_amount' => 25,
-            'is_active' => true,
-        ]);
-
-        $this->actingAs($admin)
-            ->forHost('hairvision-ai.test')
             ->get(route('admin.ai-models.index'))
             ->assertOk()
             ->assertSee('فیلر زیر چشم')
@@ -523,11 +503,45 @@ class HairVisionV2ArchitectureTest extends TestCase
             ])
             ->assertRedirect();
 
+        $fillerAccess = AiModelAccess::query()
+            ->where('usage_category_key', 'filler_under_the_eyes')
+            ->where('name', 'مدل نمونه فیلر زیر چشم')
+            ->firstOrFail();
+
+        $this->actingAs($admin)
+            ->forHost('hairvision-ai.test')
+            ->post(route('admin.system.plans.store'), [
+                '_form' => 'create_plan',
+                'name' => 'پلن فیلر زیر چشم',
+                'plan_type' => 'service_add_on',
+                'price' => 1000000,
+                'currency' => 'ریال',
+                'duration_days' => 30,
+                'status' => 'active',
+                'is_public' => '1',
+                'service_credits' => [
+                    'filler_under_the_eyes' => 25,
+                ],
+                'ai_model_access_ids' => [$fillerAccess->id],
+            ])
+            ->assertRedirect();
+
+        $this->assertDatabaseHas('plan_service_entitlements', [
+            'service_key' => 'filler_under_the_eyes',
+            'credit_amount' => 25,
+            'is_active' => true,
+        ]);
+
         $this->assertDatabaseHas('ai_model_accesses', [
             'model_key' => 'sample_image',
             'usage_category_key' => 'filler_under_the_eyes',
             'name' => 'مدل نمونه فیلر زیر چشم',
             'is_active' => true,
+        ]);
+        $fillerPlan = Plan::query()->where('name', 'پلن فیلر زیر چشم')->firstOrFail();
+        $this->assertDatabaseHas('plan_ai_model_access', [
+            'plan_id' => $fillerPlan->id,
+            'ai_model_access_id' => $fillerAccess->id,
         ]);
 
         $this->actingAs($admin)

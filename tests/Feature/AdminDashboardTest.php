@@ -7,10 +7,12 @@ use App\Models\OtpCode;
 use App\Models\Plan;
 use App\Models\SmsGateway;
 use App\Models\Subscription;
-use App\Models\SystemSetting;
 use App\Models\Tenant;
 use App\Models\TenantDomain;
 use App\Models\User;
+use App\Support\StateCatalog;
+use Database\Seeders\DatabaseSeeder;
+use Illuminate\Auth\SessionGuard;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Blade;
 use Illuminate\Support\Facades\File;
@@ -121,7 +123,7 @@ class AdminDashboardTest extends TestCase
             ->assertRedirect(route('admin.dashboard'));
 
         $this->assertTrue(
-            $verifyResponse->getSession()->has('login_web_'.sha1(\Illuminate\Auth\SessionGuard::class)),
+            $verifyResponse->getSession()->has('login_web_'.sha1(SessionGuard::class)),
             'Admin OTP login should persist the web guard user id in the scoped admin session.'
         );
         $this->assertAuthenticatedAs($user);
@@ -157,7 +159,7 @@ class AdminDashboardTest extends TestCase
         $this->assertStringContainsString('[data-admin-table-container] tbody tr[data-clickable-table-row="true"]', $css);
         $this->assertStringContainsString("font-family: 'Vazirmatn FD';", $css);
         $this->assertStringContainsString('Vazirmatn-FD-Regular.woff2', $css);
-        $this->assertStringContainsString(":where(.admin-shell, .admin-auth-shell)", $css);
+        $this->assertStringContainsString(':where(.admin-shell, .admin-auth-shell)', $css);
 
         $this->forHost('hairvision-ai.test')
             ->get('/admin')
@@ -251,6 +253,31 @@ class AdminDashboardTest extends TestCase
         }
     }
 
+    public function test_notification_surfaces_use_the_shared_rounded_bell_icon(): void
+    {
+        $bell = Blade::render('<x-admin.icon name="bell" class="h-5 w-5" />');
+        $css = file_get_contents(resource_path('css/app.css'));
+
+        $this->assertStringContainsString('fi-rr-bell-ring', $bell);
+        $this->assertStringContainsString('data-menu-icon="bell"', $bell);
+        $this->assertStringNotContainsString('<svg', $bell);
+        $this->assertStringContainsString('.fi-rr-bell-ring::before { content: "\\f235"; }', $css);
+
+        $notificationViews = [
+            'resources/views/admin/layout.blade.php',
+            'resources/views/admin/notifications/index.blade.php',
+            'resources/views/admin/system/notifications/index.blade.php',
+        ];
+
+        foreach ($notificationViews as $relativePath) {
+            $this->assertStringContainsString(
+                'bell',
+                file_get_contents(base_path($relativePath)),
+                $relativePath.' should use the shared bell icon for notifications.'
+            );
+        }
+    }
+
     public function test_table_view_actions_make_dashboard_rows_clickable(): void
     {
         $menu = Blade::render('<x-admin.table.action-menu><x-admin.table.action-item href="/admin/leads/1" icon="eye">مشاهده</x-admin.table.action-item></x-admin.table.action-menu>');
@@ -273,7 +300,7 @@ class AdminDashboardTest extends TestCase
     {
         config(['hairvision.super_admin.phone' => '09129999999']);
 
-        $this->seed(\Database\Seeders\DatabaseSeeder::class);
+        $this->seed(DatabaseSeeder::class);
 
         $tenant = Tenant::query()->where('slug', 'arya')->firstOrFail();
 
@@ -319,16 +346,7 @@ class AdminDashboardTest extends TestCase
 
         $this->assertSame($expectedCrmStages, $seededCrmStages);
 
-        $leadStatusCatalog = SystemSetting::query()
-            ->where('key', 'catalog.states.leads.statuses')
-            ->firstOrFail()
-            ->value_json['value'];
-
-        $expectedLeadStatusCatalog = __('leads.statuses');
-        ksort($expectedLeadStatusCatalog);
-        ksort($leadStatusCatalog);
-
-        $this->assertSame($expectedLeadStatusCatalog, $leadStatusCatalog);
+        $this->assertSame(__('leads.statuses'), StateCatalog::options('leads.statuses'));
 
         $activeSubscription = Subscription::query()
             ->with(['plan', 'serviceEntitlements'])

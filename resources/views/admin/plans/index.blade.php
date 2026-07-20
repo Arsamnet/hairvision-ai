@@ -12,22 +12,22 @@
                     <p class="mt-1 text-sm leading-6 text-zinc-500">{{ __('plans.management_hint') }}</p>
                 </div>
                 <x-admin.modal id="create-plan-modal" :label="__('plans.new_plan')" :title="__('plans.new_plan')" icon="package" :open="$errors->any() && old('_form') === 'create_plan'">
-                    <form method="POST" action="{{ route('admin.system.plans.store') }}" class="grid gap-3 lg:grid-cols-4">
+                    <form method="POST" action="{{ route('admin.system.plans.store') }}" class="grid gap-3 lg:grid-cols-4" data-plan-form>
                         @csrf
                         <input type="hidden" name="_form" value="create_plan">
                         <x-admin.validation-summary for="create_plan" class="lg:col-span-4" />
                         <input name="name" class="h-11 rounded-lg border border-zinc-200 px-3 text-sm outline-none focus:border-teal-500" placeholder="{{ __('plans.fields.name') }}">
-                        <select name="plan_type" class="h-11 rounded-lg border border-zinc-200 px-3 text-sm outline-none focus:border-teal-500">
-                            @foreach(__('plans.types') as $type => $label)
-                                <option value="{{ $type }}">{{ $label }}</option>
+                        <select name="plan_type" class="h-11 rounded-lg border border-zinc-200 px-3 text-sm outline-none focus:border-teal-500" data-plan-type>
+                            @foreach(\App\Support\StateCatalog::options('plans.types') as $type => $label)
+                                <option value="{{ $type }}" @selected((old('_form') === 'create_plan' ? old('plan_type', \App\Enums\PlanType::BaseSubscription->value) : \App\Enums\PlanType::BaseSubscription->value) === $type)>{{ $label }}</option>
                             @endforeach
                         </select>
-                        <input name="price" type="number" class="h-11 rounded-lg border border-zinc-200 px-3 text-sm outline-none focus:border-teal-500" placeholder="{{ __('plans.fields.price') }}">
-                        <input name="duration_days" type="number" class="h-11 rounded-lg border border-zinc-200 px-3 text-sm outline-none focus:border-teal-500" placeholder="{{ __('plans.fields.duration_days') }}">
-                        <input name="usage_limit" type="number" min="1" class="h-11 rounded-lg border border-zinc-200 px-3 text-sm outline-none focus:border-teal-500" placeholder="{{ __('plans.credit_amount') }}">
+                        <input name="price" type="text" inputmode="numeric" data-number-input class="h-11 rounded-lg border border-zinc-200 px-3 text-sm outline-none focus:border-teal-500" placeholder="{{ __('plans.fields.price') }}" dir="ltr">
+                        <input name="duration_days" type="text" inputmode="numeric" data-number-input class="h-11 rounded-lg border border-zinc-200 px-3 text-sm outline-none focus:border-teal-500" placeholder="{{ __('plans.fields.duration_days') }}" dir="ltr">
+                        <input name="usage_limit" type="text" inputmode="numeric" data-number-input min="1" class="h-11 rounded-lg border border-zinc-200 px-3 text-sm outline-none focus:border-teal-500" placeholder="{{ __('plans.credit_amount') }}" dir="ltr">
                         <input name="currency" value="ریال" class="h-11 rounded-lg border border-zinc-200 px-3 text-sm outline-none focus:border-teal-500" placeholder="{{ __('plans.fields.currency') }}">
                         <select name="status" class="h-11 rounded-lg border border-zinc-200 px-3 text-sm outline-none focus:border-teal-500">
-                            @foreach(__('plans.statuses') as $status => $label)
+                            @foreach(\App\Support\StateCatalog::options('plans.statuses') as $status => $label)
                                 <option value="{{ $status }}">{{ $label }}</option>
                             @endforeach
                         </select>
@@ -45,7 +45,7 @@
 	                            <div class="grid gap-2 md:grid-cols-2 xl:grid-cols-3">
 	                            @foreach($serviceOptions as $serviceKey => $serviceLabel)
 	                                <label class="flex min-h-16 cursor-pointer items-start gap-3 rounded-lg border border-zinc-200 bg-white px-3 py-3 text-sm transition has-[:checked]:border-teal-500 has-[:checked]:bg-teal-50">
-	                                    <input name="service_keys[]" type="checkbox" value="{{ $serviceKey }}" class="mt-1 rounded border-zinc-300 text-teal-600 focus:ring-teal-500" @checked(in_array($serviceKey, $selectedServiceKeys, true))>
+	                                    <input name="service_keys[]" type="checkbox" value="{{ $serviceKey }}" class="mt-1 rounded border-zinc-300 text-teal-600 focus:ring-teal-500" data-plan-service @checked(in_array($serviceKey, $selectedServiceKeys, true))>
 	                                    <span class="flex min-w-0 items-start gap-3">
 		                                        <span class="mt-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-zinc-50 text-teal-700 ring-1 ring-zinc-100">
 		                                            <x-admin.category-icon :icon="$serviceIcons[$serviceKey] ?? null" class="h-4 w-4" />
@@ -59,6 +59,15 @@
                             @endforeach
                             </div>
                         </fieldset>
+                        @php
+                            $selectedPlanType = old('_form') === 'create_plan'
+                                ? old('plan_type', \App\Enums\PlanType::BaseSubscription->value)
+                                : \App\Enums\PlanType::BaseSubscription->value;
+                            $selectedModelAccessIds = old('_form') === 'create_plan'
+                                ? old('ai_model_access_ids', [])
+                                : [];
+                        @endphp
+                        @include('admin.plans.model-access-picker')
                         <input name="description" class="h-11 rounded-lg border border-zinc-200 px-3 text-sm outline-none focus:border-teal-500 lg:col-span-3" placeholder="{{ __('plans.fields.description') }}">
                         <x-admin.button type="submit" icon="package">
                             <span>{{ __('plans.create') }}</span>
@@ -74,8 +83,8 @@
                 preset-key="admin.plans.index"
                 :search-placeholder="__('plans.search_placeholder')"
                 :filters="[
-                    ['name' => 'status', 'label' => __('plans.fields.status'), 'type' => 'select', 'placeholder' => __('plans.all_statuses'), 'options' => __('plans.statuses')],
-                    ['name' => 'plan_type', 'label' => __('plans.fields.plan_type'), 'type' => 'select', 'placeholder' => __('plans.fields.plan_type'), 'options' => __('plans.types')],
+                    ['name' => 'status', 'label' => __('plans.fields.status'), 'type' => 'select', 'placeholder' => __('plans.all_statuses'), 'options' => \App\Support\StateCatalog::options('plans.statuses')],
+                    ['name' => 'plan_type', 'label' => __('plans.fields.plan_type'), 'type' => 'select', 'placeholder' => __('plans.fields.plan_type'), 'options' => \App\Support\StateCatalog::options('plans.types')],
                 ]"
                 :sorts="[
                     'created_at' => __('messages.created_at'),
@@ -95,8 +104,7 @@
                             <th class="w-14 px-4 py-3">{{ __('messages.actions') }}</th>
                             <th class="px-4 py-3"><x-admin.table.sortable-heading sort="name" :label="__('plans.fields.name')" /></th>
                             <th class="px-4 py-3"><x-admin.table.sortable-heading sort="plan_type" :label="__('plans.fields.plan_type')" /></th>
-                        <th class="px-4 py-3">{{ __('plans.assigned_services') }}</th>
-                        <th class="px-4 py-3"><x-admin.table.sortable-heading sort="usage_limit" :label="__('plans.credit_amount')" /></th>
+                            <th class="px-4 py-3"><x-admin.table.sortable-heading sort="usage_limit" :label="__('plans.credit_amount')" /></th>
                             <th class="px-4 py-3"><x-admin.table.sortable-heading sort="price" :label="__('plans.fields.price')" /></th>
                             <th class="px-4 py-3"><x-admin.table.sortable-heading sort="duration_days" :label="__('plans.fields.duration_days')" /></th>
                             <th class="px-4 py-3"><x-admin.table.sortable-heading sort="status" :label="__('plans.fields.status')" /></th>
@@ -104,9 +112,6 @@
                     </thead>
                     <tbody class="divide-y divide-zinc-100">
                         @forelse($plans as $plan)
-                            @php
-                                $serviceKeys = $plan->serviceKeys();
-                            @endphp
                             <tr class="transition hover:bg-zinc-50/80">
                                 <td class="px-4 py-3 align-top">
                                     <x-admin.table.action-menu>
@@ -132,13 +137,6 @@
                                 <td class="px-4 py-3">
                                     <x-admin.badge tone="teal">{{ __('plans.types.'.$plan->plan_type->value) }}</x-admin.badge>
                                 </td>
-                                <td class="px-4 py-3">
-                                    <div class="flex flex-wrap gap-1">
-                                        @foreach($serviceKeys as $serviceKey)
-                                            <span class="rounded-full bg-zinc-100 px-2 py-1 text-xs text-nowrap font-bold text-zinc-700">{{ $serviceOptions[$serviceKey] ?? $serviceKey }}</span>
-                                        @endforeach
-                                    </div>
-                                </td>
                                 <td class="px-4 py-3" dir="ltr">{{ number_format($plan->usage_limit) }}</td>
                                 <td class="px-4 py-3" dir="ltr">{{ number_format($plan->price) }} {{ $plan->currency }}</td>
                                 <td class="px-4 py-3">{{ $plan->duration_days ? number_format($plan->duration_days) : __('messages.none') }}</td>
@@ -150,7 +148,7 @@
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="8" class="px-4 py-12">
+                                <td colspan="7" class="px-4 py-12">
                                     <x-admin.empty-state icon="package">{{ __('plans.empty') }}</x-admin.empty-state>
                                 </td>
                             </tr>
@@ -222,23 +220,23 @@
                     :open="$errors->any() && old('_form') === 'edit_plan_'.$plan->id"
                     :trigger="false"
                 >
-                    <form method="POST" action="{{ route('admin.system.plans.update', $plan) }}" class="grid gap-3 lg:grid-cols-4">
+                    <form method="POST" action="{{ route('admin.system.plans.update', $plan) }}" class="grid gap-3 lg:grid-cols-4" data-plan-form>
                         @csrf
                         @method('PUT')
                         <input type="hidden" name="_form" value="edit_plan_{{ $plan->id }}">
                         <x-admin.validation-summary for="edit_plan_{{ $plan->id }}" class="lg:col-span-4" />
                         <input name="name" value="{{ old('name', $plan->name) }}" class="h-11 rounded-lg border border-zinc-200 px-3 text-sm outline-none focus:border-teal-500" placeholder="{{ __('plans.fields.name') }}">
-                        <select name="plan_type" class="h-11 rounded-lg border border-zinc-200 px-3 text-sm outline-none focus:border-teal-500">
-                            @foreach(__('plans.types') as $type => $label)
+                        <select name="plan_type" class="h-11 rounded-lg border border-zinc-200 px-3 text-sm outline-none focus:border-teal-500" data-plan-type>
+                            @foreach(\App\Support\StateCatalog::options('plans.types') as $type => $label)
                                 <option value="{{ $type }}" @selected(old('plan_type', $plan->plan_type->value) === $type)>{{ $label }}</option>
                             @endforeach
                         </select>
-                        <input name="price" type="number" value="{{ old('price', $plan->price) }}" class="h-11 rounded-lg border border-zinc-200 px-3 text-sm outline-none focus:border-teal-500" placeholder="{{ __('plans.fields.price') }}">
-                        <input name="duration_days" type="number" value="{{ old('duration_days', $plan->duration_days) }}" class="h-11 rounded-lg border border-zinc-200 px-3 text-sm outline-none focus:border-teal-500" placeholder="{{ __('plans.fields.duration_days') }}">
-                        <input name="usage_limit" type="number" min="1" value="{{ old('usage_limit', $plan->usage_limit) }}" class="h-11 rounded-lg border border-zinc-200 px-3 text-sm outline-none focus:border-teal-500" placeholder="{{ __('plans.credit_amount') }}">
+                        <input name="price" type="text" inputmode="numeric" data-number-input value="{{ old('price', $plan->price) }}" class="h-11 rounded-lg border border-zinc-200 px-3 text-sm outline-none focus:border-teal-500" placeholder="{{ __('plans.fields.price') }}" dir="ltr">
+                        <input name="duration_days" type="text" inputmode="numeric" data-number-input value="{{ old('duration_days', $plan->duration_days) }}" class="h-11 rounded-lg border border-zinc-200 px-3 text-sm outline-none focus:border-teal-500" placeholder="{{ __('plans.fields.duration_days') }}" dir="ltr">
+                        <input name="usage_limit" type="text" inputmode="numeric" data-number-input min="1" value="{{ old('usage_limit', $plan->usage_limit) }}" class="h-11 rounded-lg border border-zinc-200 px-3 text-sm outline-none focus:border-teal-500" placeholder="{{ __('plans.credit_amount') }}" dir="ltr">
                         <input name="currency" value="{{ old('currency', $plan->currency) }}" class="h-11 rounded-lg border border-zinc-200 px-3 text-sm outline-none focus:border-teal-500" placeholder="{{ __('plans.fields.currency') }}">
                         <select name="status" class="h-11 rounded-lg border border-zinc-200 px-3 text-sm outline-none focus:border-teal-500">
-                            @foreach(__('plans.statuses') as $status => $label)
+                            @foreach(\App\Support\StateCatalog::options('plans.statuses') as $status => $label)
                                 <option value="{{ $status }}" @selected(old('status', $plan->status) === $status)>{{ $label }}</option>
                             @endforeach
                         </select>
@@ -256,7 +254,7 @@
 	                            <div class="grid gap-2 md:grid-cols-2 xl:grid-cols-3">
 	                            @foreach($serviceOptions as $serviceKey => $serviceLabel)
 	                                <label class="flex min-h-16 cursor-pointer items-start gap-3 rounded-lg border border-zinc-200 bg-white px-3 py-3 text-sm transition has-[:checked]:border-teal-500 has-[:checked]:bg-teal-50">
-	                                    <input name="service_keys[]" type="checkbox" value="{{ $serviceKey }}" class="mt-1 rounded border-zinc-300 text-teal-600 focus:ring-teal-500" @checked(in_array($serviceKey, $selectedServiceKeys, true))>
+	                                    <input name="service_keys[]" type="checkbox" value="{{ $serviceKey }}" class="mt-1 rounded border-zinc-300 text-teal-600 focus:ring-teal-500" data-plan-service @checked(in_array($serviceKey, $selectedServiceKeys, true))>
 	                                    <span class="flex min-w-0 items-start gap-3">
 		                                        <span class="mt-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-zinc-50 text-teal-700 ring-1 ring-zinc-100">
 		                                            <x-admin.category-icon :icon="$serviceIcons[$serviceKey] ?? null" class="h-4 w-4" />
@@ -270,6 +268,16 @@
                             @endforeach
                             </div>
                         </fieldset>
+                        @php
+                            $isCurrentEditForm = old('_form') === 'edit_plan_'.$plan->id;
+                            $selectedPlanType = $isCurrentEditForm
+                                ? old('plan_type', $plan->plan_type->value)
+                                : $plan->plan_type->value;
+                            $selectedModelAccessIds = $isCurrentEditForm
+                                ? old('ai_model_access_ids', $plan->aiModelAccesses->pluck('id')->all())
+                                : $plan->aiModelAccesses->pluck('id')->all();
+                        @endphp
+                        @include('admin.plans.model-access-picker')
                         <input name="description" value="{{ old('description', $plan->description) }}" class="h-11 rounded-lg border border-zinc-200 px-3 text-sm outline-none focus:border-teal-500 lg:col-span-3" placeholder="{{ __('plans.fields.description') }}">
                         <x-admin.button type="submit" icon="check">
                             <span>{{ __('plans.update') }}</span>
@@ -306,7 +314,7 @@
             preset-key="admin.plans.clinic"
             :search-placeholder="__('plans.search_placeholder')"
             :filters="[
-                ['name' => 'plan_type', 'label' => __('plans.fields.plan_type'), 'type' => 'select', 'placeholder' => __('plans.all_types'), 'options' => __('plans.types')],
+                ['name' => 'plan_type', 'label' => __('plans.fields.plan_type'), 'type' => 'select', 'placeholder' => __('plans.all_types'), 'options' => \App\Support\StateCatalog::options('plans.types')],
             ]"
             :sorts="[
                 'price' => __('plans.fields.price'),

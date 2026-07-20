@@ -24,8 +24,8 @@
 
         @php
             $leadFilters = [
-                ['name' => 'status', 'label' => __('leads.fields.status'), 'type' => 'select', 'placeholder' => __('leads.all_statuses'), 'options' => __('leads.statuses')],
-                ['name' => 'crm_stage', 'label' => __('leads.fields.crm_stage'), 'type' => 'select', 'placeholder' => __('leads.all_stages'), 'options' => __('leads.crm_stages')],
+                ['name' => 'status', 'label' => __('leads.fields.status'), 'type' => 'select', 'placeholder' => __('leads.all_statuses'), 'options' => \App\Support\StateCatalog::options('leads.statuses')],
+                ['name' => 'crm_stage', 'label' => __('leads.fields.crm_stage'), 'type' => 'select', 'placeholder' => __('leads.all_stages'), 'options' => \App\Support\StateCatalog::options('leads.crm_stages')],
             ];
 
             if (($availableTenants?->count() ?? 0) > 1) {

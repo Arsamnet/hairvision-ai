@@ -54,6 +54,32 @@ class NumberNormalizer
     }
 
     /**
+     * Normalize a complete numeric string for validation and storage.
+     *
+     * Persian, Arabic, and Latin digits are accepted. Valid comma-grouped
+     * integers and Arabic decimal separators are converted to an unformatted
+     * Latin representation. Non-numeric text is returned unchanged.
+     */
+    public static function normalizeNumericString(string $value): string
+    {
+        $trimmed = trim($value);
+
+        if (preg_match(
+            '/^[+-]?(?:(?:[0-9۰-۹٠-٩]{1,3}(?:[,،٬][0-9۰-۹٠-٩]{3})+)|[0-9۰-۹٠-٩]+)(?:[.٫][0-9۰-۹٠-٩]+)?$/u',
+            $trimmed
+        ) !== 1) {
+            return $value;
+        }
+
+        return strtr(self::toLatinDigits($trimmed), [
+            ',' => '',
+            '،' => '',
+            '٬' => '',
+            '٫' => '.',
+        ]);
+    }
+
+    /**
      * Convert Latin digits to Persian numerals for user-facing debug text.
      */
     public static function toPersianDigits(string $value): string

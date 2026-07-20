@@ -4,6 +4,7 @@ namespace App\Http\Requests\Admin\Leads;
 
 use App\Rules\JalaliDateTime;
 use App\Support\JalaliDate;
+use App\Support\StateCatalog;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -34,9 +35,9 @@ class UpdateFollowUpRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'status' => ['sometimes', 'required', Rule::in(array_keys(__('leads.crm_stages')))],
+            'status' => ['sometimes', 'required', Rule::in(StateCatalog::values('leads.crm_stages'))],
             'note' => ['sometimes', 'required', 'string', 'max:2000'],
-            'communication_channel' => ['nullable', Rule::in(array_keys(__('crm.channels')))],
+            'communication_channel' => ['nullable', Rule::in(StateCatalog::values('lead_notes.communication_channels'))],
             'next_follow_up_at' => ['nullable', new JalaliDateTime],
             'is_completed' => ['nullable', 'boolean'],
         ];

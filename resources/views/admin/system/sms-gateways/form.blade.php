@@ -27,8 +27,8 @@
     <label class="block">
         <span class="text-sm font-bold text-zinc-600">{{ __('system.owner') }}</span>
         <select name="owner_scope" data-sms-owner-scope class="mt-2 h-11 w-full rounded-lg border border-zinc-200 px-3 text-sm outline-none focus:border-teal-500">
-            @foreach(['system', 'tenant'] as $owner)
-                <option value="{{ $owner }}" @selected($selectedOwnerScope === $owner)>{{ __('system.owners.'.$owner) }}</option>
+            @foreach(\App\Support\StateCatalog::options('sms_gateways.owner_scopes') as $owner => $label)
+                <option value="{{ $owner }}" @selected($selectedOwnerScope === $owner)>{{ $label }}</option>
             @endforeach
         </select>
     </label>
@@ -47,7 +47,7 @@
     </label>
     <label class="block">
         <span class="text-sm font-bold text-zinc-600">{{ __('sms.from_number') }}</span>
-        <input name="from_number" value="{{ old('from_number', data_get($gateway?->settings_json, 'from_number', data_get($gateway?->settings_json, 'sender'))) }}" class="mt-2 h-11 w-full rounded-lg border border-zinc-200 px-3 text-sm outline-none focus:border-teal-500" dir="ltr">
+        <input name="from_number" value="{{ old('from_number', data_get($gateway?->settings_json, 'from_number', data_get($gateway?->settings_json, 'sender'))) }}" inputmode="numeric" data-digit-input class="mt-2 h-11 w-full rounded-lg border border-zinc-200 px-3 text-sm outline-none focus:border-teal-500" dir="ltr">
     </label>
     <label class="block">
         <span class="text-sm font-bold text-zinc-600">{{ __('sms.otp_pattern_code') }}</span>
@@ -64,8 +64,8 @@
     <label class="block">
         <span class="text-sm font-bold text-zinc-600">{{ __('system.status') }}</span>
         <select name="status" class="mt-2 h-11 w-full rounded-lg border border-zinc-200 px-3 text-sm outline-none focus:border-teal-500">
-            @foreach(['enabled', 'disabled'] as $status)
-                <option value="{{ $status }}" @selected(old('status', $gateway?->status ?? 'enabled') === $status)>{{ __('system.statuses.'.$status) }}</option>
+            @foreach(\App\Support\StateCatalog::options('sms_gateways.statuses') as $status => $label)
+                <option value="{{ $status }}" @selected(old('status', $gateway?->status ?? 'enabled') === $status)>{{ $label }}</option>
             @endforeach
         </select>
     </label>

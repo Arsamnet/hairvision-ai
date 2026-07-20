@@ -5,6 +5,7 @@ namespace App\Services\Payment\Adapters;
 use App\Models\Payment;
 use App\Models\PaymentGateway;
 use App\Services\Payment\Contracts\PaymentGatewayAdapter;
+use App\Services\Payment\ZarinpalConfiguration;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
@@ -19,7 +20,9 @@ use Throwable;
 class ZarinpalPaymentGatewayAdapter implements PaymentGatewayAdapter
 {
     private const DEFAULT_REQUEST_URL = 'https://sandbox.zarinpal.com/pg/v4/payment/request.json';
+
     private const DEFAULT_VERIFY_URL = 'https://sandbox.zarinpal.com/pg/v4/payment/verify.json';
+
     private const DEFAULT_START_PAY_URL = 'https://sandbox.zarinpal.com/pg/StartPay/';
 
     public function initiate(PaymentGateway $gateway, Payment $payment): array
@@ -29,7 +32,7 @@ class ZarinpalPaymentGatewayAdapter implements PaymentGatewayAdapter
         $response = $this->post($gateway, $payment, $this->requestUrl($gateway), [
             'merchant_id' => $this->merchantId($gateway),
             'amount' => $payment->amount,
-            'callback_url' => $this->callbackUrl($gateway, $payment),
+            'callback_url' => $this->callbackUrl($payment),
             'description' => __('payments.zarinpal_description', [
                 'number' => $payment->invoice?->number ?? $payment->uuid,
             ]),
@@ -46,8 +49,7 @@ class ZarinpalPaymentGatewayAdapter implements PaymentGatewayAdapter
         if ($code !== 100 || ! is_string($authority) || trim($authority) === '') {
             $this->fail('Zarinpal payment request rejected.', $gateway, $payment, [
                 'code' => $code,
-                'errors' => data_get($response, 'errors'),
-            ]);
+            ] + $this->providerErrorContext($response));
         }
 
         $redirectUrl = rtrim($this->startPayUrl($gateway), '/').'/'.trim($authority);
@@ -82,8 +84,7 @@ class ZarinpalPaymentGatewayAdapter implements PaymentGatewayAdapter
             $this->fail('Zarinpal payment verification rejected.', $gateway, $payment, [
                 'code' => $code,
                 'authority_hash' => hash('sha256', $authority),
-                'errors' => data_get($response, 'errors'),
-            ]);
+            ] + $this->providerErrorContext($response));
         }
 
         $referenceId = data_get($data, 'ref_id');
@@ -143,7 +144,7 @@ class ZarinpalPaymentGatewayAdapter implements PaymentGatewayAdapter
                 'operation' => $operation,
                 'endpoint' => $url,
                 'status' => $response->status(),
-            ]);
+            ] + $this->providerErrorContext($body));
         }
 
         return $body;
@@ -153,13 +154,13 @@ class ZarinpalPaymentGatewayAdapter implements PaymentGatewayAdapter
     {
         $merchantId = data_get($gateway->encrypted_credentials ?? [], 'merchant_id');
 
-        if (! is_string($merchantId) || trim($merchantId) === '') {
-            Log::warning('Zarinpal payment gateway merchant id is missing.', [
+        if (! ZarinpalConfiguration::hasUsableMerchantId($merchantId)) {
+            Log::warning('Zarinpal payment gateway merchant id is not configured.', [
                 'gateway_id' => $gateway->id,
             ]);
 
             throw ValidationException::withMessages([
-                'payment_gateway' => __('payments.payment_failed_generic'),
+                'payment_gateway' => __('payments.gateway_not_configured'),
             ]);
         }
 
@@ -186,14 +187,10 @@ class ZarinpalPaymentGatewayAdapter implements PaymentGatewayAdapter
         return trim($authority);
     }
 
-    private function callbackUrl(PaymentGateway $gateway, Payment $payment): string
+    private function callbackUrl(Payment $payment): string
     {
-        $callbackUrl = data_get($gateway->settings_json ?? [], 'callback_url');
-
-        if (is_string($callbackUrl) && trim($callbackUrl) !== '') {
-            return trim($callbackUrl);
-        }
-
+        // The callback contains the payment identity and uses the same host on
+        // which payment started, preserving the authenticated admin session.
         return route('admin.billing.verify', $payment);
     }
 
@@ -227,6 +224,26 @@ class ZarinpalPaymentGatewayAdapter implements PaymentGatewayAdapter
         $value = data_get($gateway->settings_json ?? [], $key);
 
         return is_string($value) && trim($value) !== '' ? trim($value) : $default;
+    }
+
+    /**
+     * Extract only non-sensitive diagnostics from a failed provider response.
+     *
+     * @return array<string, mixed>
+     */
+    private function providerErrorContext(mixed $body): array
+    {
+        if (! is_array($body)) {
+            return [];
+        }
+
+        $code = data_get($body, 'errors.code');
+        $validations = data_get($body, 'errors.validations');
+
+        return array_filter([
+            'provider_code' => is_int($code) || is_string($code) ? $code : null,
+            'provider_validation_fields' => is_array($validations) ? array_keys($validations) : null,
+        ], fn (mixed $value): bool => $value !== null && $value !== []);
     }
 
     /**

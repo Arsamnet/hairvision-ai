@@ -18,12 +18,12 @@
                 </div>
                 <div>
                     <label class="block text-sm font-bold text-zinc-800">{{ __('leads.fields.mobile') }}</label>
-                    <input name="phone_normalized" value="{{ old('phone_normalized', $lead->phone_normalized) }}" inputmode="numeric" class="mt-2 h-11 w-full rounded-lg border border-zinc-200 px-3 outline-none focus:border-teal-500">
+                    <input name="phone_normalized" value="{{ old('phone_normalized', $lead->phone_normalized) }}" inputmode="numeric" data-digit-input class="mt-2 h-11 w-full rounded-lg border border-zinc-200 px-3 outline-none focus:border-teal-500" dir="ltr">
                 </div>
                 <div>
                     <label class="block text-sm font-bold text-zinc-800">{{ __('leads.fields.status') }}</label>
                     <select name="status" class="mt-2 h-11 w-full rounded-lg border border-zinc-200 px-3 outline-none focus:border-teal-500">
-                        @foreach(__('leads.statuses') as $status => $label)
+                        @foreach(\App\Support\StateCatalog::options('leads.statuses') as $status => $label)
                             <option value="{{ $status }}" @selected(old('status', $lead->status) === $status)>{{ $label }}</option>
                         @endforeach
                     </select>
@@ -46,7 +46,7 @@
             <div>
                 <label class="block text-sm font-bold text-zinc-800">{{ __('leads.fields.crm_stage') }}</label>
                 <select name="crm_stage" class="mt-2 h-11 w-full rounded-lg border border-zinc-200 px-3 outline-none focus:border-teal-500">
-                    @foreach(__('leads.crm_stages') as $stage => $label)
+                    @foreach(\App\Support\StateCatalog::options('leads.crm_stages') as $stage => $label)
                         <option value="{{ $stage }}" @selected(old('crm_stage', $lead->crm_stage) === $stage)>{{ $label }}</option>
                     @endforeach
                 </select>

@@ -14,7 +14,9 @@ use App\Support\Tenancy\HostClassifier;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
+use Symfony\Component\HttpFoundation\Response;
 use Throwable;
 
 /**
@@ -87,7 +89,22 @@ class BillingController extends Controller
 
             $billing->verifyPayment($payment);
 
-            return redirect()->route('admin.billing.index')->with('status', __('payments.payment_activated'));
+            return $this->redirectToPaymentResult($payment);
+        } catch (ValidationException $exception) {
+            Log::warning('Billing payment initiation was rejected.', [
+                'invoice_id' => $invoice->id,
+                'user_id' => $request->user()?->id,
+                'exception' => $exception::class,
+            ]);
+
+            $message = data_get($exception->errors(), 'payment_gateway.0')
+                ?? data_get($exception->errors(), 'invoice.0')
+                ?? data_get($exception->errors(), 'plan.0')
+                ?? __('payments.payment_failed_generic');
+
+            return redirect()
+                ->route('admin.billing.index')
+                ->withErrors(['payment' => $message]);
         } catch (Throwable $exception) {
             Log::warning('Billing payment initiation failed.', [
                 'invoice_id' => $invoice->id,
@@ -124,15 +141,13 @@ class BillingController extends Controller
                 ]);
             }
 
-            return redirect()
-                ->route('admin.billing.index')
-                ->withErrors(['payment' => __('payments.payment_failed_generic')]);
+            return $this->redirectToPaymentResult($payment);
         }
 
         try {
             $billing->verifyPayment($payment, $this->callbackPayload($request));
 
-            return redirect()->route('admin.billing.index')->with('status', __('payments.payment_verified'));
+            return $this->redirectToPaymentResult($payment);
         } catch (Throwable $exception) {
             Log::warning('Billing payment verification failed.', [
                 'payment_id' => $payment->id,
@@ -141,10 +156,32 @@ class BillingController extends Controller
                 'exception' => $exception::class,
             ]);
 
-            return redirect()
-                ->route('admin.billing.index')
-                ->withErrors(['payment' => __('payments.payment_failed_generic')]);
+            return $this->redirectToPaymentResult($payment);
         }
+    }
+
+    /**
+     * Show the persisted server-side result without trusting callback query data.
+     */
+    public function result(Request $request, Payment $payment): View
+    {
+        $payment->loadMissing(['invoice.plan', 'gateway']);
+
+        abort_unless($payment->invoice && $this->canAccessInvoice($request, $payment->invoice), 403);
+
+        $resultState = match ($payment->status) {
+            'paid' => 'success',
+            'failed', 'canceled' => 'failed',
+            default => 'pending',
+        };
+
+        return view('admin.billing.result', [
+            'tenant' => $request->attributes->get('adminTenant'),
+            'availableTenants' => $request->attributes->get('adminTenants'),
+            'payment' => $payment,
+            'invoice' => $payment->invoice,
+            'resultState' => $resultState,
+        ]);
     }
 
     private function canAccessInvoice(Request $request, Invoice $invoice): bool
@@ -156,9 +193,18 @@ class BillingController extends Controller
         }
 
         $tenant = $request->attributes->get('adminTenant');
+        $invoiceUserId = $invoice->user_id === null ? null : (int) $invoice->user_id;
+        $invoiceTenantId = $invoice->tenant_id === null ? null : (int) $invoice->tenant_id;
+        $userId = (int) $user->getKey();
+        $tenantId = $tenant ? (int) $tenant->getKey() : null;
+        $isUserOwned = $invoiceUserId === $userId;
+        $isUnassignedTenantInvoice = $invoiceUserId === null
+            && $tenantId !== null
+            && $invoiceTenantId === $tenantId;
+        $isInCurrentTenant = $invoiceTenantId === null
+            || ($tenantId !== null && $invoiceTenantId === $tenantId);
 
-        return ($invoice->user_id === $user->id || ($invoice->user_id === null && $tenant && $invoice->tenant_id === $tenant->id))
-            && (! $invoice->tenant_id || ($tenant && $invoice->tenant_id === $tenant->id));
+        return ($isUserOwned || $isUnassignedTenantInvoice) && $isInCurrentTenant;
     }
 
     private function isClinicAdminHost(Request $request): bool
@@ -168,11 +214,22 @@ class BillingController extends Controller
 
     private function redirectToGateway(string $url): RedirectResponse
     {
+        // Payment starts from a POST form. A 303 guarantees the external
+        // StartPay endpoint is opened with GET instead of replaying that POST.
         if (filter_var($url, FILTER_VALIDATE_URL)) {
-            return redirect()->away($url);
+            return redirect()->away($url, Response::HTTP_SEE_OTHER);
         }
 
-        return redirect()->to($url);
+        return redirect()->to($url, Response::HTTP_SEE_OTHER);
+    }
+
+    private function redirectToPaymentResult(Payment $payment): RedirectResponse
+    {
+        return redirect()->route(
+            'admin.billing.result',
+            $payment,
+            Response::HTTP_SEE_OTHER
+        );
     }
 
     private function gatewayRejectedCallback(Request $request): bool

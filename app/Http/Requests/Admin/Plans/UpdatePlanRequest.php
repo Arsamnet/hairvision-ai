@@ -3,9 +3,12 @@
 namespace App\Http\Requests\Admin\Plans;
 
 use App\Enums\PlanType;
+use App\Services\AI\ClinicAiModelProvisioningService;
 use App\Services\Billing\ServiceCatalog;
+use App\Support\StateCatalog;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use Illuminate\Validation\Validator;
 
 /**
@@ -30,7 +33,7 @@ class UpdatePlanRequest extends FormRequest
         return [
             'name' => ['required', 'string', 'max:120'],
             'description' => ['nullable', 'string', 'max:1000'],
-            'plan_type' => ['required', Rule::in(array_map(fn (PlanType $type): string => $type->value, PlanType::cases()))],
+            'plan_type' => ['required', Rule::in(StateCatalog::values('plans.types'))],
             'service_key' => ['nullable', Rule::in($serviceKeys)],
             'price' => ['required', 'integer', 'min:0'],
             'currency' => ['required', 'string', 'max:8'],
@@ -38,10 +41,12 @@ class UpdatePlanRequest extends FormRequest
             'usage_limit' => ['required', 'integer', 'min:1', 'max:1000000'],
             'service_keys' => ['required', 'array', 'min:1'],
             'service_keys.*' => ['required', Rule::in($serviceKeys)],
+            'ai_model_access_ids' => ['exclude_if:plan_type,'.PlanType::CreditTopUp->value, 'required', 'array', 'min:1'],
+            'ai_model_access_ids.*' => ['required', 'integer', 'distinct', Rule::exists('ai_model_accesses', 'id')],
             'service_credits' => ['nullable', 'array'],
             'service_credits.*' => ['nullable', 'integer', 'min:0', 'max:1000000'],
             'is_public' => ['nullable', 'boolean'],
-            'status' => ['required', 'in:active,inactive'],
+            'status' => ['required', Rule::in(StateCatalog::values('plans.statuses'))],
         ];
     }
 
@@ -53,7 +58,36 @@ class UpdatePlanRequest extends FormRequest
             if ($planType !== PlanType::CreditTopUp->value && ! $this->filled('duration_days')) {
                 $validator->errors()->add('duration_days', __('plans.validation.duration_required'));
             }
+
+            if ($planType === PlanType::CreditTopUp->value || $validator->errors()->isNotEmpty()) {
+                return;
+            }
+
+            try {
+                app(ClinicAiModelProvisioningService::class)->assertSelectionProvisionable(
+                    (array) $this->input('service_keys', []),
+                    (array) $this->input('ai_model_access_ids', []),
+                );
+            } catch (ValidationException $exception) {
+                foreach ($exception->errors() as $field => $messages) {
+                    foreach ($messages as $message) {
+                        $validator->errors()->add($field, $message);
+                    }
+                }
+            }
         });
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    public function messages(): array
+    {
+        return [
+            'ai_model_access_ids.required' => __('plans.validation.model_required'),
+            'ai_model_access_ids.min' => __('plans.validation.model_required'),
+            'ai_model_access_ids.*.required' => __('plans.validation.model_required'),
+        ];
     }
 
     protected function prepareForValidation(): void
@@ -90,7 +124,18 @@ class UpdatePlanRequest extends FormRequest
             'plan_type' => $this->input('plan_type', PlanType::BaseSubscription->value),
             'service_keys' => $serviceKeys,
             'service_credits' => $serviceCredits,
+            'ai_model_access_ids' => $this->stringArray('ai_model_access_ids'),
             'is_public' => $this->boolean('is_public'),
         ]);
+    }
+
+    /**
+     * @return array<int, mixed>
+     */
+    private function stringArray(string $key): array
+    {
+        $value = $this->input($key, []);
+
+        return is_array($value) ? array_values($value) : [];
     }
 }

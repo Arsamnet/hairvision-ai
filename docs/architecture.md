@@ -181,8 +181,12 @@ GenerationController
 
 Provider selection and real provider credentials are server-side only. Clients
 submit `upload_id`, not provider, tenant, model, or credentials. There is no
-application-wide default AI provider: selection starts from the active model
-access records assigned to the current clinic by a system administrator.
+hard-coded application-wide provider. When a paid base plan or service add-on
+is defined, the system administrator selects exactly one executable model
+access for every included category. Invoice creation snapshots those ids, and
+paid activation assigns exactly those models to the clinic. System
+administrators may subsequently extend or override the clinic assignment
+independently.
 
 Configured model definitions live in `config/ai-models.php`; access records live
 in `ai_model_accesses`; clinic assignments live in `clinic_ai_model_access`.
@@ -191,6 +195,17 @@ may have multiple active assigned access records for the same category. Routing
 uses the lowest numeric priority first while that model has queue capacity; when
 all assigned models are at capacity, the resolver selects the model with the
 lowest active queue load and then the lowest numeric priority.
+
+Input-image preprocessing is a shared `RunAiModelAction` concern rather than a
+provider implementation detail. Each model access can optionally enable it with
+`input_image_processing_enabled`, `input_image_max_dimension`, and
+`input_image_jpeg_quality`. When enabled, both numeric settings are required.
+`ApiImagePreprocessor` creates a private temporary JPEG, scales proportionally
+so the longest side exactly matches the configured dimension, applies the
+configured JPEG quality, and leaves the original source untouched. The shared
+action replaces the provider payload path with this prepared file and removes
+the temporary file after the synchronous provider call, including failed calls.
+When disabled, the original private image path remains in the provider payload.
 
 `sample_image` is a built-in local model type. Admins with model management
 permissions can create, edit, and assign its access records like other model
@@ -254,6 +269,16 @@ grants individually and aggregate usage deductions by day for transparency.
 Credit consumption uses a database transaction and row lock. Credit is consumed
 only after provider execution succeeds.
 
+Base-plan and service-add-on forms require exactly one explicit model selection
+for every selected category. Each selected model must be active, executable,
+belong to that category, and individually cover every active output. Checkout
+revalidates the invoice-time model snapshot before redirecting to a gateway.
+Paid activation creates the subscription entitlements, grants credit, and
+assigns those exact model accesses in the same transaction. The operation is
+idempotent; credit top-ups neither require nor change model assignments. Legacy
+plans without an explicit mapping use the priority-based compatible fallback
+until they are edited or backfilled.
+
 Plan service keys are resolved through `ServiceCatalog`, which reads active
 `ai_model_categories` when the v2 table exists and falls back to configured
 service keys before migrations are available. This keeps deployments safe while
@@ -297,7 +322,7 @@ Core tables:
 - `roles`, `permissions`, `permission_role`
 - `system_settings`
 - `sms_gateways`, `payment_gateways`
-- `plans`, `plan_service_entitlements`
+- `plans`, `plan_service_entitlements`, `plan_ai_model_access`
 - `invoices`, `payments`
 - `subscriptions`, `subscription_service_entitlements`
 - `credit_transactions`
@@ -355,6 +380,14 @@ Use:
 
 Do not duplicate digit or calendar conversion logic.
 
+Dashboard quantity and monetary inputs use text controls with numeric keyboards
+so browsers accept Persian, Arabic, and Latin digits. The shared admin numeric
+input module inserts thousands separators while typing and submits an
+unformatted Latin value. `NormalizeNumericInputs` applies the same recursive
+normalization before backend validation, including API requests and requests
+made without JavaScript, while excluding credential, token, secret, merchant,
+and password fields.
+
 ## Admin Dashboard Standards
 
 Dashboard UI is Persian RTL Blade with local assets only. Do not add React,
@@ -410,6 +443,14 @@ User-facing copy is Persian and belongs in `lang/fa`. Technical identifiers
 such as route names, provider codes, status keys, permission codes, currencies,
 and model keys remain stable English identifiers. Seeded display names should
 be Persian where safe.
+
+Allowed status and categorical state codes are code-owned in
+`config/state-catalog.php`. The config maps stable technical values to
+translation keys, while `App\Support\StateCatalog` supplies localized options,
+allowed values, and safe labels to forms and validation. These catalogs are not
+stored in `system_settings` and are not editable from the dashboard. Dynamic AI
+categories remain database-owned, and model types remain owned by
+`config/ai-models.php` rather than being duplicated in the state catalog.
 
 ## Security and Error Handling
 
@@ -605,6 +646,8 @@ when using the database queue.
 - Cache system settings and clear cache after updates.
 - Runtime code must read impactful settings such as invoice due days and
   pagination limits from `SystemSettingService`, with safe config fallbacks.
+- Read code-owned status options from `StateCatalog`; do not recreate editable
+  database copies of the state catalog.
 - Keep management reports aggregate-based.
 - Keep generation outside HTTP with Redis/Horizon outside tests.
 

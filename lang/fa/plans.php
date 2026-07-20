@@ -11,6 +11,14 @@ return [
     'service_credits' => 'اعتبار سرویس‌ها',
     'credit_amount' => 'اعتبار',
     'assigned_services' => 'کاربرد',
+    'assigned_models' => 'مدل اجرای هر کاربرد',
+    'assigned_models_hint' => 'برای هر کاربرد انتخاب‌شده دقیقاً یک مدل تعیین کنید. فقط مدل‌هایی نمایش داده می‌شوند که همه خروجی‌های فعال آن کاربرد را اجرا می‌کنند.',
+    'assigned_models_detail_hint' => 'مدل ثبت‌شده برای هر کاربرد پس از فعال‌شدن پلن به کلینیک متصل می‌شود.',
+    'single_model' => 'یک انتخاب',
+    'select_model' => 'مدل اجرا',
+    'select_model_placeholder' => 'یک مدل را انتخاب کنید',
+    'select_model_hint' => 'با فعال‌شدن پلن، همین مدل به کلینیک متصل می‌شود.',
+    'no_models_for_service' => 'برای این کاربرد مدل فعال و قابل اجرایی وجود ندارد.',
     'view' => 'مشاهده پلن',
     'services' => 'سرویس‌ها',
     'purchase_or_upgrade' => 'خرید / ارتقا',
@@ -48,6 +56,7 @@ return [
         'currency' => 'واحد',
         'status' => 'وضعیت',
         'visibility' => 'نمایش',
+        'ai_models' => 'مدل‌های پلن',
     ],
 
     'statuses' => [
@@ -64,6 +73,10 @@ return [
     'validation' => [
         'duration_required' => 'مدت اعتبار برای پلن پایه و سرویس افزوده الزامی است.',
         'service_credit_required' => 'حداقل برای یک سرویس باید اعتبار مثبت وارد شود.',
+        'model_selection_invalid' => 'یک یا چند مدل انتخاب‌شده فعال یا قابل اجرا نیستند.',
+        'model_service_mismatch' => 'کاربرد یکی از مدل‌های انتخاب‌شده با کاربردهای پلن مطابقت ندارد.',
+        'model_required' => 'برای پلن پایه و سرویس افزوده، انتخاب مدل الزامی است.',
+        'one_model_per_service' => 'برای هر کاربرد انتخاب‌شده باید دقیقاً یک مدل تعیین شود.',
     ],
 
     'purchase_disabled' => [

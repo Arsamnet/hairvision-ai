@@ -16,7 +16,7 @@ use Throwable;
  */
 class AssignAiModelToClinicAction
 {
-    public function execute(Tenant $clinic, AiModelAccess $access, User $actor, bool $isActive = true): ClinicAiModelAccess
+    public function execute(Tenant $clinic, AiModelAccess $access, ?User $actor = null, bool $isActive = true): ClinicAiModelAccess
     {
         $this->resetDebugSteps();
 
@@ -24,15 +24,20 @@ class AssignAiModelToClinicAction
 
         try {
             $assignment = DB::transaction(function () use ($clinic, $access, $actor, $isActive): ClinicAiModelAccess {
+                $attributes = [
+                    'is_active' => $isActive,
+                ];
+
+                if ($actor) {
+                    $attributes['assigned_by'] = $actor->id;
+                }
+
                 $assignment = ClinicAiModelAccess::query()->updateOrCreate(
                     [
                         'clinic_id' => $clinic->id,
                         'ai_model_access_id' => $access->id,
                     ],
-                    [
-                        'is_active' => $isActive,
-                        'assigned_by' => $actor->id,
-                    ]
+                    $attributes
                 );
 
                 return $assignment;

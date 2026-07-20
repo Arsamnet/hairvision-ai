@@ -3,6 +3,7 @@
 use App\Http\Middleware\EnsureActivePlanAccess;
 use App\Http\Middleware\EnsureAdminPermission;
 use App\Http\Middleware\LogDebugSteps;
+use App\Http\Middleware\NormalizeNumericInputs;
 use App\Http\Middleware\UseScopedSessionCookie;
 use App\Services\Debug\DebugStepLogger;
 use Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse;
@@ -21,6 +22,7 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
+        $middleware->append(NormalizeNumericInputs::class);
         $middleware->append(LogDebugSteps::class);
 
         $middleware->web(prepend: [
@@ -48,6 +50,8 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
+        $exceptions->dontFlash('merchant_id');
+
         $exceptions->report(function (Throwable $exception): void {
             DebugStepLogger::record('exception.report', 'Exception reported', [
                 'exception' => $exception,

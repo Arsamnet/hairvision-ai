@@ -18,11 +18,14 @@
                         <x-admin.validation-summary for="create_payment_gateway" class="lg:col-span-2" />
                         <input name="name" class="h-11 rounded-lg border border-zinc-200 px-3 text-sm outline-none focus:border-teal-500" placeholder="{{ __('system.name') }}">
                         <input name="provider_code" value="local" class="h-11 rounded-lg border border-zinc-200 px-3 text-sm outline-none focus:border-teal-500" dir="ltr" placeholder="{{ __('system.provider') }}">
-                        <input name="merchant_id" class="h-11 rounded-lg border border-zinc-200 px-3 text-sm outline-none focus:border-teal-500" placeholder="{{ __('payments.merchant_id') }}" dir="ltr">
-                        <input name="callback_url" class="h-11 rounded-lg border border-zinc-200 px-3 text-sm outline-none focus:border-teal-500" placeholder="{{ __('payments.callback_url') }}" dir="ltr">
+                        <input type="password" name="merchant_id" autocomplete="new-password" class="h-11 rounded-lg border border-zinc-200 px-3 text-sm outline-none focus:border-teal-500" placeholder="{{ __('payments.merchant_id') }}" dir="ltr">
+                        <div class="rounded-lg border border-teal-100 bg-teal-50 px-4 py-3 text-sm lg:col-span-2">
+                            <p class="font-bold text-teal-900">{{ __('payments.callback_url_automatic') }}</p>
+                            <p class="mt-1 leading-6 text-teal-700">{{ __('payments.callback_url_automatic_hint') }}</p>
+                        </div>
                         <select name="status" class="h-11 rounded-lg border border-zinc-200 px-3 text-sm outline-none focus:border-teal-500">
-                            @foreach(['enabled', 'disabled'] as $status)
-                                <option value="{{ $status }}">{{ __('system.statuses.'.$status) }}</option>
+                            @foreach(\App\Support\StateCatalog::options('payment_gateways.statuses') as $status => $label)
+                                <option value="{{ $status }}">{{ $label }}</option>
                             @endforeach
                         </select>
                         <label class="flex h-11 items-center gap-2 rounded-lg bg-zinc-50 px-3 text-sm font-bold">
@@ -41,7 +44,7 @@
             preset-key="admin.system.payment-gateways.index"
             :search-placeholder="__('payments.search_placeholder')"
             :filters="[
-                ['name' => 'status', 'label' => __('system.status'), 'type' => 'select', 'placeholder' => __('payments.all_statuses'), 'options' => collect(['enabled', 'disabled'])->mapWithKeys(fn ($status) => [$status => __('system.statuses.'.$status)])->all()],
+                ['name' => 'status', 'label' => __('system.status'), 'type' => 'select', 'placeholder' => __('payments.all_statuses'), 'options' => \App\Support\StateCatalog::options('payment_gateways.statuses')],
                 ['name' => 'provider_code', 'label' => __('system.provider'), 'placeholder' => __('payments.provider_placeholder'), 'dir' => 'ltr'],
             ]"
             :sorts="[
@@ -69,6 +72,10 @@
                             <td class="px-4 py-3 align-top">
                                 <x-admin.table.action-menu>
                                     @can('permission', 'payment_gateways.edit')
+                                        <label for="edit-payment-gateway-{{ $gateway->id }}-toggle" class="flex w-full cursor-pointer items-center gap-2 px-3 py-2 text-right text-xs font-bold text-zinc-700 transition hover:bg-teal-50 hover:text-teal-700" role="button" tabindex="0" data-table-action-item data-admin-modal-trigger="edit-payment-gateway-{{ $gateway->id }}">
+                                            <x-admin.icon name="edit" class="h-4 w-4" />
+                                            <span>{{ __('system.edit') }}</span>
+                                        </label>
                                         <x-admin.table.action-item
                                             :action="route('admin.system.payment-gateways.update', $gateway)"
                                             method="PUT"
@@ -111,6 +118,10 @@
                         </div>
                         <x-admin.table.action-menu>
                             @can('permission', 'payment_gateways.edit')
+                                <label for="edit-payment-gateway-{{ $gateway->id }}-toggle" class="flex w-full cursor-pointer items-center gap-2 px-3 py-2 text-right text-xs font-bold text-zinc-700 transition hover:bg-teal-50 hover:text-teal-700" role="button" tabindex="0" data-table-action-item data-admin-modal-trigger="edit-payment-gateway-{{ $gateway->id }}">
+                                    <x-admin.icon name="edit" class="h-4 w-4" />
+                                    <span>{{ __('system.edit') }}</span>
+                                </label>
                                 <x-admin.table.action-item
                                     :action="route('admin.system.payment-gateways.update', $gateway)"
                                     method="PUT"
@@ -144,5 +155,47 @@
             @endforelse
         </x-admin.mobile-list>
         <x-admin.table.pagination-footer :paginator="$gateways" />
+
+        @can('permission', 'payment_gateways.edit')
+            @foreach($gateways as $gateway)
+                @php($editForm = 'edit_payment_gateway_'.$gateway->id)
+                @php($isCurrentEditForm = old('_form') === $editForm)
+                <x-admin.modal id="edit-payment-gateway-{{ $gateway->id }}" :label="__('system.edit')" :title="$gateway->name" icon="edit" :trigger="false" :open="$errors->any() && $isCurrentEditForm">
+                    <form method="POST" action="{{ route('admin.system.payment-gateways.update', $gateway) }}" class="grid gap-3 lg:grid-cols-2">
+                        @csrf
+                        @method('PUT')
+                        <input type="hidden" name="_form" value="{{ $editForm }}">
+                        <x-admin.validation-summary :for="$editForm" class="lg:col-span-2" />
+                        <input name="name" value="{{ $isCurrentEditForm ? old('name') : $gateway->name }}" class="h-11 rounded-lg border border-zinc-200 px-3 text-sm outline-none focus:border-teal-500" placeholder="{{ __('system.name') }}">
+                        <input name="provider_code" value="{{ $gateway->provider_code }}" readonly class="h-11 rounded-lg border border-zinc-200 bg-zinc-50 px-3 text-sm text-zinc-500 outline-none" dir="ltr" placeholder="{{ __('system.provider') }}">
+                        <div>
+                            <input type="password" name="merchant_id" autocomplete="new-password" class="h-11 w-full rounded-lg border border-zinc-200 px-3 text-sm outline-none focus:border-teal-500" placeholder="{{ __('payments.merchant_id') }}" dir="ltr">
+                            <p class="mt-1 text-xs text-zinc-500">{{ __('payments.merchant_id_preserved') }}</p>
+                        </div>
+                        @if($gateway->provider_code === 'zarinpal')
+                            <div class="rounded-lg border border-teal-100 bg-teal-50 px-4 py-3 text-sm lg:col-span-2" data-automatic-zarinpal-callback>
+                                <p class="font-bold text-teal-900">{{ __('payments.callback_url_automatic') }}</p>
+                                <code class="mt-2 block overflow-x-auto rounded-lg bg-white px-3 py-2 text-left text-xs text-zinc-700" dir="ltr">{{ url('/admin/billing/payments/{payment}/verify') }}</code>
+                                <p class="mt-2 leading-6 text-teal-700">{{ __('payments.callback_url_automatic_hint') }}</p>
+                            </div>
+                        @else
+                            <input name="callback_url" value="{{ $isCurrentEditForm ? old('callback_url') : data_get($gateway->settings_json, 'callback_url') }}" class="h-11 rounded-lg border border-zinc-200 px-3 text-sm outline-none focus:border-teal-500" placeholder="{{ __('payments.callback_url') }}" dir="ltr">
+                        @endif
+                        <select name="status" class="h-11 rounded-lg border border-zinc-200 px-3 text-sm outline-none focus:border-teal-500">
+                            @foreach(\App\Support\StateCatalog::options('payment_gateways.statuses') as $status => $label)
+                                <option value="{{ $status }}" @selected(($isCurrentEditForm ? old('status') : $gateway->status) === $status)>{{ $label }}</option>
+                            @endforeach
+                        </select>
+                        <label class="flex h-11 items-center gap-2 rounded-lg bg-zinc-50 px-3 text-sm font-bold">
+                            <input type="checkbox" name="is_default" value="1" @checked($isCurrentEditForm ? old('is_default') : $gateway->is_default)>
+                            <span>{{ __('system.default') }}</span>
+                        </label>
+                        <x-admin.button type="submit" icon="check" class="lg:col-span-2">
+                            <span>{{ __('system.save') }}</span>
+                        </x-admin.button>
+                    </form>
+                </x-admin.modal>
+            @endforeach
+        @endcan
     </x-admin.card>
 @endsection

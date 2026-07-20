@@ -6,6 +6,11 @@ HairVision `2.0.0` starts the category-based AI model architecture.
 
 ### Product
 
+- AI model forms now provide optional input-image processing controls. When
+  enabled, admins must define the longest-side dimension and JPEG quality.
+- Dashboard create/edit forms now accept Persian, Arabic, and Latin digits in
+  numeric fields, add thousands separators while typing, and persist normalized
+  Latin values.
 - System admins can manage AI model usage categories from the dashboard.
 - System admins can activate or deactivate each AI application/category from
   the category list; inactive applications are hidden from every clinic landing
@@ -18,12 +23,16 @@ HairVision `2.0.0` starts the category-based AI model architecture.
 - Active categories are available in plan service-credit forms.
 - Plan create/edit forms present category assignment as clearer multi-select
   application options.
+- Plan create/edit forms now use a focused single-select card for each
+  application, require exactly one independently executable model per
+  application, label each option as `display name (model key)`, order options by
+  model priority, and show the persisted selection on plan details.
 - Active categories are available in AI model access forms.
 - Clinic model assignment dropdowns show every active model access and disable
   records that are already assigned to the clinic.
-- Global default AI-provider configuration has been removed. Runtime selection
-  uses only active model access records assigned to the clinic by a system
-  administrator.
+- Global hard-coded AI-provider configuration has been removed. Paid plan
+  activation now assigns the exact executable model selected for each
+  application by a system administrator when the plan was defined.
 - Clinic dashboards now show landing application availability and explain when
   an application is hidden because a system admin disabled the category, the
   purchased plan, or the AI model used by that clinic.
@@ -48,6 +57,9 @@ HairVision `2.0.0` starts the category-based AI model architecture.
 
 ### Architecture
 
+- The shared AI execution action can now create a proportional, private JPEG
+  input for every provider, apply the model-specific size and quality, preserve
+  the original upload, and remove the temporary file after provider execution.
 - Added `ai_model_categories` and `ai_model_category_outputs`.
 - Added executable v2 model tables: `ai_models` and
   `ai_model_output_configs`.
@@ -65,6 +77,11 @@ HairVision `2.0.0` starts the category-based AI model architecture.
   availability service that checks active category, active purchased plan,
   active entitlement, active global model access, active clinic assignment, and
   executable output configuration.
+- Added `plan_ai_model_access` for explicit plan-to-model mappings. New invoice
+  metadata snapshots that mapping so later plan edits cannot alter an in-flight
+  purchase. Base-plan and add-on checkout reject invalid or unavailable selected
+  models before gateway handoff, and successful payment atomically provisions
+  entitlements, credit, and those exact assignments.
 - Plans now use one total credit amount with one or more assigned categories.
   Base plans, add-ons, and top-ups contribute to the active clinic subscription's
   global credit balance; output `credit_cost` is deducted from that total.
@@ -73,6 +90,28 @@ HairVision `2.0.0` starts the category-based AI model architecture.
   deductions.
 - System settings now use practical controls and affect invoice due days and
   pagination limits at runtime.
+- Removed the editable database-backed status catalog from system settings.
+  Stable state codes now live globally in `config/state-catalog.php`, localized
+  through `StateCatalog`, while dynamic AI categories and model types retain
+  their own database and `config/ai-models.php` sources.
+- Zarinpal credentials can be updated securely from the payment-gateway panel;
+  seeded placeholders are rejected before network requests, failed validation
+  responses log only safe diagnostics, and reseeding preserves real credentials.
+- Gateway handoff now uses `303 See Other`, guaranteeing that a payment started
+  by POST opens Zarinpal's `StartPay` endpoint with a fresh GET request.
+- Pending Zarinpal authorities are reused only for a short safe window; stale
+  attempts are closed and replaced before redirecting to `StartPay`.
+- Gateway callbacks now use a refresh-safe payment-result page with persisted
+  success, failure, and pending states, masked authority values, transaction
+  details, and an explicit retry action only for failed attempts.
+- The payment-result UI now uses a compact receipt layout with a restrained
+  status row, prominent amount/reference details, and at most two contextual
+  actions instead of a large centered status panel.
+- Zarinpal callback URLs are now generated per payment on the exact host where
+  checkout started; legacy fixed callback values are ignored and removed on
+  gateway updates to prevent verification bypass and cross-domain session loss.
+- Empty `LOG_CHANNEL` and `LOG_STACK` values now fall back to the standard stack
+  and single channels so logging failures do not hide billing gateway errors.
 - Added an opt-in cPanel queue window that follows the configured Redis or
   database connection, waits only one second for new image jobs, aligns worker
   timeout with long-running providers, and prevents overlapping cron workers.
@@ -89,6 +128,14 @@ HairVision `2.0.0` starts the category-based AI model architecture.
 
 ### Quality
 
+- Tests cover conditional model-setting validation, proportional resizing,
+  JPEG conversion, quality application, unchanged originals, provider payloads,
+  and temporary-file cleanup.
+- Tests cover grouped-number normalization, recursive request normalization,
+  sensitive-field preservation, and the shared dashboard numeric-input
+  contract.
+- Tests cover config-backed state catalogs, translation completeness, enum
+  alignment, and absence of legacy catalog rows from system settings.
 - Tests cover dynamic category creation, category visibility in plans, plan
   service-credit persistence, category visibility in AI model forms, and
   creating a sample-image model access for a new category.
@@ -100,6 +147,17 @@ HairVision `2.0.0` starts the category-based AI model architecture.
 - Tests cover system-created clinic notifications, unread header counts,
   tenant-scoped read tracking, mark-all-read, selected-clinic delivery,
   inactive-plan targeting, and conditional recipient filters.
+- Tests cover payment-gateway credential preservation, placeholder rejection,
+  safe Zarinpal validation diagnostics, stale-authority replacement,
+  access-controlled payment-result states, refresh safety, and empty log-channel
+  fallback.
+- Tests cover automatic multi-application model provisioning after successful
+  payment, repeated-callback idempotency, add-on provisioning, and pre-payment
+  rejection when no executable model is available.
+- Tests cover plan-model create/update validation, exactly-one-model-per-category
+  enforcement, category mismatch rejection, invoice snapshots, and assignment
+  of the exact lower-priority model selected on a plan instead of an implicit
+  global default.
 
 ## 1.0.0
 

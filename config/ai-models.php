@@ -3,6 +3,34 @@
 use App\Services\AI\Providers\GapGptImageEditProvider;
 use App\Services\AI\Providers\HairVisionDemoProvider;
 
+$inputImageProcessingSettings = [
+    [
+        'key' => 'input_image_processing_enabled',
+        'label' => 'فعال‌سازی پردازش تصویر ورودی',
+        'type' => 'boolean',
+        'required' => false,
+        'rules' => ['nullable', 'boolean'],
+        'default' => false,
+        'secret' => false,
+    ],
+    [
+        'key' => 'input_image_max_dimension',
+        'label' => 'اندازه ضلع بزرگ‌تر تصویر ورودی',
+        'type' => 'integer',
+        'required' => false,
+        'rules' => ['nullable', 'required_if:input_image_processing_enabled,1,true', 'integer', 'min:1', 'max:8192'],
+        'secret' => false,
+    ],
+    [
+        'key' => 'input_image_jpeg_quality',
+        'label' => 'کیفیت JPEG تصویر ورودی',
+        'type' => 'integer',
+        'required' => false,
+        'rules' => ['nullable', 'required_if:input_image_processing_enabled,1,true', 'integer', 'min:1', 'max:100'],
+        'secret' => false,
+    ],
+];
+
 return [
     'types' => [
         'sample_image' => [
@@ -10,7 +38,7 @@ return [
             'label' => 'مدل نمونه',
             'provider' => HairVisionDemoProvider::class,
             'credentials' => [],
-            'settings' => [],
+            'settings' => $inputImageProcessingSettings,
             'output_fields' => [
                 [
                     'key' => 'sample_path',
@@ -44,6 +72,7 @@ return [
                 ],
             ],
             'settings' => [
+                ...$inputImageProcessingSettings,
                 [
                     'key' => 'endpoint',
                     'label' => 'Endpoint',

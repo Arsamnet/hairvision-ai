@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Admin\Clinics;
 
+use App\Support\StateCatalog;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -28,10 +29,10 @@ class UpdateClinicRequest extends FormRequest
         return [
             'name' => ['required', 'string', 'max:150'],
             'slug' => ['required', 'string', 'alpha_dash', 'max:100', Rule::unique('tenants', 'slug')->ignore($clinic?->id)],
-            'status' => ['required', 'string', Rule::in(['active', 'inactive'])],
+            'status' => ['required', 'string', Rule::in(StateCatalog::values('tenants.statuses'))],
             'domain' => ['required', 'string', 'max:255', 'regex:/^[a-z0-9.-]+$/', Rule::unique('tenant_domains', 'domain')->ignore($domain?->id)],
-            'domain_type' => ['required', 'string', Rule::in(['tenant_subdomain', 'custom_domain', 'primary_domain', 'platform_subdomain'])],
-            'domain_status' => ['required', 'string', Rule::in(['active', 'inactive', 'pending'])],
+            'domain_type' => ['required', 'string', Rule::in(StateCatalog::values('tenant_domains.types'))],
+            'domain_status' => ['required', 'string', Rule::in(StateCatalog::values('tenant_domains.statuses'))],
         ];
     }
 

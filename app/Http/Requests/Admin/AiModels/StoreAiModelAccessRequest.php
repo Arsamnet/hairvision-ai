@@ -4,6 +4,7 @@ namespace App\Http\Requests\Admin\AiModels;
 
 use App\Models\AiModelAccess;
 use App\Services\AI\AiModelResolver;
+use App\Services\AI\InputImageProcessingSettings;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Validator;
@@ -34,6 +35,21 @@ class StoreAiModelAccessRequest extends FormRequest
             'credentials' => ['array'],
             'credentials.*' => ['nullable', 'string', 'max:2000'],
             'settings' => ['array'],
+            'settings.'.InputImageProcessingSettings::ENABLED => ['nullable', 'boolean'],
+            'settings.'.InputImageProcessingSettings::MAX_DIMENSION => [
+                Rule::requiredIf($this->boolean('settings.'.InputImageProcessingSettings::ENABLED)),
+                'nullable',
+                'integer',
+                'min:'.InputImageProcessingSettings::MIN_DIMENSION,
+                'max:'.InputImageProcessingSettings::MAX_DIMENSION_LIMIT,
+            ],
+            'settings.'.InputImageProcessingSettings::JPEG_QUALITY => [
+                Rule::requiredIf($this->boolean('settings.'.InputImageProcessingSettings::ENABLED)),
+                'nullable',
+                'integer',
+                'min:'.InputImageProcessingSettings::MIN_JPEG_QUALITY,
+                'max:'.InputImageProcessingSettings::MAX_JPEG_QUALITY,
+            ],
             'credit_limit' => ['nullable', 'integer', 'min:0', 'max:4294967295'],
             'priority' => ['nullable', 'integer', 'min:0', 'max:100000'],
             'is_active' => ['nullable', 'boolean'],
@@ -66,9 +82,28 @@ class StoreAiModelAccessRequest extends FormRequest
 
     protected function prepareForValidation(): void
     {
-        $this->merge([
-            'is_active' => $this->boolean('is_active'),
-        ]);
+        $normalized = ['is_active' => $this->boolean('is_active')];
+
+        if ($this->has('settings')) {
+            $settings = (array) $this->input('settings', []);
+            $settings[InputImageProcessingSettings::ENABLED] = $this->boolean(
+                'settings.'.InputImageProcessingSettings::ENABLED
+            );
+            $normalized['settings'] = $settings;
+        }
+
+        $this->merge($normalized);
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    public function attributes(): array
+    {
+        return [
+            'settings.'.InputImageProcessingSettings::MAX_DIMENSION => __('ai_models.input_image_max_dimension'),
+            'settings.'.InputImageProcessingSettings::JPEG_QUALITY => __('ai_models.input_image_jpeg_quality'),
+        ];
     }
 
     private function canManageSubmittedSensitiveFields(): bool

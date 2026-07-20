@@ -42,7 +42,7 @@
                                         <option value="0" @selected(! (bool) $value)>{{ __('system.statuses.disabled') }}</option>
                                     </select>
                                 @elseif($setting->type === 'integer')
-                                    <input name="settings[{{ $setting->key }}]" value="{{ $displayValue }}" type="number" min="1" class="mt-2 h-11 w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm outline-none focus:border-teal-500" dir="ltr" placeholder="15">
+                                    <input name="settings[{{ $setting->key }}]" value="{{ $displayValue }}" type="text" inputmode="numeric" data-number-input min="1" class="mt-2 h-11 w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm outline-none focus:border-teal-500" dir="ltr" placeholder="15">
                                 @else
                                     <input name="settings[{{ $setting->key }}]" value="{{ $displayValue }}" class="mt-2 h-11 w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm outline-none focus:border-teal-500" placeholder="{{ $setting->label }}">
                                 @endif

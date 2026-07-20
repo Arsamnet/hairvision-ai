@@ -4,6 +4,7 @@ namespace App\Services\Billing;
 
 use App\Models\Invoice;
 use App\Models\Payment;
+use App\Models\PaymentGateway;
 use App\Models\Plan;
 use App\Models\Subscription;
 use App\Models\Tenant;
@@ -24,6 +25,8 @@ use Throwable;
  */
 class BillingService
 {
+    private const ZARINPAL_AUTHORITY_REUSE_SECONDS = 300;
+
     public function __construct(
         private readonly PaymentGatewayService $gateways,
         private readonly SubscriptionActivationService $activation,
@@ -44,6 +47,7 @@ class BillingService
             $tenant = $this->billingTenantFor($user, $tenant, $scope);
 
             $this->activation->validatePurchase($user, $plan, $tenant);
+            $modelAccessIds = $this->activation->modelAccessIdsForPlan($plan);
 
             $invoice = Invoice::query()->firstOrCreate(
                 [
@@ -61,6 +65,7 @@ class BillingService
                     'metadata_json' => [
                         'plan_type' => $plan->plan_type->value,
                         'service_key' => $plan->service_key,
+                        'ai_model_access_ids' => $modelAccessIds,
                     ],
                 ]
             );
@@ -86,6 +91,7 @@ class BillingService
                     'plan' => __('plans.inactive_plan'),
                 ]);
             }
+            $modelAccessIds = $this->activation->modelAccessIdsForPlan($plan);
             $discountAmount = max(0, min($discountAmount, (int) $plan->price));
             $invoiceAmount = max(0, (int) $plan->price - $discountAmount);
 
@@ -105,6 +111,7 @@ class BillingService
                     'metadata_json' => [
                         'plan_type' => $plan->plan_type->value,
                         'service_key' => $plan->service_key,
+                        'ai_model_access_ids' => $modelAccessIds,
                         'created_by' => $actor?->id,
                         'source' => 'clinic_manual_assignment',
                         'original_amount' => (int) $plan->price,
@@ -118,6 +125,7 @@ class BillingService
                 'metadata_json' => array_replace($invoice->metadata_json ?? [], [
                     'plan_type' => $plan->plan_type->value,
                     'service_key' => $plan->service_key,
+                    'ai_model_access_ids' => $modelAccessIds,
                     'created_by' => $actor?->id,
                     'source' => 'clinic_manual_assignment',
                     'original_amount' => (int) $plan->price,
@@ -172,6 +180,19 @@ class BillingService
                 ]);
             }
 
+            $invoice->loadMissing(['plan.serviceEntitlements', 'tenant', 'user']);
+
+            if ($invoice->plan) {
+                // Revalidate immediately before leaving the application so an
+                // unavailable service/model pool is never sent to the gateway.
+                $this->activation->validatePurchase(
+                    $invoice->user,
+                    $invoice->plan,
+                    $invoice->tenant,
+                    $invoice->aiModelAccessIdsSnapshot(),
+                );
+            }
+
             $gateway = $this->gateways->default();
 
             if (! $gateway) {
@@ -186,12 +207,12 @@ class BillingService
                 ->latest('id')
                 ->first();
 
-            if (
-                $pendingPayment
-                && filled($pendingPayment->authority)
-                && filled(data_get($pendingPayment->gateway_response_json, 'redirect_url'))
-            ) {
+            if ($pendingPayment && $this->pendingPaymentIsReusable($pendingPayment, $gateway)) {
                 return $pendingPayment;
+            }
+
+            if ($pendingPayment) {
+                $this->closeStalePendingPayment($pendingPayment);
             }
 
             $payment = Payment::create([
@@ -498,6 +519,48 @@ class BillingService
     private function invoiceDueDays(): int
     {
         return max(1, min(90, (int) $this->settings->get('billing.invoice_due_days', 7)));
+    }
+
+    /**
+     * Reuse only a fresh Zarinpal authority so an expired StartPay URL is never
+     * returned indefinitely. Other adapters retain their existing idempotency.
+     */
+    private function pendingPaymentIsReusable(Payment $payment, PaymentGateway $gateway): bool
+    {
+        if (
+            blank($payment->authority)
+            || blank(data_get($payment->gateway_response_json, 'redirect_url'))
+        ) {
+            return false;
+        }
+
+        if ($gateway->provider_code !== 'zarinpal') {
+            return true;
+        }
+
+        return $payment->created_at?->greaterThanOrEqualTo(
+            now()->subSeconds(self::ZARINPAL_AUTHORITY_REUSE_SECONDS)
+        ) ?? false;
+    }
+
+    /**
+     * Close only the obsolete gateway attempt; the invoice remains payable and
+     * immediately receives a new payment attempt.
+     */
+    private function closeStalePendingPayment(Payment $payment): void
+    {
+        $gatewayResponse = $payment->gateway_response_json ?? [];
+        unset($gatewayResponse['redirect_url']);
+
+        $payment->forceFill([
+            'status' => 'failed',
+            'gateway_response_json' => array_replace($gatewayResponse, [
+                'status' => 'expired',
+                'retry_reason' => filled($payment->authority)
+                    ? 'authority_reuse_window_elapsed'
+                    : 'gateway_initiation_incomplete',
+            ]),
+        ])->save();
     }
 
     private function planContext(Plan $plan): array

@@ -30,7 +30,7 @@
                     @csrf
                     <div>
                         <label for="phone" class="block text-sm font-bold text-zinc-800">شماره موبایل</label>
-                        <input id="phone" name="phone" value="{{ old('phone') }}" inputmode="numeric" autocomplete="tel" maxlength="11" pattern="[0-9۰-۹٠-٩]*" placeholder="۰۹۱۲۳۴۵۶۷۸۹" class="mt-2 h-12 w-full rounded-lg border border-zinc-200 px-4 text-right outline-none transition focus:border-teal-500 focus:ring-4 focus:ring-teal-100">
+                        <input id="phone" name="phone" value="{{ old('phone') }}" inputmode="numeric" data-digit-input autocomplete="tel" maxlength="11" pattern="[0-9۰-۹٠-٩]*" placeholder="۰۹۱۲۳۴۵۶۷۸۹" class="mt-2 h-12 w-full rounded-lg border border-zinc-200 px-4 text-right outline-none transition focus:border-teal-500 focus:ring-4 focus:ring-teal-100">
                     </div>
                     <x-admin.button type="submit" size="lg" block class="focus:ring-4 focus:ring-teal-100">دریافت کد ورود</x-admin.button>
                 </form>

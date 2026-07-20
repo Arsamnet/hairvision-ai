@@ -6,6 +6,7 @@ use App\Enums\PlanType;
 use App\Models\Concerns\HasUuid;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 /**
@@ -67,6 +68,17 @@ class Plan extends Model
     public function serviceEntitlements(): HasMany
     {
         return $this->hasMany(PlanServiceEntitlement::class);
+    }
+
+    /**
+     * AI model accesses that must be provisioned when this plan is activated.
+     *
+     * @return BelongsToMany<AiModelAccess, $this>
+     */
+    public function aiModelAccesses(): BelongsToMany
+    {
+        return $this->belongsToMany(AiModelAccess::class, 'plan_ai_model_access', 'plan_id', 'ai_model_access_id')
+            ->withTimestamps();
     }
 
     public function isBaseSubscription(): bool

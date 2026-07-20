@@ -9,6 +9,7 @@ use App\Services\Auth\PermissionService;
 use App\Support\Pagination\PaginationParameters;
 use App\Support\Query\DateRangeFilter;
 use App\Support\Query\SearchFilter;
+use App\Support\StateCatalog;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
@@ -90,7 +91,7 @@ class RoleController extends Controller
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:120'],
             'description' => ['nullable', 'string', 'max:500'],
-            'status' => ['required', 'in:active,inactive'],
+            'status' => ['required', Rule::in(StateCatalog::values('roles.statuses'))],
             'permissions' => ['array'],
             'permissions.*' => ['integer', Rule::exists('permissions', 'id')],
         ]);

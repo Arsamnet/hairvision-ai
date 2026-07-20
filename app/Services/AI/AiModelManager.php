@@ -400,10 +400,12 @@ class AiModelManager
     {
         unset($settings['stage_prompts']);
 
-        return collect($settings)
+        $settings = collect($settings)
             ->map(fn (mixed $value): mixed => is_array($value) ? $this->filteredSettings($value) : $value)
             ->filter(fn (mixed $value): bool => is_array($value) ? $value !== [] : filled($value))
             ->all();
+
+        return InputImageProcessingSettings::normalize($settings);
     }
 
     /**

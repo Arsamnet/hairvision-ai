@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Str;
 
@@ -74,6 +75,27 @@ class AiModelAccess extends Model
         return $this->belongsToMany(Tenant::class, 'clinic_ai_model_access', 'ai_model_access_id', 'clinic_id')
             ->withPivot(['is_active', 'assigned_by'])
             ->withTimestamps();
+    }
+
+    /**
+     * Purchasable plans that provision this model access.
+     *
+     * @return BelongsToMany<Plan, $this>
+     */
+    public function plans(): BelongsToMany
+    {
+        return $this->belongsToMany(Plan::class, 'plan_ai_model_access', 'ai_model_access_id', 'plan_id')
+            ->withTimestamps();
+    }
+
+    /**
+     * Executable v2 model synchronized from this access record.
+     *
+     * @return HasOne<AiModel, $this>
+     */
+    public function executableModel(): HasOne
+    {
+        return $this->hasOne(AiModel::class, 'legacy_ai_model_access_id');
     }
 
     /**

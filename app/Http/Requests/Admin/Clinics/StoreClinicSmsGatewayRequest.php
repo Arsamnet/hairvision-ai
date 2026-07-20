@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Admin\Clinics;
 
 use App\Models\SmsGateway;
+use App\Support\StateCatalog;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -31,7 +32,7 @@ class StoreClinicSmsGatewayRequest extends FormRequest
             '_form' => ['nullable', 'string'],
             'name' => ['nullable', 'string', 'max:120'],
             'provider_code' => ['nullable', 'alpha_dash', 'max:80', Rule::in($this->providerCodes())],
-            'status' => ['required', Rule::in(['enabled', 'disabled'])],
+            'status' => ['required', Rule::in(StateCatalog::values('sms_gateways.statuses'))],
             'is_default' => ['nullable', 'boolean'],
             'api_key' => ['nullable', 'string', 'max:500'],
             'from_number' => ['nullable', 'string', 'max:120'],

@@ -47,6 +47,12 @@ return [
         'archived' => 'آرشیو شده',
     ],
 
+    'upload_statuses' => [
+        'uploaded' => 'بارگذاری شده',
+        'validated' => 'اعتبارسنجی شده',
+        'rejected' => 'رد شده',
+    ],
+
     'crm_stages' => [
         'new_lead' => 'جدید',
         'contacted' => 'تماس گرفته شد',

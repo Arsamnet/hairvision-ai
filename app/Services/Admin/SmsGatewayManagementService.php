@@ -8,6 +8,7 @@ use App\Services\Sms\SmsGatewayService;
 use App\Support\Pagination\PaginationParameters;
 use App\Support\Query\DateRangeFilter;
 use App\Support\Query\SearchFilter;
+use App\Support\StateCatalog;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
@@ -34,7 +35,9 @@ class SmsGatewayManagementService
 
     public function systemQuery(Request $request, PaginationParameters $pagination): Builder
     {
-        $query = SmsGateway::query()->with(['user', 'tenant'])->whereIn('owner_scope', ['system', 'tenant']);
+        $query = SmsGateway::query()
+            ->with(['user', 'tenant'])
+            ->whereIn('owner_scope', StateCatalog::values('sms_gateways.owner_scopes'));
         SearchFilter::apply($query, $pagination->search, ['name', 'provider_code'], [
             'user' => ['name'],
             'tenant' => ['name'],

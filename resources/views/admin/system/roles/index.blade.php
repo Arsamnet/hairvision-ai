@@ -31,7 +31,7 @@
             preset-key="admin.system.roles.index"
             :search-placeholder="__('system.roles_search_placeholder')"
             :filters="[
-                ['name' => 'status', 'label' => __('system.status'), 'type' => 'select', 'placeholder' => __('system.users.all_statuses'), 'options' => collect(['active', 'inactive'])->mapWithKeys(fn ($status) => [$status => __('system.statuses.'.$status)])->all()],
+                ['name' => 'status', 'label' => __('system.status'), 'type' => 'select', 'placeholder' => __('system.users.all_statuses'), 'options' => \App\Support\StateCatalog::options('roles.statuses')],
             ]"
             :sorts="[
                 'name' => __('system.name'),

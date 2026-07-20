@@ -49,6 +49,10 @@ Date-only filters use:
 
 Persian, Arabic, and Latin digits are accepted for supported numeric inputs and
 normalized server-side.
+Valid comma-grouped numeric strings are also accepted and are normalized to an
+unformatted Latin representation before validation. Sensitive credential,
+token, secret, merchant, and password values are never modified by numeric
+normalization.
 
 ## Tenant Bootstrap
 
@@ -516,4 +520,21 @@ there is no separate dashboard page for category outputs.
 Plan management is also dashboard-only. A plan has one total `usage_limit` and
 one or more selected `service_keys`/category codes. Public generation APIs still
 receive only category/output identifiers; they never receive plan package,
-credit bucket, provider, model, prompt, or credentials.
+credit bucket, provider, model, prompt, or credentials. Base-plan and
+service-add-on forms require exactly one executable model per selected category;
+that model must individually cover all active outputs of the category.
+
+Model settings exposed by the system type registry include the optional shared
+input-image processing fields:
+
+```json
+{
+  "input_image_processing_enabled": true,
+  "input_image_max_dimension": 1024,
+  "input_image_jpeg_quality": 85
+}
+```
+
+When processing is enabled, dimension and quality are both required. Dimension
+accepts `1..8192` and quality accepts `1..100`. These are system-admin model
+settings; public generation clients cannot submit or override them.

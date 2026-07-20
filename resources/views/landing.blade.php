@@ -466,7 +466,7 @@
 <?php
     $generationFrontend = [
         'messages' => __('ai.generation.messages'),
-        'statuses' => __('ai.generation.statuses'),
+        'statuses' => \App\Support\StateCatalog::options('generation.statuses'),
         'serviceVisuals' => [
             'hair_transplant' => $hairConsultationHref,
             'eyebrow_transplant' => $faceConsultationHref,

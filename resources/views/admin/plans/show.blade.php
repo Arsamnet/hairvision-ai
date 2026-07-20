@@ -55,5 +55,45 @@
 	                @endforeach
             </div>
         </x-admin.card>
+
+        @if($canManagePlans && ! $plan->isCreditTopUp())
+            <x-admin.card>
+                <div>
+                    <h3 class="text-base font-bold">{{ __('plans.assigned_models') }}</h3>
+                    <p class="mt-1 text-xs leading-5 text-zinc-500">{{ __('plans.assigned_models_detail_hint') }}</p>
+                </div>
+
+                <div class="mt-4 grid gap-3 md:grid-cols-2">
+                    @forelse($plan->aiModelAccesses->groupBy('usage_category_key') as $serviceKey => $accesses)
+                        <section class="rounded-lg border border-zinc-200 bg-zinc-50/70 p-3">
+                            <div class="flex items-center gap-2">
+                                <span class="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-white text-teal-700 ring-1 ring-zinc-100">
+                                    <x-admin.category-icon :icon="$serviceIcons[$serviceKey] ?? null" class="h-4 w-4" />
+                                </span>
+                                <p class="text-sm font-bold text-zinc-900">{{ $serviceOptions[$serviceKey] ?? $serviceKey }}</p>
+                            </div>
+
+                            <div class="mt-3 space-y-2">
+                                @foreach($accesses as $access)
+                                    <div class="flex items-center justify-between gap-3 rounded-lg border border-zinc-200 bg-white px-3 py-2.5">
+                                        <div class="min-w-0">
+                                            <p class="truncate text-sm font-bold text-zinc-900">{{ $access->name }}</p>
+                                            <p class="mt-0.5 text-xs text-zinc-500" dir="ltr">{{ $access->model_key }}</p>
+                                        </div>
+                                        <x-admin.badge :tone="$access->is_active ? 'emerald' : 'zinc'">
+                                            {{ __('ai_models.statuses.'.($access->is_active ? 'active' : 'inactive')) }}
+                                        </x-admin.badge>
+                                    </div>
+                                @endforeach
+                            </div>
+                        </section>
+                    @empty
+                        <p class="rounded-lg border border-amber-200 bg-amber-50 px-3 py-3 text-sm font-bold text-amber-800 md:col-span-2">
+                            {{ __('plans.no_models_for_service') }}
+                        </p>
+                    @endforelse
+                </div>
+            </x-admin.card>
+        @endif
     </div>
 @endsection

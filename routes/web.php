@@ -120,6 +120,7 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
         Route::get('/billing', [BillingController::class, 'index'])->middleware('permission:billing.list')->name('billing.index');
         Route::match(['get', 'post'], '/billing/invoices/{invoice}/pay', [BillingController::class, 'pay'])->middleware('permission:billing.pay')->name('billing.pay');
         Route::match(['get', 'post'], '/billing/payments/{payment}/verify', [BillingController::class, 'verify'])->middleware('permission:billing.pay')->name('billing.verify');
+        Route::get('/billing/payments/{payment}/result', [BillingController::class, 'result'])->middleware('permission:billing.pay')->name('billing.result');
         Route::prefix('system')->name('system.')->group(function (): void {
             Route::get('/', SystemDashboardController::class)->middleware('permission:system.dashboard')->name('dashboard');
             Route::get('/roles', [RoleController::class, 'index'])->middleware('permission:roles.list')->name('roles.index');

@@ -20,8 +20,8 @@
             <label class="block">
                 <span class="text-sm font-bold text-zinc-600">{{ __('system.status') }}</span>
                 <select name="status" class="mt-2 w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm" @disabled($role->isClinicRole())>
-                    @foreach(['active', 'inactive'] as $status)
-                        <option value="{{ $status }}" @selected($role->status === $status)>{{ __('system.statuses.'.$status) }}</option>
+                    @foreach(\App\Support\StateCatalog::options('roles.statuses') as $status => $label)
+                        <option value="{{ $status }}" @selected($role->status === $status)>{{ $label }}</option>
                     @endforeach
                 </select>
             </label>

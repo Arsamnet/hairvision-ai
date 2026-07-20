@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Admin\Leads;
 
 use App\Support\NumberNormalizer;
+use App\Support\StateCatalog;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -27,8 +28,8 @@ class UpdateLeadRequest extends FormRequest
             'full_name' => ['nullable', 'string', 'max:120'],
             'phone_normalized' => ['sometimes', 'required', 'digits:11'],
             'source' => ['nullable', 'string', 'max:80'],
-            'status' => ['sometimes', 'required', 'in:new,verified,contacted,qualified,archived'],
-            'crm_stage' => ['sometimes', 'required', Rule::in(array_keys(__('leads.crm_stages')))],
+            'status' => ['sometimes', 'required', Rule::in(StateCatalog::values('leads.statuses'))],
+            'crm_stage' => ['sometimes', 'required', Rule::in(StateCatalog::values('leads.crm_stages'))],
             'assigned_user_id' => ['nullable', 'integer'],
             'note' => ['nullable', 'string', 'max:2000'],
         ];

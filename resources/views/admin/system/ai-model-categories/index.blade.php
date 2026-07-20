@@ -35,7 +35,7 @@
                         </label>
                         <label class="grid gap-1 text-sm font-bold">
                             <span>{{ __('ai_models.categories.sort_order') }}</span>
-                            <input name="sort_order" value="{{ old('sort_order', 100) }}" type="number" min="0" dir="ltr" class="h-11 rounded-lg border border-zinc-200 px-3 text-sm outline-none focus:border-teal-500" placeholder="{{ __('ai_models.categories.sort_placeholder') }}">
+                            <input name="sort_order" value="{{ old('sort_order', 100) }}" type="text" inputmode="numeric" data-number-input min="0" dir="ltr" class="h-11 rounded-lg border border-zinc-200 px-3 text-sm outline-none focus:border-teal-500" placeholder="{{ __('ai_models.categories.sort_placeholder') }}">
                         </label>
                         <label class="grid gap-1 text-sm font-bold">
                             <span>{{ __('ai_models.categories.icon_code') }}</span>
@@ -241,7 +241,7 @@
                     </label>
                     <label class="grid gap-1 text-sm font-bold">
                         <span>{{ __('ai_models.categories.sort_order') }}</span>
-                        <input name="sort_order" value="{{ old('sort_order', $category->sort_order) }}" type="number" min="0" dir="ltr" class="h-11 rounded-lg border border-zinc-200 px-3 text-sm outline-none focus:border-teal-500" placeholder="{{ __('ai_models.categories.sort_placeholder') }}">
+                        <input name="sort_order" value="{{ old('sort_order', $category->sort_order) }}" type="text" inputmode="numeric" data-number-input min="0" dir="ltr" class="h-11 rounded-lg border border-zinc-200 px-3 text-sm outline-none focus:border-teal-500" placeholder="{{ __('ai_models.categories.sort_placeholder') }}">
                     </label>
                     <label class="grid gap-1 text-sm font-bold">
                         <span>{{ __('ai_models.categories.icon_code') }}</span>

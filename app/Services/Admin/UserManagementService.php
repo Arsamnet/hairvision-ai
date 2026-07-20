@@ -2,11 +2,13 @@
 
 namespace App\Services\Admin;
 
+use App\Models\Role;
 use App\Models\Tenant;
 use App\Models\User;
 use App\Support\Pagination\PaginationParameters;
 use App\Support\Query\DateRangeFilter;
 use App\Support\Query\SearchFilter;
+use App\Support\StateCatalog;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
@@ -59,7 +61,7 @@ class UserManagementService
         $query
             ->when($request->filled('access_scope'), fn (Builder $query) => $query->where('access_scope', $request->string('access_scope')->toString()))
             ->when($request->filled('role'), fn (Builder $query) => $query->where('role', $request->string('role')->toString()))
-            ->when(in_array($status, ['active', 'inactive'], true), fn (Builder $query) => $query->where('status', $status));
+            ->when(in_array($status, StateCatalog::values('users.statuses'), true), fn (Builder $query) => $query->where('status', $status));
 
         DateRangeFilter::apply($query, $request);
 
@@ -201,7 +203,7 @@ class UserManagementService
 
     private function authorizedRole(string $role, string $scope, User $actor): string
     {
-        $roleQuery = \App\Models\Role::query()
+        $roleQuery = Role::query()
             ->where('code', $role)
             ->where('status', 'active')
             ->where('scope', $scope === 'system' ? 'platform' : 'clinic');

@@ -10,9 +10,13 @@ use App\Models\Tenant;
 use App\Models\User;
 use App\Services\AI\AiModelManager;
 use App\Services\AI\AiModelResolver;
+use App\Services\AI\ApiImagePreprocessor;
+use App\Services\AI\InputImageProcessingSettings;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
+use RuntimeException;
 use Throwable;
 
 /**
@@ -25,6 +29,7 @@ class RunAiModelAction
     public function __construct(
         private readonly AiModelManager $manager,
         private readonly AiModelResolver $resolver,
+        private readonly ApiImagePreprocessor $imagePreprocessor,
     ) {}
 
     /**
@@ -66,10 +71,19 @@ class RunAiModelAction
             'started_at' => now(),
         ]);
 
+        $temporaryInput = null;
+
         try {
             $modelConfig = $this->resolver->model($access->model_key);
 
             $provider = $this->resolver->providerFor($access);
+
+            [$payload, $temporaryInput] = $this->prepareInputImage(
+                $clinic,
+                $access,
+                $payload,
+                (string) $log->request_reference,
+            );
 
             $requestData = new AiModelRequestData(
                 clinic: $clinic,
@@ -99,6 +113,10 @@ class RunAiModelAction
                 safeErrorMessage: __('ai_models.errors.provider_failed'),
                 creditConsumed: 0,
             );
+        } finally {
+            if (is_array($temporaryInput)) {
+                Storage::disk($temporaryInput['disk'])->delete($temporaryInput['path']);
+            }
         }
 
         if (! $response->successful) {
@@ -150,6 +168,58 @@ class RunAiModelAction
         }
 
         return $response;
+    }
+
+    /**
+     * Replace the provider payload image with a private processed JPEG when enabled.
+     *
+     * @param  array<string, mixed>  $payload
+     * @return array{0: array<string, mixed>, 1: array{disk: string, path: string}|null}
+     */
+    private function prepareInputImage(
+        Tenant $clinic,
+        AiModelAccess $access,
+        array $payload,
+        string $requestReference,
+    ): array {
+        $settings = InputImageProcessingSettings::normalize($access->settings ?? []);
+
+        if (! InputImageProcessingSettings::enabled($settings)) {
+            return [$payload, null];
+        }
+
+        $sourceDisk = (string) data_get($payload, 'upload_disk', 'local');
+        $sourcePath = (string) data_get($payload, 'upload_path');
+        $maxDimension = $settings[InputImageProcessingSettings::MAX_DIMENSION] ?? null;
+        $jpegQuality = $settings[InputImageProcessingSettings::JPEG_QUALITY] ?? null;
+
+        if ($sourcePath === '' || ! is_int($maxDimension) || ! is_int($jpegQuality)) {
+            throw new RuntimeException('Enabled input image processing settings are incomplete.');
+        }
+
+        $destination = 'ai-model-inputs/'.$clinic->uuid.'/'.$requestReference.'.jpg';
+        $prepared = $this->imagePreprocessor->prepareForImageApi(
+            sourceDisk: $sourceDisk,
+            sourcePath: $sourcePath,
+            destinationPath: $destination,
+            maxDimension: $maxDimension,
+            jpegQuality: $jpegQuality,
+        );
+
+        $payload['upload_disk'] = $prepared['disk'];
+        $payload['upload_path'] = $prepared['path'];
+        $payload['upload_mime'] = $prepared['mime'];
+        $payload['upload_size'] = $prepared['size'];
+        $payload['upload_width'] = $prepared['width'];
+        $payload['upload_height'] = $prepared['height'];
+
+        return [
+            $payload,
+            [
+                'disk' => $prepared['disk'],
+                'path' => $prepared['path'],
+            ],
+        ];
     }
 
     /**

@@ -6,6 +6,7 @@ use App\Models\AiModel;
 use App\Models\AiModelAccess;
 use App\Models\AiModelCategory;
 use App\Models\AiModelCategoryOutput;
+use App\Models\Plan;
 use App\Models\Tenant;
 use App\Models\User;
 use App\Services\AI\ExecutableAiModelSyncService;
@@ -177,6 +178,33 @@ class AiModelAccessSeeder extends Seeder
                 ],
             ]);
         }
+
+        $this->assignSeededPlanModels($demoAccess, $eyebrowDemoAccess);
+    }
+
+    private function assignSeededPlanModels(
+        AiModelAccess $hairAccess,
+        AiModelAccess $eyebrowAccess,
+    ): void {
+        $accessIdsByService = [
+            'hair_transplant' => $hairAccess->id,
+            'eyebrow_transplant' => $eyebrowAccess->id,
+        ];
+
+        Plan::query()
+            ->with('serviceEntitlements')
+            ->get()
+            ->each(function (Plan $plan) use ($accessIdsByService): void {
+                $accessIds = $plan->isCreditTopUp()
+                    ? []
+                    : collect($plan->serviceKeys())
+                        ->map(fn (string $serviceKey): ?int => $accessIdsByService[$serviceKey] ?? null)
+                        ->filter()
+                        ->values()
+                        ->all();
+
+                $plan->aiModelAccesses()->sync($accessIds);
+            });
     }
 
     private function seedExecutableSampleModel(

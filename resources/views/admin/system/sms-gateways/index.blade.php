@@ -24,8 +24,8 @@
             preset-key="admin.system.sms-gateways.index"
             :search-placeholder="__('sms.search_placeholder')"
             :filters="[
-                ['name' => 'status', 'label' => __('system.status'), 'type' => 'select', 'placeholder' => __('sms.all_statuses'), 'options' => collect(['enabled', 'disabled'])->mapWithKeys(fn ($status) => [$status => __('system.statuses.'.$status)])->all()],
-                ['name' => 'owner_scope', 'label' => __('system.owner'), 'type' => 'select', 'placeholder' => __('sms.all_owners'), 'options' => collect(['system', 'tenant'])->mapWithKeys(fn ($owner) => [$owner => __('system.owners.'.$owner)])->all()],
+                ['name' => 'status', 'label' => __('system.status'), 'type' => 'select', 'placeholder' => __('sms.all_statuses'), 'options' => \App\Support\StateCatalog::options('sms_gateways.statuses')],
+                ['name' => 'owner_scope', 'label' => __('system.owner'), 'type' => 'select', 'placeholder' => __('sms.all_owners'), 'options' => \App\Support\StateCatalog::options('sms_gateways.owner_scopes')],
                 ['name' => 'provider_code', 'label' => __('system.provider'), 'placeholder' => __('system.provider'), 'dir' => 'ltr'],
             ]"
             :sorts="[

@@ -37,13 +37,13 @@
 
     <label class="text-xs font-bold text-zinc-600">
         <span>{{ __('payments.fields.amount') }}</span>
-        <input name="amount" type="number" min="0" value="{{ old('amount', $invoice?->amount) }}" class="mt-1 h-11 w-full rounded-lg border border-zinc-200 px-3 text-sm outline-none focus:border-teal-500" dir="ltr">
+        <input name="amount" type="text" inputmode="numeric" data-number-input min="0" value="{{ old('amount', $invoice?->amount) }}" class="mt-1 h-11 w-full rounded-lg border border-zinc-200 px-3 text-sm outline-none focus:border-teal-500" dir="ltr">
     </label>
 
     <label class="text-xs font-bold text-zinc-600">
         <span>{{ __('payments.fields.status') }}</span>
         <select name="status" class="mt-1 h-11 w-full rounded-lg border border-zinc-200 px-3 text-sm outline-none focus:border-teal-500">
-            @foreach(__('payments.invoice_statuses') as $status => $label)
+            @foreach(\App\Support\StateCatalog::options('invoices.statuses') as $status => $label)
                 <option value="{{ $status }}" @selected(old('status', $invoice?->status ?? 'pending') === $status)>{{ $label }}</option>
             @endforeach
         </select>

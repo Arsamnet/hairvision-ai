@@ -31,16 +31,25 @@ use App\Models\TenantDomain;
 use App\Models\Upload;
 use App\Models\User;
 use App\Services\Admin\SmsGatewayManagementService;
+use App\Services\AI\ClinicAiModelProvisioningService;
 use App\Services\Auth\PermissionService;
 use App\Services\Billing\BillingService;
 use App\Services\Payment\PaymentGatewayService;
+use App\Services\Settings\SystemSettingService;
 use App\Services\Sms\SmsGatewayService;
+use App\Services\Visitor\PublicApplicationAvailabilityService;
 use App\Support\JalaliDate;
+use App\Support\StateCatalog;
 use Database\Seeders\DatabaseSeeder;
+use Database\Seeders\PaymentGatewaySeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Client\ConnectionException;
+use Illuminate\Support\Env;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
 use Tests\TestCase;
@@ -54,6 +63,12 @@ class SystemManagementTest extends TestCase
         config(['hairvision.sms.ippanel.authorization_token' => null]);
 
         $this->seed(DatabaseSeeder::class);
+        $preservedMerchantId = '33333333-3333-4333-8333-333333333333';
+        PaymentGateway::query()
+            ->where('provider_code', 'zarinpal')
+            ->firstOrFail()
+            ->forceFill(['encrypted_credentials' => ['merchant_id' => $preservedMerchantId]])
+            ->save();
         $this->seed(DatabaseSeeder::class);
 
         $superAdmin = User::query()->where('role', 'super_admin')->firstOrFail();
@@ -92,7 +107,7 @@ class SystemManagementTest extends TestCase
         $this->assertSame('enabled', $zarinpalGateway->status);
         $this->assertSame('sandbox', $zarinpalGateway->settings_json['mode'] ?? null);
         $this->assertSame('https://sandbox.zarinpal.com', $zarinpalGateway->settings_json['sandbox_base_url'] ?? null);
-        $this->assertSame('11111111-1111-4111-8111-111111111111', $zarinpalGateway->encrypted_credentials['merchant_id'] ?? null);
+        $this->assertSame($preservedMerchantId, $zarinpalGateway->encrypted_credentials['merchant_id'] ?? null);
         $this->assertGreaterThan(0, SystemSetting::query()->count('*'));
         $this->assertSame(6, Plan::query()->count('*'));
 
@@ -216,25 +231,84 @@ class SystemManagementTest extends TestCase
         $this->assertSame('enabled', $demoSmsGateway->status);
         $this->assertTrue($demoSmsGateway->is_default);
 
-        $this->assertDatabaseHas('system_settings', [
-            'key' => 'catalog.states.leads.crm_stages',
-            'group' => 'catalog',
-            'type' => 'json',
-        ]);
-        $this->assertDatabaseHas('system_settings', [
-            'key' => 'catalog.states.plans.types',
-            'group' => 'catalog',
-            'type' => 'json',
-        ]);
-        $expectedCrmStageCatalog = __('leads.crm_stages');
-        $crmStageCatalog = SystemSetting::query()
-            ->where('key', 'catalog.states.leads.crm_stages')
-            ->firstOrFail()
-            ->value_json['value'];
-        ksort($expectedCrmStageCatalog);
-        ksort($crmStageCatalog);
+        $this->assertDatabaseMissing('system_settings', ['group' => 'catalog']);
 
-        $this->assertSame($expectedCrmStageCatalog, $crmStageCatalog);
+        Cache::put('hairvision:system-settings', [
+            'system.name' => 'HairVision Enterprise',
+            'catalog.states.leads.crm_stages' => ['legacy' => 'قدیمی'],
+        ], 300);
+
+        $this->assertFalse(app(SystemSettingService::class)->all()->has('catalog.states.leads.crm_stages'));
+        $this->assertDatabaseMissing('system_settings', ['key' => 'catalog.states.leads.crm_stages']);
+        $this->assertSame(__('leads.crm_stages'), StateCatalog::options('leads.crm_stages'));
+        $this->assertSame(__('plans.types'), StateCatalog::options('plans.types'));
+    }
+
+    public function test_logging_config_falls_back_when_log_channels_are_empty(): void
+    {
+        $environment = Env::getRepository();
+        $hadLogChannel = $environment->has('LOG_CHANNEL');
+        $originalLogChannel = $environment->get('LOG_CHANNEL');
+        $hadLogStack = $environment->has('LOG_STACK');
+        $originalLogStack = $environment->get('LOG_STACK');
+
+        try {
+            $environment->set('LOG_CHANNEL', '');
+            $environment->set('LOG_STACK', '');
+
+            $logging = require config_path('logging.php');
+
+            $this->assertSame('stack', $logging['default']);
+            $this->assertSame(['single'], $logging['channels']['stack']['channels']);
+        } finally {
+            if ($hadLogChannel) {
+                $environment->set('LOG_CHANNEL', (string) $originalLogChannel);
+            } else {
+                $environment->clear('LOG_CHANNEL');
+            }
+
+            if ($hadLogStack) {
+                $environment->set('LOG_STACK', (string) $originalLogStack);
+            } else {
+                $environment->clear('LOG_STACK');
+            }
+        }
+    }
+
+    public function test_payment_gateway_seeder_removes_legacy_test_gateways_outside_test_environments(): void
+    {
+        $this->seed(DatabaseSeeder::class);
+
+        $zarinpalGateway = PaymentGateway::query()->where('provider_code', 'zarinpal')->firstOrFail();
+        $localGateway = PaymentGateway::query()->where('provider_code', 'local')->firstOrFail();
+        $zarinpalGateway->forceFill([
+            'status' => 'enabled',
+            'is_default' => true,
+            'encrypted_credentials' => [
+                'merchant_id' => '11111111-1111-4111-8111-111111111111',
+            ],
+        ])->save();
+        $localGateway->forceFill([
+            'status' => 'enabled',
+            'is_default' => false,
+        ])->save();
+
+        $originalEnvironment = app()->environment();
+        app()->instance('env', 'production');
+
+        try {
+            app(PaymentGatewaySeeder::class)->run();
+        } finally {
+            app()->instance('env', $originalEnvironment);
+        }
+
+        $zarinpalGateway->refresh();
+        $localGateway->refresh();
+        $this->assertSame('disabled', $zarinpalGateway->status);
+        $this->assertFalse($zarinpalGateway->is_default);
+        $this->assertSame([], $zarinpalGateway->encrypted_credentials);
+        $this->assertSame('disabled', $localGateway->status);
+        $this->assertFalse($localGateway->is_default);
     }
 
     public function test_system_management_routes_and_menu_are_permission_protected(): void
@@ -357,9 +431,9 @@ class SystemManagementTest extends TestCase
             ->forHost('hairvision-ai.test')
             ->get('/admin/system/settings')
             ->assertOk()
-            ->assertSee('name="settings[catalog.states.leads.crm_stages]"', false)
-            ->assertSee('<textarea', false)
-            ->assertSee('&quot;new_lead&quot;', false);
+            ->assertDontSee('name="settings[catalog.states.leads.crm_stages]"', false)
+            ->assertDontSee('کاتالوگ وضعیت‌ها')
+            ->assertDontSee('&quot;new_lead&quot;', false);
 
         $this->actingAs($superAdmin)
             ->forHost('hairvision-ai.test')
@@ -377,22 +451,7 @@ class SystemManagementTest extends TestCase
 
         $this->assertSame('HairVision Enterprise', SystemSetting::query()->where('key', 'system.name')->firstOrFail()->value_json['value']);
 
-        $this->actingAs($superAdmin)
-            ->forHost('hairvision-ai.test')
-            ->put('/admin/system/settings', [
-                'settings' => [
-                    'catalog.states.leads.crm_stages' => json_encode([
-                        'new_lead' => 'جدید',
-                        'qualified' => 'واجد شرایط',
-                    ], JSON_UNESCAPED_UNICODE),
-                ],
-            ])
-            ->assertRedirect();
-
-        $this->assertSame(
-            ['new_lead' => 'جدید', 'qualified' => 'واجد شرایط'],
-            SystemSetting::query()->where('key', 'catalog.states.leads.crm_stages')->firstOrFail()->value_json['value']
-        );
+        $this->assertDatabaseMissing('system_settings', ['group' => 'catalog']);
     }
 
     public function test_lead_json_pagination_supports_standard_parameters_only(): void
@@ -986,7 +1045,13 @@ class SystemManagementTest extends TestCase
         $this->deactivateSeededClinicPlan();
 
         $user = User::query()->where('role', 'clinic_admin')->firstOrFail();
+        $tenant = $user->tenants()->firstOrFail();
+        $tenant->aiModelAccesses()->detach();
         $starter = Plan::query()->where('name', 'پلن شروع')->firstOrFail();
+        $selectedPlanModelIds = $starter->aiModelAccesses()
+            ->pluck('ai_model_accesses.id')
+            ->map(fn (mixed $id): int => (int) $id)
+            ->all();
         $upgrade = Plan::create([
             'name' => 'پلن ارتقا',
             'description' => 'Upgrade',
@@ -1030,6 +1095,38 @@ class SystemManagementTest extends TestCase
 
         $this->assertSame('paid', $invoice->refresh()->status);
         $this->assertSame(1, Subscription::query()->where('user_id', $user->id)->where('status', 'active')->count());
+        $this->assertEqualsCanonicalizing(
+            $starter->serviceKeys(),
+            $tenant->aiModelAccesses()
+                ->wherePivot('is_active', true)
+                ->pluck('usage_category_key')
+                ->all()
+        );
+        $this->assertEqualsCanonicalizing(
+            $selectedPlanModelIds,
+            $tenant->aiModelAccesses()
+                ->wherePivot('is_active', true)
+                ->pluck('ai_model_accesses.id')
+                ->map(fn (mixed $id): int => (int) $id)
+                ->all()
+        );
+        $this->assertSame(2, DB::table('clinic_ai_model_access')
+            ->where('clinic_id', $tenant->id)
+            ->where('is_active', true)
+            ->count());
+        $this->assertSame(2, DB::table('clinic_ai_model_access')
+            ->where('clinic_id', $tenant->id)
+            ->where('assigned_by', $user->id)
+            ->count());
+
+        $availableApplications = app(PublicApplicationAvailabilityService::class)->categoriesForTenant($tenant);
+        $this->assertEqualsCanonicalizing($starter->serviceKeys(), $availableApplications->pluck('code')->all());
+        $availableApplications->each(function (AiModelCategory $category): void {
+            $this->assertSame(
+                $category->outputs()->active()->count(),
+                $category->outputs->count()
+            );
+        });
 
         $active = Subscription::query()->where('user_id', $user->id)->where('status', 'active')->firstOrFail();
         $active->forceFill(['usage_used' => 80])->save();
@@ -1044,6 +1141,330 @@ class SystemManagementTest extends TestCase
         $this->assertSame($upgrade->id, $newActive->plan_id);
         $this->assertSame(0, $newActive->usage_used);
         $this->assertSame(1800, $newActive->usage_limit);
+    }
+
+    public function test_expired_zarinpal_authority_is_replaced_before_gateway_redirect(): void
+    {
+        $this->seed(DatabaseSeeder::class);
+        $this->deactivateSeededClinicPlan();
+        $firstAuthority = 'A000000000000000000000000000000000011';
+        $secondAuthority = 'A000000000000000000000000000000000012';
+        $this->fakeZarinpalPayments($firstAuthority, $secondAuthority);
+
+        $user = User::query()->where('role', 'clinic_admin')->firstOrFail();
+        $plan = Plan::query()->where('name', 'پلن شروع')->where('status', 'active')->firstOrFail();
+        $billing = app(BillingService::class);
+        $invoice = $billing->invoiceForPlan($user, $plan);
+
+        $firstPayment = $billing->initiatePayment($invoice);
+        $reusedPayment = $billing->initiatePayment($invoice->refresh());
+
+        $this->assertSame($firstPayment->id, $reusedPayment->id);
+        Http::assertSentCount(1);
+
+        try {
+            $this->travel(6)->minutes();
+            $secondPayment = $billing->initiatePayment($invoice->refresh());
+        } finally {
+            $this->travelBack();
+        }
+
+        $this->assertNotSame($firstPayment->id, $secondPayment->id);
+        $this->assertSame($secondAuthority, $secondPayment->authority);
+        $this->assertSame('pending', $secondPayment->status);
+        $this->assertSame('failed', $firstPayment->refresh()->status);
+        $this->assertSame('expired', data_get($firstPayment->gateway_response_json, 'status'));
+        $this->assertSame(
+            'authority_reuse_window_elapsed',
+            data_get($firstPayment->gateway_response_json, 'retry_reason')
+        );
+        $this->assertNull(data_get($firstPayment->gateway_response_json, 'redirect_url'));
+        $this->assertSame('pending', $invoice->refresh()->status);
+        Http::assertSentCount(2);
+    }
+
+    public function test_payment_callback_uses_an_authorized_refresh_safe_result_page(): void
+    {
+        $this->seed(DatabaseSeeder::class);
+        $this->deactivateSeededClinicPlan();
+        $failedAuthority = 'A000000000000000000000000000000000021';
+        $successfulAuthority = 'A000000000000000000000000000000000022';
+        $this->fakeZarinpalPayments($failedAuthority, $successfulAuthority);
+
+        $user = User::query()->where('role', 'clinic_admin')->firstOrFail();
+        $tenant = $user->tenants()->firstOrFail();
+        $plan = Plan::query()->where('name', 'پلن شروع')->where('status', 'active')->firstOrFail();
+        $invoice = app(BillingService::class)->invoiceForPlan($user, $plan, $tenant);
+        $payment = app(BillingService::class)->initiatePayment($invoice);
+        $resultUrl = route('admin.billing.result', $payment);
+
+        $this->actingAs($user)
+            ->withSession(['admin_active_tenant_id' => $tenant->id])
+            ->forHost('hairvision-ai.test')
+            ->get($resultUrl)
+            ->assertOk()
+            ->assertSee('data-payment-result="pending"', false)
+            ->assertSee('data-payment-result-header="compact"', false)
+            ->assertSee('data-payment-details="receipt"', false)
+            ->assertSee('data-payment-receipt-summary', false)
+            ->assertSee('data-payment-amount', false)
+            ->assertSee(__('payments.result.pending.title'))
+            ->assertSee('•••• '.substr($failedAuthority, -8), false)
+            ->assertDontSee($failedAuthority, false)
+            ->assertDontSee('data-payment-retry-form', false);
+
+        $otherUser = $this->createUserForTenant($tenant, 'clinic_admin', '09121114444');
+        $this->actingAs($otherUser)
+            ->withSession(['admin_active_tenant_id' => $tenant->id])
+            ->forHost('hairvision-ai.test')
+            ->get($resultUrl)
+            ->assertForbidden();
+
+        $this->actingAs($user)
+            ->withSession(['admin_active_tenant_id' => $tenant->id])
+            ->forHost('hairvision-ai.test')
+            ->get('/admin/billing/payments/'.$payment->id.'/verify?Authority='.$failedAuthority.'&Status=NOK')
+            ->assertStatus(303)
+            ->assertRedirect($resultUrl);
+
+        $this->assertSame('failed', $payment->refresh()->status);
+        $this->assertSame('failed', $invoice->refresh()->status);
+
+        $this->actingAs($user)
+            ->withSession(['admin_active_tenant_id' => $tenant->id])
+            ->forHost('hairvision-ai.test')
+            ->get($resultUrl)
+            ->assertOk()
+            ->assertSee('data-payment-result="failed"', false)
+            ->assertSee('border-rose-200 bg-rose-50', false)
+            ->assertSee(__('payments.result.failed.title'))
+            ->assertSee(__('payments.result.deducted_hint'))
+            ->assertSee('data-payment-retry-form', false)
+            ->assertDontSee('data-payment-reference', false);
+
+        $this->actingAs($user)
+            ->withSession(['admin_active_tenant_id' => $tenant->id])
+            ->forHost('hairvision-ai.test')
+            ->post('/admin/billing/invoices/'.$invoice->id.'/pay')
+            ->assertStatus(303)
+            ->assertRedirect('https://sandbox.zarinpal.com/pg/StartPay/'.$successfulAuthority);
+
+        $successfulPayment = $invoice->payments()->latest('id')->firstOrFail();
+        $successfulResultUrl = route('admin.billing.result', $successfulPayment);
+
+        $this->actingAs($user)
+            ->withSession(['admin_active_tenant_id' => $tenant->id])
+            ->forHost('hairvision-ai.test')
+            ->get('/admin/billing/payments/'.$successfulPayment->id.'/verify?Authority='.$successfulAuthority.'&Status=OK')
+            ->assertStatus(303)
+            ->assertRedirect($successfulResultUrl);
+
+        $this->assertSame('paid', $successfulPayment->refresh()->status);
+        $this->assertSame('paid', $invoice->refresh()->status);
+
+        foreach (range(1, 2) as $_) {
+            $this->actingAs($user)
+                ->withSession(['admin_active_tenant_id' => $tenant->id])
+                ->forHost('hairvision-ai.test')
+                ->get($successfulResultUrl)
+                ->assertOk()
+                ->assertSee('data-payment-result="success"', false)
+                ->assertSee('border-emerald-200 bg-emerald-50', false)
+                ->assertSee(__('payments.result.success.title'))
+                ->assertSee('REF-000001')
+                ->assertSee('data-payment-reference', false)
+                ->assertDontSee($successfulAuthority, false)
+                ->assertDontSee('data-payment-retry-form', false);
+        }
+
+        Http::assertSentCount(3);
+    }
+
+    public function test_system_admin_can_configure_zarinpal_without_exposing_or_overwriting_credentials(): void
+    {
+        $this->seed(DatabaseSeeder::class);
+
+        $superAdmin = User::query()->where('role', 'super_admin')->firstOrFail();
+        $gateway = PaymentGateway::query()->where('provider_code', 'zarinpal')->firstOrFail();
+        $seededMerchantId = data_get($gateway->encrypted_credentials, 'merchant_id');
+        $requestUrl = data_get($gateway->settings_json, 'request_url');
+        $merchantId = '44444444-4444-4444-8444-444444444444';
+        $legacyCallbackUrl = 'https://hairvision.ir/admin/dashboard';
+        $gateway->forceFill([
+            'settings_json' => array_replace($gateway->settings_json ?? [], [
+                'callback_url' => $legacyCallbackUrl,
+            ]),
+        ])->save();
+
+        $this->actingAs($superAdmin)
+            ->forHost('hairvision-ai.test')
+            ->get('/admin/system/payment-gateways?search=zarinpal')
+            ->assertOk()
+            ->assertSee('data-admin-modal-trigger="edit-payment-gateway-'.$gateway->id.'"', false)
+            ->assertSee('name="merchant_id"', false)
+            ->assertSee('data-automatic-zarinpal-callback', false)
+            ->assertSee('https://hairvision-ai.test/admin/billing/payments/{payment}/verify', false)
+            ->assertDontSee($legacyCallbackUrl, false)
+            ->assertDontSee((string) $seededMerchantId, false);
+
+        $this->actingAs($superAdmin)
+            ->forHost('hairvision-ai.test')
+            ->put('/admin/system/payment-gateways/'.$gateway->id, [
+                '_form' => 'edit_payment_gateway_'.$gateway->id,
+                'name' => $gateway->name,
+                'provider_code' => 'zarinpal',
+                'merchant_id' => $merchantId,
+                'callback_url' => $legacyCallbackUrl,
+                'status' => 'enabled',
+                'is_default' => '1',
+            ])
+            ->assertRedirect()
+            ->assertSessionHasNoErrors();
+
+        $gateway->refresh();
+        $this->assertSame($merchantId, data_get($gateway->encrypted_credentials, 'merchant_id'));
+        $this->assertNull(data_get($gateway->settings_json, 'callback_url'));
+        $this->assertSame($requestUrl, data_get($gateway->settings_json, 'request_url'));
+
+        $this->actingAs($superAdmin)
+            ->forHost('hairvision-ai.test')
+            ->put('/admin/system/payment-gateways/'.$gateway->id, [
+                '_form' => 'edit_payment_gateway_'.$gateway->id,
+                'name' => 'زرین‌پال ویرایش‌شده',
+                'provider_code' => 'zarinpal',
+                'merchant_id' => '',
+                'status' => 'enabled',
+                'is_default' => '1',
+            ])
+            ->assertRedirect()
+            ->assertSessionHasNoErrors();
+
+        $this->assertSame($merchantId, data_get($gateway->refresh()->encrypted_credentials, 'merchant_id'));
+        $this->assertNull(data_get($gateway->settings_json, 'callback_url'));
+        $this->assertSame($requestUrl, data_get($gateway->settings_json, 'request_url'));
+    }
+
+    public function test_zarinpal_callback_returns_to_the_host_that_started_payment(): void
+    {
+        $this->seed(DatabaseSeeder::class);
+        $this->deactivateSeededClinicPlan();
+        $authority = 'A000000000000000000000000000000000031';
+        $this->fakeZarinpalPayments($authority);
+
+        $gateway = PaymentGateway::query()->where('provider_code', 'zarinpal')->firstOrFail();
+        $gateway->forceFill([
+            'settings_json' => array_replace($gateway->settings_json ?? [], [
+                'callback_url' => 'https://hairvision.ir/admin/dashboard',
+            ]),
+        ])->save();
+
+        $user = User::query()->where('role', 'clinic_admin')->firstOrFail();
+        $tenant = $user->tenants()->firstOrFail();
+        $plan = Plan::query()->where('name', 'پلن شروع')->where('status', 'active')->firstOrFail();
+        $invoice = app(BillingService::class)->invoiceForPlan($user, $plan, $tenant);
+
+        $this->actingAs($user)
+            ->withSession(['admin_active_tenant_id' => $tenant->id])
+            ->forHost('ai.arsamnet.com')
+            ->post('/admin/billing/invoices/'.$invoice->id.'/pay')
+            ->assertStatus(303)
+            ->assertRedirect('https://sandbox.zarinpal.com/pg/StartPay/'.$authority);
+
+        $payment = $invoice->payments()->latest('id')->firstOrFail();
+        $expectedCallback = 'https://ai.arsamnet.com/admin/billing/payments/'.$payment->id.'/verify';
+
+        Http::assertSent(fn ($request): bool => $request->url() === 'https://sandbox.zarinpal.com/pg/v4/payment/request.json'
+            && $request['callback_url'] === $expectedCallback
+            && $request['callback_url'] !== 'https://hairvision.ir/admin/dashboard');
+
+        $this->actingAs($user)
+            ->withSession(['admin_active_tenant_id' => $tenant->id])
+            ->forHost('ai.arsamnet.com')
+            ->get('/admin/billing/payments/'.$payment->id.'/verify?Authority='.$authority.'&Status=NOK')
+            ->assertStatus(303)
+            ->assertRedirect('https://ai.arsamnet.com/admin/billing/payments/'.$payment->id.'/result');
+
+        $this->actingAs($user)
+            ->withSession(['admin_active_tenant_id' => $tenant->id])
+            ->forHost('ai.arsamnet.com')
+            ->get('/admin/billing/payments/'.$payment->id.'/result')
+            ->assertOk()
+            ->assertSee('data-payment-result="failed"', false)
+            ->assertSee(__('payments.result.failed.title'));
+    }
+
+    public function test_seeded_zarinpal_placeholder_is_rejected_before_an_external_request(): void
+    {
+        $this->seed(DatabaseSeeder::class);
+        $this->deactivateSeededClinicPlan();
+        Http::fake();
+
+        PaymentGateway::query()
+            ->where('provider_code', 'zarinpal')
+            ->firstOrFail()
+            ->forceFill([
+                'status' => 'enabled',
+                'is_default' => true,
+                'encrypted_credentials' => [
+                    'merchant_id' => '11111111-1111-4111-8111-111111111111',
+                ],
+            ])
+            ->save();
+
+        $user = User::query()->where('role', 'clinic_admin')->firstOrFail();
+        $plan = Plan::query()->where('name', 'پلن شروع')->where('status', 'active')->firstOrFail();
+        $invoice = app(BillingService::class)->invoiceForPlan($user, $plan);
+
+        $this->actingAs($user)
+            ->forHost('hairvision-ai.test')
+            ->get('/admin/billing/invoices/'.$invoice->id.'/pay')
+            ->assertRedirect(route('admin.billing.index'))
+            ->assertSessionHasErrors([
+                'payment' => __('payments.gateway_not_configured'),
+            ]);
+
+        Http::assertNothingSent();
+    }
+
+    public function test_zarinpal_validation_response_logs_only_safe_diagnostics(): void
+    {
+        $this->seed(DatabaseSeeder::class);
+        $this->deactivateSeededClinicPlan();
+        Log::spy();
+
+        Http::fake([
+            'https://sandbox.zarinpal.com/pg/v4/payment/request.json' => Http::response([
+                'data' => [],
+                'errors' => [
+                    'code' => -9,
+                    'message' => 'Merchant secret response',
+                    'validations' => [
+                        'merchant_id' => ['The merchant is invalid.'],
+                    ],
+                ],
+            ], 422),
+        ]);
+
+        $user = User::query()->where('role', 'clinic_admin')->firstOrFail();
+        $plan = Plan::query()->where('name', 'پلن شروع')->where('status', 'active')->firstOrFail();
+        $invoice = app(BillingService::class)->invoiceForPlan($user, $plan);
+
+        $this->actingAs($user)
+            ->forHost('hairvision-ai.test')
+            ->get('/admin/billing/invoices/'.$invoice->id.'/pay')
+            ->assertRedirect(route('admin.billing.index'))
+            ->assertSessionHasErrors([
+                'payment' => __('payments.payment_failed_generic'),
+            ]);
+
+        Log::shouldHaveReceived('warning')
+            ->withArgs(fn (string $message, array $context): bool => $message === 'Zarinpal payment gateway returned an invalid response.'
+                && ($context['status'] ?? null) === 422
+                && ($context['provider_code'] ?? null) === -9
+                && ($context['provider_validation_fields'] ?? null) === ['merchant_id']
+                && ! array_key_exists('payload', $context)
+                && ! str_contains(json_encode($context, JSON_THROW_ON_ERROR), 'Merchant secret response'))
+            ->once();
     }
 
     public function test_invoices_are_user_scoped_unless_user_can_manage_billing(): void
@@ -1274,6 +1695,10 @@ class SystemManagementTest extends TestCase
 
         $superAdmin = User::query()->where('role', 'super_admin')->firstOrFail();
         $normalUser = User::query()->where('role', 'clinic_admin')->firstOrFail();
+        $planModel = AiModelAccess::query()
+            ->where('usage_category_key', 'hair_transplant')
+            ->where('is_demo', true)
+            ->firstOrFail();
 
         $this->actingAs($superAdmin)
             ->forHost('hairvision-ai.test')
@@ -1285,10 +1710,23 @@ class SystemManagementTest extends TestCase
                 'duration_days' => 30,
                 'usage_limit' => 50,
                 'status' => 'active',
+                'ai_model_access_ids' => [$planModel->id],
             ])
             ->assertRedirect();
 
         $this->assertDatabaseHas('plans', ['name' => 'پلن مدیریتی', 'is_public' => false]);
+        $managedPlan = Plan::query()->where('name', 'پلن مدیریتی')->firstOrFail();
+        $this->assertDatabaseHas('plan_ai_model_access', [
+            'plan_id' => $managedPlan->id,
+            'ai_model_access_id' => $planModel->id,
+        ]);
+
+        $higherPriorityModel = AiModelAccess::query()
+            ->where('usage_category_key', 'hair_transplant')
+            ->where('id', '!=', $planModel->id)
+            ->firstOrFail();
+        $higherPriorityModel->update(['priority' => 5]);
+        $planModel->update(['priority' => 20]);
 
         $plansResponse = $this->actingAs($superAdmin)
             ->forHost('hairvision-ai.test')
@@ -1312,6 +1750,92 @@ class SystemManagementTest extends TestCase
             '/<input name="service_keys\[\]" type="checkbox" value="[^"]+" class="(?![^"]*\bsr-only\b)[^"]*"/',
             $plansResponse->getContent()
         );
+        $this->assertSame(1, preg_match('/<table\b[^>]*>.*?<\/table>/s', $plansResponse->getContent(), $planTableMatches));
+        $this->assertStringNotContainsString(__('plans.assigned_services'), $planTableMatches[0]);
+        $this->assertStringNotContainsString(__('ai_models.usage_categories.hair_transplant'), $planTableMatches[0]);
+        $plansResponse
+            ->assertSee(__('plans.assigned_services'))
+            ->assertSee('name="ai_model_access_ids[]"', false)
+            ->assertSee('data-plan-model-picker', false)
+            ->assertSee($planModel->name);
+        $this->assertMatchesRegularExpression(
+            '/<select\s+name="ai_model_access_ids\[\]"[^>]*data-plan-model/s',
+            $plansResponse->getContent()
+        );
+        $this->assertDoesNotMatchRegularExpression(
+            '/<input[^>]*name="ai_model_access_ids\[\]"[^>]*type="checkbox"/s',
+            $plansResponse->getContent()
+        );
+        $higherPriorityLabel = $higherPriorityModel->name.' ('.$higherPriorityModel->model_key.')';
+        $lowerPriorityLabel = $planModel->name.' ('.$planModel->model_key.')';
+        $this->assertMatchesRegularExpression(
+            '/<option value="'.$higherPriorityModel->id.'"[^>]*>\s*'.preg_quote($higherPriorityLabel, '/').'\s*<\/option>/',
+            $plansResponse->getContent()
+        );
+        $this->assertMatchesRegularExpression(
+            '/<option value="'.$planModel->id.'"[^>]*>\s*'.preg_quote($lowerPriorityLabel, '/').'\s*<\/option>/',
+            $plansResponse->getContent()
+        );
+        $this->assertTrue(
+            strpos($plansResponse->getContent(), $higherPriorityLabel)
+                < strpos($plansResponse->getContent(), $lowerPriorityLabel)
+        );
+
+        $eyebrowModel = AiModelAccess::query()
+            ->where('usage_category_key', 'eyebrow_transplant')
+            ->where('is_demo', true)
+            ->firstOrFail();
+
+        $this->actingAs($superAdmin)
+            ->forHost('hairvision-ai.test')
+            ->post('/admin/system/plans', [
+                'name' => 'پلن با مدل نامرتبط',
+                'plan_type' => 'base_subscription',
+                'price' => 1000,
+                'currency' => 'ریال',
+                'duration_days' => 30,
+                'usage_limit' => 10,
+                'status' => 'active',
+                'service_keys' => ['eyebrow_transplant'],
+                'ai_model_access_ids' => [$planModel->id],
+            ])
+            ->assertSessionHasErrors('ai_model_access_ids');
+
+        $this->assertDatabaseMissing('plans', ['name' => 'پلن با مدل نامرتبط']);
+
+        $this->actingAs($superAdmin)
+            ->forHost('hairvision-ai.test')
+            ->put('/admin/system/plans/'.$managedPlan->id, [
+                '_form' => 'edit_plan_'.$managedPlan->id,
+                'name' => $managedPlan->name,
+                'description' => $managedPlan->description,
+                'plan_type' => 'base_subscription',
+                'price' => $managedPlan->price,
+                'currency' => $managedPlan->currency,
+                'duration_days' => $managedPlan->duration_days,
+                'usage_limit' => $managedPlan->usage_limit,
+                'status' => 'active',
+                'service_keys' => ['eyebrow_transplant'],
+                'ai_model_access_ids' => [$eyebrowModel->id],
+            ])
+            ->assertRedirect()
+            ->assertSessionHasNoErrors();
+
+        $this->assertDatabaseHas('plan_ai_model_access', [
+            'plan_id' => $managedPlan->id,
+            'ai_model_access_id' => $eyebrowModel->id,
+        ]);
+        $this->assertDatabaseMissing('plan_ai_model_access', [
+            'plan_id' => $managedPlan->id,
+            'ai_model_access_id' => $planModel->id,
+        ]);
+
+        $this->actingAs($superAdmin)
+            ->forHost('hairvision-ai.test')
+            ->get('/admin/plans/'.$managedPlan->id)
+            ->assertOk()
+            ->assertSee(__('plans.assigned_services'))
+            ->assertSee(__('ai_models.usage_categories.eyebrow_transplant'));
 
         $this->actingAs($normalUser)
             ->forHost('hairvision-ai.test')
@@ -1351,6 +1875,92 @@ class SystemManagementTest extends TestCase
                 'status' => 'active',
             ])
             ->assertForbidden();
+    }
+
+    public function test_plan_create_and_update_require_exactly_one_complete_model_per_application(): void
+    {
+        $this->seed(DatabaseSeeder::class);
+
+        $superAdmin = User::query()->where('role', 'super_admin')->firstOrFail();
+        $models = app(ClinicAiModelProvisioningService::class)
+            ->assignableAccesses(['hair_transplant'])
+            ->values();
+
+        $this->assertGreaterThanOrEqual(2, $models->count());
+
+        $payload = [
+            'name' => 'پلن انتخاب تکی مدل',
+            'plan_type' => 'base_subscription',
+            'price' => 1000,
+            'currency' => 'ریال',
+            'duration_days' => 30,
+            'usage_limit' => 10,
+            'status' => 'active',
+            'service_keys' => ['hair_transplant'],
+        ];
+
+        $this->actingAs($superAdmin)
+            ->forHost('hairvision-ai.test')
+            ->post('/admin/system/plans', $payload + [
+                'ai_model_access_ids' => $models->pluck('id')->all(),
+            ])
+            ->assertSessionHasErrors([
+                'ai_model_access_ids' => __('plans.validation.one_model_per_service'),
+            ]);
+
+        $this->assertDatabaseMissing('plans', ['name' => $payload['name']]);
+
+        $this->assertTrue(
+            app(ClinicAiModelProvisioningService::class)
+                ->assignableAccesses(['eyebrow_transplant'])
+                ->isNotEmpty()
+        );
+
+        $this->actingAs($superAdmin)
+            ->forHost('hairvision-ai.test')
+            ->post('/admin/system/plans', array_replace($payload, [
+                'name' => 'پلن با کاربرد بدون مدل',
+                'service_keys' => ['hair_transplant', 'eyebrow_transplant'],
+                'ai_model_access_ids' => [$models->first()->id],
+            ]))
+            ->assertSessionHasErrors([
+                'ai_model_access_ids' => __('plans.validation.one_model_per_service'),
+            ]);
+
+        $this->assertDatabaseMissing('plans', ['name' => 'پلن با کاربرد بدون مدل']);
+
+        $this->actingAs($superAdmin)
+            ->forHost('hairvision-ai.test')
+            ->post('/admin/system/plans', $payload + [
+                'ai_model_access_ids' => [$models->first()->id],
+            ])
+            ->assertRedirect()
+            ->assertSessionHasNoErrors();
+
+        $plan = Plan::query()->where('name', $payload['name'])->firstOrFail();
+        $this->assertSame(1, $plan->aiModelAccesses()->count());
+
+        $this->actingAs($superAdmin)
+            ->forHost('hairvision-ai.test')
+            ->put('/admin/system/plans/'.$plan->id, $payload + [
+                '_form' => 'edit_plan_'.$plan->id,
+                'ai_model_access_ids' => $models->pluck('id')->all(),
+            ])
+            ->assertSessionHasErrors([
+                'ai_model_access_ids' => __('plans.validation.one_model_per_service'),
+            ]);
+
+        $this->assertSame([$models->first()->id], $plan->aiModelAccesses()->pluck('ai_model_accesses.id')->all());
+
+        $partialModel = $models->last();
+        $partialModel->executableModel->outputConfigs()->where('is_active', true)->firstOrFail()->update(['is_active' => false]);
+
+        $availableIds = app(ClinicAiModelProvisioningService::class)
+            ->assignableAccesses(['hair_transplant'])
+            ->pluck('id');
+
+        $this->assertNotContains($partialModel->id, $availableIds);
+        $this->assertContains($models->first()->id, $availableIds);
     }
 
     public function test_super_admin_can_manage_clinics_and_normal_user_cannot(): void
@@ -1672,6 +2282,75 @@ class SystemManagementTest extends TestCase
         $this->assertSame($upgrade->id, $newActive->plan_id);
         $this->assertSame(0, $newActive->usage_used);
         $this->assertSame(1800, $newActive->usage_limit);
+    }
+
+    public function test_plan_purchase_recovers_from_legacy_object_cached_system_settings(): void
+    {
+        $this->seed(DatabaseSeeder::class);
+        $this->deactivateSeededClinicPlan();
+
+        Cache::setDefaultDriver('database');
+        Cache::forgetDriver('database');
+        Cache::put('hairvision:system-settings', collect([
+            'billing.invoice_due_days' => 7,
+        ]), 300);
+
+        $user = User::query()->where('role', 'clinic_admin')->firstOrFail();
+        $plan = Plan::query()->where('name', 'پلن شروع')->where('status', 'active')->firstOrFail();
+
+        $this->actingAs($user)
+            ->forHost('hairvision-ai.test')
+            ->post('/admin/plans/'.$plan->id.'/purchase')
+            ->assertRedirect(route('admin.billing.index'))
+            ->assertSessionHasNoErrors();
+
+        $this->assertDatabaseHas('invoices', [
+            'tenant_id' => $user->tenants()->firstOrFail()->id,
+            'user_id' => $user->id,
+            'plan_id' => $plan->id,
+            'status' => 'pending',
+        ]);
+        $this->assertIsArray(Cache::get('hairvision:system-settings'));
+    }
+
+    public function test_clinic_user_can_pay_owned_invoice_when_database_ids_are_numeric_strings(): void
+    {
+        $this->seed(DatabaseSeeder::class);
+        $this->deactivateSeededClinicPlan();
+        $authority = 'A000000000000000000000000000000000301';
+        $this->fakeZarinpalPayments($authority);
+
+        $user = User::query()->where('role', 'clinic_admin')->firstOrFail();
+        $tenant = $user->tenants()->firstOrFail();
+        $plan = Plan::query()->where('name', 'پلن شروع')->where('status', 'active')->firstOrFail();
+        $invoice = app(BillingService::class)->invoiceForPlan($user, $plan, $tenant);
+        $attributes = $invoice->getAttributes();
+        $attributes['tenant_id'] = (string) $tenant->id;
+        $attributes['user_id'] = (string) $user->id;
+        $invoice->setRawAttributes($attributes, true);
+        Route::bind('invoice', fn (): Invoice => $invoice);
+
+        $otherUser = $this->createUserForTenant($tenant, 'clinic_admin', '09121112222');
+        $this->actingAs($otherUser)
+            ->withSession(['admin_active_tenant_id' => $tenant->id])
+            ->forHost('hairvision-ai.test')
+            ->get('/admin/billing/invoices/'.$invoice->id.'/pay')
+            ->assertForbidden();
+
+        $otherTenant = $this->createTenant('Clinic Two', 'clinic-two', 'clinic-two.hairvision-ai.test');
+        $otherTenantUser = $this->createUserForTenant($otherTenant, 'clinic_admin', '09121113333');
+        $this->actingAs($otherTenantUser)
+            ->withSession(['admin_active_tenant_id' => $otherTenant->id])
+            ->forHost('hairvision-ai.test')
+            ->get('/admin/billing/invoices/'.$invoice->id.'/pay')
+            ->assertForbidden();
+
+        $this->actingAs($user)
+            ->withSession(['admin_active_tenant_id' => $tenant->id])
+            ->forHost('hairvision-ai.test')
+            ->get('/admin/billing/invoices/'.$invoice->id.'/pay')
+            ->assertStatus(303)
+            ->assertRedirect('https://sandbox.zarinpal.com/pg/StartPay/'.$authority);
     }
 
     public function test_same_active_base_plan_cannot_be_purchased_until_expired(): void
@@ -2002,6 +2681,102 @@ class SystemManagementTest extends TestCase
             ->assertOk()
             ->assertSee($sourceRoute)
             ->assertSee($assetRoute);
+    }
+
+    public function test_lead_details_leave_unrequested_generation_outputs_without_status_or_date(): void
+    {
+        $tenant = $this->createTenant('Clinic One', 'arya', 'arya.hairvision-ai.test');
+        $clinicAdmin = $this->createUserForTenant($tenant, 'clinic_admin', '09121111111');
+        $this->activateSubscription($clinicAdmin);
+        $lead = $this->createLead($tenant, '09120000001', 'Independent Lead');
+        $profile = LeadProfile::query()->create([
+            'tenant_id' => $tenant->id,
+            'lead_id' => $lead->id,
+        ]);
+        $source = LeadSourceImage::query()->create([
+            'tenant_id' => $tenant->id,
+            'lead_id' => $lead->id,
+            'lead_profile_id' => $profile->id,
+            'version' => 1,
+            'is_current' => true,
+            'disk' => 'local',
+            'path' => 'private/source.jpg',
+            'mime' => 'image/jpeg',
+            'size' => 15,
+            'status' => 'validated',
+        ]);
+        $category = AiModelCategory::query()->create([
+            'code' => 'independent_dashboard_preview',
+            'name' => 'پیش‌نمایش مستقل داشبورد',
+            'status' => 'active',
+        ]);
+        $requestedOutput = AiModelCategoryOutput::query()->create([
+            'ai_model_category_id' => $category->id,
+            'code' => 'requested_stage',
+            'name' => 'مرحله درخواست‌شده',
+            'prompt' => 'محرمانه',
+            'credit_cost' => 1,
+            'is_active' => true,
+        ]);
+        $unrequestedOutput = AiModelCategoryOutput::query()->create([
+            'ai_model_category_id' => $category->id,
+            'code' => 'unrequested_stage',
+            'name' => 'مرحله درخواست‌نشده',
+            'prompt' => 'محرمانه',
+            'credit_cost' => 1,
+            'is_active' => true,
+        ]);
+        $requestedAt = now()->subDays(2)->setTime(9, 10, 11);
+        GenerationRequest::query()->create([
+            'tenant_id' => $tenant->id,
+            'lead_id' => $lead->id,
+            'lead_source_image_id' => $source->id,
+            'ai_model_category_id' => $category->id,
+            'ai_model_category_output_id' => $requestedOutput->id,
+            'status' => 'queued',
+            'idempotency_key' => 'requested-dashboard-stage',
+            'requested_at' => $requestedAt,
+        ]);
+        $unrequested = GenerationRequest::query()->create([
+            'tenant_id' => $tenant->id,
+            'lead_id' => $lead->id,
+            'lead_source_image_id' => $source->id,
+            'ai_model_category_id' => $category->id,
+            'ai_model_category_output_id' => $unrequestedOutput->id,
+            'status' => 'failed',
+            'idempotency_key' => 'unrequested-dashboard-stage',
+            'requested_at' => null,
+        ]);
+        $unrequestedCreatedAt = now()->subDays(10)->setTime(12, 13, 14);
+        $unrequested->timestamps = false;
+        $unrequested->forceFill([
+            'created_at' => $unrequestedCreatedAt,
+            'updated_at' => $unrequestedCreatedAt,
+        ])->saveQuietly();
+
+        $this->actingAs($clinicAdmin)
+            ->withSession(['admin_active_tenant_id' => $tenant->id])
+            ->forHost('hairvision-ai.test')
+            ->get('/admin/leads/'.$lead->id)
+            ->assertOk()
+            ->assertSee($requestedOutput->name)
+            ->assertSee($unrequestedOutput->name)
+            ->assertSee(__('ai.generation.statuses.queued'))
+            ->assertSee(JalaliDate::toJalaliDateTime($requestedAt))
+            ->assertDontSee(__('ai.generation.statuses.failed'))
+            ->assertDontSee(JalaliDate::toJalaliDateTime($unrequestedCreatedAt));
+
+        $failedRequestedAt = now()->subDay()->setTime(15, 16, 17);
+        $unrequested->timestamps = true;
+        $unrequested->forceFill(['requested_at' => $failedRequestedAt])->save();
+
+        $this->actingAs($clinicAdmin)
+            ->withSession(['admin_active_tenant_id' => $tenant->id])
+            ->forHost('hairvision-ai.test')
+            ->get('/admin/leads/'.$lead->id)
+            ->assertOk()
+            ->assertSee(__('ai.generation.statuses.failed'))
+            ->assertSee(JalaliDate::toJalaliDateTime($failedRequestedAt));
     }
 
     public function test_super_admin_dashboard_starts_on_management_overview_and_can_select_one(): void
@@ -2386,6 +3161,7 @@ class SystemManagementTest extends TestCase
             ? $payRequest->get($payUrl)
             : $payRequest->post($payUrl);
 
+        $payResponse->assertStatus(303);
         $payResponse->assertRedirect('https://sandbox.zarinpal.com/pg/StartPay/'.$authority);
 
         $payment = $invoice->payments()->latest('id')->firstOrFail();
@@ -2395,7 +3171,8 @@ class SystemManagementTest extends TestCase
         $this->actingAs($user)
             ->forHost('hairvision-ai.test')
             ->get('/admin/billing/payments/'.$payment->id.'/verify?Authority='.$authority.'&Status=OK')
-            ->assertRedirect(route('admin.billing.index'));
+            ->assertStatus(303)
+            ->assertRedirect(route('admin.billing.result', $payment));
 
         return $payment->refresh();
     }

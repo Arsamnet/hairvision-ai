@@ -402,6 +402,9 @@ namespace App\Models {
 	 * @property int $id
 	 * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\Tenant> $clinics
 	 * @property-read int|null $clinics_count
+	 * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\Plan> $plans
+	 * @property-read int|null $plans_count
+	 * @property-read \App\Models\AiModel $executableModel
 	 * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\AiModelUsageLog> $usageLogs
 	 * @property-read int|null $usage_logs_count
 	 * @property-read \App\Models\User $creator
@@ -9615,6 +9618,8 @@ namespace App\Models {
 	 * @property-read int|null $invoices_count
 	 * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\PlanServiceEntitlement> $serviceEntitlements
 	 * @property-read int|null $service_entitlements_count
+	 * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\AiModelAccess> $aiModelAccesses
+	 * @property-read int|null $ai_model_accesses_count
 	 * @method static \Illuminate\Database\Eloquent\Builder<Plan>|Plan whereId($value)
 	 * @method static \Illuminate\Database\Eloquent\Builder<Plan>|Plan whereUuid($value)
 	 * @method static \Illuminate\Database\Eloquent\Builder<Plan>|Plan whereName($value)

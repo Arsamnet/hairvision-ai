@@ -4,6 +4,7 @@ namespace App\Http\Requests\Admin\Users;
 
 use App\Models\Role;
 use App\Support\NumberNormalizer;
+use App\Support\StateCatalog;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -35,14 +36,14 @@ class UpdateUserRequest extends FormRequest
             'phone_normalized' => ['nullable', 'digits:11', Rule::unique('users', 'phone_normalized')->ignore($userId)],
             'access_scope' => ['required', Rule::in($this->allowedScopes())],
             'role' => ['required', Rule::in($roles)],
-            'status' => ['required', Rule::in(['active', 'inactive'])],
+            'status' => ['required', Rule::in(StateCatalog::values('users.statuses'))],
             'tenant_id' => ['nullable', 'required_if:access_scope,clinic', 'integer', Rule::exists('tenants', 'id')],
             'tenant_ids' => ['array'],
             'tenant_ids.*' => ['integer', Rule::exists('tenants', 'id')],
             'tenant_roles' => ['array'],
             'tenant_roles.*' => [Rule::in($this->clinicRoleCodes())],
             'tenant_statuses' => ['array'],
-            'tenant_statuses.*' => [Rule::in(['active', 'inactive'])],
+            'tenant_statuses.*' => [Rule::in(StateCatalog::values('users.statuses'))],
         ];
     }
 

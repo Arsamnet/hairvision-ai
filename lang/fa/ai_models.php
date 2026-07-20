@@ -35,6 +35,13 @@ return [
     'credentials_not_required' => 'نیاز ندارد',
     'model_type' => 'نوع مدل',
     'settings' => 'تنظیمات مدل',
+    'input_image_processing_title' => 'پردازش تصویر ورودی مدل',
+    'input_image_processing_enabled' => 'تبدیل و تغییر اندازه تصویر قبل از ارسال به مدل',
+    'input_image_processing_hint' => 'در صورت فعال‌سازی، تصویر با حفظ نسبت ابعاد و بدون برش یا دفورمه شدن به JPG تبدیل می‌شود و ضلع بزرگ‌تر دقیقاً به اندازه تعیین‌شده می‌رسد. فایل اصلی تغییری نمی‌کند.',
+    'input_image_max_dimension' => 'اندازه ضلع بزرگ‌تر تصویر ورودی',
+    'input_image_max_dimension_placeholder' => 'مثلاً ۱۰۲۴ پیکسل',
+    'input_image_jpeg_quality' => 'کیفیت JPG تصویر ورودی',
+    'input_image_jpeg_quality_placeholder' => 'عددی بین ۱ تا ۱۰۰',
     'credential_placeholder' => 'برای حفظ مقدار فعلی خالی بگذارید',
     'prompt' => 'پرامپت',
     'credit_limit' => 'سقف اعتبار',
@@ -132,6 +139,13 @@ return [
     'usage_categories' => [
         'hair_transplant' => 'کاشت مو',
         'eyebrow_transplant' => 'کاشت ابرو',
+    ],
+    'provider_types' => [
+        'local' => 'محلی',
+        'external' => 'خارجی',
+    ],
+    'auth_types' => [
+        'bearer' => 'Bearer Token',
     ],
     'usage_category_descriptions' => [
         'hair_transplant' => 'تولید پیش‌نمایش و نمونه مسیر کاشت مو برای لیدهای کلینیک.',

@@ -58,7 +58,7 @@
             preset-key="admin.billing.index"
             :search-placeholder="__('payments.invoice_search_placeholder')"
             :filters="[
-                ['name' => 'status', 'label' => __('payments.fields.status'), 'type' => 'select', 'placeholder' => __('payments.all_statuses'), 'options' => __('payments.invoice_statuses')],
+                ['name' => 'status', 'label' => __('payments.fields.status'), 'type' => 'select', 'placeholder' => __('payments.all_statuses'), 'options' => \App\Support\StateCatalog::options('invoices.statuses')],
             ]"
             :sorts="[
                 'created_at' => __('messages.created_at'),

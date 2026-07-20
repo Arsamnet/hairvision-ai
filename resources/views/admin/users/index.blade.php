@@ -22,7 +22,7 @@
 
         @php
             $isSystemPanel = auth()->user()?->isSuperAdmin() && blank($tenant ?? null);
-            $statusOptions = collect(['active', 'inactive'])->mapWithKeys(fn ($status) => [$status => __('system.statuses.'.$status)])->all();
+            $statusOptions = \App\Support\StateCatalog::options('users.statuses');
             $userFilters = [];
 
             if ($isSystemPanel && ($availableTenants?->count() ?? 0) > 1) {

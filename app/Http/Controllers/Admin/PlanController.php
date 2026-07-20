@@ -7,6 +7,7 @@ use App\Http\Requests\Admin\Plans\StorePlanRequest;
 use App\Http\Requests\Admin\Plans\UpdatePlanRequest;
 use App\Models\Plan;
 use App\Models\Tenant;
+use App\Services\AI\ClinicAiModelProvisioningService;
 use App\Services\Billing\BillingService;
 use App\Services\Billing\PlanCatalogService;
 use App\Services\Billing\ServiceCatalog;
@@ -25,7 +26,7 @@ use Illuminate\View\View;
  */
 class PlanController extends Controller
 {
-    public function index(Request $request): View
+    public function index(Request $request, ClinicAiModelProvisioningService $modelProvisioning): View
     {
         $canManagePlans = $request->user()->hasAnyPermission(['plans.create', 'plans.edit', 'plans.delete', 'plans.manage']);
         $pagination = PaginationParameters::fromRequest(
@@ -36,6 +37,7 @@ class PlanController extends Controller
         );
         $query = Plan::query()
             ->with('serviceEntitlements')
+            ->when($canManagePlans, fn ($query) => $query->with('aiModelAccesses'))
             ->when(! $canManagePlans, fn ($query) => $query->where('status', 'active'))
             ->when(! $canManagePlans, fn ($query) => $query->where('is_public', true))
             ->when(! $canManagePlans, fn ($query) => $query->whereIn('plan_type', ['base_subscription', 'service_add_on', 'credit_top_up']))
@@ -49,6 +51,9 @@ class PlanController extends Controller
             ->paginate($pagination->perPage, ['*'], 'page', $pagination->page)
             ->withQueryString();
         $tenant = $request->attributes->get('adminTenant');
+        $modelAccessOptions = $canManagePlans
+            ? $modelProvisioning->assignableAccesses()->groupBy('usage_category_key')
+            : collect();
 
         return view('admin.plans.index', [
             'tenant' => $tenant,
@@ -58,6 +63,7 @@ class PlanController extends Controller
             'activeSubscription' => $request->attributes->get('activeSubscription'),
             'serviceOptions' => $services->options(),
             'serviceIcons' => $services->icons(),
+            'modelAccessOptions' => $modelAccessOptions,
             'planPurchaseStates' => $this->purchaseStates(
                 $plans->getCollection(),
                 $tenant instanceof Tenant ? $tenant : null,
@@ -79,6 +85,10 @@ class PlanController extends Controller
         abort_unless($canManagePlans || ($plan->status === 'active' && $plan->is_public), 404);
 
         $plan->load('serviceEntitlements');
+
+        if ($canManagePlans) {
+            $plan->load('aiModelAccesses');
+        }
 
         return view('admin.plans.show', [
             'tenant' => $request->attributes->get('adminTenant'),

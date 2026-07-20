@@ -88,6 +88,7 @@
                                 @foreach($categoryGenerations as $generation)
                                     @php
                                         $asset = $generation->currentAsset;
+                                        $wasRequested = $generation->requested_at !== null;
                                         $statusTone = match ($generation->status) {
                                             'completed' => 'emerald',
                                             'failed', 'cancelled' => 'rose',
@@ -98,21 +99,27 @@
                                     <article class="overflow-hidden rounded-lg bg-zinc-50 text-sm">
                                         @if($asset)
                                             <img src="{{ route('admin.leads.assets.show', [$lead, $asset]) }}" alt="{{ __('leads.generations.asset_alt', ['period' => $generation->output?->name ?: $asset->period]) }}" class="aspect-4/5 w-full bg-zinc-100 object-cover">
-                                        @else
+                                        @elseif($wasRequested)
                                             <div class="grid aspect-4/5 w-full place-items-center bg-zinc-100 px-3 text-center text-xs font-bold text-zinc-400">
                                                 {{ __('leads.generations.asset_pending') }}
                                             </div>
+                                        @else
+                                            <div class="aspect-4/5 w-full bg-zinc-100" aria-hidden="true"></div>
                                         @endif
                                         <div class="space-y-2 p-3">
                                             <div class="flex items-start justify-between gap-2">
                                                 <p class="font-bold">{{ $generation->output?->name ?: __('leads.generations.unknown_output') }}</p>
-                                                <x-admin.badge :tone="$statusTone">
-                                                    {{ \Illuminate\Support\Facades\Lang::has('ai.generation.statuses.'.$generation->status) ? __('ai.generation.statuses.'.$generation->status) : $generation->status }}
-                                                </x-admin.badge>
+                                                @if($wasRequested)
+                                                    <x-admin.badge :tone="$statusTone">
+                                                        {{ \Illuminate\Support\Facades\Lang::has('ai.generation.statuses.'.$generation->status) ? __('ai.generation.statuses.'.$generation->status) : $generation->status }}
+                                                    </x-admin.badge>
+                                                @endif
                                             </div>
-                                            <p class="text-xs text-zinc-500">
-                                                {{ __('leads.generations.requested_at', ['date' => \App\Support\JalaliDate::toJalaliDateTime($generation->requested_at ?? $generation->created_at)]) }}
-                                            </p>
+                                            @if($wasRequested)
+                                                <p class="text-xs text-zinc-500">
+                                                    {{ __('leads.generations.requested_at', ['date' => \App\Support\JalaliDate::toJalaliDateTime($generation->requested_at)]) }}
+                                                </p>
+                                            @endif
                                         </div>
                                     </article>
                                 @endforeach
@@ -166,7 +173,7 @@
                         <div>
                             <label class="text-xs font-bold text-zinc-500">{{ __('crm.status') }}</label>
                             <select name="status" class="mt-1 h-11 w-full rounded-lg border border-zinc-200 px-3 text-sm outline-none transition focus:border-teal-500">
-                                @foreach(__('leads.crm_stages') as $stage => $label)
+                                @foreach(\App\Support\StateCatalog::options('leads.crm_stages') as $stage => $label)
                                     <option value="{{ $stage }}" @selected($lead->crm_stage === $stage)>{{ $label }}</option>
                                 @endforeach
                             </select>

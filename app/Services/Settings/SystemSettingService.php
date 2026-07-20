@@ -13,6 +13,8 @@ use Illuminate\Support\Facades\Cache;
  */
 class SystemSettingService
 {
+    private const CACHE_KEY = 'hairvision:system-settings';
+
     /**
      * Return a setting value or default.
      */
@@ -26,17 +28,22 @@ class SystemSettingService
      *
      * @return Collection<string, mixed>
      */
-    public function all()
+    public function all(): Collection
     {
-        return Cache::remember('hairvision:system-settings', 300, function () {
-            return SystemSetting::query()
-                ->get()
-                ->mapWithKeys(fn (SystemSetting $setting): array => [
-                    $setting->key => $setting->is_encrypted
-                        ? $setting->encrypted_value
-                        : ($setting->value_json['value'] ?? null),
-                ]);
-        });
+        $values = Cache::get(self::CACHE_KEY);
+
+        if (! is_array($values)) {
+            $values = $this->valuesFromDatabase();
+            Cache::put(self::CACHE_KEY, $values, 300);
+        }
+
+        $values = array_filter(
+            $values,
+            fn (string $key): bool => ! str_starts_with($key, 'catalog.'),
+            ARRAY_FILTER_USE_KEY
+        );
+
+        return collect($values);
     }
 
     /**
@@ -44,7 +51,10 @@ class SystemSettingService
      */
     public function set(string $key, mixed $value): SystemSetting
     {
-        $setting = SystemSetting::query()->where('key', $key)->firstOrFail();
+        $setting = SystemSetting::query()
+            ->where('group', '!=', 'catalog')
+            ->where('key', $key)
+            ->firstOrFail();
 
         if ($setting->is_encrypted) {
             $setting->encrypted_value = (string) $value;
@@ -63,6 +73,24 @@ class SystemSettingService
      */
     public function forget(): void
     {
-        Cache::forget('hairvision:system-settings');
+        Cache::forget(self::CACHE_KEY);
+    }
+
+    /**
+     * Load settings as cache-safe scalar and array values.
+     *
+     * @return array<string, mixed>
+     */
+    private function valuesFromDatabase(): array
+    {
+        return SystemSetting::query()
+            ->where('group', '!=', 'catalog')
+            ->get()
+            ->mapWithKeys(fn (SystemSetting $setting): array => [
+                $setting->key => $setting->is_encrypted
+                    ? $setting->encrypted_value
+                    : ($setting->value_json['value'] ?? null),
+            ])
+            ->all();
     }
 }

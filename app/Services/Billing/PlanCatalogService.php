@@ -32,8 +32,9 @@ class PlanCatalogService
                 $plan = Plan::create($attributes);
 
                 $this->syncServiceCredits($plan, $data, $scope);
+                $this->syncModelAccesses($plan, $data);
 
-                $plan->refresh();
+                $plan->refresh()->load(['serviceEntitlements', 'aiModelAccesses']);
 
                 return $plan;
             });
@@ -60,8 +61,9 @@ class PlanCatalogService
                 $plan->update($attributes);
 
                 $this->syncServiceCredits($plan, $data, $scope);
+                $this->syncModelAccesses($plan, $data);
 
-                $plan->refresh();
+                $plan->refresh()->load(['serviceEntitlements', 'aiModelAccesses']);
 
                 return $plan;
             });
@@ -143,6 +145,25 @@ class PlanCatalogService
         return collect($serviceKeys)
             ->mapWithKeys(fn (string $serviceKey, int $index): array => [$serviceKey => $index === 0 ? $usageLimit : 0])
             ->all();
+    }
+
+    /**
+     * Persist the exact per-application model selections for this plan.
+     *
+     * @param  array<string, mixed>  $data
+     */
+    private function syncModelAccesses(Plan $plan, array $data): void
+    {
+        $accessIds = $plan->isCreditTopUp()
+            ? []
+            : collect($data['ai_model_access_ids'] ?? [])
+                ->map(fn (mixed $id): int => (int) $id)
+                ->filter(fn (int $id): bool => $id > 0)
+                ->unique()
+                ->values()
+                ->all();
+
+        $plan->aiModelAccesses()->sync($accessIds);
     }
 
     /**

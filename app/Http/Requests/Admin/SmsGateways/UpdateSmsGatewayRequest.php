@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Admin\SmsGateways;
 
 use App\Models\SmsGateway;
+use App\Support\StateCatalog;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -26,7 +27,7 @@ class UpdateSmsGatewayRequest extends FormRequest
         return [
             'name' => ['required', 'string', 'max:120'],
             'provider_code' => ['required', 'alpha_dash', 'max:80', Rule::in($this->providerCodes())],
-            'owner_scope' => ['required', Rule::in(['system', 'tenant'])],
+            'owner_scope' => ['required', Rule::in(StateCatalog::values('sms_gateways.owner_scopes'))],
             'tenant_id' => [
                 'nullable',
                 'required_if:owner_scope,tenant',
@@ -35,7 +36,7 @@ class UpdateSmsGatewayRequest extends FormRequest
                     ->where(fn ($query) => $query->where('owner_scope', 'tenant'))
                     ->ignore($this->route('smsGateway')?->id),
             ],
-            'status' => ['required', Rule::in(['enabled', 'disabled'])],
+            'status' => ['required', Rule::in(StateCatalog::values('sms_gateways.statuses'))],
             'is_default' => ['nullable', 'boolean'],
             'api_key' => ['nullable', 'string', 'max:500'],
             'sender' => ['nullable', 'string', 'max:120'],

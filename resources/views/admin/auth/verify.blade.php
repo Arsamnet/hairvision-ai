@@ -38,7 +38,7 @@
                     <input type="hidden" name="phone" value="{{ $phone }}">
                     <div>
                         <label for="code" class="block text-sm font-bold text-zinc-800">کد تایید</label>
-                        <input id="code" name="code" inputmode="numeric" autocomplete="one-time-code" maxlength="6" pattern="[0-9۰-۹٠-٩]*" placeholder="۱۲۳۴۵۶" class="mt-2 h-12 w-full rounded-lg border border-zinc-200 px-4 text-center text-lg font-bold tracking-[0.3em] outline-none transition focus:border-teal-500 focus:ring-4 focus:ring-teal-100" dir="ltr">
+                        <input id="code" name="code" inputmode="numeric" data-digit-input autocomplete="one-time-code" maxlength="6" pattern="[0-9۰-۹٠-٩]*" placeholder="۱۲۳۴۵۶" class="mt-2 h-12 w-full rounded-lg border border-zinc-200 px-4 text-center text-lg font-bold tracking-[0.3em] outline-none transition focus:border-teal-500 focus:ring-4 focus:ring-teal-100" dir="ltr">
                     </div>
                     <x-admin.button type="submit" size="lg" block class="focus:ring-4 focus:ring-teal-100">ورود به داشبورد</x-admin.button>
                 </form>

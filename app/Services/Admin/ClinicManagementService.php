@@ -6,6 +6,7 @@ use App\Models\Tenant;
 use App\Services\Billing\ServiceEntitlementService;
 use App\Support\Pagination\PaginationParameters;
 use App\Support\Query\SearchFilter;
+use App\Support\StateCatalog;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
@@ -49,7 +50,7 @@ class ClinicManagementService
 
         SearchFilter::apply($query, $pagination->search, ['name', 'slug'], ['domains' => ['domain']]);
 
-        if (in_array($status, ['active', 'inactive'], true)) {
+        if (in_array($status, StateCatalog::values('tenants.statuses'), true)) {
             $query->where('status', $status);
         }
 

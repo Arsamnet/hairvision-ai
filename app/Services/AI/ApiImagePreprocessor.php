@@ -6,8 +6,14 @@ use Illuminate\Support\Facades\Storage;
 use Intervention\Image\Drivers\Gd\Driver;
 use Intervention\Image\FileExtension;
 use Intervention\Image\ImageManager;
+use InvalidArgumentException;
 use RuntimeException;
 
+/**
+ * Creates private, provider-ready JPEG copies of source images.
+ *
+ * @since 2.0.0
+ */
 class ApiImagePreprocessor
 {
     /**
@@ -19,6 +25,8 @@ class ApiImagePreprocessor
      *     mime: string,
      *     extension: string,
      *     size: int,
+     *     width: int,
+     *     height: int,
      *     binary_content: string
      * }
      */
@@ -26,20 +34,22 @@ class ApiImagePreprocessor
         string $sourceDisk,
         string $sourcePath,
         string $destinationPath,
-        int $maxDimension = 1024,
-        int $jpegQuality = 85,
-        string $format = 'jpg',
+        int $maxDimension,
+        int $jpegQuality,
     ): array {
-        $scope = 'ai.image_preprocessor';
+        if ($maxDimension < InputImageProcessingSettings::MIN_DIMENSION
+            || $maxDimension > InputImageProcessingSettings::MAX_DIMENSION_LIMIT) {
+            throw new InvalidArgumentException('Input image maximum dimension is invalid.');
+        }
 
-        $requestedFormat = strtolower($format);
-        $format = in_array($requestedFormat, ['jpg', 'jpeg', 'png'], true) ? $requestedFormat : 'jpg';
+        if ($jpegQuality < InputImageProcessingSettings::MIN_JPEG_QUALITY
+            || $jpegQuality > InputImageProcessingSettings::MAX_JPEG_QUALITY) {
+            throw new InvalidArgumentException('Input image JPEG quality is invalid.');
+        }
 
         $sourceStorage = Storage::disk($sourceDisk);
 
-        $sourceExists = $sourceStorage->exists($sourcePath);
-
-        if (! $sourceExists) {
+        if (! $sourceStorage->exists($sourcePath)) {
             throw new RuntimeException('Source image does not exist.');
         }
 
@@ -51,32 +61,19 @@ class ApiImagePreprocessor
 
         $manager = ImageManager::usingDriver(Driver::class);
 
-        /*
-         * Intervention Image v4:
-         * - decodeBinary() reads raw binary image data.
-         * - scaleDown() keeps aspect ratio and never upscales.
-         */
-        $image = $manager->decodeBinary($binary)->scaleDown(
+        /* scale() fits the image inside the square boundary without cropping
+         * or changing its aspect ratio. The longest side becomes the exact
+         * configured dimension, including when a smaller image is enlarged. */
+        $image = $manager->decodeBinary($binary)->orient()->scale(
             width: $maxDimension,
             height: $maxDimension,
         );
 
-        if ($format === 'png') {
-            $encoded = $image->encodeUsingFileExtension(FileExtension::PNG);
-            $extension = 'png';
-            $mime = 'image/png';
-
-        } else {
-            $encoded = $image->encodeUsingFileExtension(
-                FileExtension::JPG,
-                quality: $jpegQuality,
-                progressive: true,
-            );
-
-            $extension = 'jpg';
-            $mime = 'image/jpeg';
-
-        }
+        $encoded = $image->encodeUsingFileExtension(
+            FileExtension::JPG,
+            quality: $jpegQuality,
+            progressive: true,
+        );
 
         $encodedBinary = (string) $encoded;
 
@@ -84,36 +81,34 @@ class ApiImagePreprocessor
             throw new RuntimeException('Encoded API image is empty.');
         }
 
-        $destinationPath = preg_replace('/\.(jpg|jpeg|png|webp)$/i', '', $destinationPath);
-        $destinationPath .= '.'.$extension;
+        $destinationPath = (string) preg_replace('/\.[^.\/]+$/', '', $destinationPath);
+        $destinationPath .= '.jpg';
 
         $localStorage = Storage::disk('local');
 
-        $localStorage->makeDirectory(dirname($destinationPath));
+        try {
+            $localStorage->makeDirectory(dirname($destinationPath));
 
-        $localStorage->put($destinationPath, $encodedBinary);
+            if (! $localStorage->put($destinationPath, $encodedBinary)) {
+                throw new RuntimeException('Prepared API image could not be stored.');
+            }
 
-        $storedSize = $localStorage->size($destinationPath);
+            $storedSize = $localStorage->size($destinationPath);
+        } catch (\Throwable $exception) {
+            $localStorage->delete($destinationPath);
+
+            throw $exception;
+        }
 
         return [
             'disk' => 'local',
             'path' => $destinationPath,
-            'mime' => $mime,
-            'extension' => $extension,
+            'mime' => 'image/jpeg',
+            'extension' => 'jpg',
             'size' => $storedSize,
+            'width' => $image->width(),
+            'height' => $image->height(),
             'binary_content' => $encodedBinary,
         ];
-    }
-
-    private function pathHash(string $path): string
-    {
-        return substr(hash('sha256', $path), 0, 16);
-    }
-
-    private function extensionOf(string $path): ?string
-    {
-        $extension = pathinfo($path, PATHINFO_EXTENSION);
-
-        return $extension !== '' ? strtolower($extension) : null;
     }
 }
