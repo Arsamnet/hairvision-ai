@@ -27,6 +27,9 @@ HairVision `2.0.0` starts the category-based AI model architecture.
 - Clinic dashboards now show landing application availability and explain when
   an application is hidden because a system admin disabled the category, the
   purchased plan, or the AI model used by that clinic.
+- Clinic and system lead details now display version 2 source images, independent
+  generation statuses, and generated results through tenant-scoped private
+  image routes while retaining the legacy generation history.
 - System admins can send typed, importance-labeled rich-text notifications to
   all clinics, one clinic, or selected clinics, then narrow those recipients by
   active/inactive plan state, AI application, or assigned-model filters.

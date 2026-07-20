@@ -55,7 +55,7 @@ class LeadController extends Controller
         ]);
     }
 
-    public function show(Request $request, Lead $lead): View
+    public function show(Request $request, Lead $lead, LeadDashboardService $leadService): View
     {
         Gate::authorize('view', $lead);
 
@@ -64,7 +64,7 @@ class LeadController extends Controller
         return view('admin.leads.show', [
             'tenant' => $request->attributes->get('adminTenant'),
             'availableTenants' => $request->attributes->get('adminTenants'),
-            'lead' => $lead->load(['tenant', 'assignedUser', 'uploads.generationGroup.jobs', 'generationGroups.jobs', 'generationGroups.assets', 'notes.user']),
+            'lead' => $leadService->loadDetails($lead),
         ]);
     }
 

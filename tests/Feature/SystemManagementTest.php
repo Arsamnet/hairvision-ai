@@ -2,17 +2,22 @@
 
 namespace Tests\Feature;
 
-use App\Models\AiProvider;
 use App\Models\AiModelAccess;
+use App\Models\AiModelCategory;
+use App\Models\AiModelCategoryOutput;
+use App\Models\AiProvider;
+use App\Models\ClinicUser;
 use App\Models\CreditTransaction;
 use App\Models\GeneratedAsset;
 use App\Models\GenerationGroup;
 use App\Models\GenerationJob;
+use App\Models\GenerationRequest;
 use App\Models\Invoice;
 use App\Models\Lead;
+use App\Models\LeadProfile;
+use App\Models\LeadSourceImage;
 use App\Models\Payment;
 use App\Models\PaymentGateway;
-use App\Models\ClinicUser;
 use App\Models\Permission;
 use App\Models\Plan;
 use App\Models\PlatformUser;
@@ -25,6 +30,7 @@ use App\Models\Tenant;
 use App\Models\TenantDomain;
 use App\Models\Upload;
 use App\Models\User;
+use App\Services\Admin\SmsGatewayManagementService;
 use App\Services\Auth\PermissionService;
 use App\Services\Billing\BillingService;
 use App\Services\Payment\PaymentGatewayService;
@@ -639,7 +645,7 @@ class SystemManagementTest extends TestCase
         ]);
 
         $service = app(SmsGatewayService::class);
-        $manager = app(\App\Services\Admin\SmsGatewayManagementService::class);
+        $manager = app(SmsGatewayManagementService::class);
 
         $this->assertTrue($service->systemDefault()->is($systemGateway));
         $this->assertTrue($manager->clinicSettings($tenant)->is($clinicGateway));
@@ -1874,6 +1880,128 @@ class SystemManagementTest extends TestCase
             ->forHost('hairvision-ai.test')
             ->get('/admin/leads/'.$lead->id.'/assets/'.$asset->id)
             ->assertForbidden();
+    }
+
+    public function test_v2_source_and_generated_images_display_for_clinic_and_system_admins(): void
+    {
+        Storage::fake('local');
+
+        $tenantA = $this->createTenant('Clinic One', 'arya', 'arya.hairvision-ai.test');
+        $tenantB = $this->createTenant('Clinic Two', 'clinic2', 'clinic2.hairvision-ai.test');
+        $clinicAdmin = $this->createUserForTenant($tenantA, 'clinic_admin', '09121111111');
+        $otherClinicAdmin = $this->createUserForTenant($tenantB, 'clinic_admin', '09122222222');
+        $this->activateSubscription($clinicAdmin);
+        $this->activateSubscription($otherClinicAdmin);
+
+        $lead = $this->createLead($tenantA, '09120000001', 'Version Two Lead');
+        $profile = LeadProfile::query()->create([
+            'tenant_id' => $tenantA->id,
+            'lead_id' => $lead->id,
+        ]);
+        $sourcePath = 'tenants/'.$tenantA->uuid.'/leads/'.$lead->uuid.'/source-images/current.jpg';
+        Storage::disk('local')->put($sourcePath, 'v2-source-image');
+        $source = LeadSourceImage::query()->create([
+            'tenant_id' => $tenantA->id,
+            'lead_id' => $lead->id,
+            'lead_profile_id' => $profile->id,
+            'version' => 1,
+            'is_current' => true,
+            'disk' => 'local',
+            'path' => $sourcePath,
+            'mime' => 'image/jpeg',
+            'size' => 15,
+            'status' => 'validated',
+        ]);
+
+        $category = AiModelCategory::query()->create([
+            'code' => 'dashboard_preview',
+            'name' => 'پیش‌نمایش داشبورد',
+            'status' => 'active',
+        ]);
+        $output = AiModelCategoryOutput::query()->create([
+            'ai_model_category_id' => $category->id,
+            'code' => 'final_result',
+            'name' => 'نتیجه نهایی داشبورد',
+            'prompt' => 'محرمانه',
+            'credit_cost' => 1,
+            'is_active' => true,
+        ]);
+        $generation = GenerationRequest::query()->create([
+            'tenant_id' => $tenantA->id,
+            'lead_id' => $lead->id,
+            'lead_source_image_id' => $source->id,
+            'ai_model_category_id' => $category->id,
+            'ai_model_category_output_id' => $output->id,
+            'status' => 'completed',
+            'idempotency_key' => 'v2-dashboard-result',
+            'requested_at' => now()->subMinute(),
+            'completed_at' => now(),
+        ]);
+        $assetPath = 'tenants/'.$tenantA->uuid.'/leads/'.$lead->uuid.'/results/final-result.jpg';
+        Storage::disk('local')->put($assetPath, 'v2-generated-image');
+        $asset = GeneratedAsset::query()->create([
+            'tenant_id' => $tenantA->id,
+            'lead_id' => $lead->id,
+            'lead_source_image_id' => $source->id,
+            'ai_model_category_id' => $category->id,
+            'ai_model_category_output_id' => $output->id,
+            'generation_request_id' => $generation->id,
+            'period' => $output->code,
+            'version' => 1,
+            'is_current' => true,
+            'disk' => 'local',
+            'path' => $assetPath,
+            'mime' => 'image/jpeg',
+            'size' => 18,
+        ]);
+        $generation->update(['current_generated_asset_id' => $asset->id]);
+
+        $sourceRoute = route('admin.leads.source-images.show', [$lead, $source]);
+        $assetRoute = route('admin.leads.assets.show', [$lead, $asset]);
+
+        $this->actingAs($clinicAdmin)
+            ->withSession(['admin_active_tenant_id' => $tenantA->id])
+            ->forHost('hairvision-ai.test')
+            ->get('/admin/leads/'.$lead->id)
+            ->assertOk()
+            ->assertSee($sourceRoute)
+            ->assertSee($assetRoute)
+            ->assertSee($category->name)
+            ->assertSee($output->name)
+            ->assertSee(__('ai.generation.statuses.completed'));
+
+        $this->actingAs($clinicAdmin)
+            ->withSession(['admin_active_tenant_id' => $tenantA->id])
+            ->forHost('hairvision-ai.test')
+            ->get('/admin/leads/'.$lead->id.'/source-images/'.$source->id)
+            ->assertOk()
+            ->assertHeader('Content-Type', 'image/jpeg');
+
+        $this->actingAs($clinicAdmin)
+            ->withSession(['admin_active_tenant_id' => $tenantA->id])
+            ->forHost('hairvision-ai.test')
+            ->get('/admin/leads/'.$lead->id.'/assets/'.$asset->id)
+            ->assertOk()
+            ->assertHeader('Content-Type', 'image/jpeg');
+
+        $this->actingAs($otherClinicAdmin)
+            ->withSession(['admin_active_tenant_id' => $tenantB->id])
+            ->forHost('hairvision-ai.test')
+            ->get('/admin/leads/'.$lead->id.'/source-images/'.$source->id)
+            ->assertForbidden();
+
+        $systemAdmin = User::factory()->create([
+            'role' => 'super_admin',
+            'access_scope' => 'system',
+            'status' => 'active',
+        ]);
+
+        $this->actingAs($systemAdmin)
+            ->forHost('hairvision-ai.test')
+            ->get('/admin/leads/'.$lead->id)
+            ->assertOk()
+            ->assertSee($sourceRoute)
+            ->assertSee($assetRoute);
     }
 
     public function test_super_admin_dashboard_starts_on_management_overview_and_can_select_one(): void

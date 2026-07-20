@@ -59,16 +59,25 @@ return [
     ],
 
     'uploads' => [
-        'title' => 'تصویر بارگذاری شده',
+        'title' => 'تصویر اصلی لید',
         'empty' => 'برای این لید هنوز تصویری در سیستم ذخیره نشده است.',
         'alt' => 'تصویر بارگذاری شده لید',
         'uploaded_at' => 'بارگذاری در :date',
+    ],
+
+    'source_images' => [
+        'alt' => 'تصویر اصلی لید',
+        'version' => 'نسخه :version',
     ],
 
     'generations' => [
         'title' => 'پردازش‌ها',
         'empty' => 'هنوز پردازشی برای این لید ثبت نشده است.',
         'group' => 'گروه :uuid',
+        'independent' => 'پردازش مستقل',
+        'requested_at' => 'درخواست در :date',
+        'unknown_category' => 'کاربرد نامشخص',
+        'unknown_output' => 'خروجی نامشخص',
         'asset_alt' => 'تصویر نتیجه :period',
         'asset_pending' => 'تصویر هنوز آماده نیست',
     ],

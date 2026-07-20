@@ -69,6 +69,35 @@ class LeadDashboardService
     }
 
     /**
+     * Load the legacy and version 2 records shown on a lead detail page.
+     */
+    public function loadDetails(Lead $lead): Lead
+    {
+        return $lead->load([
+            'tenant',
+            'assignedUser',
+            'uploads.generationGroup.jobs',
+            'generationGroups.jobs',
+            'generationGroups.assets',
+            'notes.user',
+            'sourceImages' => fn ($query) => $query
+                ->where('tenant_id', $lead->tenant_id)
+                ->latest('version'),
+            'generationRequests' => fn ($query) => $query
+                ->where('tenant_id', $lead->tenant_id)
+                ->with([
+                    'category',
+                    'output',
+                    'currentAsset' => fn ($assetQuery) => $assetQuery
+                        ->where('tenant_id', $lead->tenant_id)
+                        ->where('lead_id', $lead->id),
+                ])
+                ->latest('requested_at')
+                ->latest('id'),
+        ]);
+    }
+
+    /**
      * Create a tenant-owned lead from dashboard input.
      *
      * @param  array<string, mixed>  $data

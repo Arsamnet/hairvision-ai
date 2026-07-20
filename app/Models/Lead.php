@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 /**
  * Tenant-owned verified visitor lead.
@@ -69,6 +70,36 @@ class Lead extends Model
     public function generationGroups(): HasMany
     {
         return $this->hasMany(GenerationGroup::class);
+    }
+
+    /**
+     * Version 2 visitor profile owned by this lead.
+     *
+     * @return HasOne<LeadProfile, $this>
+     */
+    public function profile(): HasOne
+    {
+        return $this->hasOne(LeadProfile::class);
+    }
+
+    /**
+     * Versioned private source images uploaded for this lead.
+     *
+     * @return HasMany<LeadSourceImage, $this>
+     */
+    public function sourceImages(): HasMany
+    {
+        return $this->hasMany(LeadSourceImage::class);
+    }
+
+    /**
+     * Independent version 2 generation requests created by this lead.
+     *
+     * @return HasMany<GenerationRequest, $this>
+     */
+    public function generationRequests(): HasMany
+    {
+        return $this->hasMany(GenerationRequest::class);
     }
 
     /**
