@@ -27,6 +27,16 @@ class BillingService
 {
     private const ZARINPAL_AUTHORITY_REUSE_SECONDS = 300;
 
+    /**
+     * Create a new billing service instance.
+     *
+     * @param  PaymentGatewayService  $gateways  The gateways value.
+     * @param  SubscriptionActivationService  $activation  The activation value.
+     * @param  ServiceEntitlementService  $entitlements  The entitlements value.
+     * @param  SystemSettingService  $settings  The settings value.
+     *
+     * @since 1.0.0
+     */
     public function __construct(
         private readonly PaymentGatewayService $gateways,
         private readonly SubscriptionActivationService $activation,
@@ -36,6 +46,13 @@ class BillingService
 
     /**
      * Create or return the latest unpaid invoice for a user's plan purchase.
+     *
+     * @param  User  $user  Authenticated user performing the operation.
+     * @param  Plan  $plan  The plan value.
+     * @param  Tenant|null  $tenant  Tenant in the current operation scope.
+     * @return Invoice Resolved operation result.
+     *
+     * @since 1.0.0
      */
     public function invoiceForPlan(User $user, Plan $plan, ?Tenant $tenant = null): Invoice
     {
@@ -78,6 +95,14 @@ class BillingService
 
     /**
      * Create or return a pending clinic-owned invoice for a plan without tying it to a user.
+     *
+     * @param  Plan  $plan  The plan value.
+     * @param  Tenant  $tenant  Tenant in the current operation scope.
+     * @param  User|null  $actor  Authenticated user performing the operation.
+     * @param  int  $discountAmount  The discount amount value.
+     * @return Invoice Resolved operation result.
+     *
+     * @since 1.0.0
      */
     public function invoiceForClinicPlan(Plan $plan, Tenant $tenant, ?User $actor = null, int $discountAmount = 0): Invoice
     {
@@ -142,6 +167,12 @@ class BillingService
 
     /**
      * Mark a clinic-owned plan invoice paid and activate its linked plan.
+     *
+     * @param  Invoice  $invoice  The invoice value.
+     * @param  User|null  $actor  Authenticated user performing the operation.
+     * @return Subscription|null Resolved operation result.
+     *
+     * @since 1.0.0
      */
     public function activateClinicPlanInvoice(Invoice $invoice, ?User $actor = null): ?Subscription
     {
@@ -166,6 +197,11 @@ class BillingService
 
     /**
      * Start payment for an unpaid invoice.
+     *
+     * @param  Invoice  $invoice  The invoice value.
+     * @return Payment Resolved operation result.
+     *
+     * @since 1.0.0
      */
     public function initiatePayment(Invoice $invoice): Payment
     {
@@ -238,6 +274,10 @@ class BillingService
      * Verify a payment and activate its plan exactly once.
      *
      * @param  array<string, mixed>  $payload
+     * @param  Payment  $payment  The payment value.
+     * @return Payment Resolved operation result.
+     *
+     * @since 1.0.0
      */
     public function verifyPayment(Payment $payment, array $payload = []): Payment
     {
@@ -293,6 +333,10 @@ class BillingService
      * Mark a gateway attempt as failed without exposing gateway payloads to users.
      *
      * @param  array<string, mixed>  $payload
+     * @param  Payment  $payment  The payment value.
+     * @return Payment Resolved operation result.
+     *
+     * @since 1.0.0
      */
     public function markPaymentFailed(Payment $payment, array $payload = []): Payment
     {
@@ -337,6 +381,14 @@ class BillingService
 
     /**
      * Replace any active user plan and activate the newly purchased one.
+     *
+     * @param  User  $user  Authenticated user performing the operation.
+     * @param  Plan  $plan  The plan value.
+     * @param  Invoice  $invoice  The invoice value.
+     * @param  Tenant|null  $tenant  Tenant in the current operation scope.
+     * @return Subscription Resolved operation result.
+     *
+     * @since 1.0.0
      */
     public function activatePlan(User $user, Plan $plan, Invoice $invoice, ?Tenant $tenant = null): Subscription
     {
@@ -377,6 +429,10 @@ class BillingService
 
     /**
      * Mark subscriptions expired by time or usage.
+     *
+     * @return int Calculated numeric value.
+     *
+     * @since 1.0.0
      */
     public function expireEndedSubscriptions(): int
     {
@@ -395,6 +451,12 @@ class BillingService
 
     /**
      * Consume legacy aggregate usage without expiring the base subscription.
+     *
+     * @param  User  $user  Authenticated user performing the operation.
+     * @param  int  $amount  The amount value.
+     * @return Subscription|null Resolved operation result.
+     *
+     * @since 1.0.0
      */
     public function consumeUsage(User $user, int $amount = 1): ?Subscription
     {
@@ -434,6 +496,12 @@ class BillingService
 
     /**
      * Return the active subscription for a user, expiring stale rows first.
+     *
+     * @param  User  $user  Authenticated user performing the operation.
+     * @param  Tenant|null  $tenant  Tenant in the current operation scope.
+     * @return Subscription|null Resolved operation result.
+     *
+     * @since 1.0.0
      */
     public function activeSubscription(User $user, ?Tenant $tenant = null): ?Subscription
     {
@@ -454,6 +522,16 @@ class BillingService
         }
     }
 
+    /**
+     * Find active subscription.
+     *
+     * @param  User  $user  Authenticated user performing the operation.
+     * @param  Tenant|null  $tenant  Tenant in the current operation scope.
+     * @param  string  $scope  The scope value.
+     * @return Subscription|null Resolved operation result.
+     *
+     * @since 1.0.0
+     */
     private function findActiveSubscription(User $user, ?Tenant $tenant, string $scope): ?Subscription
     {
         $query = $user->subscriptions()
@@ -476,6 +554,14 @@ class BillingService
         return $subscription;
     }
 
+    /**
+     * Execute the next invoice number operation.
+     *
+     * @param  Plan|null  $plan  The plan value.
+     * @return string Resolved string value.
+     *
+     * @since 1.0.0
+     */
     private function nextInvoiceNumber(?Plan $plan = null): string
     {
         $prefix = match ($plan?->plan_type?->value) {
@@ -495,6 +581,16 @@ class BillingService
         return $number;
     }
 
+    /**
+     * Execute the billing tenant for operation.
+     *
+     * @param  User  $user  Authenticated user performing the operation.
+     * @param  Tenant|null  $tenant  Tenant in the current operation scope.
+     * @param  string  $scope  The scope value.
+     * @return Tenant|null Resolved operation result.
+     *
+     * @since 1.0.0
+     */
     private function billingTenantFor(User $user, ?Tenant $tenant = null, string $scope = 'billing.tenant_resolution'): ?Tenant
     {
         if ($tenant) {
@@ -514,8 +610,22 @@ class BillingService
         return $tenant;
     }
 
+    /**
+     * Execute the reset debug steps operation.
+     *
+     * @return void No value is returned.
+     *
+     * @since 1.0.0
+     */
     private function resetDebugSteps(): void {}
 
+    /**
+     * Execute the invoice due days operation.
+     *
+     * @return int Calculated numeric value.
+     *
+     * @since 1.0.0
+     */
     private function invoiceDueDays(): int
     {
         return max(1, min(90, (int) $this->settings->get('billing.invoice_due_days', 7)));
@@ -524,6 +634,12 @@ class BillingService
     /**
      * Reuse only a fresh Zarinpal authority so an expired StartPay URL is never
      * returned indefinitely. Other adapters retain their existing idempotency.
+     *
+     * @param  Payment  $payment  The payment value.
+     * @param  PaymentGateway  $gateway  The gateway value.
+     * @return bool Whether the requested condition is satisfied.
+     *
+     * @since 1.0.0
      */
     private function pendingPaymentIsReusable(Payment $payment, PaymentGateway $gateway): bool
     {
@@ -546,6 +662,11 @@ class BillingService
     /**
      * Close only the obsolete gateway attempt; the invoice remains payable and
      * immediately receives a new payment attempt.
+     *
+     * @param  Payment  $payment  The payment value.
+     * @return void No value is returned.
+     *
+     * @since 1.0.0
      */
     private function closeStalePendingPayment(Payment $payment): void
     {
@@ -563,6 +684,14 @@ class BillingService
         ])->save();
     }
 
+    /**
+     * Execute the plan context operation.
+     *
+     * @param  Plan  $plan  The plan value.
+     * @return array Resolved data array.
+     *
+     * @since 1.0.0
+     */
     private function planContext(Plan $plan): array
     {
         return [
@@ -574,6 +703,14 @@ class BillingService
         ];
     }
 
+    /**
+     * Execute the invoice context operation.
+     *
+     * @param  Invoice  $invoice  The invoice value.
+     * @return array Resolved data array.
+     *
+     * @since 1.0.0
+     */
     private function invoiceContext(Invoice $invoice): array
     {
         return [
@@ -590,6 +727,14 @@ class BillingService
         ];
     }
 
+    /**
+     * Execute the payment context operation.
+     *
+     * @param  Payment  $payment  The payment value.
+     * @return array Resolved data array.
+     *
+     * @since 1.0.0
+     */
     private function paymentContext(Payment $payment): array
     {
         return [
@@ -608,6 +753,14 @@ class BillingService
         ];
     }
 
+    /**
+     * Execute the subscription context operation.
+     *
+     * @param  Subscription  $subscription  The subscription value.
+     * @return array Resolved data array.
+     *
+     * @since 1.0.0
+     */
     private function subscriptionContext(Subscription $subscription): array
     {
         return [
@@ -622,6 +775,14 @@ class BillingService
         ];
     }
 
+    /**
+     * Execute the payment gateway context operation.
+     *
+     * @param  mixed  $gateway  The gateway value.
+     * @return array Resolved data array.
+     *
+     * @since 1.0.0
+     */
     private function paymentGatewayContext(mixed $gateway): array
     {
         return [
@@ -633,7 +794,12 @@ class BillingService
     }
 
     /**
+     * Execute the payload context operation.
+     *
      * @param  array<string, mixed>  $payload
+     * @return array Resolved data array.
+     *
+     * @since 1.0.0
      */
     private function payloadContext(array $payload): array
     {
@@ -644,6 +810,14 @@ class BillingService
         ];
     }
 
+    /**
+     * Execute the plan type value operation.
+     *
+     * @param  Plan  $plan  The plan value.
+     * @return mixed Resolved operation result.
+     *
+     * @since 1.0.0
+     */
     private function planTypeValue(Plan $plan): mixed
     {
         $planType = $plan->plan_type;

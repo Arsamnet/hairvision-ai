@@ -53,6 +53,9 @@
             "@php artisan config:clear --ansi @no_additional_args",
             "@php artisan test"
         ],
+        "phpdoc:audit": [
+            "@php scripts/audit-phpdoc.php app database scripts/audit-phpdoc.php"
+        ],
         "post-autoload-dump": [
             "Illuminate\\Foundation\\ComposerScripts::postAutoloadDump",
             "@php artisan package:discover --ansi"

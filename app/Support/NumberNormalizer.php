@@ -47,6 +47,11 @@ class NumberNormalizer
 
     /**
      * Convert supported Persian and Arabic numerals to Latin digits.
+     *
+     * @param  string  $value  Input value supplied to the operation.
+     * @return string Resolved string value.
+     *
+     * @since 1.0.0
      */
     public static function toLatinDigits(string $value): string
     {
@@ -59,6 +64,11 @@ class NumberNormalizer
      * Persian, Arabic, and Latin digits are accepted. Valid comma-grouped
      * integers and Arabic decimal separators are converted to an unformatted
      * Latin representation. Non-numeric text is returned unchanged.
+     *
+     * @param  string  $value  Input value supplied to the operation.
+     * @return string Resolved string value.
+     *
+     * @since 1.0.0
      */
     public static function normalizeNumericString(string $value): string
     {
@@ -81,6 +91,11 @@ class NumberNormalizer
 
     /**
      * Convert Latin digits to Persian numerals for user-facing debug text.
+     *
+     * @param  string  $value  Input value supplied to the operation.
+     * @return string Resolved string value.
+     *
+     * @since 1.0.0
      */
     public static function toPersianDigits(string $value): string
     {
@@ -89,6 +104,11 @@ class NumberNormalizer
 
     /**
      * Strip non-digit characters after digit-script normalization.
+     *
+     * @param  string  $value  Input value supplied to the operation.
+     * @return string Resolved string value.
+     *
+     * @since 1.0.0
      */
     public static function digitsOnly(string $value): string
     {
@@ -97,6 +117,11 @@ class NumberNormalizer
 
     /**
      * Determine whether all characters are Persian, Arabic, or Latin digits.
+     *
+     * @param  string  $value  Input value supplied to the operation.
+     * @return bool Whether the requested condition is satisfied.
+     *
+     * @since 1.0.0
      */
     public static function hasOnlySupportedDigits(string $value): bool
     {

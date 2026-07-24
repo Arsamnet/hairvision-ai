@@ -47,6 +47,8 @@ class ClinicNotification extends Model
      * Clinic delivery rows for this message.
      *
      * @return HasMany<ClinicNotificationRecipient, $this>
+     *
+     * @since 1.0.0
      */
     public function recipients(): HasMany
     {
@@ -57,6 +59,8 @@ class ClinicNotification extends Model
      * Dashboard user who created this message.
      *
      * @return BelongsTo<User, $this>
+     *
+     * @since 1.0.0
      */
     public function creator(): BelongsTo
     {
@@ -67,6 +71,8 @@ class ClinicNotification extends Model
      * Dashboard user who last updated this message.
      *
      * @return BelongsTo<User, $this>
+     *
+     * @since 1.0.0
      */
     public function updater(): BelongsTo
     {
@@ -74,7 +80,12 @@ class ClinicNotification extends Model
     }
 
     /**
+     * Constrain the query by published.
+     *
      * @param  Builder<ClinicNotification>  $query
+     * @return Builder Configured query builder.
+     *
+     * @since 1.0.0
      */
     public function scopePublished(Builder $query): Builder
     {
@@ -82,7 +93,12 @@ class ClinicNotification extends Model
     }
 
     /**
+     * Constrain the query by visible now.
+     *
      * @param  Builder<ClinicNotification>  $query
+     * @return Builder Configured query builder.
+     *
+     * @since 1.0.0
      */
     public function scopeVisibleNow(Builder $query): Builder
     {
@@ -93,6 +109,13 @@ class ClinicNotification extends Model
             ->where(fn (Builder $query) => $query->whereNull('visible_until')->orWhere('visible_until', '>=', $now));
     }
 
+    /**
+     * Execute the importance tone operation.
+     *
+     * @return string Resolved string value.
+     *
+     * @since 1.0.0
+     */
     public function importanceTone(): string
     {
         return match ($this->importance) {

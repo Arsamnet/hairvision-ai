@@ -50,6 +50,8 @@ class HairVisionMvpTest extends TestCase
         config([
             'app.debug' => true,
             'hairvision.debug_fast_samples' => true,
+            'hairvision.api_image.max_dimension' => 800,
+            'hairvision.api_image.jpeg_quality' => 85,
             'hairvision.otp.max_requests' => 2,
             'hairvision.otp.decay_seconds' => 600,
             'hairvision.otp.max_attempts' => 5,
@@ -268,6 +270,46 @@ class HairVisionMvpTest extends TestCase
                 && $request['recipients'] === ['989124248164']
                 && $request['params']['verification-code'] === $code;
         });
+    }
+
+    public function test_otp_request_returns_only_a_generic_error_after_three_failed_sms_attempts(): void
+    {
+        $this->createTenant('Clinic One', 'aria', 'aria.hairvision-ai.test');
+
+        SmsGateway::create([
+            'name' => 'IPPanel System',
+            'provider_code' => 'ippanel',
+            'owner_scope' => 'system',
+            'status' => 'enabled',
+            'is_default' => true,
+            'encrypted_credentials' => ['api_key' => 'system-token'],
+            'settings_json' => [
+                'from_number' => '+983000505',
+                'otp_pattern_code' => 's5jh64gwzlk0jf3',
+            ],
+        ]);
+
+        config(['hairvision.sms.ippanel.retry_delay_milliseconds' => 0]);
+        Http::fake([
+            'https://edge.ippanel.com/v1/api/send' => Http::response([
+                'meta' => [
+                    'status' => false,
+                    'message' => 'Provider internal failure',
+                ],
+            ], 503),
+        ]);
+
+        $response = $this->forHost('aria.hairvision-ai.test')
+            ->postJson('/api/v1/auth/otp/request', ['phone' => '09124248164'])
+            ->assertUnprocessable()
+            ->assertJsonPath('message', __('sms.delivery_failed_generic'));
+
+        $encodedPayload = json_encode($response->json(), JSON_THROW_ON_ERROR);
+
+        $this->assertStringNotContainsString('IPPanel', $encodedPayload);
+        $this->assertStringNotContainsString('sms_gateway', $encodedPayload);
+        $this->assertStringNotContainsString('Provider internal failure', $encodedPayload);
+        Http::assertSentCount(3);
     }
 
     public function test_otp_request_exposes_debug_sms_for_local_system_provider(): void
@@ -675,6 +717,8 @@ class HairVisionMvpTest extends TestCase
             $access->id => ['is_active' => true],
         ]);
 
+        $providerImage = $this->patternedJpeg(1600, 800);
+
         Http::fake([
             'https://api.gapgpt.app/v1/images/edits' => Http::response([
                 'id' => 'gap-response',
@@ -682,7 +726,7 @@ class HairVisionMvpTest extends TestCase
                     ['url' => 'https://cdn.gapgpt.test/generated/result.jpg'],
                 ],
             ], 200, ['x-request-id' => 'gap-request']),
-            'https://cdn.gapgpt.test/generated/result.jpg' => Http::response(base64_decode(self::TEST_JPEG_BASE64), 200, [
+            'https://cdn.gapgpt.test/generated/result.jpg' => Http::response($providerImage, 200, [
                 'Content-Type' => 'image/jpeg',
             ]),
         ]);
@@ -743,6 +787,21 @@ class HairVisionMvpTest extends TestCase
         $group = GenerationGroup::query()->where('uuid', $groupId)->firstOrFail();
         $this->assertSame(['two_weeks', 'intermediate_regrowth', 'final_result'], $group->jobs()->orderBy('id')->pluck('period')->all());
         $this->assertSame(3, GeneratedAsset::query()->where('generation_group_id', $group->id)->count());
+        GeneratedAsset::query()
+            ->where('generation_group_id', $group->id)
+            ->get()
+            ->each(function (GeneratedAsset $asset): void {
+                $storedImage = Storage::disk($asset->disk)->get($asset->path);
+                $imageInfo = getimagesizefromstring($storedImage);
+
+                $this->assertIsArray($imageInfo);
+                $this->assertSame([800, 400], [$imageInfo[0], $imageInfo[1]]);
+                $this->assertSame(IMAGETYPE_JPEG, $imageInfo[2]);
+                $this->assertSame('image/jpeg', $asset->mime);
+                $this->assertStringEndsWith('.jpg', $asset->path);
+                $this->assertSame(strlen($storedImage), $asset->size);
+                $this->assertSame(hash('sha256', $storedImage), $asset->checksum);
+            });
         $this->assertSame(3, $access->refresh()->credit_used);
     }
 
@@ -1452,9 +1511,37 @@ class HairVisionMvpTest extends TestCase
 
     private function seedSampleImages(): void
     {
+        $sampleImage = $this->patternedJpeg(1600, 800);
+
         foreach (['two-weeks.jpg', 'intermediate_regrowth.jpg', 'final_result.jpg', 'eyebrow_final_result.jpg'] as $filename) {
-            Storage::disk('local')->put('sample-results/'.$filename, base64_decode(self::TEST_JPEG_BASE64));
+            Storage::disk('local')->put('sample-results/'.$filename, $sampleImage);
         }
+    }
+
+    private function patternedJpeg(int $width, int $height): string
+    {
+        $image = imagecreatetruecolor($width, $height);
+
+        for ($y = 0; $y < $height; $y += 20) {
+            for ($x = 0; $x < $width; $x += 20) {
+                $color = imagecolorallocate(
+                    $image,
+                    ($x * 13 + $y * 3) % 256,
+                    ($x * 5 + $y * 17) % 256,
+                    ($x * 19 + $y * 7) % 256,
+                );
+                imagefilledrectangle($image, $x, $y, min($x + 19, $width - 1), min($y + 19, $height - 1), $color);
+            }
+        }
+
+        ob_start();
+        imagejpeg($image, null, 95);
+        $binary = ob_get_clean();
+        imagedestroy($image);
+
+        $this->assertIsString($binary);
+
+        return $binary;
     }
 
     private function multipartField(string $body, string $field): ?string

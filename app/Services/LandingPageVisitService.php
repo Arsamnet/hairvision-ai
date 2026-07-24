@@ -16,6 +16,12 @@ class LandingPageVisitService
 {
     /**
      * Create a tenant-scoped visit row.
+     *
+     * @param  Request  $request  Incoming HTTP request.
+     * @param  Tenant  $tenant  Tenant in the current operation scope.
+     * @return TenantLandingPageVisit Resolved operation result.
+     *
+     * @since 1.0.0
      */
     public function record(Request $request, Tenant $tenant): TenantLandingPageVisit
     {

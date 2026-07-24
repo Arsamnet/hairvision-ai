@@ -7,8 +7,20 @@ use App\Models\Tenant;
 use App\Models\TenantThemeSetting;
 use Illuminate\Database\Seeder;
 
+/**
+ * Provides tenant theme setting seeder behavior.
+ *
+ * @since 1.0.0
+ */
 class TenantThemeSettingSeeder extends Seeder
 {
+    /**
+     * Execute the tenant theme setting seeder operation.
+     *
+     * @return void No value is returned.
+     *
+     * @since 1.0.0
+     */
     public function run(): void
     {
         $template = Template::query()->where('code', 'classic')->firstOrFail();
@@ -24,7 +36,11 @@ class TenantThemeSettingSeeder extends Seeder
     }
 
     /**
+     * Execute the themes operation.
+     *
      * @return array<string, array<string, mixed>>
+     *
+     * @since 1.0.0
      */
     private function themes(): array
     {

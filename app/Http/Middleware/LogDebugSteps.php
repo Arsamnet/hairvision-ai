@@ -16,7 +16,13 @@ use Throwable;
 final class LogDebugSteps
 {
     /**
+     * Execute the log debug steps operation.
+     *
      * @param  Closure(Request): Response  $next
+     * @param  Request  $request  Incoming HTTP request.
+     * @return Response HTTP response.
+     *
+     * @since 1.0.0
      */
     public function handle(Request $request, Closure $next): Response
     {
@@ -51,6 +57,14 @@ final class LogDebugSteps
         return $response;
     }
 
+    /**
+     * Execute the elapsed milliseconds operation.
+     *
+     * @param  float  $startedAt  The started at value.
+     * @return float Calculated numeric value.
+     *
+     * @since 1.0.0
+     */
     private static function elapsedMilliseconds(float $startedAt): float
     {
         return round((microtime(true) - $startedAt) * 1000, 2);

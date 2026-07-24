@@ -8,6 +8,7 @@ use App\Models\GeneratedAsset;
 use App\Models\GenerationGroup;
 use App\Models\GenerationJob;
 use App\Models\Upload;
+use App\Services\AI\JpegImageNormalizer;
 use App\Services\Billing\CreditLedgerService;
 use App\Services\Generation\FinalGenerationSmsService;
 use App\Services\Generation\GenerationStageCatalog;
@@ -47,10 +48,21 @@ class ProcessGenerationJob implements ShouldQueue
      */
     public int $tries = 1;
 
+    /**
+     * Create a new process generation job instance.
+     *
+     * @param  GenerationJob  $generationJob  The generation job value.
+     *
+     * @since 1.0.0
+     */
     public function __construct(public GenerationJob $generationJob) {}
 
     /**
      * Execute provider processing and persist the generated asset.
+     *
+     * @return void No value is returned.
+     *
+     * @since 1.0.0
      */
     public function handle(): void
     {
@@ -103,6 +115,11 @@ class ProcessGenerationJob implements ShouldQueue
 
     /**
      * Laravel queue failure callback.
+     *
+     * @param  Throwable  $exception  Failure being handled.
+     * @return void No value is returned.
+     *
+     * @since 1.0.0
      */
     public function failed(Throwable $exception): void
     {
@@ -111,6 +128,13 @@ class ProcessGenerationJob implements ShouldQueue
 
     /**
      * Process the stage through the configured AI model action.
+     *
+     * @param  string  $scope  The scope value.
+     * @param  Upload  $upload  The upload value.
+     * @return void No value is returned.
+     *
+     * @since 1.0.0
+     * @since 2.0.0 Behavior updated for the version 2.0.0 release.
      */
     private function processWithAiModelAction(string $scope, Upload $upload): void
     {
@@ -127,6 +151,7 @@ class ProcessGenerationJob implements ShouldQueue
                     'prompt' => $this->generationJob->prompt,
                 ],
                 selectedAccess: $this->generationJob->aiModelAccess,
+                lead: $upload->lead,
             );
 
             if (! $response->successful) {
@@ -147,11 +172,21 @@ class ProcessGenerationJob implements ShouldQueue
                 return;
             }
 
+            try {
+                $normalizedImage = app(JpegImageNormalizer::class)->normalizeWithProductDefaults(
+                    (string) $response->output['binary_content'],
+                );
+            } catch (Throwable $exception) {
+                $this->markFailed('missing_generated_image', $exception);
+
+                return;
+            }
+
             if (! $this->consumeServiceCredit()) {
                 return;
             }
 
-            $this->storeGeneratedBinaryAsset($response);
+            $this->storeGeneratedBinaryAsset($normalizedImage, $response->metadata);
             $this->markCompletedAndContinue();
         } catch (Throwable $exception) {
             $this->markFailed('ai_model_exception', $exception);
@@ -160,6 +195,10 @@ class ProcessGenerationJob implements ShouldQueue
 
     /**
      * Mark the stage as completed and continue the group.
+     *
+     * @return void No value is returned.
+     *
+     * @since 1.0.0
      */
     private function markCompletedAndContinue(): void
     {
@@ -178,6 +217,10 @@ class ProcessGenerationJob implements ShouldQueue
 
     /**
      * Complete the group or dispatch the next stage.
+     *
+     * @return void No value is returned.
+     *
+     * @since 1.0.0
      */
     private function completeGroupOrDispatchNext(): void
     {
@@ -215,6 +258,12 @@ class ProcessGenerationJob implements ShouldQueue
 
     /**
      * Mark the stage and group as failed.
+     *
+     * @param  string  $reasonCode  The reason code value.
+     * @param  Throwable|null  $exception  Failure being handled.
+     * @return void No value is returned.
+     *
+     * @since 1.0.0
      */
     private function markFailed(string $reasonCode, ?Throwable $exception = null): void
     {
@@ -240,6 +289,11 @@ class ProcessGenerationJob implements ShouldQueue
 
     /**
      * Stop remaining stages after any generation stage fails.
+     *
+     * @param  GenerationGroup  $group  The group value.
+     * @return void No value is returned.
+     *
+     * @since 1.0.0
      */
     private function failGroupAfterJobFailure(GenerationGroup $group): void
     {
@@ -259,6 +313,10 @@ class ProcessGenerationJob implements ShouldQueue
 
     /**
      * Stop this queued stage before provider execution when another stage already failed.
+     *
+     * @return bool Whether the requested condition is satisfied.
+     *
+     * @since 1.0.0
      */
     private function shouldStopBecauseGroupFailed(): bool
     {
@@ -287,6 +345,11 @@ class ProcessGenerationJob implements ShouldQueue
 
     /**
      * Mark failed from an exception without leaving the job stuck in processing.
+     *
+     * @param  Throwable  $exception  Failure being handled.
+     * @return void No value is returned.
+     *
+     * @since 1.0.0
      */
     private function safelyMarkFailedFromException(Throwable $exception): void
     {
@@ -307,6 +370,10 @@ class ProcessGenerationJob implements ShouldQueue
 
     /**
      * Return the generic public failure message stored for visitor-facing APIs.
+     *
+     * @return string Resolved string value.
+     *
+     * @since 1.0.0
      */
     private function publicFailureMessage(): string
     {
@@ -315,6 +382,12 @@ class ProcessGenerationJob implements ShouldQueue
 
     /**
      * Log operational generation failures independently from debug tracing.
+     *
+     * @param  string  $reasonCode  The reason code value.
+     * @param  Throwable|null  $exception  Failure being handled.
+     * @return void No value is returned.
+     *
+     * @since 1.0.0
      */
     private function logJobFailure(string $reasonCode, ?Throwable $exception = null): void
     {
@@ -339,6 +412,10 @@ class ProcessGenerationJob implements ShouldQueue
 
     /**
      * Consume one service credit before storing the generated output.
+     *
+     * @return bool Whether the requested condition is satisfied.
+     *
+     * @since 1.0.0
      */
     private function consumeServiceCredit(): bool
     {
@@ -370,6 +447,11 @@ class ProcessGenerationJob implements ShouldQueue
 
     /**
      * Check whether the AI response contains image bytes.
+     *
+     * @param  AiModelResponseData  $response  The response value.
+     * @return bool Whether the requested condition is satisfied.
+     *
+     * @since 1.0.0
      */
     private function aiResponseHasImage(AiModelResponseData $response): bool
     {
@@ -378,29 +460,32 @@ class ProcessGenerationJob implements ShouldQueue
     }
 
     /**
-     * Store binary provider output into private result storage.
+     * Store normalized provider output into private result storage.
+     *
+     * @param  array{binary_content: string, mime: string, extension: string, size: int, width: int, height: int}  $normalized
+     * @param  array<string, mixed>  $providerMetadata
+     * @return void No value is returned.
+     *
+     * @since 1.0.0
+     * @since 2.0.0 Behavior updated for the version 2.0.0 release.
      */
-    private function storeGeneratedBinaryAsset(AiModelResponseData $response): void
+    private function storeGeneratedBinaryAsset(array $normalized, array $providerMetadata): void
     {
         $scope = 'generation.job.process';
 
-        $extension = (string) ($response->output['extension'] ?? 'jpg');
-        $mime = (string) ($response->output['mime'] ?? 'image/jpeg');
         $disk = Storage::disk('local');
-        $destination = $this->destinationPath($extension);
+        $destination = $this->destinationPath();
 
         $disk->makeDirectory(dirname($destination));
-        $disk->put($destination, $response->output['binary_content']);
-
-        $size = $disk->size($destination);
-        $safeMime = str_starts_with($mime, 'image/') ? $mime : 'image/jpeg';
+        $disk->put($destination, $normalized['binary_content']);
 
         $this->createAsset([
             'disk' => 'local',
             'path' => $destination,
-            'mime' => $safeMime,
-            'size' => $size,
-            'provider_metadata_json' => $response->metadata,
+            'mime' => $normalized['mime'],
+            'size' => $normalized['size'],
+            'checksum' => hash('sha256', $normalized['binary_content']),
+            'provider_metadata_json' => $providerMetadata,
         ]);
     }
 
@@ -408,6 +493,9 @@ class ProcessGenerationJob implements ShouldQueue
      * Create the generated asset database record.
      *
      * @param  array<string, mixed>  $attributes
+     * @return void No value is returned.
+     *
+     * @since 1.0.0
      */
     private function createAsset(array $attributes): void
     {
@@ -429,16 +517,18 @@ class ProcessGenerationJob implements ShouldQueue
 
     /**
      * Build the private result storage path.
+     *
+     * @return string Resolved string value.
+     *
+     * @since 1.0.0
+     * @since 2.0.0 Behavior updated for the version 2.0.0 release.
      */
-    private function destinationPath(string $extension): string
+    private function destinationPath(): string
     {
-        $extension = ltrim(strtolower($extension), '.');
-        $extension = in_array($extension, ['jpg', 'jpeg', 'png', 'webp'], true) ? $extension : 'jpg';
-
         return 'tenants/'.$this->generationJob->tenant->uuid
             .'/leads/'.$this->generationJob->lead->uuid
             .'/results/'.$this->generationJob->group->uuid
-            .'/'.$this->generationJob->period.'.'.$extension;
+            .'/'.$this->generationJob->period.'.jpg';
     }
 
     /**

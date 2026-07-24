@@ -18,10 +18,23 @@ use Illuminate\Support\Facades\DB;
  */
 class ClinicManagementService
 {
+    /**
+     * Create a new clinic management service instance.
+     *
+     * @param  ServiceEntitlementService  $entitlements  The entitlements value.
+     *
+     * @since 1.0.0
+     */
     public function __construct(private readonly ServiceEntitlementService $entitlements) {}
 
     /**
      * Paginate dashboard clinic records.
+     *
+     * @param  PaginationParameters  $pagination  The pagination value.
+     * @param  string|null  $status  Target lifecycle status.
+     * @return LengthAwarePaginator Paginated result set.
+     *
+     * @since 1.0.0
      */
     public function paginate(PaginationParameters $pagination, ?string $status = null): LengthAwarePaginator
     {
@@ -34,6 +47,12 @@ class ClinicManagementService
 
     /**
      * Build a searchable clinic query.
+     *
+     * @param  PaginationParameters  $pagination  The pagination value.
+     * @param  string|null  $status  Target lifecycle status.
+     * @return Builder Configured query builder.
+     *
+     * @since 1.0.0
      */
     public function query(PaginationParameters $pagination, ?string $status = null): Builder
     {
@@ -61,6 +80,9 @@ class ClinicManagementService
      * Create a clinic and its primary domain.
      *
      * @param  array<string, mixed>  $data
+     * @return Tenant Resolved operation result.
+     *
+     * @since 1.0.0
      */
     public function create(array $data): Tenant
     {
@@ -87,6 +109,10 @@ class ClinicManagementService
      * Update a clinic and its primary domain row.
      *
      * @param  array<string, mixed>  $data
+     * @param  Tenant  $tenant  Tenant in the current operation scope.
+     * @return Tenant Resolved operation result.
+     *
+     * @since 1.0.0
      */
     public function update(Tenant $tenant, array $data): Tenant
     {
@@ -119,6 +145,11 @@ class ClinicManagementService
 
     /**
      * Delete a clinic and cascade tenant-owned data through database constraints.
+     *
+     * @param  Tenant  $tenant  Tenant in the current operation scope.
+     * @return void No value is returned.
+     *
+     * @since 1.0.0
      */
     public function delete(Tenant $tenant): void
     {

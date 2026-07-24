@@ -41,6 +41,9 @@ class PaymentGateway extends Model
      * Scope query to enabled payment gateways.
      *
      * @param  Builder<PaymentGateway>  $query
+     * @return Builder Configured query builder.
+     *
+     * @since 1.0.0
      */
     public function scopeEnabled(Builder $query): Builder
     {

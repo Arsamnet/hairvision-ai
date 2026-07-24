@@ -22,6 +22,14 @@ use Illuminate\Validation\ValidationException;
  */
 class AiModelManager
 {
+    /**
+     * Create a new ai model manager instance.
+     *
+     * @param  AiModelResolver  $resolver  The resolver value.
+     * @param  ExecutableAiModelSyncService  $executableModels  The executable models value.
+     *
+     * @since 1.0.0
+     */
     public function __construct(
         private readonly AiModelResolver $resolver,
         private readonly ExecutableAiModelSyncService $executableModels,
@@ -29,6 +37,11 @@ class AiModelManager
 
     /**
      * Paginate AI model access records for admin screens.
+     *
+     * @param  Request  $request  Incoming HTTP request.
+     * @return LengthAwarePaginator Paginated result set.
+     *
+     * @since 1.0.0
      */
     public function paginate(Request $request): LengthAwarePaginator
     {
@@ -49,6 +62,13 @@ class AiModelManager
 
     /**
      * Build the filtered AI model access query.
+     *
+     * @param  Request  $request  Incoming HTTP request.
+     * @param  PaginationParameters  $pagination  The pagination value.
+     * @return Builder Configured query builder.
+     *
+     * @since 1.0.0
+     * @since 2.0.0 Behavior updated for the version 2.0.0 release.
      */
     public function query(Request $request, PaginationParameters $pagination): Builder
     {
@@ -76,9 +96,9 @@ class AiModelManager
             ->when($request->filled('credit_status'), function (Builder $query) use ($request): void {
                 match ($request->string('credit_status')->toString()) {
                     'unlimited' => $query->whereNull('credit_limit'),
-                    'finished' => $query->whereNotNull('credit_limit')->whereColumn('credit_used', '>=', 'credit_limit'),
+                    'finished' => $query->whereNotNull('credit_limit')->whereRaw('(credit_used + credit_reserved) >= credit_limit'),
                     'available' => $query->where(function (Builder $query): void {
-                        $query->whereNull('credit_limit')->orWhereColumn('credit_used', '<', 'credit_limit');
+                        $query->whereNull('credit_limit')->orWhereRaw('(credit_used + credit_reserved) < credit_limit');
                     }),
                     default => null,
                 };
@@ -93,6 +113,10 @@ class AiModelManager
      * Create an AI model access record.
      *
      * @param  array<string, mixed>  $data
+     * @param  User  $actor  Authenticated user performing the operation.
+     * @return AiModelAccess Resolved operation result.
+     *
+     * @since 1.0.0
      */
     public function create(array $data, User $actor): AiModelAccess
     {
@@ -116,6 +140,11 @@ class AiModelManager
      * Update an AI model access record.
      *
      * @param  array<string, mixed>  $data
+     * @param  AiModelAccess  $access  The access value.
+     * @param  User  $actor  Authenticated user performing the operation.
+     * @return AiModelAccess Resolved operation result.
+     *
+     * @since 1.0.0
      */
     public function update(AiModelAccess $access, array $data, User $actor): AiModelAccess
     {
@@ -137,6 +166,12 @@ class AiModelManager
 
     /**
      * Toggle AI model access active state.
+     *
+     * @param  AiModelAccess  $access  The access value.
+     * @param  User  $actor  Authenticated user performing the operation.
+     * @return AiModelAccess Resolved operation result.
+     *
+     * @since 1.0.0
      */
     public function toggle(AiModelAccess $access, User $actor): AiModelAccess
     {
@@ -157,6 +192,11 @@ class AiModelManager
 
     /**
      * Delete an AI model access record.
+     *
+     * @param  AiModelAccess  $access  The access value.
+     * @return void No value is returned.
+     *
+     * @since 1.0.0
      */
     public function delete(AiModelAccess $access): void
     {
@@ -174,6 +214,13 @@ class AiModelManager
 
     /**
      * Resolve the usable model access for a clinic and usage category.
+     *
+     * @param  Tenant  $clinic  Tenant in the current operation scope.
+     * @param  string  $usageCategoryKey  The usage category key value.
+     * @param  int|null  $aiModelAccessId  The ai model access id value.
+     * @return AiModelAccess Resolved operation result.
+     *
+     * @since 1.0.0
      */
     public function resolveForClinic(Tenant $clinic, string $usageCategoryKey, ?int $aiModelAccessId = null): AiModelAccess
     {
@@ -231,7 +278,11 @@ class AiModelManager
     /**
      * Return active access records assigned to a clinic and category.
      *
+     * @param  Tenant  $clinic  Tenant in the current operation scope.
+     * @param  string  $usageCategoryKey  The usage category key value.
      * @return Collection<int, AiModelAccess>
+     *
+     * @since 1.0.0
      */
     public function availableForClinic(Tenant $clinic, string $usageCategoryKey): Collection
     {
@@ -257,7 +308,10 @@ class AiModelManager
      * Count unfinished legacy generation jobs per assigned model.
      *
      * @param  array<int, int>  $accessIds
+     * @param  Tenant  $clinic  Tenant in the current operation scope.
      * @return array<int, int>
+     *
+     * @since 1.0.0
      */
     private function activeQueueLoads(Tenant $clinic, array $accessIds): array
     {
@@ -277,9 +331,13 @@ class AiModelManager
     }
 
     /**
+     * Execute the sort accesses by priority operation.
+     *
      * @param  Collection<int, AiModelAccess>  $accesses
      * @param  array<int, int>  $loads
      * @return Collection<int, AiModelAccess>
+     *
+     * @since 1.0.0
      */
     private function sortAccessesByPriority(Collection $accesses, array $loads): Collection
     {
@@ -297,9 +355,13 @@ class AiModelManager
     }
 
     /**
+     * Execute the sort accesses by load operation.
+     *
      * @param  Collection<int, AiModelAccess>  $accesses
      * @param  array<int, int>  $loads
      * @return Collection<int, AiModelAccess>
+     *
+     * @since 1.0.0
      */
     private function sortAccessesByLoad(Collection $accesses, array $loads): Collection
     {
@@ -316,6 +378,14 @@ class AiModelManager
             ->values();
     }
 
+    /**
+     * Execute the concurrency limit for access operation.
+     *
+     * @param  AiModelAccess  $access  The access value.
+     * @return int Calculated numeric value.
+     *
+     * @since 1.0.0
+     */
     private function concurrencyLimitForAccess(AiModelAccess $access): int
     {
         return max(1, (int) data_get(
@@ -327,6 +397,14 @@ class AiModelManager
 
     /**
      * Validate model and usage category config keys.
+     *
+     * @param  string  $modelKey  The model key value.
+     * @param  string  $usageCategoryKey  The usage category key value.
+     * @param  string|null  $scope  The scope value.
+     * @param  int  $step  The step value.
+     * @return int Calculated numeric value.
+     *
+     * @since 1.0.0
      */
     public function validateConfigKeys(
         string $modelKey,
@@ -362,7 +440,10 @@ class AiModelManager
      * Build sanitized attributes for persistence.
      *
      * @param  array<string, mixed>  $data
+     * @param  AiModelAccess|null  $access  The access value.
      * @return array<string, mixed>
+     *
+     * @since 1.0.0
      */
     private function attributes(array $data, ?AiModelAccess $access = null): array
     {
@@ -395,6 +476,8 @@ class AiModelManager
      *
      * @param  array<string, mixed>  $settings
      * @return array<string, mixed>
+     *
+     * @since 1.0.0
      */
     private function filteredSettings(array $settings): array
     {

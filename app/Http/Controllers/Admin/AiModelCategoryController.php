@@ -29,6 +29,14 @@ use Symfony\Component\HttpFoundation\Response;
  */
 class AiModelCategoryController extends Controller
 {
+    /**
+     * Display the ai model category listing.
+     *
+     * @param  Request  $request  Incoming HTTP request.
+     * @return View Rendered response view.
+     *
+     * @since 2.0.0
+     */
     public function index(Request $request): View
     {
         abort_unless($request->user()?->hasPermission('ai_model_categories.view'), Response::HTTP_FORBIDDEN);
@@ -62,6 +70,14 @@ class AiModelCategoryController extends Controller
         ]);
     }
 
+    /**
+     * Persist a new ai model category record.
+     *
+     * @param  Request  $request  Incoming HTTP request.
+     * @return RedirectResponse HTTP redirect response.
+     *
+     * @since 2.0.0
+     */
     public function store(Request $request): RedirectResponse
     {
         abort_unless($request->user()?->hasPermission('ai_model_categories.create'), Response::HTTP_FORBIDDEN);
@@ -76,6 +92,15 @@ class AiModelCategoryController extends Controller
         return back()->with('status', __('ai_models.categories.messages.created'));
     }
 
+    /**
+     * Display the requested ai model category resource.
+     *
+     * @param  Request  $request  Incoming HTTP request.
+     * @param  AiModelCategory  $category  The category value.
+     * @return View Rendered response view.
+     *
+     * @since 2.0.0
+     */
     public function show(Request $request, AiModelCategory $category): View
     {
         abort_unless($request->user()?->hasPermission('ai_model_categories.view'), Response::HTTP_FORBIDDEN);
@@ -100,6 +125,15 @@ class AiModelCategoryController extends Controller
         ]);
     }
 
+    /**
+     * Update the requested ai model category record.
+     *
+     * @param  Request  $request  Incoming HTTP request.
+     * @param  AiModelCategory  $category  The category value.
+     * @return RedirectResponse HTTP redirect response.
+     *
+     * @since 2.0.0
+     */
     public function update(Request $request, AiModelCategory $category): RedirectResponse
     {
         abort_unless($request->user()?->hasPermission('ai_model_categories.update'), Response::HTTP_FORBIDDEN);
@@ -118,6 +152,15 @@ class AiModelCategoryController extends Controller
         return back()->with('status', __('ai_models.categories.messages.updated'));
     }
 
+    /**
+     * Toggle the category's active state.
+     *
+     * @param  Request  $request  Incoming HTTP request.
+     * @param  AiModelCategory  $category  The category value.
+     * @return RedirectResponse HTTP redirect response.
+     *
+     * @since 2.0.0
+     */
     public function toggle(Request $request, AiModelCategory $category): RedirectResponse
     {
         abort_unless($request->user()?->hasPermission('ai_model_categories.update'), Response::HTTP_FORBIDDEN);
@@ -136,6 +179,15 @@ class AiModelCategoryController extends Controller
         return back()->with('status', __('ai_models.categories.messages.toggled'));
     }
 
+    /**
+     * Delete the requested ai model category record.
+     *
+     * @param  Request  $request  Incoming HTTP request.
+     * @param  AiModelCategory  $category  The category value.
+     * @return RedirectResponse HTTP redirect response.
+     *
+     * @since 2.0.0
+     */
     public function destroy(Request $request, AiModelCategory $category): RedirectResponse
     {
         abort_unless($request->user()?->hasPermission('ai_model_categories.delete'), Response::HTTP_FORBIDDEN);
@@ -154,6 +206,15 @@ class AiModelCategoryController extends Controller
         return back()->with('status', __('ai_models.categories.messages.deleted'));
     }
 
+    /**
+     * Archive a category that has operational history.
+     *
+     * @param  Request  $request  Incoming HTTP request.
+     * @param  AiModelCategory  $category  The category value.
+     * @return RedirectResponse HTTP redirect response.
+     *
+     * @since 2.0.0
+     */
     public function archive(Request $request, AiModelCategory $category): RedirectResponse
     {
         abort_unless($request->user()?->hasPermission('ai_model_categories.update'), Response::HTTP_FORBIDDEN);
@@ -172,12 +233,21 @@ class AiModelCategoryController extends Controller
         return back()->with('status', __('ai_models.categories.messages.archived'));
     }
 
+    /**
+     * Execute the store output operation.
+     *
+     * @param  Request  $request  Incoming HTTP request.
+     * @param  AiModelCategory  $category  The category value.
+     * @param  ExecutableAiModelSyncService  $executableModels  The executable models value.
+     * @return RedirectResponse HTTP redirect response.
+     *
+     * @since 2.0.0
+     */
     public function storeOutput(
         Request $request,
         AiModelCategory $category,
         ExecutableAiModelSyncService $executableModels
-    ): RedirectResponse
-    {
+    ): RedirectResponse {
         abort_unless($request->user()?->hasPermission('ai_model_category_outputs.manage'), Response::HTTP_FORBIDDEN);
 
         $data = $request->validate($this->outputRules($category));
@@ -188,13 +258,23 @@ class AiModelCategoryController extends Controller
         return back()->with('status', __('ai_models.outputs.messages.created'));
     }
 
+    /**
+     * Execute the update output operation.
+     *
+     * @param  Request  $request  Incoming HTTP request.
+     * @param  AiModelCategory  $category  The category value.
+     * @param  AiModelCategoryOutput  $output  The output value.
+     * @param  ExecutableAiModelSyncService  $executableModels  The executable models value.
+     * @return RedirectResponse HTTP redirect response.
+     *
+     * @since 2.0.0
+     */
     public function updateOutput(
         Request $request,
         AiModelCategory $category,
         AiModelCategoryOutput $output,
         ExecutableAiModelSyncService $executableModels
-    ): RedirectResponse
-    {
+    ): RedirectResponse {
         abort_unless($request->user()?->hasPermission('ai_model_category_outputs.manage'), Response::HTTP_FORBIDDEN);
         abort_unless((int) $output->ai_model_category_id === (int) $category->id, Response::HTTP_NOT_FOUND);
 
@@ -213,6 +293,16 @@ class AiModelCategoryController extends Controller
         return back()->with('status', __('ai_models.outputs.messages.updated'));
     }
 
+    /**
+     * Execute the destroy output operation.
+     *
+     * @param  Request  $request  Incoming HTTP request.
+     * @param  AiModelCategory  $category  The category value.
+     * @param  AiModelCategoryOutput  $output  The output value.
+     * @return RedirectResponse HTTP redirect response.
+     *
+     * @since 2.0.0
+     */
     public function destroyOutput(Request $request, AiModelCategory $category, AiModelCategoryOutput $output): RedirectResponse
     {
         abort_unless($request->user()?->hasPermission('ai_model_category_outputs.manage'), Response::HTTP_FORBIDDEN);
@@ -233,7 +323,12 @@ class AiModelCategoryController extends Controller
     }
 
     /**
+     * Execute the category rules operation.
+     *
+     * @param  AiModelCategory|null  $category  The category value.
      * @return array<string, mixed>
+     *
+     * @since 2.0.0
      */
     private function categoryRules(?AiModelCategory $category = null): array
     {
@@ -255,8 +350,13 @@ class AiModelCategoryController extends Controller
     }
 
     /**
+     * Validate d category data.
+     *
      * @param  array<string, mixed>  $rules
+     * @param  Request  $request  Incoming HTTP request.
      * @return array<string, mixed>
+     *
+     * @since 2.0.0
      */
     private function validatedCategoryData(Request $request, array $rules): array
     {
@@ -279,7 +379,12 @@ class AiModelCategoryController extends Controller
     }
 
     /**
+     * Execute the output rules operation.
+     *
+     * @param  AiModelCategory  $category  The category value.
      * @return array<string, mixed>
+     *
+     * @since 2.0.0
      */
     private function outputRules(AiModelCategory $category): array
     {
@@ -300,6 +405,14 @@ class AiModelCategoryController extends Controller
         ];
     }
 
+    /**
+     * Execute the attach operational counts operation.
+     *
+     * @param  LengthAwarePaginator  $categories  The categories value.
+     * @return void No value is returned.
+     *
+     * @since 2.0.0
+     */
     private function attachOperationalCounts(LengthAwarePaginator $categories): void
     {
         $categories->getCollection()->transform(function (AiModelCategory $category): AiModelCategory {
@@ -316,7 +429,12 @@ class AiModelCategoryController extends Controller
     }
 
     /**
+     * Execute the category usage operation.
+     *
+     * @param  AiModelCategory  $category  The category value.
      * @return array{models: int, legacy_model_accesses: int, plan_entitlements: int, subscription_entitlements: int, credit_transactions: int, generation_requests: int}
+     *
+     * @since 2.0.0
      */
     private function categoryUsage(AiModelCategory $category): array
     {
@@ -340,6 +458,14 @@ class AiModelCategoryController extends Controller
         ];
     }
 
+    /**
+     * Execute the category is used operation.
+     *
+     * @param  AiModelCategory  $category  The category value.
+     * @return bool Whether the requested condition is satisfied.
+     *
+     * @since 2.0.0
+     */
     private function categoryIsUsed(AiModelCategory $category): bool
     {
         return array_sum($this->categoryUsage($category)) > 0;

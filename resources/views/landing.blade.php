@@ -476,6 +476,7 @@
         'pollIntervalMs' => config('hairvision.generation.poll_interval_ms'),
         'softTimeoutMs' => config('hairvision.generation.soft_timeout_ms'),
         'maxWaitMs' => config('hairvision.generation.max_wait_ms'),
+        'allowBackgroundCompletion' => config('hairvision.generation.allow_background_completion'),
         'pollTimeoutMs' => config('hairvision.generation.poll_timeout_ms'),
     ];
 ?>

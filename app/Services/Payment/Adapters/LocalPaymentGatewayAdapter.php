@@ -13,6 +13,15 @@ use App\Services\Payment\Contracts\PaymentGatewayAdapter;
  */
 class LocalPaymentGatewayAdapter implements PaymentGatewayAdapter
 {
+    /**
+     * Execute the initiate operation.
+     *
+     * @param  PaymentGateway  $gateway  The gateway value.
+     * @param  Payment  $payment  The payment value.
+     * @return array Resolved data array.
+     *
+     * @since 1.0.0
+     */
     public function initiate(PaymentGateway $gateway, Payment $payment): array
     {
         return [
@@ -22,6 +31,16 @@ class LocalPaymentGatewayAdapter implements PaymentGatewayAdapter
         ];
     }
 
+    /**
+     * Verify a local deterministic payment.
+     *
+     * @param  PaymentGateway  $gateway  The gateway value.
+     * @param  Payment  $payment  The payment value.
+     * @param  array  $payload  Provider or service payload.
+     * @return array Resolved data array.
+     *
+     * @since 1.0.0
+     */
     public function verify(PaymentGateway $gateway, Payment $payment, array $payload = []): array
     {
         return [

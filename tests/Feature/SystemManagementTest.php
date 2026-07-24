@@ -581,6 +581,33 @@ class SystemManagementTest extends TestCase
         $this->assertDatabaseMissing('users', ['id' => $managedUser->id]);
     }
 
+    public function test_duplicate_user_phone_validation_message_is_persian(): void
+    {
+        $this->seed(DatabaseSeeder::class);
+
+        $tenant = Tenant::query()->where('slug', 'arya')->firstOrFail();
+        $superAdmin = User::query()->where('role', 'super_admin')->firstOrFail();
+
+        $this->actingAs($superAdmin)
+            ->forHost('hairvision-ai.test')
+            ->post('/admin/users', [
+                'name' => 'کاربر با شماره تکراری',
+                'email' => 'duplicate-phone@example.com',
+                'phone_normalized' => $superAdmin->phone_normalized,
+                'access_scope' => 'clinic',
+                'role' => 'viewer',
+                'status' => 'active',
+                'tenant_id' => $tenant->id,
+            ])
+            ->assertSessionHasErrors([
+                'phone_normalized' => 'این شماره موبایل قبلاً ثبت شده است.',
+            ]);
+
+        $this->assertDatabaseMissing('users', [
+            'email' => 'duplicate-phone@example.com',
+        ]);
+    }
+
     public function test_users_without_permissions_cannot_access_user_management_actions(): void
     {
         $tenant = $this->createTenant('Clinic One', 'arya', 'arya.hairvision-ai.test');
@@ -785,9 +812,47 @@ class SystemManagementTest extends TestCase
         });
     }
 
-    public function test_ippanel_gateway_timeout_returns_localized_validation_error(): void
+    public function test_ippanel_gateway_retries_until_the_third_attempt_succeeds(): void
     {
-        Http::fake(fn () => throw new ConnectionException('Operation timed out.'));
+        config(['hairvision.sms.ippanel.retry_delay_milliseconds' => 0]);
+
+        $attempts = 0;
+        Http::fake(function () use (&$attempts) {
+            $attempts++;
+
+            return $attempts < 3
+                ? Http::response(['meta' => ['status' => false]], 503)
+                : Http::response(['meta' => ['status' => true]]);
+        });
+
+        $gateway = SmsGateway::create([
+            'name' => 'IPPanel System',
+            'provider_code' => 'ippanel',
+            'owner_scope' => 'system',
+            'status' => 'enabled',
+            'is_default' => true,
+            'encrypted_credentials' => ['api_key' => 'system-token'],
+            'settings_json' => [
+                'from_number' => '+983000505',
+                'otp_pattern_code' => 's5jh64gwzlk0jf3',
+            ],
+        ]);
+
+        $this->assertTrue(app(SmsGatewayService::class)->sendSystemOtp('09124248164', '385107')->is($gateway));
+        $this->assertSame(3, $attempts);
+    }
+
+    public function test_ippanel_gateway_timeout_retries_three_times_and_returns_a_generic_error(): void
+    {
+        Log::spy();
+        config(['hairvision.sms.ippanel.retry_delay_milliseconds' => 0]);
+
+        $attempts = 0;
+        Http::fake(function () use (&$attempts) {
+            $attempts++;
+
+            throw new ConnectionException('Operation timed out for 09124248164.');
+        });
 
         SmsGateway::create([
             'name' => 'IPPanel System',
@@ -802,18 +867,39 @@ class SystemManagementTest extends TestCase
             ],
         ]);
 
-        $this->expectException(ValidationException::class);
-        $this->expectExceptionMessage(__('sms.ippanel_timeout'));
+        try {
+            app(SmsGatewayService::class)->sendSystemOtp('09124248164', '385107');
+            $this->fail('Expected the exhausted SMS delivery to throw a validation exception.');
+        } catch (ValidationException $exception) {
+            $this->assertSame(__('sms.delivery_failed_generic'), $exception->errors()['request'][0] ?? null);
+        }
 
-        app(SmsGatewayService::class)->sendSystemOtp('09124248164', '385107');
+        $this->assertSame(3, $attempts);
+
+        Log::shouldHaveReceived('warning')
+            ->withArgs(fn (string $message, array $context): bool => $message === 'IPPanel SMS gateway delivery failed after retries.'
+                && ($context['attempts'] ?? null) === 3
+                && ($context['failure_type'] ?? null) === 'request_exception'
+                && ($context['exception_class'] ?? null) === ConnectionException::class
+                && ($context['operation'] ?? null) === 'sms.adapter.ippanel.send_otp'
+                && ! str_contains(json_encode($context, JSON_THROW_ON_ERROR), 'Operation timed out')
+                && ! str_contains(json_encode($context, JSON_THROW_ON_ERROR), '09124248164')
+                && ! str_contains(json_encode($context, JSON_THROW_ON_ERROR), '385107')
+                && ! str_contains(json_encode($context, JSON_THROW_ON_ERROR), 'system-token'))
+            ->once();
     }
 
     public function test_ippanel_gateway_failed_response_logs_safe_context(): void
     {
         Log::spy();
+        config(['hairvision.sms.ippanel.retry_delay_milliseconds' => 0]);
 
-        Http::fake([
-            'https://edge.ippanel.com/v1/api/send' => Http::response([
+        $attempts = 0;
+
+        Http::fake(function () use (&$attempts) {
+            $attempts++;
+
+            return Http::response([
                 'meta' => [
                     'status' => false,
                     'message' => 'Invalid recipient 989124248164 for code 385107',
@@ -822,8 +908,8 @@ class SystemManagementTest extends TestCase
                     'recipient' => '989124248164',
                     'verification-code' => '385107',
                 ],
-            ]),
-        ]);
+            ]);
+        });
 
         SmsGateway::create([
             'name' => 'IPPanel System',
@@ -842,16 +928,21 @@ class SystemManagementTest extends TestCase
             app(SmsGatewayService::class)->sendSystemOtp('09124248164', '385107');
             $this->fail('Expected IPPanel failed response to throw a validation exception.');
         } catch (ValidationException $exception) {
-            $this->assertSame(__('sms.ippanel_send_failed'), $exception->errors()['sms_gateway'][0] ?? null);
+            $this->assertSame(__('sms.delivery_failed_generic'), $exception->errors()['request'][0] ?? null);
         }
 
+        $this->assertSame(3, $attempts);
+
         Log::shouldHaveReceived('warning')
-            ->withArgs(fn (string $message, array $context): bool => $message === 'IPPanel SMS gateway request failed.'
+            ->withArgs(fn (string $message, array $context): bool => $message === 'IPPanel SMS gateway delivery failed after retries.'
                 && ($context['http_status'] ?? null) === 200
                 && ($context['ippanel_status'] ?? null) === false
-                && ($context['ippanel_message'] ?? null) === 'Invalid recipient [number] for code [number]'
                 && ($context['sending_type'] ?? null) === 'pattern'
+                && ($context['operation'] ?? null) === 'sms.adapter.ippanel.send_otp'
+                && ($context['attempts'] ?? null) === 3
+                && ($context['failure_type'] ?? null) === 'rejected_response'
                 && ! array_key_exists('payload', $context)
+                && ! array_key_exists('ippanel_message', $context)
                 && ! str_contains(json_encode($context, JSON_THROW_ON_ERROR), '385107')
                 && ! str_contains(json_encode($context, JSON_THROW_ON_ERROR), '989124248164')
                 && ! str_contains(json_encode($context, JSON_THROW_ON_ERROR), 'system-token'))
@@ -2532,6 +2623,8 @@ class SystemManagementTest extends TestCase
             ->assertOk()
             ->assertSee(route('admin.leads.uploads.show', [$lead, $upload]))
             ->assertSee(route('admin.leads.assets.show', [$lead, $asset]))
+            ->assertSee('data-processing-upload="'.$upload->uuid.'"', false)
+            ->assertSee('data-generation-result-upload="'.$upload->uuid.'"', false)
             ->assertSee(__('leads.uploads.title'));
 
         $this->actingAs($userA)
@@ -2681,6 +2774,188 @@ class SystemManagementTest extends TestCase
             ->assertOk()
             ->assertSee($sourceRoute)
             ->assertSee($assetRoute);
+    }
+
+    public function test_lead_processing_history_groups_each_source_image_with_its_result_versions(): void
+    {
+        Storage::fake('local');
+
+        $tenant = $this->createTenant('Clinic One', 'arya', 'arya.hairvision-ai.test');
+        $clinicAdmin = $this->createUserForTenant($tenant, 'clinic_admin', '09121111111');
+        $this->activateSubscription($clinicAdmin);
+        $lead = $this->createLead($tenant, '09120000001', 'History Lead');
+        $profile = LeadProfile::query()->create([
+            'tenant_id' => $tenant->id,
+            'lead_id' => $lead->id,
+        ]);
+        $category = AiModelCategory::query()->create([
+            'code' => 'history_preview',
+            'name' => 'پیش‌نمایش تاریخچه',
+            'status' => 'active',
+        ]);
+        $output = AiModelCategoryOutput::query()->create([
+            'ai_model_category_id' => $category->id,
+            'code' => 'final_result',
+            'name' => 'نتیجه تاریخچه',
+            'prompt' => 'محرمانه',
+            'credit_cost' => 1,
+            'is_active' => true,
+        ]);
+
+        $firstSourcePath = 'tenants/'.$tenant->uuid.'/leads/'.$lead->uuid.'/source-images/first.jpg';
+        $latestSourcePath = 'tenants/'.$tenant->uuid.'/leads/'.$lead->uuid.'/source-images/latest.jpg';
+        Storage::disk('local')->put($firstSourcePath, 'first-source');
+        Storage::disk('local')->put($latestSourcePath, 'latest-source');
+
+        $firstSource = LeadSourceImage::query()->create([
+            'tenant_id' => $tenant->id,
+            'lead_id' => $lead->id,
+            'lead_profile_id' => $profile->id,
+            'version' => 1,
+            'is_current' => false,
+            'replaced_at' => now()->subHour(),
+            'disk' => 'local',
+            'path' => $firstSourcePath,
+            'mime' => 'image/jpeg',
+            'size' => 12,
+            'status' => 'validated',
+        ]);
+        $latestSource = LeadSourceImage::query()->create([
+            'tenant_id' => $tenant->id,
+            'lead_id' => $lead->id,
+            'lead_profile_id' => $profile->id,
+            'version' => 2,
+            'is_current' => true,
+            'disk' => 'local',
+            'path' => $latestSourcePath,
+            'mime' => 'image/jpeg',
+            'size' => 13,
+            'status' => 'validated',
+        ]);
+
+        $firstGeneration = GenerationRequest::query()->create([
+            'tenant_id' => $tenant->id,
+            'lead_id' => $lead->id,
+            'lead_source_image_id' => $firstSource->id,
+            'ai_model_category_id' => $category->id,
+            'ai_model_category_output_id' => $output->id,
+            'status' => 'completed',
+            'idempotency_key' => 'history-first-source',
+            'requested_at' => now()->subHours(2),
+            'completed_at' => now()->subHours(2),
+        ]);
+        $latestGeneration = GenerationRequest::query()->create([
+            'tenant_id' => $tenant->id,
+            'lead_id' => $lead->id,
+            'lead_source_image_id' => $latestSource->id,
+            'ai_model_category_id' => $category->id,
+            'ai_model_category_output_id' => $output->id,
+            'status' => 'completed',
+            'idempotency_key' => 'history-latest-source',
+            'requested_at' => now()->subHour(),
+            'completed_at' => now()->subHour(),
+        ]);
+
+        $firstAssetPath = 'tenants/'.$tenant->uuid.'/leads/'.$lead->uuid.'/results/first.jpg';
+        $archivedAssetPath = 'tenants/'.$tenant->uuid.'/leads/'.$lead->uuid.'/results/latest-v1.jpg';
+        $currentAssetPath = 'tenants/'.$tenant->uuid.'/leads/'.$lead->uuid.'/results/latest-v2.jpg';
+        Storage::disk('local')->put($firstAssetPath, 'first-result');
+        Storage::disk('local')->put($archivedAssetPath, 'archived-result');
+        Storage::disk('local')->put($currentAssetPath, 'current-result');
+
+        $firstAsset = GeneratedAsset::query()->create([
+            'tenant_id' => $tenant->id,
+            'lead_id' => $lead->id,
+            'lead_source_image_id' => $firstSource->id,
+            'ai_model_category_id' => $category->id,
+            'ai_model_category_output_id' => $output->id,
+            'generation_request_id' => $firstGeneration->id,
+            'period' => $output->code,
+            'version' => 1,
+            'is_current' => true,
+            'disk' => 'local',
+            'path' => $firstAssetPath,
+            'mime' => 'image/jpeg',
+            'size' => 12,
+        ]);
+        $archivedAsset = GeneratedAsset::query()->create([
+            'tenant_id' => $tenant->id,
+            'lead_id' => $lead->id,
+            'lead_source_image_id' => $latestSource->id,
+            'ai_model_category_id' => $category->id,
+            'ai_model_category_output_id' => $output->id,
+            'generation_request_id' => $latestGeneration->id,
+            'period' => $output->code,
+            'version' => 1,
+            'is_current' => false,
+            'disk' => 'local',
+            'path' => $archivedAssetPath,
+            'mime' => 'image/jpeg',
+            'size' => 15,
+            'archived_at' => now()->subMinutes(30),
+        ]);
+        $currentAsset = GeneratedAsset::query()->create([
+            'tenant_id' => $tenant->id,
+            'lead_id' => $lead->id,
+            'lead_source_image_id' => $latestSource->id,
+            'ai_model_category_id' => $category->id,
+            'ai_model_category_output_id' => $output->id,
+            'generation_request_id' => $latestGeneration->id,
+            'period' => $output->code,
+            'version' => 2,
+            'is_current' => true,
+            'disk' => 'local',
+            'path' => $currentAssetPath,
+            'mime' => 'image/jpeg',
+            'size' => 14,
+        ]);
+        $firstGeneration->update(['current_generated_asset_id' => $firstAsset->id]);
+        $latestGeneration->update(['current_generated_asset_id' => $currentAsset->id]);
+
+        $response = $this->actingAs($clinicAdmin)
+            ->withSession(['admin_active_tenant_id' => $tenant->id])
+            ->forHost('hairvision-ai.test')
+            ->get('/admin/leads/'.$lead->id)
+            ->assertOk()
+            ->assertSee('data-processing-source-image="'.$latestSource->uuid.'"', false)
+            ->assertSee('data-processing-source-image="'.$firstSource->uuid.'"', false)
+            ->assertSee('data-generation-result-source-image="'.$latestSource->uuid.'"', false)
+            ->assertSee('data-generation-result-source-image="'.$firstSource->uuid.'"', false)
+            ->assertSee(route('admin.leads.source-images.show', [$lead, $latestSource]))
+            ->assertSee(route('admin.leads.source-images.show', [$lead, $firstSource]))
+            ->assertSee(route('admin.leads.assets.show', [$lead, $firstAsset]))
+            ->assertSee(route('admin.leads.assets.show', [$lead, $archivedAsset]))
+            ->assertSee(route('admin.leads.assets.show', [$lead, $currentAsset]))
+            ->assertSee(__('leads.source_images.current'))
+            ->assertSee(__('leads.source_images.archived'))
+            ->assertSee(__('leads.generations.current_result'))
+            ->assertSee(__('leads.generations.archived_result'));
+
+        $html = $response->getContent();
+        $this->assertLessThan(
+            strpos($html, 'data-processing-source-image="'.$firstSource->uuid.'"'),
+            strpos($html, 'data-processing-source-image="'.$latestSource->uuid.'"'),
+        );
+        $this->assertLessThan(
+            strpos($html, route('admin.leads.source-images.show', [$lead, $firstSource])),
+            strpos($html, route('admin.leads.source-images.show', [$lead, $latestSource])),
+        );
+
+        $systemAdmin = User::factory()->create([
+            'role' => 'super_admin',
+            'access_scope' => 'system',
+            'status' => 'active',
+        ]);
+
+        $this->actingAs($systemAdmin)
+            ->forHost('hairvision-ai.test')
+            ->get('/admin/leads/'.$lead->id)
+            ->assertOk()
+            ->assertSee('data-processing-source-image="'.$latestSource->uuid.'"', false)
+            ->assertSee('data-processing-source-image="'.$firstSource->uuid.'"', false)
+            ->assertSee(route('admin.leads.assets.show', [$lead, $firstAsset]))
+            ->assertSee(route('admin.leads.assets.show', [$lead, $archivedAsset]))
+            ->assertSee(route('admin.leads.assets.show', [$lead, $currentAsset]));
     }
 
     public function test_lead_details_leave_unrequested_generation_outputs_without_status_or_date(): void

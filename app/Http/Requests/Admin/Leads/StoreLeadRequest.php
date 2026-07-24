@@ -15,13 +15,24 @@ use Illuminate\Validation\Rule;
  */
 class StoreLeadRequest extends FormRequest
 {
+    /**
+     * Determine whether the current user may submit this request.
+     *
+     * @return bool Whether the requested condition is satisfied.
+     *
+     * @since 1.0.0
+     */
     public function authorize(): bool
     {
         return $this->user()?->can('create', Lead::class) ?? false;
     }
 
     /**
+     * Return the validation rules for the request.
+     *
      * @return array<string, mixed>
+     *
+     * @since 1.0.0
      */
     public function rules(): array
     {
@@ -36,6 +47,13 @@ class StoreLeadRequest extends FormRequest
         ];
     }
 
+    /**
+     * Normalize request input before validation.
+     *
+     * @return void No value is returned.
+     *
+     * @since 1.0.0
+     */
     protected function prepareForValidation(): void
     {
         if ($this->has('phone_normalized')) {

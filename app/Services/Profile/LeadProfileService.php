@@ -7,6 +7,7 @@ use App\Models\GenerationRequest;
 use App\Models\Lead;
 use App\Models\LeadProfile;
 use App\Models\LeadSourceImage;
+use App\Services\Billing\CreditLedgerService;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
@@ -19,6 +20,23 @@ use RuntimeException;
  */
 class LeadProfileService
 {
+    /**
+     * Create a new lead profile service instance.
+     *
+     * @param  CreditLedgerService  $credits  The credits value.
+     *
+     * @since 2.0.0
+     */
+    public function __construct(private readonly CreditLedgerService $credits) {}
+
+    /**
+     * Execute the profile for lead operation.
+     *
+     * @param  Lead  $lead  Lead in the current tenant scope.
+     * @return LeadProfile Resolved operation result.
+     *
+     * @since 2.0.0
+     */
     public function profileForLead(Lead $lead): LeadProfile
     {
         return LeadProfile::query()->firstOrCreate([
@@ -27,6 +45,15 @@ class LeadProfileService
         ]);
     }
 
+    /**
+     * Execute the replace source image operation.
+     *
+     * @param  Lead  $lead  Lead in the current tenant scope.
+     * @param  UploadedFile  $file  The file value.
+     * @return LeadSourceImage Resolved operation result.
+     *
+     * @since 2.0.0
+     */
     public function replaceSourceImage(Lead $lead, UploadedFile $file): LeadSourceImage
     {
         $disk = 'local';
@@ -92,6 +119,14 @@ class LeadProfileService
         });
     }
 
+    /**
+     * Cancel queued requests for source.
+     *
+     * @param  LeadSourceImage  $sourceImage  The source image value.
+     * @return void No value is returned.
+     *
+     * @since 2.0.0
+     */
     private function cancelQueuedRequestsForSource(LeadSourceImage $sourceImage): void
     {
         $requests = GenerationRequest::query()
@@ -106,15 +141,20 @@ class LeadProfileService
                 'safe_error_message' => __('messages.source_image_replaced'),
             ]);
 
-            GenerationAttempt::query()
+            $attempts = GenerationAttempt::query()
                 ->where('generation_request_id', $request->id)
-                ->whereIn('status', ['queued', 'dispatched'])
-                ->update([
+                ->whereIn('status', ['queued', 'reserved', 'dispatched'])
+                ->lockForUpdate()
+                ->get();
+
+            foreach ($attempts as $attempt) {
+                $attempt->forceFill([
                     'status' => 'cancelled',
                     'safe_failure_class' => 'source_image_replaced',
                     'safe_error_message' => __('messages.source_image_replaced'),
-                    'updated_at' => now(),
-                ]);
+                ])->save();
+                $this->credits->releaseReservation($attempt, __('messages.source_image_replaced'));
+            }
         }
     }
 }

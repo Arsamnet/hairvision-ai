@@ -16,6 +16,17 @@ use InvalidArgumentException;
  */
 class JalaliDateTimeCast implements CastsAttributes
 {
+    /**
+     * Retrieve get.
+     *
+     * @param  Model  $model  The model value.
+     * @param  string  $key  The key value.
+     * @param  mixed  $value  Input value supplied to the operation.
+     * @param  array  $attributes  The attributes value.
+     * @return string|null Resolved operation result.
+     *
+     * @since 1.0.0
+     */
     public function get(Model $model, string $key, mixed $value, array $attributes): ?string
     {
         if ($value === null || $value === '') {
@@ -25,6 +36,17 @@ class JalaliDateTimeCast implements CastsAttributes
         return JalaliDate::normalizeDateTime((string) $value);
     }
 
+    /**
+     * Convert a Jalali date-time into its persisted representation.
+     *
+     * @param  Model  $model  The model value.
+     * @param  string  $key  The key value.
+     * @param  mixed  $value  Input value supplied to the operation.
+     * @param  array  $attributes  The attributes value.
+     * @return string|null Resolved operation result.
+     *
+     * @since 1.0.0
+     */
     public function set(Model $model, string $key, mixed $value, array $attributes): ?string
     {
         if ($value === null || $value === '') {

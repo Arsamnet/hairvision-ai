@@ -28,6 +28,8 @@ class User extends Authenticatable
      * Get the attributes that should be cast.
      *
      * @return array<string, string>
+     *
+     * @since 1.0.0
      */
     protected function casts(): array
     {
@@ -41,6 +43,8 @@ class User extends Authenticatable
      * Tenants this dashboard user can access.
      *
      * @return BelongsToMany<Tenant, $this>
+     *
+     * @since 1.0.0
      */
     public function tenants(): BelongsToMany
     {
@@ -53,6 +57,8 @@ class User extends Authenticatable
      * Leads assigned to this dashboard user.
      *
      * @return HasMany<Lead, $this>
+     *
+     * @since 1.0.0
      */
     public function assignedLeads(): HasMany
     {
@@ -63,6 +69,8 @@ class User extends Authenticatable
      * Legacy SMS gateways that may still reference this user.
      *
      * @return HasMany<SmsGateway, $this>
+     *
+     * @since 1.0.0
      */
     public function smsGateways(): HasMany
     {
@@ -73,6 +81,8 @@ class User extends Authenticatable
      * Invoices owned by this user.
      *
      * @return HasMany<Invoice, $this>
+     *
+     * @since 1.0.0
      */
     public function invoices(): HasMany
     {
@@ -83,6 +93,8 @@ class User extends Authenticatable
      * Payment transactions initiated by this user.
      *
      * @return HasMany<Payment, $this>
+     *
+     * @since 1.0.0
      */
     public function payments(): HasMany
     {
@@ -93,6 +105,8 @@ class User extends Authenticatable
      * Plan entitlements for this user.
      *
      * @return HasMany<Subscription, $this>
+     *
+     * @since 1.0.0
      */
     public function subscriptions(): HasMany
     {
@@ -103,6 +117,8 @@ class User extends Authenticatable
      * Saved list filter presets owned by this dashboard user.
      *
      * @return HasMany<UserSavedFilter, $this>
+     *
+     * @since 1.0.0
      */
     public function savedFilters(): HasMany
     {
@@ -111,6 +127,10 @@ class User extends Authenticatable
 
     /**
      * Determine whether the user has platform-level access.
+     *
+     * @return bool Whether the requested condition is satisfied.
+     *
+     * @since 1.0.0
      */
     public function isSuperAdmin(): bool
     {
@@ -119,6 +139,10 @@ class User extends Authenticatable
 
     /**
      * Determine whether the user belongs to system-level access scope.
+     *
+     * @return bool Whether the requested condition is satisfied.
+     *
+     * @since 1.0.0
      */
     public function isSystemScoped(): bool
     {
@@ -127,6 +151,10 @@ class User extends Authenticatable
 
     /**
      * Determine whether the user is active and may authenticate.
+     *
+     * @return bool Whether the requested condition is satisfied.
+     *
+     * @since 1.0.0
      */
     public function isActive(): bool
     {
@@ -135,6 +163,11 @@ class User extends Authenticatable
 
     /**
      * Determine whether the user can access a tenant.
+     *
+     * @param  int|null  $tenantId  The tenant id value.
+     * @return bool Whether the requested condition is satisfied.
+     *
+     * @since 1.0.0
      */
     public function canAccessTenant(?int $tenantId): bool
     {
@@ -158,6 +191,11 @@ class User extends Authenticatable
 
     /**
      * Return the role that applies inside a tenant context.
+     *
+     * @param  int|null  $tenantId  The tenant id value.
+     * @return string Resolved string value.
+     *
+     * @since 1.0.0
      */
     public function roleForTenant(?int $tenantId): string
     {
@@ -183,6 +221,12 @@ class User extends Authenticatable
 
     /**
      * Determine whether the user has a backend-enforced permission.
+     *
+     * @param  string  $permission  The permission value.
+     * @param  int|null  $tenantId  The tenant id value.
+     * @return bool Whether the requested condition is satisfied.
+     *
+     * @since 1.0.0
      */
     public function hasPermission(string $permission, ?int $tenantId = null): bool
     {
@@ -193,6 +237,10 @@ class User extends Authenticatable
      * Determine whether the user has at least one of the provided permissions.
      *
      * @param  iterable<string>  $permissions
+     * @param  int|null  $tenantId  The tenant id value.
+     * @return bool Whether the requested condition is satisfied.
+     *
+     * @since 1.0.0
      */
     public function hasAnyPermission(iterable $permissions, ?int $tenantId = null): bool
     {

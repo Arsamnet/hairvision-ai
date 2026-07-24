@@ -18,6 +18,11 @@ class LeadCrmService
      * Create a standalone follow-up entry without editing the lead form.
      *
      * @param  array<string, mixed>  $data
+     * @param  Lead  $lead  Lead in the current tenant scope.
+     * @param  User  $user  Authenticated user performing the operation.
+     * @return LeadNote Resolved operation result.
+     *
+     * @since 1.0.0
      */
     public function createFollowUp(Lead $lead, User $user, array $data): LeadNote
     {
@@ -47,6 +52,11 @@ class LeadCrmService
      * Update a follow-up entry and keep the lead stage aligned when provided.
      *
      * @param  array<string, mixed>  $data
+     * @param  Lead  $lead  Lead in the current tenant scope.
+     * @param  LeadNote  $note  The note value.
+     * @return LeadNote Resolved operation result.
+     *
+     * @since 1.0.0
      */
     public function updateFollowUp(Lead $lead, LeadNote $note, array $data): LeadNote
     {

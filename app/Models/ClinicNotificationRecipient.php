@@ -36,6 +36,8 @@ class ClinicNotificationRecipient extends Model
      * Message delivered to the clinic.
      *
      * @return BelongsTo<ClinicNotification, $this>
+     *
+     * @since 1.0.0
      */
     public function notification(): BelongsTo
     {
@@ -46,6 +48,8 @@ class ClinicNotificationRecipient extends Model
      * Clinic tenant that received the message.
      *
      * @return BelongsTo<Tenant, $this>
+     *
+     * @since 1.0.0
      */
     public function tenant(): BelongsTo
     {
@@ -56,6 +60,8 @@ class ClinicNotificationRecipient extends Model
      * Dashboard user who first opened the message.
      *
      * @return BelongsTo<User, $this>
+     *
+     * @since 1.0.0
      */
     public function readByUser(): BelongsTo
     {
@@ -63,7 +69,13 @@ class ClinicNotificationRecipient extends Model
     }
 
     /**
+     * Constrain the query by for tenant.
+     *
      * @param  Builder<ClinicNotificationRecipient>  $query
+     * @param  int  $tenantId  The tenant id value.
+     * @return Builder Configured query builder.
+     *
+     * @since 1.0.0
      */
     public function scopeForTenant(Builder $query, int $tenantId): Builder
     {
@@ -71,7 +83,12 @@ class ClinicNotificationRecipient extends Model
     }
 
     /**
+     * Constrain the query by unread.
+     *
      * @param  Builder<ClinicNotificationRecipient>  $query
+     * @return Builder Configured query builder.
+     *
+     * @since 1.0.0
      */
     public function scopeUnread(Builder $query): Builder
     {
@@ -79,13 +96,26 @@ class ClinicNotificationRecipient extends Model
     }
 
     /**
+     * Constrain the query by currently visible.
+     *
      * @param  Builder<ClinicNotificationRecipient>  $query
+     * @return Builder Configured query builder.
+     *
+     * @since 1.0.0
      */
     public function scopeCurrentlyVisible(Builder $query): Builder
     {
         return $query->whereHas('notification', fn (Builder $query) => $query->published()->visibleNow());
     }
 
+    /**
+     * Execute the mark read by operation.
+     *
+     * @param  User  $user  Authenticated user performing the operation.
+     * @return void No value is returned.
+     *
+     * @since 1.0.0
+     */
     public function markReadBy(User $user): void
     {
         if ($this->read_at !== null) {

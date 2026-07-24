@@ -1,7 +1,17 @@
 <?php
 
+use App\Services\AI\InputImageProcessingSettings;
 use App\Services\AI\Providers\GapGptImageEditProvider;
 use App\Services\AI\Providers\HairVisionDemoProvider;
+
+$defaultInputImageMaxDimension = (int) env(
+    'HAIRVISION_API_IMAGE_MAX_DIMENSION',
+    InputImageProcessingSettings::DEFAULT_MAX_DIMENSION,
+);
+$defaultInputImageJpegQuality = (int) env(
+    'HAIRVISION_API_IMAGE_JPEG_QUALITY',
+    InputImageProcessingSettings::DEFAULT_JPEG_QUALITY,
+);
 
 $inputImageProcessingSettings = [
     [
@@ -10,7 +20,7 @@ $inputImageProcessingSettings = [
         'type' => 'boolean',
         'required' => false,
         'rules' => ['nullable', 'boolean'],
-        'default' => false,
+        'default' => InputImageProcessingSettings::DEFAULT_ENABLED,
         'secret' => false,
     ],
     [
@@ -19,6 +29,7 @@ $inputImageProcessingSettings = [
         'type' => 'integer',
         'required' => false,
         'rules' => ['nullable', 'required_if:input_image_processing_enabled,1,true', 'integer', 'min:1', 'max:8192'],
+        'default' => $defaultInputImageMaxDimension,
         'secret' => false,
     ],
     [
@@ -27,6 +38,7 @@ $inputImageProcessingSettings = [
         'type' => 'integer',
         'required' => false,
         'rules' => ['nullable', 'required_if:input_image_processing_enabled,1,true', 'integer', 'min:1', 'max:100'],
+        'default' => $defaultInputImageJpegQuality,
         'secret' => false,
     ],
 ];
@@ -50,6 +62,9 @@ return [
                 ],
             ],
             'defaults' => [
+                'input_image_processing_enabled' => InputImageProcessingSettings::DEFAULT_ENABLED,
+                'input_image_max_dimension' => $defaultInputImageMaxDimension,
+                'input_image_jpeg_quality' => $defaultInputImageJpegQuality,
                 'concurrency_limit' => 10,
             ],
             'timeouts' => [
@@ -106,7 +121,7 @@ return [
                     'label' => 'Timeout',
                     'type' => 'integer',
                     'required' => true,
-                    'rules' => ['required', 'integer', 'min:60', 'max:1800'],
+                    'rules' => ['required', 'integer', 'min:60', 'max:900'],
                     'default' => 900,
                     'secret' => false,
                 ],
@@ -122,6 +137,9 @@ return [
                 ],
             ],
             'defaults' => [
+                'input_image_processing_enabled' => InputImageProcessingSettings::DEFAULT_ENABLED,
+                'input_image_max_dimension' => $defaultInputImageMaxDimension,
+                'input_image_jpeg_quality' => $defaultInputImageJpegQuality,
                 'endpoint' => 'https://api.gapgpt.app/v1/images/edits',
                 'model' => 'gpt-image-2',
                 'size' => '1024x1024',

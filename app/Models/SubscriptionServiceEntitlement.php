@@ -48,6 +48,8 @@ class SubscriptionServiceEntitlement extends Model
      * Clinic tenant that owns the entitlement.
      *
      * @return BelongsTo<Tenant, $this>
+     *
+     * @since 1.0.0
      */
     public function tenant(): BelongsTo
     {
@@ -58,6 +60,8 @@ class SubscriptionServiceEntitlement extends Model
      * Base subscription this service belongs to.
      *
      * @return BelongsTo<Subscription, $this>
+     *
+     * @since 1.0.0
      */
     public function subscription(): BelongsTo
     {
@@ -68,6 +72,8 @@ class SubscriptionServiceEntitlement extends Model
      * Plan that originally granted the service.
      *
      * @return BelongsTo<Plan, $this>
+     *
+     * @since 1.0.0
      */
     public function plan(): BelongsTo
     {
@@ -78,17 +84,33 @@ class SubscriptionServiceEntitlement extends Model
      * Ledger entries for this service entitlement.
      *
      * @return HasMany<CreditTransaction, $this>
+     *
+     * @since 1.0.0
      */
     public function creditTransactions(): HasMany
     {
         return $this->hasMany(CreditTransaction::class);
     }
 
+    /**
+     * Execute the total credit operation.
+     *
+     * @return int Calculated numeric value.
+     *
+     * @since 1.0.0
+     */
     public function totalCredit(): int
     {
         return $this->included_credit + $this->purchased_credit;
     }
 
+    /**
+     * Execute the remaining credit operation.
+     *
+     * @return int Calculated numeric value.
+     *
+     * @since 1.0.0
+     */
     public function remainingCredit(): int
     {
         return max(0, $this->totalCredit() - $this->used_credit);

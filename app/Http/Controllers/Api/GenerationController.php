@@ -29,6 +29,15 @@ class GenerationController extends Controller
 {
     /**
      * Create staged generation jobs for a verified upload.
+     *
+     * @param  StoreGenerationRequest  $request  Incoming HTTP request.
+     * @param  GenerationService  $generationService  The generation service value.
+     * @param  LeadSessionService  $leadSessionService  The lead session service value.
+     * @param  GenerationStageCatalog  $stages  The stages value.
+     * @param  IndependentGenerationService  $independentGenerations  The independent generations value.
+     * @return JsonResponse JSON response payload.
+     *
+     * @since 1.0.0
      */
     public function store(
         StoreGenerationRequest $request,
@@ -102,6 +111,14 @@ class GenerationController extends Controller
 
     /**
      * Return generation status for the verified lead.
+     *
+     * @param  Request  $request  Incoming HTTP request.
+     * @param  string  $groupUuid  The group uuid value.
+     * @param  LeadSessionService  $leadSessionService  The lead session service value.
+     * @param  GenerationStageCatalog  $stages  The stages value.
+     * @return JsonResponse JSON response payload.
+     *
+     * @since 1.0.0
      */
     public function status(
         Request $request,
@@ -134,6 +151,14 @@ class GenerationController extends Controller
 
     /**
      * Return generated result URLs for the verified lead.
+     *
+     * @param  Request  $request  Incoming HTTP request.
+     * @param  string  $groupUuid  The group uuid value.
+     * @param  LeadSessionService  $leadSessionService  The lead session service value.
+     * @param  GenerationStageCatalog  $stages  The stages value.
+     * @return JsonResponse JSON response payload.
+     *
+     * @since 1.0.0
      */
     public function results(
         Request $request,
@@ -179,7 +204,11 @@ class GenerationController extends Controller
     /**
      * Build public job data.
      *
+     * @param  GenerationGroup  $group  The group value.
+     * @param  GenerationStageCatalog  $stages  The stages value.
      * @return array<int, array<string, mixed>>
+     *
+     * @since 1.0.0
      */
     private function jobPayload(GenerationGroup $group, GenerationStageCatalog $stages): array
     {
@@ -213,7 +242,12 @@ class GenerationController extends Controller
     /**
      * Build stage metadata for the selected generation service.
      *
+     * @param  GenerationGroup  $group  The group value.
+     * @param  GenerationStageCatalog  $stages  The stages value.
+     * @param  string|null  $usageCategoryKey  The usage category key value.
      * @return array<int, array<string, mixed>>
+     *
+     * @since 1.0.0
      */
     private function stagePayload(
         GenerationGroup $group,
@@ -235,7 +269,11 @@ class GenerationController extends Controller
     /**
      * Resolve the current visible stage.
      *
+     * @param  GenerationGroup  $group  The group value.
+     * @param  GenerationStageCatalog  $stages  The stages value.
      * @return array<string, mixed>|null
+     *
+     * @since 1.0.0
      */
     private function currentStage(GenerationGroup $group, GenerationStageCatalog $stages): ?array
     {
@@ -255,6 +293,12 @@ class GenerationController extends Controller
 
     /**
      * Get the tenant resolved by tenant middleware.
+     *
+     * @param  Request  $request  Incoming HTTP request.
+     * @param  string  $scope  The scope value.
+     * @return Tenant Resolved operation result.
+     *
+     * @since 1.0.0
      */
     private function tenantFromRequest(Request $request, string $scope): Tenant
     {

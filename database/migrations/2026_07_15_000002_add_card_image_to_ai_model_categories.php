@@ -7,6 +7,13 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
+    /**
+     * Execute the up operation.
+     *
+     * @return void No value is returned.
+     *
+     * @since 2.0.0
+     */
     public function up(): void
     {
         Schema::table('ai_model_categories', function (Blueprint $table): void {
@@ -24,6 +31,13 @@ return new class extends Migration
             ->update(['card_image_path' => '/theme/category-icons/eyebrow-transplant.svg']);
     }
 
+    /**
+     * Execute the down operation.
+     *
+     * @return void No value is returned.
+     *
+     * @since 2.0.0
+     */
     public function down(): void
     {
         Schema::table('ai_model_categories', function (Blueprint $table): void {

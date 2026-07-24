@@ -13,6 +13,11 @@ class PaginatedResponse
 {
     /**
      * Convert a paginator to a standard API payload.
+     *
+     * @param  LengthAwarePaginator  $paginator  The paginator value.
+     * @return array Resolved data array.
+     *
+     * @since 1.0.0
      */
     public static function make(LengthAwarePaginator $paginator): array
     {

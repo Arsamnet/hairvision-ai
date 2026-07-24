@@ -15,7 +15,11 @@ use InvalidArgumentException;
 class AiModelTypeRegistry
 {
     /**
+     * Execute the all operation.
+     *
      * @return array<string, array<string, mixed>>
+     *
+     * @since 2.0.0
      */
     public function all(): array
     {
@@ -23,7 +27,12 @@ class AiModelTypeRegistry
     }
 
     /**
+     * Retrieve get.
+     *
+     * @param  string  $type  The type value.
      * @return array<string, mixed>
+     *
+     * @since 2.0.0
      */
     public function get(string $type): array
     {
@@ -39,7 +48,10 @@ class AiModelTypeRegistry
     /**
      * Return schema data safe for API/dashboard display.
      *
+     * @param  string  $type  The type value.
      * @return array<string, mixed>
+     *
+     * @since 2.0.0
      */
     public function publicDefinition(string $type): array
     {
@@ -59,7 +71,11 @@ class AiModelTypeRegistry
     }
 
     /**
+     * Execute the public definitions operation.
+     *
      * @return array<int, array<string, mixed>>
+     *
+     * @since 2.0.0
      */
     public function publicDefinitions(): array
     {
@@ -73,7 +89,10 @@ class AiModelTypeRegistry
      * Validate and whitelist model-level settings.
      *
      * @param  array<string, mixed>  $payload
+     * @param  string  $type  The type value.
      * @return array<string, mixed>
+     *
+     * @since 2.0.0
      */
     public function validateSettings(string $type, array $payload): array
     {
@@ -84,7 +103,11 @@ class AiModelTypeRegistry
      * Validate and whitelist model credentials.
      *
      * @param  array<string, mixed>  $payload
+     * @param  string  $type  The type value.
+     * @param  bool  $partial  The partial value.
      * @return array<string, mixed>
+     *
+     * @since 2.0.0
      */
     public function validateCredentials(string $type, array $payload, bool $partial = false): array
     {
@@ -95,7 +118,10 @@ class AiModelTypeRegistry
      * Validate and whitelist one output config payload.
      *
      * @param  array<string, mixed>  $payload
+     * @param  string  $type  The type value.
      * @return array<string, mixed>
+     *
+     * @since 2.0.0
      */
     public function validateOutputConfig(string $type, array $payload): array
     {
@@ -103,8 +129,15 @@ class AiModelTypeRegistry
     }
 
     /**
+     * Validate field payload.
+     *
      * @param  array<string, mixed>  $payload
+     * @param  string  $type  The type value.
+     * @param  string  $section  The section value.
+     * @param  bool  $partial  The partial value.
      * @return array<string, mixed>
+     *
+     * @since 2.0.0
      */
     private function validateFieldPayload(string $type, string $section, array $payload, bool $partial = false): array
     {
@@ -143,8 +176,12 @@ class AiModelTypeRegistry
     }
 
     /**
+     * Execute the public fields operation.
+     *
      * @param  array<int, array<string, mixed>>  $fields
      * @return array<int, array<string, mixed>>
+     *
+     * @since 2.0.0
      */
     private function publicFields(array $fields): array
     {
@@ -165,9 +202,13 @@ class AiModelTypeRegistry
     }
 
     /**
+     * Execute the public defaults operation.
+     *
      * @param  array<string, mixed>  $defaults
      * @param  array<int, array<string, mixed>>  $secretFields
      * @return array<string, mixed>
+     *
+     * @since 2.0.0
      */
     private function publicDefaults(array $defaults, array $secretFields): array
     {

@@ -14,6 +14,15 @@ use Illuminate\View\View;
  */
 class SystemDashboardController extends Controller
 {
+    /**
+     * Handle the incoming system dashboard request.
+     *
+     * @param  Request  $request  Incoming HTTP request.
+     * @param  SystemOverviewService  $overview  The overview value.
+     * @return View Rendered response view.
+     *
+     * @since 1.0.0
+     */
     public function __invoke(Request $request, SystemOverviewService $overview): View
     {
         return view('admin.system.dashboard', [

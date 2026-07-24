@@ -13,7 +13,15 @@ use Illuminate\Http\Request;
 class EnsureAdminPermission
 {
     /**
+     * Execute the ensure admin permission operation.
+     *
      * @param  Closure(Request): mixed  $next
+     * @param  Request  $request  Incoming HTTP request.
+     * @param  string  $permission  The permission value.
+     * @param  string  ...$permissions  The permissions value.
+     * @return mixed Resolved operation result.
+     *
+     * @since 1.0.0
      */
     public function handle(Request $request, Closure $next, string $permission, string ...$permissions): mixed
     {

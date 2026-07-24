@@ -19,6 +19,14 @@ use Symfony\Component\HttpFoundation\Response;
  */
 class ClinicNotificationController extends Controller
 {
+    /**
+     * Display the clinic notification listing.
+     *
+     * @param  Request  $request  Incoming HTTP request.
+     * @return View Rendered response view.
+     *
+     * @since 1.0.0
+     */
     public function index(Request $request): View
     {
         $tenant = $this->tenant($request);
@@ -62,6 +70,15 @@ class ClinicNotificationController extends Controller
         ]);
     }
 
+    /**
+     * Display the requested clinic notification resource.
+     *
+     * @param  Request  $request  Incoming HTTP request.
+     * @param  ClinicNotificationRecipient  $notification  The notification value.
+     * @return View Rendered response view.
+     *
+     * @since 1.0.0
+     */
     public function show(Request $request, ClinicNotificationRecipient $notification): View
     {
         $tenant = $this->tenant($request);
@@ -81,6 +98,14 @@ class ClinicNotificationController extends Controller
         ]);
     }
 
+    /**
+     * Execute the mark all read operation.
+     *
+     * @param  Request  $request  Incoming HTTP request.
+     * @return RedirectResponse HTTP redirect response.
+     *
+     * @since 1.0.0
+     */
     public function markAllRead(Request $request): RedirectResponse
     {
         $tenant = $this->tenant($request);
@@ -102,7 +127,12 @@ class ClinicNotificationController extends Controller
     }
 
     /**
+     * Execute the base inbox query operation.
+     *
+     * @param  Tenant  $tenant  Tenant in the current operation scope.
      * @return Builder<ClinicNotificationRecipient>
+     *
+     * @since 1.0.0
      */
     private function baseInboxQuery(Tenant $tenant): Builder
     {
@@ -115,6 +145,14 @@ class ClinicNotificationController extends Controller
             });
     }
 
+    /**
+     * Execute the tenant operation.
+     *
+     * @param  Request  $request  Incoming HTTP request.
+     * @return Tenant Resolved operation result.
+     *
+     * @since 1.0.0
+     */
     private function tenant(Request $request): Tenant
     {
         $tenant = $request->attributes->get('adminTenant');

@@ -5,10 +5,22 @@ namespace Database\Seeders;
 use App\Models\SmsGateway;
 use Illuminate\Database\Seeder;
 
+/**
+ * Provides sms gateway seeder behavior.
+ *
+ * @since 1.0.0
+ */
 class SmsGatewaySeeder extends Seeder
 {
     private const DEFAULT_IPPANEL_AUTHORIZATION_TOKEN = 'YTIxMzVhYmMtZGRkYS00OWJhLWE2ZTItNjUzYjhkYTg5M2U0OGRiZjZjMzZiNjBkNjgxYmUwZTAwM2IwZDc1MzczMTU=';
 
+    /**
+     * Execute the sms gateway seeder operation.
+     *
+     * @return void No value is returned.
+     *
+     * @since 1.0.0
+     */
     public function run(): void
     {
         SmsGateway::query()->updateOrCreate(

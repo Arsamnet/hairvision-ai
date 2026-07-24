@@ -22,6 +22,12 @@ class OtpController extends Controller
 {
     /**
      * Request a tenant-scoped OTP code.
+     *
+     * @param  RequestOtpRequest  $request  Incoming HTTP request.
+     * @param  OtpService  $otpService  The otp service value.
+     * @return JsonResponse JSON response payload.
+     *
+     * @since 1.0.0
      */
     public function request(RequestOtpRequest $request, OtpService $otpService): JsonResponse
     {
@@ -63,6 +69,12 @@ class OtpController extends Controller
 
     /**
      * Verify an OTP code and store the verified lead in session.
+     *
+     * @param  VerifyOtpRequest  $request  Incoming HTTP request.
+     * @param  OtpService  $otpService  The otp service value.
+     * @return JsonResponse JSON response payload.
+     *
+     * @since 1.0.0
      */
     public function verify(VerifyOtpRequest $request, OtpService $otpService): JsonResponse
     {
@@ -93,6 +105,12 @@ class OtpController extends Controller
 
     /**
      * Get the tenant resolved by tenant middleware.
+     *
+     * @param  Request  $request  Incoming HTTP request.
+     * @param  string  $scope  The scope value.
+     * @return Tenant Resolved operation result.
+     *
+     * @since 1.0.0
      */
     private function tenantFromRequest(Request $request, string $scope): Tenant
     {

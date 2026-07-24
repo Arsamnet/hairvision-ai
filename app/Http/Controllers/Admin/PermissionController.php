@@ -14,6 +14,14 @@ use Illuminate\View\View;
  */
 class PermissionController extends Controller
 {
+    /**
+     * Handle the incoming permission request.
+     *
+     * @param  Request  $request  Incoming HTTP request.
+     * @return View Rendered response view.
+     *
+     * @since 1.0.0
+     */
     public function __invoke(Request $request): View
     {
         return view('admin.system.permissions.index', [

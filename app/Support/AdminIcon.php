@@ -116,6 +116,15 @@ final class AdminIcon
         'zoom-in',
     ];
 
+    /**
+     * Resolve an icon name to its local class list.
+     *
+     * @param  mixed  $icon  The icon value.
+     * @param  string  $fallback  The fallback value.
+     * @return string Resolved string value.
+     *
+     * @since 1.0.0
+     */
     public static function resolve(mixed $icon, string $fallback = 'plus'): string
     {
         if (is_string($icon)) {
@@ -140,7 +149,11 @@ final class AdminIcon
     }
 
     /**
+     * Execute the aliases operation.
+     *
      * @return array<string, string>
+     *
+     * @since 1.0.0
      */
     public static function aliases(): array
     {
@@ -148,13 +161,26 @@ final class AdminIcon
     }
 
     /**
+     * Execute the available codes operation.
+     *
      * @return array<int, string>
+     *
+     * @since 1.0.0
      */
     public static function availableCodes(): array
     {
         return self::AVAILABLE_CODES;
     }
 
+    /**
+     * Normalize an icon name for lookup.
+     *
+     * @param  mixed  $icon  The icon value.
+     * @param  string  $fallback  The fallback value.
+     * @return string Resolved string value.
+     *
+     * @since 1.0.0
+     */
     public static function normalize(mixed $icon, string $fallback = self::DEFAULT_CATEGORY_ICON): string
     {
         $code = self::normalizeForStorage($icon);
@@ -166,6 +192,14 @@ final class AdminIcon
         return in_array($fallback, self::AVAILABLE_CODES, true) ? $fallback : self::DEFAULT_CATEGORY_ICON;
     }
 
+    /**
+     * Normalize for storage.
+     *
+     * @param  mixed  $icon  The icon value.
+     * @return string|null Resolved operation result.
+     *
+     * @since 1.0.0
+     */
     public static function normalizeForStorage(mixed $icon): ?string
     {
         if (! is_string($icon)) {

@@ -3,12 +3,15 @@
 namespace Tests\Feature;
 
 use App\Actions\Ai\RunAiModelAction;
+use App\Data\Ai\AiModelResponseData;
 use App\Jobs\ProcessGenerationAttempt;
 use App\Models\AiModel;
 use App\Models\AiModelAccess;
 use App\Models\AiModelCategory;
 use App\Models\AiModelCategoryOutput;
+use App\Models\GeneratedAsset;
 use App\Models\GenerationAttempt;
+use App\Models\GenerationRequest;
 use App\Models\Lead;
 use App\Models\Plan;
 use App\Models\Subscription;
@@ -17,7 +20,9 @@ use App\Models\Tenant;
 use App\Models\TenantDomain;
 use App\Models\User;
 use App\Services\AI\AiModelTypeRegistry;
+use App\Services\AI\JpegImageNormalizer;
 use App\Services\Billing\CreditLedgerService;
+use App\Services\Generation\ModelQueueCoordinator;
 use App\Support\JalaliDate;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
@@ -25,6 +30,7 @@ use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
+use Mockery;
 use Tests\TestCase;
 
 class HairVisionV2ArchitectureTest extends TestCase
@@ -36,6 +42,10 @@ class HairVisionV2ArchitectureTest extends TestCase
         parent::setUp();
 
         Storage::fake('local');
+        config([
+            'hairvision.api_image.max_dimension' => 800,
+            'hairvision.api_image.jpeg_quality' => 85,
+        ]);
     }
 
     public function test_type_registry_masks_secrets_and_rejects_unknown_fields(): void
@@ -285,7 +295,8 @@ class HairVisionV2ArchitectureTest extends TestCase
     public function test_independent_generation_attempt_job_stores_asset_and_consumes_credit(): void
     {
         Queue::fake();
-        Storage::disk('local')->put('sample-results/final_result.jpg', 'fake-generated-image');
+        $providerImage = $this->patternedJpeg(1600, 800);
+        Storage::disk('local')->put('sample-results/final_result.jpg', $providerImage);
 
         [$tenant, $lead] = $this->tenantAndVerifiedLead('aria.hairvision-ai.test');
         [$category, $output] = $this->categoryOutputAndActiveModel('hair_transplant', 'final_result', $tenant);
@@ -317,6 +328,7 @@ class HairVisionV2ArchitectureTest extends TestCase
         (new ProcessGenerationAttempt($attempt))->handle(
             app(RunAiModelAction::class),
             app(CreditLedgerService::class),
+            app(ModelQueueCoordinator::class),
         );
 
         $this->assertDatabaseHas('generation_attempts', [
@@ -335,6 +347,22 @@ class HairVisionV2ArchitectureTest extends TestCase
             'generation_attempt_id' => $attempt->id,
             'is_current' => true,
         ]);
+        $asset = GeneratedAsset::query()->where('generation_attempt_id', $attempt->id)->firstOrFail();
+        $storedImage = Storage::disk($asset->disk)->get($asset->path);
+        $imageInfo = getimagesizefromstring($storedImage);
+        $normalizer = app(JpegImageNormalizer::class);
+        $expected = $normalizer->normalize($providerImage, 800, 85);
+        $lowQuality = $normalizer->normalize($providerImage, 800, 20);
+
+        $this->assertIsArray($imageInfo);
+        $this->assertSame([800, 400], [$imageInfo[0], $imageInfo[1]]);
+        $this->assertSame(IMAGETYPE_JPEG, $imageInfo[2]);
+        $this->assertSame('image/jpeg', $asset->mime);
+        $this->assertStringEndsWith('.jpg', $asset->path);
+        $this->assertSame($expected['binary_content'], $storedImage);
+        $this->assertNotSame($lowQuality['binary_content'], $storedImage);
+        $this->assertSame(strlen($storedImage), $asset->size);
+        $this->assertSame(hash('sha256', $storedImage), $asset->checksum);
         $this->assertDatabaseHas('subscription_service_entitlements', [
             'tenant_id' => $tenant->id,
             'service_key' => $category->code,
@@ -346,6 +374,12 @@ class HairVisionV2ArchitectureTest extends TestCase
             'amount' => -1,
             'balance_after' => 4,
         ]);
+        $this->assertDatabaseHas('ai_model_usage_logs', [
+            'clinic_id' => $tenant->id,
+            'lead_id' => $lead->id,
+            'usage_category_key' => $category->code,
+            'status' => 'completed',
+        ]);
 
         $this->withSession(['lead_id' => $lead->id])
             ->forHost('aria.hairvision-ai.test')
@@ -354,6 +388,245 @@ class HairVisionV2ArchitectureTest extends TestCase
             ->assertJsonPath('data.status', 'completed')
             ->assertJsonPath('data.output.code', 'final_result')
             ->assertJson(fn ($json) => $json->whereType('data.asset_url', 'string')->etc());
+    }
+
+    public function test_database_model_queue_enforces_capacity_and_dispatches_fifo(): void
+    {
+        Queue::fake();
+        Storage::disk('local')->put('sample-results/final_result.jpg', $this->patternedJpeg(1600, 800));
+
+        [$tenant, $lead] = $this->tenantAndVerifiedLead('aria.hairvision-ai.test');
+        [$category, $output] = $this->categoryOutputAndActiveModel('hair_transplant', 'final_result', $tenant);
+        $this->grantEntitlement($tenant, $category->code, 5);
+
+        $source = $this->withSession(['lead_id' => $lead->id])
+            ->forHost('aria.hairvision-ai.test')
+            ->postJson('/api/v1/profile/source-image', [
+                'image' => UploadedFile::fake()->image('source.jpg', 10, 10),
+                'consent' => true,
+            ])
+            ->assertCreated()
+            ->json('data');
+
+        foreach ([
+            '33333333-3333-4333-8333-333333333331',
+            '33333333-3333-4333-8333-333333333332',
+        ] as $key) {
+            $this->withSession(['lead_id' => $lead->id])
+                ->forHost('aria.hairvision-ai.test')
+                ->postJson('/api/v1/generations', [
+                    'source_image_id' => $source['id'],
+                    'category_id' => $category->uuid,
+                    'output_id' => $output->uuid,
+                    'idempotency_key' => $key,
+                ])
+                ->assertCreated();
+        }
+
+        $attempts = GenerationAttempt::query()->orderBy('id')->get();
+        $this->assertSame(['dispatched', 'queued'], $attempts->pluck('status')->all());
+        Queue::assertPushed(ProcessGenerationAttempt::class, 1);
+
+        (new ProcessGenerationAttempt($attempts->first()))->handle(
+            app(RunAiModelAction::class),
+            app(CreditLedgerService::class),
+            app(ModelQueueCoordinator::class),
+        );
+
+        $this->assertSame('completed', $attempts->first()->refresh()->status);
+        $this->assertSame('dispatched', $attempts->last()->refresh()->status);
+        Queue::assertPushed(ProcessGenerationAttempt::class, 2);
+    }
+
+    public function test_stale_dispatched_attempt_is_safely_requeued_before_any_provider_call(): void
+    {
+        Queue::fake();
+
+        [$tenant, $lead] = $this->tenantAndVerifiedLead('aria.hairvision-ai.test');
+        [$category, $output] = $this->categoryOutputAndActiveModel('hair_transplant', 'final_result', $tenant);
+        $this->grantEntitlement($tenant, $category->code, 2);
+        $source = $this->withSession(['lead_id' => $lead->id])
+            ->forHost('aria.hairvision-ai.test')
+            ->postJson('/api/v1/profile/source-image', [
+                'image' => UploadedFile::fake()->image('source.jpg', 10, 10),
+                'consent' => true,
+            ])
+            ->assertCreated()
+            ->json('data');
+
+        $this->withSession(['lead_id' => $lead->id])
+            ->forHost('aria.hairvision-ai.test')
+            ->postJson('/api/v1/generations', [
+                'source_image_id' => $source['id'],
+                'category_id' => $category->uuid,
+                'output_id' => $output->uuid,
+                'idempotency_key' => '33333333-3333-4333-8333-333333333339',
+            ])
+            ->assertCreated();
+
+        $attempt = GenerationAttempt::query()->firstOrFail();
+        $attempt->forceFill(['dispatched_at' => now()->subMinutes(10)])->save();
+
+        app(ModelQueueCoordinator::class)->recoverStaleReservations();
+
+        $this->assertSame('dispatched', $attempt->refresh()->status);
+        $this->assertNull($attempt->provider_call_started_at);
+        $this->assertSame('queued', $attempt->generationRequest->status);
+        Queue::assertPushed(ProcessGenerationAttempt::class, 2);
+    }
+
+    public function test_credit_is_reserved_before_provider_dispatch_and_prevents_oversubscription(): void
+    {
+        Queue::fake();
+
+        [$tenant, $lead] = $this->tenantAndVerifiedLead('aria.hairvision-ai.test');
+        [$category, $output] = $this->categoryOutputAndActiveModel('hair_transplant', 'final_result', $tenant);
+        $this->grantEntitlement($tenant, $category->code, 1);
+
+        $source = $this->withSession(['lead_id' => $lead->id])
+            ->forHost('aria.hairvision-ai.test')
+            ->postJson('/api/v1/profile/source-image', [
+                'image' => UploadedFile::fake()->image('source.jpg', 10, 10),
+                'consent' => true,
+            ])
+            ->assertCreated()
+            ->json('data');
+        $payload = [
+            'source_image_id' => $source['id'],
+            'category_id' => $category->uuid,
+            'output_id' => $output->uuid,
+        ];
+
+        $this->withSession(['lead_id' => $lead->id])
+            ->forHost('aria.hairvision-ai.test')
+            ->postJson('/api/v1/generations', $payload + [
+                'idempotency_key' => '44444444-4444-4444-8444-444444444441',
+            ])
+            ->assertCreated();
+
+        $this->assertDatabaseHas('credit_transactions', [
+            'type' => 'reservation',
+            'reservation_status' => 'reserved',
+            'amount' => -1,
+            'balance_after' => 0,
+        ]);
+
+        $this->withSession(['lead_id' => $lead->id])
+            ->forHost('aria.hairvision-ai.test')
+            ->postJson('/api/v1/generations', $payload + [
+                'idempotency_key' => '44444444-4444-4444-8444-444444444442',
+            ])
+            ->assertUnprocessable();
+
+        $this->assertDatabaseCount('generation_requests', 1);
+        Queue::assertPushed(ProcessGenerationAttempt::class, 1);
+    }
+
+    public function test_explicit_provider_rate_limit_keeps_credit_and_schedules_delayed_fifo_retry(): void
+    {
+        Queue::fake();
+
+        [$tenant, $lead] = $this->tenantAndVerifiedLead('aria.hairvision-ai.test');
+        [$category, $output] = $this->categoryOutputAndActiveModel('hair_transplant', 'final_result', $tenant);
+        $this->grantEntitlement($tenant, $category->code, 2);
+        $source = $this->withSession(['lead_id' => $lead->id])
+            ->forHost('aria.hairvision-ai.test')
+            ->postJson('/api/v1/profile/source-image', [
+                'image' => UploadedFile::fake()->image('source.jpg', 10, 10),
+                'consent' => true,
+            ])
+            ->assertCreated()
+            ->json('data');
+
+        $this->withSession(['lead_id' => $lead->id])
+            ->forHost('aria.hairvision-ai.test')
+            ->postJson('/api/v1/generations', [
+                'source_image_id' => $source['id'],
+                'category_id' => $category->uuid,
+                'output_id' => $output->uuid,
+                'idempotency_key' => '55555555-5555-4555-8555-555555555555',
+            ])
+            ->assertCreated();
+
+        $attempt = GenerationAttempt::query()->firstOrFail();
+        $provider = Mockery::mock(RunAiModelAction::class);
+        $provider->shouldReceive('execute')->once()->andReturn(new AiModelResponseData(
+            successful: false,
+            status: 'failed',
+            errorCode: 'provider_rate_limited',
+            safeErrorMessage: __('ai_models.errors.provider_failed'),
+            creditConsumed: 0,
+            retryable: true,
+            retryAfterSeconds: 45,
+        ));
+
+        (new ProcessGenerationAttempt($attempt))->handle(
+            $provider,
+            app(CreditLedgerService::class),
+            app(ModelQueueCoordinator::class),
+        );
+
+        $this->assertSame('failed', $attempt->refresh()->status);
+        $this->assertSame('provider_rate_limited', $attempt->safe_failure_class);
+        $retry = GenerationAttempt::query()->whereKeyNot($attempt->id)->firstOrFail();
+        $this->assertSame('queued', $retry->status);
+        $this->assertTrue($retry->available_at->isFuture());
+        $this->assertSame('queued', GenerationRequest::query()->firstOrFail()->status);
+        $this->assertDatabaseHas('credit_transactions', [
+            'id' => $retry->credit_transaction_id,
+            'reservation_status' => 'reserved',
+        ]);
+        $this->assertTrue(AiModel::query()->firstOrFail()->cooldown_until->isFuture());
+        Queue::assertPushed(ProcessGenerationAttempt::class, 1);
+    }
+
+    public function test_replacing_source_cancels_queued_attempt_and_releases_reserved_credit(): void
+    {
+        Queue::fake();
+
+        [$tenant, $lead] = $this->tenantAndVerifiedLead('aria.hairvision-ai.test');
+        [$category, $output] = $this->categoryOutputAndActiveModel('hair_transplant', 'final_result', $tenant);
+        $this->grantEntitlement($tenant, $category->code, 1);
+        $source = $this->withSession(['lead_id' => $lead->id])
+            ->forHost('aria.hairvision-ai.test')
+            ->postJson('/api/v1/profile/source-image', [
+                'image' => UploadedFile::fake()->image('source.jpg', 10, 10),
+                'consent' => true,
+            ])
+            ->assertCreated()
+            ->json('data');
+
+        $this->withSession(['lead_id' => $lead->id])
+            ->forHost('aria.hairvision-ai.test')
+            ->postJson('/api/v1/generations', [
+                'source_image_id' => $source['id'],
+                'category_id' => $category->uuid,
+                'output_id' => $output->uuid,
+                'idempotency_key' => '66666666-6666-4666-8666-666666666666',
+            ])
+            ->assertCreated();
+
+        $this->withSession(['lead_id' => $lead->id])
+            ->forHost('aria.hairvision-ai.test')
+            ->postJson('/api/v1/profile/source-image', [
+                'image' => UploadedFile::fake()->image('replacement.jpg', 10, 10),
+                'consent' => true,
+            ])
+            ->assertCreated();
+
+        $this->assertSame('cancelled', GenerationRequest::query()->firstOrFail()->status);
+        $this->assertSame('cancelled', GenerationAttempt::query()->firstOrFail()->status);
+        $this->assertDatabaseHas('credit_transactions', [
+            'type' => 'reservation',
+            'reservation_status' => 'released',
+            'amount' => -1,
+        ]);
+        $this->assertDatabaseHas('credit_transactions', [
+            'type' => 'release',
+            'reservation_status' => 'released',
+            'amount' => 1,
+            'balance_after' => 1,
+        ]);
     }
 
     public function test_same_phone_has_isolated_profiles_across_tenants(): void
@@ -693,6 +966,32 @@ class HairVisionV2ArchitectureTest extends TestCase
             'starts_at' => JalaliDate::nowDateTimeString(),
             'ends_at' => JalaliDate::toJalaliDateTime(now()->addDays(30)),
         ]);
+    }
+
+    private function patternedJpeg(int $width, int $height): string
+    {
+        $image = imagecreatetruecolor($width, $height);
+
+        for ($y = 0; $y < $height; $y += 20) {
+            for ($x = 0; $x < $width; $x += 20) {
+                $color = imagecolorallocate(
+                    $image,
+                    ($x * 13 + $y * 3) % 256,
+                    ($x * 5 + $y * 17) % 256,
+                    ($x * 19 + $y * 7) % 256,
+                );
+                imagefilledrectangle($image, $x, $y, min($x + 19, $width - 1), min($y + 19, $height - 1), $color);
+            }
+        }
+
+        ob_start();
+        imagejpeg($image, null, 95);
+        $binary = ob_get_clean();
+        imagedestroy($image);
+
+        $this->assertIsString($binary);
+
+        return $binary;
     }
 
     private function forHost(string $host): self

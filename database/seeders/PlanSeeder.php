@@ -5,8 +5,20 @@ namespace Database\Seeders;
 use App\Models\Plan;
 use Illuminate\Database\Seeder;
 
+/**
+ * Provides plan seeder behavior.
+ *
+ * @since 1.0.0
+ */
 class PlanSeeder extends Seeder
 {
+    /**
+     * Execute the plan seeder operation.
+     *
+     * @return void No value is returned.
+     *
+     * @since 1.0.0
+     */
     public function run(): void
     {
         $this->seedPlan(
@@ -93,7 +105,11 @@ class PlanSeeder extends Seeder
     }
 
     /**
+     * Execute the starter plan features operation.
+     *
      * @return array<string, bool>
+     *
+     * @since 1.0.0
      */
     private function starterPlanFeatures(): array
     {
@@ -112,7 +128,13 @@ class PlanSeeder extends Seeder
     }
 
     /**
+     * Execute the seed plan operation.
+     *
      * @param  array{description: string, plan_type: string, price: int, duration_days: int|null, credits: array<string, int>, features_json?: array<string, bool>}  $data
+     * @param  string  $name  The name value.
+     * @return void No value is returned.
+     *
+     * @since 1.0.0
      */
     private function seedPlan(string $name, array $data): void
     {

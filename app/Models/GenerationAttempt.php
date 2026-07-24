@@ -23,9 +23,11 @@ class GenerationAttempt extends Model
         'tenant_id',
         'lead_id',
         'ai_model_id',
+        'credit_transaction_id',
         'attempt_number',
         'status',
         'queue_position',
+        'available_at',
         'prompt',
         'provider_reference',
         'reserved_at',
@@ -41,6 +43,7 @@ class GenerationAttempt extends Model
     protected $casts = [
         'attempt_number' => 'integer',
         'queue_position' => 'integer',
+        'available_at' => 'datetime',
         'reserved_at' => 'datetime',
         'dispatched_at' => 'datetime',
         'provider_call_started_at' => 'datetime',
@@ -52,7 +55,11 @@ class GenerationAttempt extends Model
     ];
 
     /**
+     * Define the generation request Eloquent relationship.
+     *
      * @return BelongsTo<GenerationRequest, $this>
+     *
+     * @since 2.0.0
      */
     public function generationRequest(): BelongsTo
     {
@@ -60,10 +67,26 @@ class GenerationAttempt extends Model
     }
 
     /**
+     * Define the model Eloquent relationship.
+     *
      * @return BelongsTo<AiModel, $this>
+     *
+     * @since 2.0.0
      */
     public function model(): BelongsTo
     {
         return $this->belongsTo(AiModel::class, 'ai_model_id');
+    }
+
+    /**
+     * Credit reservation held for this provider attempt.
+     *
+     * @return BelongsTo<CreditTransaction, $this>
+     *
+     * @since 2.0.0
+     */
+    public function creditTransaction(): BelongsTo
+    {
+        return $this->belongsTo(CreditTransaction::class);
     }
 }

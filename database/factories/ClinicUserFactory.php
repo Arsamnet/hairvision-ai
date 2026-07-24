@@ -9,7 +9,11 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 
 /**
+ * Provides clinic user factory behavior.
+ *
  * @extends Factory<ClinicUser>
+ *
+ * @since 1.0.0
  */
 class ClinicUserFactory extends Factory
 {
@@ -17,6 +21,13 @@ class ClinicUserFactory extends Factory
 
     protected static ?string $password;
 
+    /**
+     * Execute the definition operation.
+     *
+     * @return array Resolved data array.
+     *
+     * @since 1.0.0
+     */
     public function definition(): array
     {
         return [

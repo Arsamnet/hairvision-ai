@@ -19,6 +19,13 @@ use Random\RandomException;
  */
 class AdminOtpService
 {
+    /**
+     * Create a new admin otp service instance.
+     *
+     * @param  SmsGatewayService  $smsGateways  The sms gateways value.
+     *
+     * @since 1.0.0
+     */
     public function __construct(
         private readonly SmsGatewayService $smsGateways,
     ) {}
@@ -26,8 +33,14 @@ class AdminOtpService
     /**
      * Create a single-use dashboard login OTP for an active user.
      *
+     * @param  string  $phone  The phone value.
+     * @param  string  $ipAddress  The ip address value.
+     * @return OtpCode Resolved operation result.
+     *
      * @throws RandomException
      * @throws ValidationException
+     *
+     * @since 1.0.0
      */
     public function requestCode(string $phone, string $ipAddress): OtpCode
     {
@@ -58,6 +71,13 @@ class AdminOtpService
         return $otp;
     }
 
+    /**
+     * Execute the last debug sms operation.
+     *
+     * @return string|null Resolved operation result.
+     *
+     * @since 1.0.0
+     */
     public function lastDebugSms(): ?string
     {
         return $this->smsGateways->lastDebugSms();
@@ -66,7 +86,13 @@ class AdminOtpService
     /**
      * Verify a dashboard OTP and return the authenticated user.
      *
+     * @param  string  $phone  The phone value.
+     * @param  string  $code  The code value.
+     * @return User Resolved operation result.
+     *
      * @throws ValidationException
+     *
+     * @since 1.0.0
      */
     public function verifyCode(string $phone, string $code): User
     {
@@ -110,7 +136,12 @@ class AdminOtpService
     /**
      * Validate and normalize a mobile number.
      *
+     * @param  string  $phone  The phone value.
+     * @return string Resolved string value.
+     *
      * @throws ValidationException
+     *
+     * @since 1.0.0
      */
     public function normalizePhone(string $phone): string
     {
@@ -128,7 +159,12 @@ class AdminOtpService
     /**
      * Find an active dashboard user by mobile number.
      *
+     * @param  string  $phoneNormalized  The phone normalized value.
+     * @return User Resolved operation result.
+     *
      * @throws ValidationException
+     *
+     * @since 1.0.0
      */
     private function findActiveUser(string $phoneNormalized): User
     {
@@ -147,6 +183,11 @@ class AdminOtpService
 
     /**
      * Resolve the tenant bucket used for storing the OTP row.
+     *
+     * @param  User  $user  Authenticated user performing the operation.
+     * @return Tenant|null Resolved operation result.
+     *
+     * @since 1.0.0
      */
     private function otpTenantFor(User $user): ?Tenant
     {

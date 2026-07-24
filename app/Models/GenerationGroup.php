@@ -33,6 +33,8 @@ class GenerationGroup extends Model
      * Tenant that owns this generation group.
      *
      * @return BelongsTo<Tenant, $this>
+     *
+     * @since 1.0.0
      */
     public function tenant(): BelongsTo
     {
@@ -43,6 +45,8 @@ class GenerationGroup extends Model
      * Verified lead that owns this generation group.
      *
      * @return BelongsTo<Lead, $this>
+     *
+     * @since 1.0.0
      */
     public function lead(): BelongsTo
     {
@@ -53,6 +57,8 @@ class GenerationGroup extends Model
      * Upload used as the reference input.
      *
      * @return BelongsTo<Upload, $this>
+     *
+     * @since 1.0.0
      */
     public function upload(): BelongsTo
     {
@@ -63,6 +69,8 @@ class GenerationGroup extends Model
      * Period jobs in this group.
      *
      * @return HasMany<GenerationJob, $this>
+     *
+     * @since 1.0.0
      */
     public function jobs(): HasMany
     {
@@ -73,6 +81,8 @@ class GenerationGroup extends Model
      * Generated assets produced for this group.
      *
      * @return HasMany<GeneratedAsset, $this>
+     *
+     * @since 1.0.0
      */
     public function assets(): HasMany
     {

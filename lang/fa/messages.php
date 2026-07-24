@@ -65,4 +65,5 @@ return [
     'source_image_replaced' => 'تصویر اصلی جدید جایگزین شده است.',
     'source_image_not_current' => 'تصویر انتخاب‌شده تصویر اصلی جاری نیست.',
     'generation_output_invalid' => 'خروجی انتخاب‌شده معتبر نیست.',
+    'generation_already_processing' => 'این خروجی هم‌اکنون در حال پردازش است.',
 ];

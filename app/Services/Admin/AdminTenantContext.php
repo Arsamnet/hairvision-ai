@@ -5,6 +5,7 @@ namespace App\Services\Admin;
 use App\Models\Tenant;
 use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Illuminate\Validation\ValidationException;
 
 /**
@@ -16,6 +17,12 @@ class AdminTenantContext
 {
     /**
      * Return the tenant currently selected for dashboard work.
+     *
+     * @param  Request  $request  Incoming HTTP request.
+     * @param  User  $user  Authenticated user performing the operation.
+     * @return Tenant|null Resolved operation result.
+     *
+     * @since 1.0.0
      */
     public function current(Request $request, User $user): ?Tenant
     {
@@ -45,7 +52,14 @@ class AdminTenantContext
     /**
      * Select a tenant after checking that the user is allowed to use it.
      *
+     * @param  Request  $request  Incoming HTTP request.
+     * @param  User  $user  Authenticated user performing the operation.
+     * @param  int|string|null  $tenantId  The tenant id value.
+     * @return Tenant|null Resolved operation result.
+     *
      * @throws ValidationException
+     *
+     * @since 1.0.0
      */
     public function select(Request $request, User $user, int|string|null $tenantId): ?Tenant
     {
@@ -72,7 +86,10 @@ class AdminTenantContext
     /**
      * Tenants available to the authenticated user for the switcher.
      *
-     * @return \Illuminate\Support\Collection<int, Tenant>
+     * @param  User  $user  Authenticated user performing the operation.
+     * @return Collection<int, Tenant>
+     *
+     * @since 1.0.0
      */
     public function availableTenants(User $user)
     {
@@ -89,6 +106,11 @@ class AdminTenantContext
 
     /**
      * Resolve the default active tenant for a user.
+     *
+     * @param  User  $user  Authenticated user performing the operation.
+     * @return Tenant|null Resolved operation result.
+     *
+     * @since 1.0.0
      */
     private function defaultTenant(User $user): ?Tenant
     {

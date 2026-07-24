@@ -10,6 +10,8 @@ namespace App\Services\AI\Dtos;
 final class ImageGenerationRequest
 {
     /**
+     * Create a new image generation request instance.
+     *
      * @param  string  $tenantUuid  Public UUID for provider path scoping.
      * @param  string  $leadUuid  Public UUID for provider path scoping.
      * @param  string  $uploadPath  Private upload path on the configured disk.
@@ -17,6 +19,8 @@ final class ImageGenerationRequest
      * @param  string  $prompt  Provider prompt or local sample description.
      * @param  string|null  $modelName  Optional provider model override.
      * @param  array<string, mixed>  $settings  Provider-specific settings.
+     *
+     * @since 1.0.0
      */
     public function __construct(
         public readonly string $tenantUuid,

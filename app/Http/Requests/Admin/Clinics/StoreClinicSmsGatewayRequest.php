@@ -14,6 +14,13 @@ use Illuminate\Validation\Rule;
  */
 class StoreClinicSmsGatewayRequest extends FormRequest
 {
+    /**
+     * Determine whether the current user may submit this request.
+     *
+     * @return bool Whether the requested condition is satisfied.
+     *
+     * @since 1.0.0
+     */
     public function authorize(): bool
     {
         $user = $this->user();
@@ -24,7 +31,11 @@ class StoreClinicSmsGatewayRequest extends FormRequest
     }
 
     /**
+     * Return the validation rules for the request.
+     *
      * @return array<string, mixed>
+     *
+     * @since 1.0.0
      */
     public function rules(): array
     {
@@ -41,6 +52,13 @@ class StoreClinicSmsGatewayRequest extends FormRequest
         ];
     }
 
+    /**
+     * Normalize request input before validation.
+     *
+     * @return void No value is returned.
+     *
+     * @since 1.0.0
+     */
     protected function prepareForValidation(): void
     {
         $providerCodes = $this->providerCodes();
@@ -55,7 +73,11 @@ class StoreClinicSmsGatewayRequest extends FormRequest
     }
 
     /**
+     * Execute the provider codes operation.
+     *
      * @return array<int, string>
+     *
+     * @since 1.0.0
      */
     private function providerCodes(): array
     {

@@ -14,7 +14,11 @@ use Illuminate\Support\Facades\Schema;
 class ServiceCatalog
 {
     /**
+     * Execute the all operation.
+     *
      * @return array<string, array<string, mixed>>
+     *
+     * @since 1.0.0
      */
     public function all(): array
     {
@@ -42,7 +46,11 @@ class ServiceCatalog
     }
 
     /**
+     * Execute the options operation.
+     *
      * @return array<string, string>
+     *
+     * @since 1.0.0
      */
     public function options(): array
     {
@@ -52,7 +60,11 @@ class ServiceCatalog
     }
 
     /**
+     * Execute the icons operation.
+     *
      * @return array<string, string>
+     *
+     * @since 1.0.0
      */
     public function icons(): array
     {
@@ -63,11 +75,27 @@ class ServiceCatalog
             ->all();
     }
 
+    /**
+     * Determine whether has.
+     *
+     * @param  string  $serviceKey  The service key value.
+     * @return bool Whether the requested condition is satisfied.
+     *
+     * @since 1.0.0
+     */
     public function has(string $serviceKey): bool
     {
         return array_key_exists($serviceKey, $this->all());
     }
 
+    /**
+     * Execute the label operation.
+     *
+     * @param  string  $serviceKey  The service key value.
+     * @return string Resolved string value.
+     *
+     * @since 1.0.0
+     */
     public function label(string $serviceKey): string
     {
         $service = $this->all()[$serviceKey] ?? [];
@@ -76,6 +104,13 @@ class ServiceCatalog
         return $service['label'] ?? (is_string($labelKey) ? __($labelKey) : $serviceKey);
     }
 
+    /**
+     * Execute the default service key operation.
+     *
+     * @return string Resolved string value.
+     *
+     * @since 1.0.0
+     */
     public function defaultServiceKey(): string
     {
         return (string) config('hairvision.billing.default_service_key', 'hair_transplant');

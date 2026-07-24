@@ -15,6 +15,11 @@ final class ZarinpalConfiguration
 
     /**
      * Determine whether a merchant ID is safe to use for provider requests.
+     *
+     * @param  mixed  $merchantId  The merchant id value.
+     * @return bool Whether the requested condition is satisfied.
+     *
+     * @since 2.0.0
      */
     public static function hasUsableMerchantId(mixed $merchantId): bool
     {

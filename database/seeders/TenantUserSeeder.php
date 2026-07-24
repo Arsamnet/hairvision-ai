@@ -6,8 +6,20 @@ use App\Models\Tenant;
 use App\Models\User;
 use Illuminate\Database\Seeder;
 
+/**
+ * Provides tenant user seeder behavior.
+ *
+ * @since 1.0.0
+ */
 class TenantUserSeeder extends Seeder
 {
+    /**
+     * Execute the tenant user seeder operation.
+     *
+     * @return void No value is returned.
+     *
+     * @since 1.0.0
+     */
     public function run(): void
     {
         $aryaTenant = Tenant::query()->where('slug', 'arya')->firstOrFail();

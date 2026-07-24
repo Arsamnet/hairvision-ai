@@ -1,0 +1,65 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+project_directory="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$project_directory"
+
+php_binary="${HAIRVISION_LOCAL_PHP_BINARY:-}"
+
+if [[ -z "$php_binary" ]]; then
+    php_binary="$(command -v php || true)"
+fi
+
+if [[ -z "$php_binary" ]]; then
+    for php_candidate in /opt/homebrew/bin/php /usr/local/bin/php; do
+        if [[ -x "$php_candidate" ]]; then
+            php_binary="$php_candidate"
+            break
+        fi
+    done
+fi
+
+if [[ -z "$php_binary" || ! -x "$php_binary" ]]; then
+    echo "PHP CLI was not found. Set HAIRVISION_LOCAL_PHP_BINARY to the PHP executable path." >&2
+    exit 1
+fi
+
+if [[ ! -f artisan ]]; then
+    echo "Run this command from a complete HairVision project checkout." >&2
+    exit 1
+fi
+
+export QUEUE_CONNECTION="${QUEUE_CONNECTION:-database}"
+export DB_QUEUE_RETRY_AFTER="${DB_QUEUE_RETRY_AFTER:-1200}"
+export HAIRVISION_QUEUE_WORKER_TIMEOUT="${HAIRVISION_QUEUE_WORKER_TIMEOUT:-1020}"
+export HAIRVISION_CPANEL_QUEUE_CRON_ENABLED="${HAIRVISION_CPANEL_QUEUE_CRON_ENABLED:-true}"
+export HAIRVISION_CPANEL_QUEUE_CONNECTION="${HAIRVISION_CPANEL_QUEUE_CONNECTION:-database}"
+export HAIRVISION_CPANEL_QUEUE_NAMES="${HAIRVISION_CPANEL_QUEUE_NAMES:-ai-generation,default}"
+export HAIRVISION_CPANEL_QUEUE_PROCESSES="${HAIRVISION_CPANEL_QUEUE_PROCESSES:-3}"
+export HAIRVISION_CPANEL_QUEUE_WINDOW_SECONDS="${HAIRVISION_CPANEL_QUEUE_WINDOW_SECONDS:-58}"
+export HAIRVISION_CPANEL_QUEUE_SLEEP_SECONDS="${HAIRVISION_CPANEL_QUEUE_SLEEP_SECONDS:-1}"
+export HAIRVISION_GENERATION_QUEUE_CONNECTION="${HAIRVISION_GENERATION_QUEUE_CONNECTION:-database}"
+export HAIRVISION_GENERATION_QUEUE_NAME="${HAIRVISION_GENERATION_QUEUE_NAME:-ai-generation}"
+export HAIRVISION_GENERATION_ALLOW_BACKGROUND_COMPLETION="${HAIRVISION_GENERATION_ALLOW_BACKGROUND_COMPLETION:-false}"
+
+# A cached local config would otherwise hide the process-only queue overrides.
+"$php_binary" artisan config:clear --quiet
+
+case "${1:---watch}" in
+    --watch)
+        artisan_command="schedule:work"
+        ;;
+    --once)
+        artisan_command="schedule:run"
+        ;;
+    --list)
+        artisan_command="schedule:list"
+        ;;
+    *)
+        echo "Usage: ./scripts/cpanel-queue-local [--watch|--once|--list]" >&2
+        exit 2
+        ;;
+esac
+
+exec "$php_binary" artisan "$artisan_command"

@@ -17,6 +17,14 @@ class Breadcrumbs extends Component
 {
     public readonly string $resolvedPageTitle;
 
+    /**
+     * Create a new breadcrumbs instance.
+     *
+     * @param  string|null  $pageTitle  The page title value.
+     * @param  Tenant|null  $tenant  Tenant in the current operation scope.
+     *
+     * @since 1.0.0
+     */
     public function __construct(
         public readonly ?string $pageTitle = null,
         public readonly ?Tenant $tenant = null,
@@ -24,6 +32,13 @@ class Breadcrumbs extends Component
         $this->resolvedPageTitle = trim((string) ($pageTitle ?: __('dashboard.dashboard')));
     }
 
+    /**
+     * Execute the render operation.
+     *
+     * @return View Rendered response view.
+     *
+     * @since 1.0.0
+     */
     public function render(): View
     {
         return view('components.admin.breadcrumbs', [
@@ -32,7 +47,11 @@ class Breadcrumbs extends Component
     }
 
     /**
+     * Execute the crumbs operation.
+     *
      * @return array<int, array{label: string, url: ?string, icon: ?string}>
+     *
+     * @since 1.0.0
      */
     private function crumbs(): array
     {
@@ -69,13 +88,28 @@ class Breadcrumbs extends Component
         return $crumbs;
     }
 
+    /**
+     * Execute the dashboard url operation.
+     *
+     * @return string|null Resolved operation result.
+     *
+     * @since 1.0.0
+     */
     private function dashboardUrl(): ?string
     {
         return $this->routeUrl('admin.dashboard');
     }
 
     /**
+     * Execute the add crumb operation.
+     *
      * @param  array<int, array{label: string, url: ?string, icon: ?string}>  $crumbs
+     * @param  string  $label  The label value.
+     * @param  string|null  $url  The url value.
+     * @param  string|null  $icon  The icon value.
+     * @return void No value is returned.
+     *
+     * @since 1.0.0
      */
     private function addCrumb(array &$crumbs, string $label, ?string $url = null, ?string $icon = null): void
     {
@@ -98,6 +132,8 @@ class Breadcrumbs extends Component
      *     parameters: callable(): array<string, mixed>,
      *     icon: string
      * }>
+     *
+     * @since 1.0.0
      */
     private function sectionDefinitions(): Collection
     {
@@ -124,6 +160,10 @@ class Breadcrumbs extends Component
 
     /**
      * @param  array<int, string>  $patterns
+     * @param  string  $label  The label value.
+     * @param  string  $route  The route value.
+     * @param  callable|null  $parameters  The parameters value.
+     * @param  string  $icon  The icon value.
      * @return array{
      *     patterns: array<int, string>,
      *     label: string,
@@ -131,6 +171,8 @@ class Breadcrumbs extends Component
      *     parameters: callable(): array<string, mixed>,
      *     icon: string
      * }
+     *
+     * @since 1.0.0
      */
     private function section(
         array $patterns,
@@ -149,7 +191,12 @@ class Breadcrumbs extends Component
     }
 
     /**
+     * Execute the matches any operation.
+     *
      * @param  array<int, string>  $patterns
+     * @return bool Whether the requested condition is satisfied.
+     *
+     * @since 1.0.0
      */
     private function matchesAny(array $patterns): bool
     {
@@ -163,7 +210,13 @@ class Breadcrumbs extends Component
     }
 
     /**
+     * Execute the route url operation.
+     *
      * @param  array<string, mixed>  $parameters
+     * @param  string  $name  The name value.
+     * @return string|null Resolved operation result.
+     *
+     * @since 1.0.0
      */
     private function routeUrl(string $name, array $parameters = []): ?string
     {

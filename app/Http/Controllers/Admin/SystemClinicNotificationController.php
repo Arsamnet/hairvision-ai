@@ -27,6 +27,14 @@ use Symfony\Component\HttpFoundation\Response;
  */
 class SystemClinicNotificationController extends Controller
 {
+    /**
+     * Display the system clinic notification listing.
+     *
+     * @param  Request  $request  Incoming HTTP request.
+     * @return View Rendered response view.
+     *
+     * @since 1.0.0
+     */
     public function index(Request $request): View
     {
         abort_unless($request->user()?->hasPermission('notifications.manage'), Response::HTTP_FORBIDDEN);
@@ -86,12 +94,21 @@ class SystemClinicNotificationController extends Controller
         ]);
     }
 
+    /**
+     * Persist a new system clinic notification record.
+     *
+     * @param  Request  $request  Incoming HTTP request.
+     * @param  ClinicNotificationService  $notifications  The notifications value.
+     * @param  SimpleRichTextSanitizer  $sanitizer  The sanitizer value.
+     * @return RedirectResponse HTTP redirect response.
+     *
+     * @since 1.0.0
+     */
     public function store(
         Request $request,
         ClinicNotificationService $notifications,
         SimpleRichTextSanitizer $sanitizer
-    ): RedirectResponse
-    {
+    ): RedirectResponse {
         abort_unless($request->user()?->hasPermission('notifications.manage'), Response::HTTP_FORBIDDEN);
 
         $data = $request->validate([
@@ -179,6 +196,15 @@ class SystemClinicNotificationController extends Controller
         return back()->with('status', __('notifications.messages.created', ['count' => number_format($recipientCount)]));
     }
 
+    /**
+     * Display the requested system clinic notification resource.
+     *
+     * @param  Request  $request  Incoming HTTP request.
+     * @param  ClinicNotification  $notification  The notification value.
+     * @return View Rendered response view.
+     *
+     * @since 1.0.0
+     */
     public function show(Request $request, ClinicNotification $notification): View
     {
         abort_unless($request->user()?->hasPermission('notifications.manage'), Response::HTTP_FORBIDDEN);
@@ -198,7 +224,11 @@ class SystemClinicNotificationController extends Controller
     }
 
     /**
+     * Execute the types operation.
+     *
      * @return array<string, string>
+     *
+     * @since 1.0.0
      */
     private function types(): array
     {
@@ -206,7 +236,11 @@ class SystemClinicNotificationController extends Controller
     }
 
     /**
+     * Execute the importances operation.
+     *
      * @return array<string, string>
+     *
+     * @since 1.0.0
      */
     private function importances(): array
     {

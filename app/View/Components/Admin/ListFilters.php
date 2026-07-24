@@ -16,8 +16,21 @@ use Illuminate\View\Component;
 class ListFilters extends Component
 {
     /**
+     * Create a new list filters instance.
+     *
      * @param  array<int, array<string, mixed>>  $filters
      * @param  array<string, string>  $sorts
+     * @param  string|null  $action  The action value.
+     * @param  string|null  $presetKey  The preset key value.
+     * @param  string|null  $searchPlaceholder  The search placeholder value.
+     * @param  string  $searchName  The search name value.
+     * @param  bool  $canSearch  The can search value.
+     * @param  bool  $showDates  The show dates value.
+     * @param  bool  $showSort  The show sort value.
+     * @param  bool  $showPerPage  The show per page value.
+     * @param  int  $primaryFilterCount  The primary filter count value.
+     *
+     * @since 1.0.0
      */
     public function __construct(
         public readonly ?string $action = null,
@@ -33,6 +46,13 @@ class ListFilters extends Component
         public readonly int $primaryFilterCount = 2,
     ) {}
 
+    /**
+     * Execute the render operation.
+     *
+     * @return View Rendered response view.
+     *
+     * @since 1.0.0
+     */
     public function render(): View
     {
         return view('components.admin.list-filters', [
@@ -45,7 +65,11 @@ class ListFilters extends Component
     }
 
     /**
+     * Persist d filters.
+     *
      * @return Collection<int, UserSavedFilter>
+     *
+     * @since 1.0.0
      */
     private function savedFilters(): Collection
     {
@@ -63,7 +87,11 @@ class ListFilters extends Component
     }
 
     /**
+     * Execute the active parameters operation.
+     *
      * @return array<string, string>
+     *
+     * @since 1.0.0
      */
     private function activeParameters(): array
     {
@@ -86,6 +114,13 @@ class ListFilters extends Component
         return $parameters;
     }
 
+    /**
+     * Execute the panel open operation.
+     *
+     * @return bool Whether the requested condition is satisfied.
+     *
+     * @since 1.0.0
+     */
     private function panelOpen(): bool
     {
         foreach ($this->parameterNames(includeSearch: false) as $name) {
@@ -98,7 +133,12 @@ class ListFilters extends Component
     }
 
     /**
+     * Execute the parameter names operation.
+     *
+     * @param  bool  $includeSearch  The include search value.
      * @return array<int, string>
+     *
+     * @since 1.0.0
      */
     private function parameterNames(bool $includeSearch = true): array
     {

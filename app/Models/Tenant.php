@@ -5,9 +5,9 @@ namespace App\Models;
 use App\Models\Concerns\HasUuid;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
-use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
 /**
  * HairVision clinic tenant resolved from request hosts.
@@ -29,6 +29,8 @@ class Tenant extends Model
      * Active and historical domains mapped to this tenant.
      *
      * @return HasMany<TenantDomain, $this>
+     *
+     * @since 1.0.0
      */
     public function domains(): HasMany
     {
@@ -39,6 +41,8 @@ class Tenant extends Model
      * Dashboard users that may access this tenant.
      *
      * @return BelongsToMany<User, $this>
+     *
+     * @since 1.0.0
      */
     public function users(): BelongsToMany
     {
@@ -51,6 +55,8 @@ class Tenant extends Model
      * Clinic-auth users owned directly by this tenant.
      *
      * @return HasMany<ClinicUser, $this>
+     *
+     * @since 1.0.0
      */
     public function clinicUsers(): HasMany
     {
@@ -61,6 +67,8 @@ class Tenant extends Model
      * Verified leads owned by this tenant.
      *
      * @return HasMany<Lead, $this>
+     *
+     * @since 1.0.0
      */
     public function leads(): HasMany
     {
@@ -71,6 +79,8 @@ class Tenant extends Model
      * Public landing-page theme settings for this tenant.
      *
      * @return HasOne<TenantThemeSetting, $this>
+     *
+     * @since 1.0.0
      */
     public function theme(): HasOne
     {
@@ -81,6 +91,8 @@ class Tenant extends Model
      * Legacy AI provider settings retained for this tenant's history.
      *
      * @return HasMany<TenantAiSetting, $this>
+     *
+     * @since 1.0.0
      */
     public function providers(): HasMany
     {
@@ -91,6 +103,8 @@ class Tenant extends Model
      * AI model access records assigned to this clinic.
      *
      * @return BelongsToMany<AiModelAccess, $this>
+     *
+     * @since 1.0.0
      */
     public function aiModelAccesses(): BelongsToMany
     {
@@ -103,6 +117,8 @@ class Tenant extends Model
      * Safe usage logs recorded for this clinic.
      *
      * @return HasMany<AiModelUsageLog, $this>
+     *
+     * @since 1.0.0
      */
     public function aiModelUsageLogs(): HasMany
     {
@@ -113,6 +129,8 @@ class Tenant extends Model
      * Active and historical subscriptions owned by this clinic.
      *
      * @return HasMany<Subscription, $this>
+     *
+     * @since 1.0.0
      */
     public function subscriptions(): HasMany
     {
@@ -123,6 +141,8 @@ class Tenant extends Model
      * Service-level entitlements currently or historically owned by this clinic.
      *
      * @return HasMany<SubscriptionServiceEntitlement, $this>
+     *
+     * @since 1.0.0
      */
     public function serviceEntitlements(): HasMany
     {
@@ -133,6 +153,8 @@ class Tenant extends Model
      * Credit ledger entries for this clinic.
      *
      * @return HasMany<CreditTransaction, $this>
+     *
+     * @since 1.0.0
      */
     public function creditTransactions(): HasMany
     {
@@ -143,6 +165,8 @@ class Tenant extends Model
      * Billing invoices issued for this clinic.
      *
      * @return HasMany<Invoice, $this>
+     *
+     * @since 1.0.0
      */
     public function invoices(): HasMany
     {
@@ -153,6 +177,8 @@ class Tenant extends Model
      * SMS gateways configured for this clinic.
      *
      * @return HasMany<SmsGateway, $this>
+     *
+     * @since 1.0.0
      */
     public function smsGateways(): HasMany
     {
@@ -163,6 +189,8 @@ class Tenant extends Model
      * OTP records requested by this tenant's visitors.
      *
      * @return HasMany<OtpCode, $this>
+     *
+     * @since 1.0.0
      */
     public function otpCodes(): HasMany
     {
@@ -173,6 +201,8 @@ class Tenant extends Model
      * Anonymous landing-page visits recorded for this tenant.
      *
      * @return HasMany<TenantLandingPageVisit, $this>
+     *
+     * @since 1.0.0
      */
     public function landingPageVisits(): HasMany
     {
@@ -183,6 +213,8 @@ class Tenant extends Model
      * Notification delivery rows visible in this clinic's dashboard inbox.
      *
      * @return HasMany<ClinicNotificationRecipient, $this>
+     *
+     * @since 1.0.0
      */
     public function notificationRecipients(): HasMany
     {

@@ -40,7 +40,11 @@ class AiModelCategoryOutput extends Model
     ];
 
     /**
+     * Define the category Eloquent relationship.
+     *
      * @return BelongsTo<AiModelCategory, $this>
+     *
+     * @since 2.0.0
      */
     public function category(): BelongsTo
     {
@@ -48,7 +52,11 @@ class AiModelCategoryOutput extends Model
     }
 
     /**
+     * Define the model output configs Eloquent relationship.
+     *
      * @return HasMany<AiModelOutputConfig, $this>
+     *
+     * @since 2.0.0
      */
     public function modelOutputConfigs(): HasMany
     {
@@ -56,7 +64,11 @@ class AiModelCategoryOutput extends Model
     }
 
     /**
+     * Define the generation requests Eloquent relationship.
+     *
      * @return HasMany<GenerationRequest, $this>
+     *
+     * @since 2.0.0
      */
     public function generationRequests(): HasMany
     {
@@ -64,7 +76,12 @@ class AiModelCategoryOutput extends Model
     }
 
     /**
+     * Constrain the query by active.
+     *
      * @param  Builder<AiModelCategoryOutput>  $query
+     * @return Builder Configured query builder.
+     *
+     * @since 2.0.0
      */
     public function scopeActive(Builder $query): Builder
     {

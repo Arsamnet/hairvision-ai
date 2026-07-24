@@ -24,6 +24,15 @@ use Illuminate\View\View;
  */
 class UserController extends Controller
 {
+    /**
+     * Display the user listing.
+     *
+     * @param  Request  $request  Incoming HTTP request.
+     * @param  UserManagementService  $users  The users value.
+     * @return View|JsonResponse Rendered response view.
+     *
+     * @since 1.0.0
+     */
     public function index(Request $request, UserManagementService $users): View|JsonResponse
     {
         Gate::authorize('viewAny', User::class);
@@ -55,6 +64,14 @@ class UserController extends Controller
         ]));
     }
 
+    /**
+     * Display the form for creating a new user.
+     *
+     * @param  Request  $request  Incoming HTTP request.
+     * @return View Rendered response view.
+     *
+     * @since 1.0.0
+     */
     public function create(Request $request): View
     {
         Gate::authorize('create', User::class);
@@ -62,6 +79,15 @@ class UserController extends Controller
         return view('admin.users.create', $this->formData($request));
     }
 
+    /**
+     * Persist a new user record.
+     *
+     * @param  StoreUserRequest  $request  Incoming HTTP request.
+     * @param  UserManagementService  $users  The users value.
+     * @return RedirectResponse HTTP redirect response.
+     *
+     * @since 1.0.0
+     */
     public function store(StoreUserRequest $request, UserManagementService $users): RedirectResponse
     {
         $created = $users->create(
@@ -77,6 +103,15 @@ class UserController extends Controller
         return redirect()->route('admin.users.show', $created)->with('status', __('system.users.created'));
     }
 
+    /**
+     * Display the requested user resource.
+     *
+     * @param  Request  $request  Incoming HTTP request.
+     * @param  User  $user  Authenticated user performing the operation.
+     * @return View Rendered response view.
+     *
+     * @since 1.0.0
+     */
     public function show(Request $request, User $user): View
     {
         Gate::authorize('view', $user);
@@ -88,6 +123,15 @@ class UserController extends Controller
         ]);
     }
 
+    /**
+     * Display the form for editing the requested user.
+     *
+     * @param  Request  $request  Incoming HTTP request.
+     * @param  User  $user  Authenticated user performing the operation.
+     * @return View Rendered response view.
+     *
+     * @since 1.0.0
+     */
     public function edit(Request $request, User $user): View
     {
         Gate::authorize('update', $user);
@@ -97,6 +141,16 @@ class UserController extends Controller
         ]);
     }
 
+    /**
+     * Update the requested user record.
+     *
+     * @param  UpdateUserRequest  $request  Incoming HTTP request.
+     * @param  User  $user  Authenticated user performing the operation.
+     * @param  UserManagementService  $users  The users value.
+     * @return RedirectResponse HTTP redirect response.
+     *
+     * @since 1.0.0
+     */
     public function update(UpdateUserRequest $request, User $user, UserManagementService $users): RedirectResponse
     {
         $users->update(
@@ -109,6 +163,16 @@ class UserController extends Controller
         return redirect()->route('admin.users.show', $user)->with('status', __('system.users.updated'));
     }
 
+    /**
+     * Delete the requested user record.
+     *
+     * @param  Request  $request  Incoming HTTP request.
+     * @param  User  $user  Authenticated user performing the operation.
+     * @param  UserManagementService  $users  The users value.
+     * @return RedirectResponse HTTP redirect response.
+     *
+     * @since 1.0.0
+     */
     public function destroy(Request $request, User $user, UserManagementService $users): RedirectResponse
     {
         Gate::authorize('delete', $user);
@@ -119,7 +183,12 @@ class UserController extends Controller
     }
 
     /**
+     * Execute the form data operation.
+     *
+     * @param  Request  $request  Incoming HTTP request.
      * @return array<string, mixed>
+     *
+     * @since 1.0.0
      */
     private function formData(Request $request): array
     {

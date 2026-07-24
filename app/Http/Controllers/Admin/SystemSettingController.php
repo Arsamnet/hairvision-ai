@@ -17,6 +17,14 @@ use Illuminate\View\View;
  */
 class SystemSettingController extends Controller
 {
+    /**
+     * Display the form for editing the requested system setting.
+     *
+     * @param  Request  $request  Incoming HTTP request.
+     * @return View Rendered response view.
+     *
+     * @since 1.0.0
+     */
     public function edit(Request $request): View
     {
         return view('admin.system.settings.edit', [
@@ -31,6 +39,15 @@ class SystemSettingController extends Controller
         ]);
     }
 
+    /**
+     * Update the requested system setting record.
+     *
+     * @param  Request  $request  Incoming HTTP request.
+     * @param  SystemSettingService  $settings  The settings value.
+     * @return RedirectResponse HTTP redirect response.
+     *
+     * @since 1.0.0
+     */
     public function update(Request $request, SystemSettingService $settings): RedirectResponse
     {
         $submitted = $request->validate([
@@ -56,7 +73,10 @@ class SystemSettingController extends Controller
     /**
      * Return validation rules for a setting type.
      *
+     * @param  SystemSetting  $setting  The setting value.
      * @return array<int, string>
+     *
+     * @since 1.0.0
      */
     private function ruleFor(SystemSetting $setting): array
     {
@@ -68,6 +88,15 @@ class SystemSettingController extends Controller
         };
     }
 
+    /**
+     * Normalize value.
+     *
+     * @param  SystemSetting  $setting  The setting value.
+     * @param  mixed  $value  Input value supplied to the operation.
+     * @return mixed Resolved operation result.
+     *
+     * @since 1.0.0
+     */
     private function normalizeValue(SystemSetting $setting, mixed $value): mixed
     {
         return match ($setting->type) {

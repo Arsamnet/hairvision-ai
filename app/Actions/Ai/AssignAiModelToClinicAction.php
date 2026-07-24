@@ -16,6 +16,17 @@ use Throwable;
  */
 class AssignAiModelToClinicAction
 {
+    /**
+     * Execute the assign ai model to clinic action operation.
+     *
+     * @param  Tenant  $clinic  Tenant in the current operation scope.
+     * @param  AiModelAccess  $access  The access value.
+     * @param  User|null  $actor  Authenticated user performing the operation.
+     * @param  bool  $isActive  The is active value.
+     * @return ClinicAiModelAccess Resolved operation result.
+     *
+     * @since 1.0.0
+     */
     public function execute(Tenant $clinic, AiModelAccess $access, ?User $actor = null, bool $isActive = true): ClinicAiModelAccess
     {
         $this->resetDebugSteps();
@@ -49,5 +60,12 @@ class AssignAiModelToClinicAction
         }
     }
 
+    /**
+     * Execute the reset debug steps operation.
+     *
+     * @return void No value is returned.
+     *
+     * @since 1.0.0
+     */
     private function resetDebugSteps(): void {}
 }

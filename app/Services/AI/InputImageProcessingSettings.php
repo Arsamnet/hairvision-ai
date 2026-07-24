@@ -9,6 +9,12 @@ namespace App\Services\AI;
  */
 final class InputImageProcessingSettings
 {
+    public const DEFAULT_ENABLED = true;
+
+    public const DEFAULT_MAX_DIMENSION = 800;
+
+    public const DEFAULT_JPEG_QUALITY = 85;
+
     public const ENABLED = 'input_image_processing_enabled';
 
     public const MAX_DIMENSION = 'input_image_max_dimension';
@@ -24,9 +30,34 @@ final class InputImageProcessingSettings
     public const MAX_JPEG_QUALITY = 100;
 
     /**
+     * Return the product defaults used for new and seeded model accesses.
+     *
+     * @return array<string, bool|int>
+     *
+     * @since 2.0.0
+     */
+    public static function defaults(): array
+    {
+        return [
+            self::ENABLED => self::DEFAULT_ENABLED,
+            self::MAX_DIMENSION => (int) config(
+                'hairvision.api_image.max_dimension',
+                self::DEFAULT_MAX_DIMENSION,
+            ),
+            self::JPEG_QUALITY => (int) config(
+                'hairvision.api_image.jpeg_quality',
+                self::DEFAULT_JPEG_QUALITY,
+            ),
+        ];
+    }
+
+    /**
      * Determine whether input-image processing is enabled.
      *
      * @param  array<string, mixed>  $settings
+     * @return bool Whether the requested condition is satisfied.
+     *
+     * @since 2.0.0
      */
     public static function enabled(array $settings): bool
     {
@@ -41,6 +72,8 @@ final class InputImageProcessingSettings
      *
      * @param  array<string, mixed>  $settings
      * @return array<string, mixed>
+     *
+     * @since 2.0.0
      */
     public static function normalize(array $settings): array
     {

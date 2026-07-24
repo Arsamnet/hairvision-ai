@@ -17,6 +17,11 @@ class HairVisionDemoProvider implements AiModelProviderInterface
 {
     /**
      * Return local sample image bytes for the requested stage.
+     *
+     * @param  AiModelRequestData  $request  Incoming HTTP request.
+     * @return AiModelResponseData HTTP response.
+     *
+     * @since 1.0.0
      */
     public function run(AiModelRequestData $request): AiModelResponseData
     {
@@ -61,6 +66,14 @@ class HairVisionDemoProvider implements AiModelProviderInterface
 
     /**
      * Resolve the local sample image path.
+     *
+     * @param  AiModelRequestData  $request  Incoming HTTP request.
+     * @param  string  $stageKey  The stage key value.
+     * @param  GenerationStageCatalog  $catalog  The catalog value.
+     * @param  string  $scope  The scope value.
+     * @return string|null Resolved operation result.
+     *
+     * @since 1.0.0
      */
     private function samplePath(
         AiModelRequestData $request,
@@ -100,6 +113,11 @@ class HairVisionDemoProvider implements AiModelProviderInterface
 
     /**
      * Infer MIME type from the file extension.
+     *
+     * @param  string  $path  Storage or resource path.
+     * @return string Resolved string value.
+     *
+     * @since 1.0.0
      */
     private function mimeForPath(string $path): string
     {
@@ -113,6 +131,11 @@ class HairVisionDemoProvider implements AiModelProviderInterface
 
     /**
      * Infer extension from MIME type.
+     *
+     * @param  string|null  $mime  The mime value.
+     * @return string Resolved string value.
+     *
+     * @since 1.0.0
      */
     private function extensionForMime(?string $mime): string
     {
@@ -126,6 +149,13 @@ class HairVisionDemoProvider implements AiModelProviderInterface
 
     /**
      * Build a failed AI model response.
+     *
+     * @param  string  $code  The code value.
+     * @param  string  $message  The message value.
+     * @param  string|null  $stageKey  The stage key value.
+     * @return AiModelResponseData HTTP response.
+     *
+     * @since 1.0.0
      */
     private function failed(string $code, string $message, ?string $stageKey = null): AiModelResponseData
     {

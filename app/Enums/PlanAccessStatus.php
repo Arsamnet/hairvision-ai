@@ -2,6 +2,11 @@
 
 namespace App\Enums;
 
+/**
+ * Defines the supported plan access status values.
+ *
+ * @since 1.0.0
+ */
 enum PlanAccessStatus: string
 {
     case Exempt = 'exempt';

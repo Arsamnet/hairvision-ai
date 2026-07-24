@@ -28,6 +28,8 @@ class TenantDomain extends Model
      * Tenant that owns this domain.
      *
      * @return BelongsTo<Tenant, $this>
+     *
+     * @since 1.0.0
      */
     public function tenant(): BelongsTo
     {

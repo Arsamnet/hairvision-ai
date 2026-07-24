@@ -43,6 +43,8 @@ class Subscription extends Model
      * Clinic tenant that owns this entitlement.
      *
      * @return BelongsTo<Tenant, $this>
+     *
+     * @since 1.0.0
      */
     public function tenant(): BelongsTo
     {
@@ -53,6 +55,8 @@ class Subscription extends Model
      * User that owns this entitlement.
      *
      * @return BelongsTo<User, $this>
+     *
+     * @since 1.0.0
      */
     public function user(): BelongsTo
     {
@@ -63,6 +67,8 @@ class Subscription extends Model
      * Plan definition that created this entitlement.
      *
      * @return BelongsTo<Plan, $this>
+     *
+     * @since 1.0.0
      */
     public function plan(): BelongsTo
     {
@@ -73,6 +79,8 @@ class Subscription extends Model
      * Paid invoice that activated this entitlement.
      *
      * @return BelongsTo<Invoice, $this>
+     *
+     * @since 1.0.0
      */
     public function invoice(): BelongsTo
     {
@@ -83,6 +91,8 @@ class Subscription extends Model
      * Service entitlements attached to this base subscription.
      *
      * @return HasMany<SubscriptionServiceEntitlement, $this>
+     *
+     * @since 1.0.0
      */
     public function serviceEntitlements(): HasMany
     {
@@ -93,6 +103,8 @@ class Subscription extends Model
      * Credit ledger entries recorded for this subscription.
      *
      * @return HasMany<CreditTransaction, $this>
+     *
+     * @since 1.0.0
      */
     public function creditTransactions(): HasMany
     {

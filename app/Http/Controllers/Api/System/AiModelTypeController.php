@@ -13,6 +13,14 @@ use Illuminate\Http\JsonResponse;
  */
 class AiModelTypeController extends Controller
 {
+    /**
+     * Display the ai model type listing.
+     *
+     * @param  AiModelTypeRegistry  $registry  The registry value.
+     * @return JsonResponse JSON response payload.
+     *
+     * @since 2.0.0
+     */
     public function index(AiModelTypeRegistry $registry): JsonResponse
     {
         return response()->json([
@@ -20,6 +28,15 @@ class AiModelTypeController extends Controller
         ]);
     }
 
+    /**
+     * Display the requested ai model type resource.
+     *
+     * @param  string  $type  The type value.
+     * @param  AiModelTypeRegistry  $registry  The registry value.
+     * @return JsonResponse JSON response payload.
+     *
+     * @since 2.0.0
+     */
     public function show(string $type, AiModelTypeRegistry $registry): JsonResponse
     {
         return response()->json([

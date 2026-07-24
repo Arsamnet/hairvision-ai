@@ -21,6 +21,12 @@ class GapGptImageEditProvider implements AiModelProviderInterface
 {
     /**
      * Run one staged image edit request.
+     *
+     * @param  AiModelRequestData  $request  Incoming HTTP request.
+     * @return AiModelResponseData HTTP response.
+     *
+     * @since 1.0.0
+     * @since 2.0.0 Behavior updated for the version 2.0.0 release.
      */
     public function run(AiModelRequestData $request): AiModelResponseData
     {
@@ -61,6 +67,20 @@ class GapGptImageEditProvider implements AiModelProviderInterface
             ];
 
             Log::warning('GapGPT image edit request failed with HTTP error.', $context);
+
+            if ($response->status() === 429) {
+                return $this->failed(
+                    'provider_rate_limited',
+                    __('ai_models.errors.provider_failed'),
+                    $stageKey,
+                    [
+                        'http_status' => $response->status(),
+                        'request_id' => $this->requestId($response),
+                    ],
+                    retryable: true,
+                    retryAfterSeconds: $this->retryAfterSeconds($response),
+                );
+            }
 
             return $this->failed(
                 'provider_http_error',
@@ -108,6 +128,17 @@ class GapGptImageEditProvider implements AiModelProviderInterface
 
     /**
      * Submit the image edit request to GapGPT.
+     *
+     * @param  AiModelRequestData  $request  Incoming HTTP request.
+     * @param  string  $apiKey  The api key value.
+     * @param  string  $disk  The disk value.
+     * @param  string  $path  Storage or resource path.
+     * @param  string  $prompt  The prompt value.
+     * @param  string  $scope  The scope value.
+     * @return Response HTTP response.
+     *
+     * @since 1.0.0
+     * @since 2.0.0 Behavior updated for the version 2.0.0 release.
      */
     private function postImageEdit(
         AiModelRequestData $request,
@@ -120,7 +151,7 @@ class GapGptImageEditProvider implements AiModelProviderInterface
         $settings = $request->settings;
         $modelConfig = $request->modelConfig;
         $endpoint = (string) ($settings['endpoint_url'] ?? $modelConfig['endpoint']);
-        $timeout = max(900, $this->positiveInt($settings['timeout_seconds'] ?? $modelConfig['default_timeout'] ?? 900, 900));
+        $timeout = min(900, max(60, $this->positiveInt($settings['timeout_seconds'] ?? $modelConfig['default_timeout'] ?? 900, 900)));
         $connectTimeout = max(30, $this->positiveInt($settings['connect_timeout_seconds'] ?? $modelConfig['default_connect_timeout'] ?? 30, 30));
 
         $contents = Storage::disk($disk)->get($path);
@@ -144,7 +175,13 @@ class GapGptImageEditProvider implements AiModelProviderInterface
     /**
      * Extract generated image bytes from GapGPT response.
      *
+     * @param  Response  $response  The response value.
+     * @param  AiModelRequestData  $request  Incoming HTTP request.
+     * @param  string  $stageKey  The stage key value.
+     * @param  string  $scope  The scope value.
      * @return array<string, mixed>|null
+     *
+     * @since 1.0.0
      */
     private function extractImage(
         Response $response,
@@ -206,6 +243,11 @@ class GapGptImageEditProvider implements AiModelProviderInterface
 
     /**
      * Decode a base64 image payload.
+     *
+     * @param  string  $value  Input value supplied to the operation.
+     * @return string|null Resolved operation result.
+     *
+     * @since 1.0.0
      */
     private function decodeBase64Image(string $value): ?string
     {
@@ -220,6 +262,11 @@ class GapGptImageEditProvider implements AiModelProviderInterface
 
     /**
      * Resolve the provider model name.
+     *
+     * @param  AiModelRequestData  $request  Incoming HTTP request.
+     * @return string Resolved string value.
+     *
+     * @since 1.0.0
      */
     private function modelName(AiModelRequestData $request): string
     {
@@ -230,6 +277,11 @@ class GapGptImageEditProvider implements AiModelProviderInterface
 
     /**
      * Resolve the requested image size.
+     *
+     * @param  AiModelRequestData  $request  Incoming HTTP request.
+     * @return string Resolved string value.
+     *
+     * @since 1.0.0
      */
     private function imageSize(AiModelRequestData $request): string
     {
@@ -240,6 +292,11 @@ class GapGptImageEditProvider implements AiModelProviderInterface
 
     /**
      * Resolve the provider response format.
+     *
+     * @param  AiModelRequestData  $request  Incoming HTTP request.
+     * @return string Resolved string value.
+     *
+     * @since 1.0.0
      */
     private function responseFormat(AiModelRequestData $request): string
     {
@@ -250,6 +307,11 @@ class GapGptImageEditProvider implements AiModelProviderInterface
 
     /**
      * Normalize bearer token input.
+     *
+     * @param  string  $apiKey  The api key value.
+     * @return string Resolved string value.
+     *
+     * @since 1.0.0
      */
     private function normalizeBearerToken(string $apiKey): string
     {
@@ -262,6 +324,12 @@ class GapGptImageEditProvider implements AiModelProviderInterface
 
     /**
      * Infer MIME type from provider response.
+     *
+     * @param  Response  $response  The response value.
+     * @param  AiModelRequestData  $request  Incoming HTTP request.
+     * @return string Resolved string value.
+     *
+     * @since 1.0.0
      */
     private function mimeFromResponse(Response $response, AiModelRequestData $request): string
     {
@@ -276,6 +344,12 @@ class GapGptImageEditProvider implements AiModelProviderInterface
 
     /**
      * Infer extension from provider response.
+     *
+     * @param  Response  $response  The response value.
+     * @param  AiModelRequestData  $request  Incoming HTTP request.
+     * @return string Resolved string value.
+     *
+     * @since 1.0.0
      */
     private function extensionFromResponse(Response $response, AiModelRequestData $request): string
     {
@@ -288,6 +362,11 @@ class GapGptImageEditProvider implements AiModelProviderInterface
 
     /**
      * Infer extension from MIME type.
+     *
+     * @param  string|null  $mime  The mime value.
+     * @return string Resolved string value.
+     *
+     * @since 1.0.0
      */
     private function extensionForMime(?string $mime): string
     {
@@ -300,6 +379,11 @@ class GapGptImageEditProvider implements AiModelProviderInterface
 
     /**
      * Resolve provider request id.
+     *
+     * @param  Response  $response  The response value.
+     * @return string|null Resolved operation result.
+     *
+     * @since 1.0.0
      */
     private function requestId(Response $response): ?string
     {
@@ -314,7 +398,10 @@ class GapGptImageEditProvider implements AiModelProviderInterface
     /**
      * Return safe JSON keys for response debugging.
      *
+     * @param  Response  $response  The response value.
      * @return array<int, string>
+     *
+     * @since 1.0.0
      */
     private function responseJsonKeys(Response $response): array
     {
@@ -325,6 +412,11 @@ class GapGptImageEditProvider implements AiModelProviderInterface
 
     /**
      * Resolve configured endpoint host.
+     *
+     * @param  AiModelRequestData  $request  Incoming HTTP request.
+     * @return string|null Resolved operation result.
+     *
+     * @since 1.0.0
      */
     private function endpointHost(AiModelRequestData $request): ?string
     {
@@ -335,6 +427,11 @@ class GapGptImageEditProvider implements AiModelProviderInterface
 
     /**
      * Extract URL host for safe logs.
+     *
+     * @param  string  $url  The url value.
+     * @return string|null Resolved operation result.
+     *
+     * @since 1.0.0
      */
     private function urlHost(string $url): ?string
     {
@@ -346,7 +443,10 @@ class GapGptImageEditProvider implements AiModelProviderInterface
     /**
      * Return safe usage metadata.
      *
+     * @param  mixed  $usage  The usage value.
      * @return array<string, mixed>|null
+     *
+     * @since 1.0.0
      */
     private function safeUsage(mixed $usage): ?array
     {
@@ -355,6 +455,12 @@ class GapGptImageEditProvider implements AiModelProviderInterface
 
     /**
      * Cast a value to a positive integer.
+     *
+     * @param  mixed  $value  Input value supplied to the operation.
+     * @param  int  $default  The default value.
+     * @return int Calculated numeric value.
+     *
+     * @since 1.0.0
      */
     private function positiveInt(mixed $value, int $default): int
     {
@@ -367,9 +473,24 @@ class GapGptImageEditProvider implements AiModelProviderInterface
      * Build a failed AI model response.
      *
      * @param  array<string, mixed>  $metadata
+     * @param  string  $code  The code value.
+     * @param  string  $message  The message value.
+     * @param  string|null  $stageKey  The stage key value.
+     * @param  bool  $retryable  The retryable value.
+     * @param  int|null  $retryAfterSeconds  The retry after seconds value.
+     * @return AiModelResponseData HTTP response.
+     *
+     * @since 1.0.0
+     * @since 2.0.0 Behavior updated for the version 2.0.0 release.
      */
-    private function failed(string $code, string $message, ?string $stageKey = null, array $metadata = []): AiModelResponseData
-    {
+    private function failed(
+        string $code,
+        string $message,
+        ?string $stageKey = null,
+        array $metadata = [],
+        bool $retryable = false,
+        ?int $retryAfterSeconds = null,
+    ): AiModelResponseData {
         return new AiModelResponseData(
             successful: false,
             status: 'failed',
@@ -377,7 +498,30 @@ class GapGptImageEditProvider implements AiModelProviderInterface
             errorCode: $code,
             safeErrorMessage: $message,
             creditConsumed: 0,
+            retryable: $retryable,
+            retryAfterSeconds: $retryAfterSeconds,
         );
+    }
+
+    /**
+     * Retry after seconds.
+     *
+     * @param  Response  $response  The response value.
+     * @return int Calculated numeric value.
+     *
+     * @since 2.0.0
+     */
+    private function retryAfterSeconds(Response $response): int
+    {
+        $header = trim((string) $response->header('Retry-After'));
+
+        if (ctype_digit($header)) {
+            return max(1, (int) $header);
+        }
+
+        $timestamp = $header !== '' ? strtotime($header) : false;
+
+        return $timestamp === false ? 30 : max(1, $timestamp - time());
     }
 
     /**

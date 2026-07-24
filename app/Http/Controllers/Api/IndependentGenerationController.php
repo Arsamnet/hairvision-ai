@@ -23,6 +23,16 @@ use Symfony\Component\HttpFoundation\Response;
  */
 class IndependentGenerationController extends Controller
 {
+    /**
+     * Persist a new independent generation record.
+     *
+     * @param  StoreIndependentGenerationRequest  $request  Incoming HTTP request.
+     * @param  LeadSessionService  $leadSessionService  The lead session service value.
+     * @param  IndependentGenerationService  $generations  The generations value.
+     * @return JsonResponse JSON response payload.
+     *
+     * @since 2.0.0
+     */
     public function store(
         StoreIndependentGenerationRequest $request,
         LeadSessionService $leadSessionService,
@@ -59,6 +69,16 @@ class IndependentGenerationController extends Controller
             ->setStatusCode(Response::HTTP_CREATED);
     }
 
+    /**
+     * Display the requested independent generation resource.
+     *
+     * @param  Request  $request  Incoming HTTP request.
+     * @param  string  $generation  The generation value.
+     * @param  LeadSessionService  $leadSessionService  The lead session service value.
+     * @return GenerationRequestResource Resolved operation result.
+     *
+     * @since 2.0.0
+     */
     public function show(Request $request, string $generation, LeadSessionService $leadSessionService): GenerationRequestResource
     {
         $tenant = $this->tenantFromRequest($request);
@@ -74,13 +94,23 @@ class IndependentGenerationController extends Controller
         return new GenerationRequestResource($model);
     }
 
+    /**
+     * Execute the regenerate operation.
+     *
+     * @param  Request  $request  Incoming HTTP request.
+     * @param  string  $generation  The generation value.
+     * @param  LeadSessionService  $leadSessionService  The lead session service value.
+     * @param  IndependentGenerationService  $generations  The generations value.
+     * @return GenerationRequestResource Resolved operation result.
+     *
+     * @since 2.0.0
+     */
     public function regenerate(
         Request $request,
         string $generation,
         LeadSessionService $leadSessionService,
         IndependentGenerationService $generations
-    ): GenerationRequestResource
-    {
+    ): GenerationRequestResource {
         $tenant = $this->tenantFromRequest($request);
         $lead = $leadSessionService->verifiedLead($request, $tenant, __('auth.verify_phone_to_continue'));
 
@@ -91,23 +121,17 @@ class IndependentGenerationController extends Controller
             ->with(['sourceImage', 'category', 'output', 'currentAsset', 'attempts'])
             ->firstOrFail();
 
-        $attempt = $model->attempts()->create([
-            'tenant_id' => $tenant->id,
-            'lead_id' => $lead->id,
-            'ai_model_id' => $model->attempts->last()?->ai_model_id,
-            'attempt_number' => $model->attempts->count() + 1,
-            'status' => 'dispatched',
-            'dispatched_at' => now(),
-            'prompt' => $model->output?->prompt ?? '',
-        ]);
-
-        $model->update(['status' => 'queued']);
-
-        $generations->dispatchAttempt($attempt);
-
-        return new GenerationRequestResource($model->refresh()->load(['sourceImage', 'category', 'output', 'currentAsset', 'attempts']));
+        return new GenerationRequestResource($generations->regenerate($model, $lead));
     }
 
+    /**
+     * Execute the tenant from request operation.
+     *
+     * @param  Request  $request  Incoming HTTP request.
+     * @return Tenant Resolved operation result.
+     *
+     * @since 2.0.0
+     */
     private function tenantFromRequest(Request $request): Tenant
     {
         $tenant = $request->attributes->get('currentTenant');

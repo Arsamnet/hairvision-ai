@@ -18,6 +18,10 @@ class PaymentGatewayService
 {
     /**
      * Return the default enabled payment gateway.
+     *
+     * @return PaymentGateway|null Resolved operation result.
+     *
+     * @since 1.0.0
      */
     public function default(): ?PaymentGateway
     {
@@ -30,6 +34,11 @@ class PaymentGatewayService
 
     /**
      * Mark one gateway as the system default.
+     *
+     * @param  PaymentGateway  $gateway  The gateway value.
+     * @return PaymentGateway Resolved operation result.
+     *
+     * @since 1.0.0
      */
     public function markDefault(PaymentGateway $gateway): PaymentGateway
     {
@@ -42,7 +51,12 @@ class PaymentGatewayService
     /**
      * Initiate a payment through the selected default gateway.
      *
+     * @param  Payment  $payment  The payment value.
+     * @return Payment Resolved operation result.
+     *
      * @throws ValidationException
+     *
+     * @since 1.0.0
      */
     public function initiate(Payment $payment): Payment
     {
@@ -70,12 +84,24 @@ class PaymentGatewayService
      * Verify a payment through its gateway adapter.
      *
      * @param  array<string, mixed>  $payload
+     * @param  Payment  $payment  The payment value.
+     * @return array Resolved data array.
+     *
+     * @since 1.0.0
      */
     public function verify(Payment $payment, array $payload = []): array
     {
         return $this->adapterFor($payment->gateway)->verify($payment->gateway, $payment, $payload);
     }
 
+    /**
+     * Execute the adapter for operation.
+     *
+     * @param  PaymentGateway  $gateway  The gateway value.
+     * @return PaymentGatewayAdapter Resolved operation result.
+     *
+     * @since 1.0.0
+     */
     private function adapterFor(PaymentGateway $gateway): PaymentGatewayAdapter
     {
         return match ($gateway->provider_code) {

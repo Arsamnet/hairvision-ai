@@ -34,6 +34,7 @@ class Invoice extends Model
     ];
 
     protected $casts = [
+        'amount' => 'integer',
         'due_at' => JalaliDateTimeCast::class,
         'paid_at' => JalaliDateTimeCast::class,
         'expires_at' => JalaliDateTimeCast::class,
@@ -47,6 +48,8 @@ class Invoice extends Model
      * Clinic tenant connected to this billing document.
      *
      * @return BelongsTo<Tenant, $this>
+     *
+     * @since 1.0.0
      */
     public function tenant(): BelongsTo
     {
@@ -57,6 +60,8 @@ class Invoice extends Model
      * User that owns and may pay this invoice.
      *
      * @return BelongsTo<User, $this>
+     *
+     * @since 1.0.0
      */
     public function user(): BelongsTo
     {
@@ -67,6 +72,8 @@ class Invoice extends Model
      * Plan purchased by this invoice, if any.
      *
      * @return BelongsTo<Plan, $this>
+     *
+     * @since 1.0.0
      */
     public function plan(): BelongsTo
     {
@@ -77,6 +84,8 @@ class Invoice extends Model
      * Payments attempted for this invoice.
      *
      * @return HasMany<Payment, $this>
+     *
+     * @since 1.0.0
      */
     public function payments(): HasMany
     {
@@ -87,6 +96,8 @@ class Invoice extends Model
      * Return the purchased plan-model snapshot, or null for legacy invoices.
      *
      * @return array<int, int>|null
+     *
+     * @since 1.0.0
      */
     public function aiModelAccessIdsSnapshot(): ?array
     {

@@ -26,6 +26,15 @@ use Illuminate\View\View;
  */
 class PlanController extends Controller
 {
+    /**
+     * Display the plan listing.
+     *
+     * @param  Request  $request  Incoming HTTP request.
+     * @param  ClinicAiModelProvisioningService  $modelProvisioning  The model provisioning value.
+     * @return View Rendered response view.
+     *
+     * @since 1.0.0
+     */
     public function index(Request $request, ClinicAiModelProvisioningService $modelProvisioning): View
     {
         $canManagePlans = $request->user()->hasAnyPermission(['plans.create', 'plans.edit', 'plans.delete', 'plans.manage']);
@@ -72,6 +81,15 @@ class PlanController extends Controller
         ]);
     }
 
+    /**
+     * Persist a new plan record.
+     *
+     * @param  StorePlanRequest  $request  Incoming HTTP request.
+     * @param  PlanCatalogService  $plans  The plans value.
+     * @return RedirectResponse HTTP redirect response.
+     *
+     * @since 1.0.0
+     */
     public function store(StorePlanRequest $request, PlanCatalogService $plans): RedirectResponse
     {
         $plans->create($request->validated());
@@ -79,6 +97,15 @@ class PlanController extends Controller
         return back()->with('status', __('plans.created'));
     }
 
+    /**
+     * Display the requested plan resource.
+     *
+     * @param  Request  $request  Incoming HTTP request.
+     * @param  Plan  $plan  The plan value.
+     * @return View Rendered response view.
+     *
+     * @since 1.0.0
+     */
     public function show(Request $request, Plan $plan): View
     {
         $canManagePlans = $request->user()->hasAnyPermission(['plans.create', 'plans.edit', 'plans.delete', 'plans.manage']);
@@ -100,6 +127,16 @@ class PlanController extends Controller
         ]);
     }
 
+    /**
+     * Update the requested plan record.
+     *
+     * @param  UpdatePlanRequest  $request  Incoming HTTP request.
+     * @param  Plan  $plan  The plan value.
+     * @param  PlanCatalogService  $plans  The plans value.
+     * @return RedirectResponse HTTP redirect response.
+     *
+     * @since 1.0.0
+     */
     public function update(UpdatePlanRequest $request, Plan $plan, PlanCatalogService $plans): RedirectResponse
     {
         $plans->update($plan, $request->validated());
@@ -107,6 +144,15 @@ class PlanController extends Controller
         return back()->with('status', __('plans.updated'));
     }
 
+    /**
+     * Delete the requested plan record.
+     *
+     * @param  Request  $request  Incoming HTTP request.
+     * @param  Plan  $plan  The plan value.
+     * @return RedirectResponse HTTP redirect response.
+     *
+     * @since 1.0.0
+     */
     public function destroy(Request $request, Plan $plan): RedirectResponse
     {
         abort_unless($request->user()->hasAnyPermission(['plans.delete', 'plans.manage']), 403);
@@ -116,6 +162,16 @@ class PlanController extends Controller
         return back()->with('status', __('plans.deleted'));
     }
 
+    /**
+     * Execute the purchase operation.
+     *
+     * @param  Request  $request  Incoming HTTP request.
+     * @param  Plan  $plan  The plan value.
+     * @param  BillingService  $billing  The billing value.
+     * @return RedirectResponse HTTP redirect response.
+     *
+     * @since 1.0.0
+     */
     public function purchase(Request $request, Plan $plan, BillingService $billing): RedirectResponse
     {
         $canManagePlans = $request->user()->hasAnyPermission(['plans.create', 'plans.edit', 'plans.delete', 'plans.manage']);
@@ -129,8 +185,14 @@ class PlanController extends Controller
     }
 
     /**
+     * Execute the purchase states operation.
+     *
      * @param  iterable<int, Plan>  $plans
+     * @param  Tenant|null  $tenant  Tenant in the current operation scope.
+     * @param  ServiceEntitlementService  $entitlements  The entitlements value.
      * @return array<int, array{can_purchase: bool, reason: string|null}>
+     *
+     * @since 1.0.0
      */
     private function purchaseStates(iterable $plans, ?Tenant $tenant, ServiceEntitlementService $entitlements): array
     {

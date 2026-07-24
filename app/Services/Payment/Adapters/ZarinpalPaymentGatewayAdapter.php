@@ -25,6 +25,15 @@ class ZarinpalPaymentGatewayAdapter implements PaymentGatewayAdapter
 
     private const DEFAULT_START_PAY_URL = 'https://sandbox.zarinpal.com/pg/StartPay/';
 
+    /**
+     * Execute the initiate operation.
+     *
+     * @param  PaymentGateway  $gateway  The gateway value.
+     * @param  Payment  $payment  The payment value.
+     * @return array Resolved data array.
+     *
+     * @since 1.0.0
+     */
     public function initiate(PaymentGateway $gateway, Payment $payment): array
     {
         $payment->loadMissing(['invoice.user']);
@@ -67,6 +76,16 @@ class ZarinpalPaymentGatewayAdapter implements PaymentGatewayAdapter
         ];
     }
 
+    /**
+     * Verify a payment with the Zarinpal gateway.
+     *
+     * @param  PaymentGateway  $gateway  The gateway value.
+     * @param  Payment  $payment  The payment value.
+     * @param  array  $payload  Provider or service payload.
+     * @return array Resolved data array.
+     *
+     * @since 1.0.0
+     */
     public function verify(PaymentGateway $gateway, Payment $payment, array $payload = []): array
     {
         $authority = $this->authority($payment, $payload);
@@ -100,8 +119,16 @@ class ZarinpalPaymentGatewayAdapter implements PaymentGatewayAdapter
     }
 
     /**
+     * Execute the post operation.
+     *
      * @param  array<string, mixed>  $payload
+     * @param  PaymentGateway  $gateway  The gateway value.
+     * @param  Payment  $payment  The payment value.
+     * @param  string  $url  The url value.
+     * @param  string  $operation  The operation value.
      * @return array<string, mixed>
+     *
+     * @since 1.0.0
      */
     private function post(PaymentGateway $gateway, Payment $payment, string $url, array $payload, string $operation): array
     {
@@ -150,6 +177,14 @@ class ZarinpalPaymentGatewayAdapter implements PaymentGatewayAdapter
         return $body;
     }
 
+    /**
+     * Execute the merchant id operation.
+     *
+     * @param  PaymentGateway  $gateway  The gateway value.
+     * @return string Resolved string value.
+     *
+     * @since 1.0.0
+     */
     private function merchantId(PaymentGateway $gateway): string
     {
         $merchantId = data_get($gateway->encrypted_credentials ?? [], 'merchant_id');
@@ -168,7 +203,13 @@ class ZarinpalPaymentGatewayAdapter implements PaymentGatewayAdapter
     }
 
     /**
+     * Execute the authority operation.
+     *
      * @param  array<string, mixed>  $payload
+     * @param  Payment  $payment  The payment value.
+     * @return string Resolved string value.
+     *
+     * @since 1.0.0
      */
     private function authority(Payment $payment, array $payload): string
     {
@@ -187,6 +228,14 @@ class ZarinpalPaymentGatewayAdapter implements PaymentGatewayAdapter
         return trim($authority);
     }
 
+    /**
+     * Execute the callback url operation.
+     *
+     * @param  Payment  $payment  The payment value.
+     * @return string Resolved string value.
+     *
+     * @since 1.0.0
+     */
     private function callbackUrl(Payment $payment): string
     {
         // The callback contains the payment identity and uses the same host on
@@ -194,31 +243,81 @@ class ZarinpalPaymentGatewayAdapter implements PaymentGatewayAdapter
         return route('admin.billing.verify', $payment);
     }
 
+    /**
+     * Execute the request url operation.
+     *
+     * @param  PaymentGateway  $gateway  The gateway value.
+     * @return string Resolved string value.
+     *
+     * @since 1.0.0
+     */
     private function requestUrl(PaymentGateway $gateway): string
     {
         return $this->stringSetting($gateway, 'request_url', self::DEFAULT_REQUEST_URL);
     }
 
+    /**
+     * Verify url.
+     *
+     * @param  PaymentGateway  $gateway  The gateway value.
+     * @return string Resolved string value.
+     *
+     * @since 1.0.0
+     */
     private function verifyUrl(PaymentGateway $gateway): string
     {
         return $this->stringSetting($gateway, 'verify_url', self::DEFAULT_VERIFY_URL);
     }
 
+    /**
+     * Execute the start pay url operation.
+     *
+     * @param  PaymentGateway  $gateway  The gateway value.
+     * @return string Resolved string value.
+     *
+     * @since 1.0.0
+     */
     private function startPayUrl(PaymentGateway $gateway): string
     {
         return $this->stringSetting($gateway, 'start_pay_url', self::DEFAULT_START_PAY_URL);
     }
 
+    /**
+     * Execute the timeout seconds operation.
+     *
+     * @param  PaymentGateway  $gateway  The gateway value.
+     * @return int Calculated numeric value.
+     *
+     * @since 1.0.0
+     */
     private function timeoutSeconds(PaymentGateway $gateway): int
     {
         return max(1, (int) data_get($gateway->settings_json ?? [], 'timeout_seconds', 8));
     }
 
+    /**
+     * Execute the connect timeout seconds operation.
+     *
+     * @param  PaymentGateway  $gateway  The gateway value.
+     * @return int Calculated numeric value.
+     *
+     * @since 1.0.0
+     */
     private function connectTimeoutSeconds(PaymentGateway $gateway): int
     {
         return max(1, (int) data_get($gateway->settings_json ?? [], 'connect_timeout_seconds', 3));
     }
 
+    /**
+     * Execute the string setting operation.
+     *
+     * @param  PaymentGateway  $gateway  The gateway value.
+     * @param  string  $key  The key value.
+     * @param  string  $default  The default value.
+     * @return string Resolved string value.
+     *
+     * @since 1.0.0
+     */
     private function stringSetting(PaymentGateway $gateway, string $key, string $default): string
     {
         $value = data_get($gateway->settings_json ?? [], $key);
@@ -229,7 +328,10 @@ class ZarinpalPaymentGatewayAdapter implements PaymentGatewayAdapter
     /**
      * Extract only non-sensitive diagnostics from a failed provider response.
      *
+     * @param  mixed  $body  The body value.
      * @return array<string, mixed>
+     *
+     * @since 1.0.0
      */
     private function providerErrorContext(mixed $body): array
     {
@@ -247,7 +349,15 @@ class ZarinpalPaymentGatewayAdapter implements PaymentGatewayAdapter
     }
 
     /**
+     * Execute the fail operation.
+     *
      * @param  array<string, mixed>  $context
+     * @param  string  $message  The message value.
+     * @param  PaymentGateway  $gateway  The gateway value.
+     * @param  Payment  $payment  The payment value.
+     * @return never Resolved operation result.
+     *
+     * @since 1.0.0
      */
     private function fail(string $message, PaymentGateway $gateway, Payment $payment, array $context = []): never
     {

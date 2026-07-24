@@ -22,6 +22,15 @@ use Illuminate\View\View;
  */
 class LeadController extends Controller
 {
+    /**
+     * Display the lead listing.
+     *
+     * @param  Request  $request  Incoming HTTP request.
+     * @param  LeadDashboardService  $leadService  The lead service value.
+     * @return View|JsonResponse Rendered response view.
+     *
+     * @since 1.0.0
+     */
     public function index(Request $request, LeadDashboardService $leadService): View|JsonResponse
     {
         Gate::authorize('viewAny', Lead::class);
@@ -55,6 +64,16 @@ class LeadController extends Controller
         ]);
     }
 
+    /**
+     * Display the requested lead resource.
+     *
+     * @param  Request  $request  Incoming HTTP request.
+     * @param  Lead  $lead  Lead in the current tenant scope.
+     * @param  LeadDashboardService  $leadService  The lead service value.
+     * @return View Rendered response view.
+     *
+     * @since 1.0.0
+     */
     public function show(Request $request, Lead $lead, LeadDashboardService $leadService): View
     {
         Gate::authorize('view', $lead);
@@ -68,6 +87,14 @@ class LeadController extends Controller
         ]);
     }
 
+    /**
+     * Display the form for creating a new lead.
+     *
+     * @param  Request  $request  Incoming HTTP request.
+     * @return View Rendered response view.
+     *
+     * @since 1.0.0
+     */
     public function create(Request $request): View
     {
         Gate::authorize('create', Lead::class);
@@ -82,6 +109,15 @@ class LeadController extends Controller
         ]);
     }
 
+    /**
+     * Persist a new lead record.
+     *
+     * @param  StoreLeadRequest  $request  Incoming HTTP request.
+     * @param  LeadDashboardService  $leadService  The lead service value.
+     * @return RedirectResponse HTTP redirect response.
+     *
+     * @since 1.0.0
+     */
     public function store(StoreLeadRequest $request, LeadDashboardService $leadService): RedirectResponse
     {
         $tenant = $request->attributes->get('adminTenant');
@@ -96,6 +132,15 @@ class LeadController extends Controller
         return redirect()->route('admin.leads.show', $lead)->with('status', __('leads.created'));
     }
 
+    /**
+     * Display the form for editing the requested lead.
+     *
+     * @param  Request  $request  Incoming HTTP request.
+     * @param  Lead  $lead  Lead in the current tenant scope.
+     * @return View Rendered response view.
+     *
+     * @since 1.0.0
+     */
     public function edit(Request $request, Lead $lead): View
     {
         Gate::authorize('update', $lead);
@@ -111,6 +156,16 @@ class LeadController extends Controller
         ]);
     }
 
+    /**
+     * Update the requested lead record.
+     *
+     * @param  UpdateLeadRequest  $request  Incoming HTTP request.
+     * @param  Lead  $lead  Lead in the current tenant scope.
+     * @param  LeadDashboardService  $leadService  The lead service value.
+     * @return RedirectResponse HTTP redirect response.
+     *
+     * @since 1.0.0
+     */
     public function update(UpdateLeadRequest $request, Lead $lead, LeadDashboardService $leadService): RedirectResponse
     {
         abort_unless($this->isLeadVisible($request, $lead), 404);
@@ -123,6 +178,12 @@ class LeadController extends Controller
 
     /**
      * Ensure a route-bound lead is inside the active tenant context.
+     *
+     * @param  Request  $request  Incoming HTTP request.
+     * @param  Lead  $lead  Lead in the current tenant scope.
+     * @return bool Whether the requested condition is satisfied.
+     *
+     * @since 1.0.0
      */
     private function isLeadVisible(Request $request, Lead $lead): bool
     {

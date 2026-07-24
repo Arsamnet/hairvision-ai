@@ -20,10 +20,23 @@ use Illuminate\Validation\ValidationException;
  */
 class ServiceEntitlementService
 {
+    /**
+     * Create a new service entitlement service instance.
+     *
+     * @param  ServiceCatalog  $services  The services value.
+     *
+     * @since 1.0.0
+     */
     public function __construct(private readonly ServiceCatalog $services) {}
 
     /**
      * Return the active base subscription for a clinic.
+     *
+     * @param  Tenant|null  $tenant  Tenant in the current operation scope.
+     * @param  bool  $lock  The lock value.
+     * @return Subscription|null Resolved operation result.
+     *
+     * @since 1.0.0
      */
     public function activeBaseSubscriptionForTenant(?Tenant $tenant, bool $lock = false): ?Subscription
     {
@@ -62,6 +75,11 @@ class ServiceEntitlementService
 
     /**
      * Mark active subscriptions expired when their duration has ended.
+     *
+     * @param  Tenant|null  $tenant  Tenant in the current operation scope.
+     * @return int Calculated numeric value.
+     *
+     * @since 1.0.0
      */
     public function expireEndedSubscriptions(?Tenant $tenant = null): int
     {
@@ -80,6 +98,13 @@ class ServiceEntitlementService
 
     /**
      * Return active service entitlement for a clinic and service.
+     *
+     * @param  Tenant  $tenant  Tenant in the current operation scope.
+     * @param  string  $serviceKey  The service key value.
+     * @param  bool  $lock  The lock value.
+     * @return SubscriptionServiceEntitlement|null Resolved operation result.
+     *
+     * @since 1.0.0
      */
     public function activeEntitlement(Tenant $tenant, string $serviceKey, bool $lock = false): ?SubscriptionServiceEntitlement
     {
@@ -117,7 +142,12 @@ class ServiceEntitlementService
     /**
      * Resolve a user-facing service availability state.
      *
+     * @param  Tenant  $tenant  Tenant in the current operation scope.
+     * @param  string  $serviceKey  The service key value.
+     * @param  int  $amount  The amount value.
      * @return array{available: bool, status: string, message_key: string, subscription: ?Subscription, entitlement: ?SubscriptionServiceEntitlement, remaining_credit: int}
+     *
+     * @since 1.0.0
      */
     public function stateFor(Tenant $tenant, string $serviceKey, int $amount = 1): array
     {
@@ -151,7 +181,14 @@ class ServiceEntitlementService
     /**
      * Require that a service can be used by the clinic.
      *
+     * @param  Tenant  $tenant  Tenant in the current operation scope.
+     * @param  string  $serviceKey  The service key value.
+     * @param  int  $amount  The amount value.
+     * @return SubscriptionServiceEntitlement Resolved operation result.
+     *
      * @throws ValidationException
+     *
+     * @since 1.0.0
      */
     public function assertCanUse(Tenant $tenant, string $serviceKey, int $amount = 1): SubscriptionServiceEntitlement
     {
@@ -176,7 +213,10 @@ class ServiceEntitlementService
     /**
      * Return all entitlement states for display on dashboards.
      *
+     * @param  Subscription|null  $subscription  The subscription value.
      * @return Collection<int, array{service_key: string, label: string, remaining_credit: int, used_credit: int, total_credit: int, status: string}>
+     *
+     * @since 1.0.0
      */
     public function summaryForSubscription(?Subscription $subscription): Collection
     {
@@ -206,6 +246,14 @@ class ServiceEntitlementService
         return $summary;
     }
 
+    /**
+     * Execute the total credit for subscription operation.
+     *
+     * @param  Subscription|null  $subscription  The subscription value.
+     * @return int Calculated numeric value.
+     *
+     * @since 1.0.0
+     */
     public function totalCreditForSubscription(?Subscription $subscription): int
     {
         if (! $subscription) {
@@ -228,6 +276,14 @@ class ServiceEntitlementService
             ->sum('amount');
     }
 
+    /**
+     * Execute the remaining credit for subscription operation.
+     *
+     * @param  Subscription|null  $subscription  The subscription value.
+     * @return int Calculated numeric value.
+     *
+     * @since 1.0.0
+     */
     public function remainingCreditForSubscription(?Subscription $subscription): int
     {
         if (! $subscription) {
@@ -250,7 +306,15 @@ class ServiceEntitlementService
     /**
      * Build a normalized entitlement state.
      *
+     * @param  bool  $available  The available value.
+     * @param  string  $status  Target lifecycle status.
+     * @param  string  $messageKey  The message key value.
+     * @param  Subscription|null  $subscription  The subscription value.
+     * @param  SubscriptionServiceEntitlement|null  $entitlement  The entitlement value.
+     * @param  int  $remainingCredit  The remaining credit value.
      * @return array{available: bool, status: string, message_key: string, subscription: ?Subscription, entitlement: ?SubscriptionServiceEntitlement, remaining_credit: int}
+     *
+     * @since 1.0.0
      */
     private function state(
         bool $available,

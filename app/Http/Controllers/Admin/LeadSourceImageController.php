@@ -20,6 +20,13 @@ class LeadSourceImageController extends Controller
 {
     /**
      * Stream a tenant- and lead-scoped source image.
+     *
+     * @param  Request  $request  Incoming HTTP request.
+     * @param  Lead  $lead  Lead in the current tenant scope.
+     * @param  LeadSourceImage  $leadSourceImage  The lead source image value.
+     * @return Response HTTP response.
+     *
+     * @since 2.0.0
      */
     public function show(Request $request, Lead $lead, LeadSourceImage $leadSourceImage): Response
     {
@@ -64,6 +71,12 @@ class LeadSourceImageController extends Controller
 
     /**
      * Resolve a safe image MIME type from stored metadata or the file extension.
+     *
+     * @param  string|null  $storedMime  The stored mime value.
+     * @param  string  $path  Storage or resource path.
+     * @return string Resolved string value.
+     *
+     * @since 2.0.0
      */
     private function resolveImageMime(?string $storedMime, string $path): string
     {

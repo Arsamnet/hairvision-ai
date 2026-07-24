@@ -33,6 +33,8 @@ class UserSavedFilter extends Model
      * Dashboard user that owns this saved filter.
      *
      * @return BelongsTo<User, $this>
+     *
+     * @since 1.0.0
      */
     public function user(): BelongsTo
     {

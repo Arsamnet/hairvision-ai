@@ -13,6 +13,8 @@ class PermissionCatalog
      * Return all backend permissions grouped by module.
      *
      * @return array<string, array<int, array{code: string, name: string, description?: string}>>
+     *
+     * @since 1.0.0
      */
     public function permissions(): array
     {
@@ -137,6 +139,8 @@ class PermissionCatalog
      * Return default access levels and their permissions.
      *
      * @return array<string, array{name: string, description: string, scope: string, permissions: array<int, string>}>
+     *
+     * @since 1.0.0
      */
     public function roles(): array
     {

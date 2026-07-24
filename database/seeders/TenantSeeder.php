@@ -7,10 +7,22 @@ use App\Models\Tenant;
 use App\Models\TenantDomain;
 use Illuminate\Database\Seeder;
 
+/**
+ * Provides tenant seeder behavior.
+ *
+ * @since 1.0.0
+ */
 class TenantSeeder extends Seeder
 {
     private const DEFAULT_IPPANEL_AUTHORIZATION_TOKEN = 'YTIxMzVhYmMtZGRkYS00OWJhLWE2ZTItNjUzYjhkYTg5M2U0OGRiZjZjMzZiNjBkNjgxYmUwZTAwM2IwZDc1MzczMTU=';
 
+    /**
+     * Execute the tenant seeder operation.
+     *
+     * @return void No value is returned.
+     *
+     * @since 1.0.0
+     */
     public function run(): void
     {
         $aryaTenant = Tenant::query()->where('slug', 'arya')->first()
@@ -47,6 +59,17 @@ class TenantSeeder extends Seeder
         $this->upsertDemoIppanelGateway($demoTenant);
     }
 
+    /**
+     * Execute the upsert domain operation.
+     *
+     * @param  Tenant  $tenant  Tenant in the current operation scope.
+     * @param  string  $domain  The domain value.
+     * @param  string  $type  The type value.
+     * @param  string|null  $legacyDomain  The legacy domain value.
+     * @return void No value is returned.
+     *
+     * @since 1.0.0
+     */
     private function upsertDomain(Tenant $tenant, string $domain, string $type, ?string $legacyDomain = null): void
     {
         $tenantDomain = TenantDomain::query()->where('domain', $domain)->first()
@@ -64,6 +87,14 @@ class TenantSeeder extends Seeder
         ])->save();
     }
 
+    /**
+     * Execute the upsert demo ippanel gateway operation.
+     *
+     * @param  Tenant  $tenant  Tenant in the current operation scope.
+     * @return void No value is returned.
+     *
+     * @since 1.0.0
+     */
     private function upsertDemoIppanelGateway(Tenant $tenant): void
     {
         $fromNumber = config('hairvision.sms.ippanel.from_number');

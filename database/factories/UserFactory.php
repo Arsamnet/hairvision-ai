@@ -8,7 +8,11 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 
 /**
+ * Provides user factory behavior.
+ *
  * @extends Factory<User>
+ *
+ * @since 1.0.0
  */
 class UserFactory extends Factory
 {
@@ -21,6 +25,8 @@ class UserFactory extends Factory
      * Define the model's default state.
      *
      * @return array<string, mixed>
+     *
+     * @since 1.0.0
      */
     public function definition(): array
     {
@@ -35,6 +41,10 @@ class UserFactory extends Factory
 
     /**
      * Indicate that the model's email address should be unverified.
+     *
+     * @return static Current fluent instance.
+     *
+     * @since 1.0.0
      */
     public function unverified(): static
     {

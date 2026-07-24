@@ -6,6 +6,13 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
+    /**
+     * Execute the up operation.
+     *
+     * @return void No value is returned.
+     *
+     * @since 2.0.0
+     */
     public function up(): void
     {
         if (! Schema::hasTable('system_settings')) {
@@ -18,6 +25,13 @@ return new class extends Migration
             ->delete();
     }
 
+    /**
+     * Execute the down operation.
+     *
+     * @return void No value is returned.
+     *
+     * @since 2.0.0
+     */
     public function down(): void
     {
         // State catalogs remain recoverable from config/state-catalog.php.

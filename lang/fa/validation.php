@@ -13,8 +13,14 @@ return [
     'in' => ':attribute معتبر نیست.',
     'boolean' => ':attribute باید بله یا خیر باشد.',
     'supported_digits' => ':attribute باید فقط شامل ارقام فارسی، عربی یا انگلیسی باشد.',
+    'custom' => [
+        'phone_normalized' => [
+            'unique' => 'این شماره موبایل قبلاً ثبت شده است.',
+        ],
+    ],
     'attributes' => [
         'phone' => 'شماره موبایل',
+        'phone_normalized' => 'شماره موبایل',
         'code' => 'کد تایید',
         'note' => 'یادداشت',
         'status' => 'وضعیت',

@@ -25,6 +25,13 @@ class PlatformUser extends Authenticatable
 
     protected $table = 'platform_users';
 
+    /**
+     * Execute the casts operation.
+     *
+     * @return array Resolved data array.
+     *
+     * @since 1.0.0
+     */
     protected function casts(): array
     {
         return [
@@ -32,33 +39,78 @@ class PlatformUser extends Authenticatable
         ];
     }
 
+    /**
+     * Determine whether super admin.
+     *
+     * @return bool Whether the requested condition is satisfied.
+     *
+     * @since 1.0.0
+     */
     public function isSuperAdmin(): bool
     {
         return $this->role === 'super_admin';
     }
 
+    /**
+     * Determine whether active.
+     *
+     * @return bool Whether the requested condition is satisfied.
+     *
+     * @since 1.0.0
+     */
     public function isActive(): bool
     {
         return $this->status === 'active';
     }
 
+    /**
+     * Execute the can access tenant operation.
+     *
+     * @param  int|null  $tenantId  The tenant id value.
+     * @return bool Whether the requested condition is satisfied.
+     *
+     * @since 1.0.0
+     */
     public function canAccessTenant(?int $tenantId): bool
     {
         return $this->isSuperAdmin() && $tenantId !== null;
     }
 
+    /**
+     * Execute the role for tenant operation.
+     *
+     * @param  int|null  $tenantId  The tenant id value.
+     * @return string Resolved string value.
+     *
+     * @since 1.0.0
+     */
     public function roleForTenant(?int $tenantId): string
     {
         return $this->role;
     }
 
+    /**
+     * Determine whether permission.
+     *
+     * @param  string  $permission  The permission value.
+     * @param  int|null  $tenantId  The tenant id value.
+     * @return bool Whether the requested condition is satisfied.
+     *
+     * @since 1.0.0
+     */
     public function hasPermission(string $permission, ?int $tenantId = null): bool
     {
         return app(PermissionService::class)->can($this, $permission, null);
     }
 
     /**
+     * Determine whether any permission.
+     *
      * @param  iterable<string>  $permissions
+     * @param  int|null  $tenantId  The tenant id value.
+     * @return bool Whether the requested condition is satisfied.
+     *
+     * @since 1.0.0
      */
     public function hasAnyPermission(iterable $permissions, ?int $tenantId = null): bool
     {

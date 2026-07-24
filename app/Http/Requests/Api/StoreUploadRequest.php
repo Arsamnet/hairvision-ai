@@ -14,6 +14,10 @@ class StoreUploadRequest extends FormRequest
     /**
      * Session lead authorization is enforced after validation in the controller
      * through tenant-scoped services.
+     *
+     * @return bool Whether the requested condition is satisfied.
+     *
+     * @since 1.0.0
      */
     public function authorize(): bool
     {
@@ -21,7 +25,11 @@ class StoreUploadRequest extends FormRequest
     }
 
     /**
+     * Return the validation rules for the request.
+     *
      * @return array<string, array<int, string>>
+     *
+     * @since 1.0.0
      */
     public function rules(): array
     {
@@ -32,7 +40,11 @@ class StoreUploadRequest extends FormRequest
     }
 
     /**
+     * Return localized validation messages.
+     *
      * @return array<string, string>
+     *
+     * @since 1.0.0
      */
     public function messages(): array
     {

@@ -15,6 +15,14 @@ use App\Data\Ai\AiModelResponseData;
  */
 class MockupAiProvider implements AiModelProviderInterface
 {
+    /**
+     * Execute the mockup ai provider operation.
+     *
+     * @param  AiModelRequestData  $request  Incoming HTTP request.
+     * @return AiModelResponseData HTTP response.
+     *
+     * @since 1.0.0
+     */
     public function run(AiModelRequestData $request): AiModelResponseData
     {
         $scope = 'ai.provider.mockup';

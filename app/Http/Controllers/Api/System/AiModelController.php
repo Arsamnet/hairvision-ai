@@ -23,6 +23,14 @@ use Symfony\Component\HttpFoundation\Response;
  */
 class AiModelController extends Controller
 {
+    /**
+     * Display the ai model listing.
+     *
+     * @param  Request  $request  Incoming HTTP request.
+     * @return JsonResponse JSON response payload.
+     *
+     * @since 2.0.0
+     */
     public function index(Request $request): JsonResponse
     {
         $models = AiModel::query()
@@ -39,6 +47,15 @@ class AiModelController extends Controller
         return response()->json(AiModelResource::collection($models)->response()->getData(true));
     }
 
+    /**
+     * Persist a new ai model record.
+     *
+     * @param  StoreAiModelRequest  $request  Incoming HTTP request.
+     * @param  AiModelTypeRegistry  $registry  The registry value.
+     * @return JsonResponse JSON response payload.
+     *
+     * @since 2.0.0
+     */
     public function store(StoreAiModelRequest $request, AiModelTypeRegistry $registry): JsonResponse
     {
         $data = $request->validated();
@@ -82,11 +99,27 @@ class AiModelController extends Controller
             ->setStatusCode(Response::HTTP_CREATED);
     }
 
+    /**
+     * Display the requested ai model resource.
+     *
+     * @param  string  $model  The model value.
+     * @return AiModelResource Resolved operation result.
+     *
+     * @since 2.0.0
+     */
     public function show(string $model): AiModelResource
     {
         return new AiModelResource($this->findModel($model)->load(['category', 'outputConfigs.output']));
     }
 
+    /**
+     * Execute the activate operation.
+     *
+     * @param  string  $model  The model value.
+     * @return AiModelResource Resolved operation result.
+     *
+     * @since 2.0.0
+     */
     public function activate(string $model): AiModelResource
     {
         $aiModel = $this->findModel($model);
@@ -106,6 +139,14 @@ class AiModelController extends Controller
         return new AiModelResource($aiModel->refresh()->load(['category', 'outputConfigs.output']));
     }
 
+    /**
+     * Execute the pause operation.
+     *
+     * @param  string  $model  The model value.
+     * @return AiModelResource Resolved operation result.
+     *
+     * @since 2.0.0
+     */
     public function pause(string $model): AiModelResource
     {
         $aiModel = $this->findModel($model);
@@ -117,6 +158,14 @@ class AiModelController extends Controller
         return new AiModelResource($aiModel->refresh()->load(['category', 'outputConfigs.output']));
     }
 
+    /**
+     * Delete the requested ai model record.
+     *
+     * @param  string  $model  The model value.
+     * @return JsonResponse JSON response payload.
+     *
+     * @since 2.0.0
+     */
     public function destroy(string $model): JsonResponse
     {
         $aiModel = $this->findModel($model);
@@ -138,6 +187,14 @@ class AiModelController extends Controller
         return response()->json(status: Response::HTTP_NO_CONTENT);
     }
 
+    /**
+     * Find model.
+     *
+     * @param  string  $uuid  The uuid value.
+     * @return AiModel Resolved operation result.
+     *
+     * @since 2.0.0
+     */
     private function findModel(string $uuid): AiModel
     {
         return AiModel::query()->where('uuid', $uuid)->firstOrFail();

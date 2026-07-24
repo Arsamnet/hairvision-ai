@@ -45,6 +45,13 @@ class GenerationJob extends Model
         'updated_at' => 'datetime',
     ];
 
+    /**
+     * Register model lifecycle behavior.
+     *
+     * @return void No value is returned.
+     *
+     * @since 1.0.0
+     */
     protected static function booted(): void
     {
         static::creating(function (GenerationJob $job) {
@@ -56,6 +63,8 @@ class GenerationJob extends Model
      * Generation group that owns this period job.
      *
      * @return BelongsTo<GenerationGroup, $this>
+     *
+     * @since 1.0.0
      */
     public function group(): BelongsTo
     {
@@ -66,6 +75,8 @@ class GenerationJob extends Model
      * Tenant that owns this job.
      *
      * @return BelongsTo<Tenant, $this>
+     *
+     * @since 1.0.0
      */
     public function tenant(): BelongsTo
     {
@@ -76,6 +87,8 @@ class GenerationJob extends Model
      * Verified lead that owns this job.
      *
      * @return BelongsTo<Lead, $this>
+     *
+     * @since 1.0.0
      */
     public function lead(): BelongsTo
     {
@@ -86,6 +99,8 @@ class GenerationJob extends Model
      * Upload used as the generation input.
      *
      * @return BelongsTo<Upload, $this>
+     *
+     * @since 1.0.0
      */
     public function upload(): BelongsTo
     {
@@ -96,6 +111,8 @@ class GenerationJob extends Model
      * Generated asset produced by this job.
      *
      * @return HasOne<GeneratedAsset, $this>
+     *
+     * @since 1.0.0
      */
     public function asset(): HasOne
     {
@@ -106,6 +123,8 @@ class GenerationJob extends Model
      * AI model access record selected for this execution.
      *
      * @return BelongsTo<AiModelAccess, $this>
+     *
+     * @since 1.0.0
      */
     public function aiModelAccess(): BelongsTo
     {

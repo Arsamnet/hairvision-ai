@@ -43,7 +43,11 @@ class GenerationRequest extends Model
     ];
 
     /**
+     * Define the tenant Eloquent relationship.
+     *
      * @return BelongsTo<Tenant, $this>
+     *
+     * @since 2.0.0
      */
     public function tenant(): BelongsTo
     {
@@ -51,7 +55,11 @@ class GenerationRequest extends Model
     }
 
     /**
+     * Define the lead Eloquent relationship.
+     *
      * @return BelongsTo<Lead, $this>
+     *
+     * @since 2.0.0
      */
     public function lead(): BelongsTo
     {
@@ -59,7 +67,11 @@ class GenerationRequest extends Model
     }
 
     /**
+     * Define the source image Eloquent relationship.
+     *
      * @return BelongsTo<LeadSourceImage, $this>
+     *
+     * @since 2.0.0
      */
     public function sourceImage(): BelongsTo
     {
@@ -67,7 +79,11 @@ class GenerationRequest extends Model
     }
 
     /**
+     * Define the category Eloquent relationship.
+     *
      * @return BelongsTo<AiModelCategory, $this>
+     *
+     * @since 2.0.0
      */
     public function category(): BelongsTo
     {
@@ -75,7 +91,11 @@ class GenerationRequest extends Model
     }
 
     /**
+     * Define the output Eloquent relationship.
+     *
      * @return BelongsTo<AiModelCategoryOutput, $this>
+     *
+     * @since 2.0.0
      */
     public function output(): BelongsTo
     {
@@ -83,7 +103,11 @@ class GenerationRequest extends Model
     }
 
     /**
+     * Define the attempts Eloquent relationship.
+     *
      * @return HasMany<GenerationAttempt, $this>
+     *
+     * @since 2.0.0
      */
     public function attempts(): HasMany
     {
@@ -91,7 +115,23 @@ class GenerationRequest extends Model
     }
 
     /**
+     * Every generated result version produced for this request.
+     *
+     * @return HasMany<GeneratedAsset, $this>
+     *
+     * @since 2.0.0
+     */
+    public function assets(): HasMany
+    {
+        return $this->hasMany(GeneratedAsset::class);
+    }
+
+    /**
+     * Define the current asset Eloquent relationship.
+     *
      * @return BelongsTo<GeneratedAsset, $this>
+     *
+     * @since 2.0.0
      */
     public function currentAsset(): BelongsTo
     {

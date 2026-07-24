@@ -22,6 +22,16 @@ use Symfony\Component\HttpFoundation\Response;
  */
 class ProfileController extends Controller
 {
+    /**
+     * Display the requested profile resource.
+     *
+     * @param  Request  $request  Incoming HTTP request.
+     * @param  LeadSessionService  $leadSessionService  The lead session service value.
+     * @param  LeadProfileService  $profiles  The profiles value.
+     * @return JsonResponse JSON response payload.
+     *
+     * @since 2.0.0
+     */
     public function show(Request $request, LeadSessionService $leadSessionService, LeadProfileService $profiles): JsonResponse
     {
         $tenant = $this->tenantFromRequest($request);
@@ -43,6 +53,16 @@ class ProfileController extends Controller
         ]);
     }
 
+    /**
+     * Execute the store source image operation.
+     *
+     * @param  StoreSourceImageRequest  $request  Incoming HTTP request.
+     * @param  LeadSessionService  $leadSessionService  The lead session service value.
+     * @param  LeadProfileService  $profiles  The profiles value.
+     * @return JsonResponse JSON response payload.
+     *
+     * @since 2.0.0
+     */
     public function storeSourceImage(
         StoreSourceImageRequest $request,
         LeadSessionService $leadSessionService,
@@ -61,12 +81,21 @@ class ProfileController extends Controller
         ], Response::HTTP_CREATED);
     }
 
+    /**
+     * Execute the categories operation.
+     *
+     * @param  Request  $request  Incoming HTTP request.
+     * @param  LeadSessionService  $leadSessionService  The lead session service value.
+     * @param  PublicApplicationAvailabilityService  $availability  The availability value.
+     * @return JsonResponse JSON response payload.
+     *
+     * @since 2.0.0
+     */
     public function categories(
         Request $request,
         LeadSessionService $leadSessionService,
         PublicApplicationAvailabilityService $availability
-    ): JsonResponse
-    {
+    ): JsonResponse {
         $tenant = $this->tenantFromRequest($request);
         $leadSessionService->verifiedLead($request, $tenant, __('auth.verify_phone_to_continue'));
 
@@ -77,6 +106,15 @@ class ProfileController extends Controller
         ]);
     }
 
+    /**
+     * Execute the generations operation.
+     *
+     * @param  Request  $request  Incoming HTTP request.
+     * @param  LeadSessionService  $leadSessionService  The lead session service value.
+     * @return JsonResponse JSON response payload.
+     *
+     * @since 2.0.0
+     */
     public function generations(Request $request, LeadSessionService $leadSessionService): JsonResponse
     {
         $tenant = $this->tenantFromRequest($request);
@@ -94,6 +132,14 @@ class ProfileController extends Controller
         ]);
     }
 
+    /**
+     * Execute the tenant from request operation.
+     *
+     * @param  Request  $request  Incoming HTTP request.
+     * @return Tenant Resolved operation result.
+     *
+     * @since 2.0.0
+     */
     private function tenantFromRequest(Request $request): Tenant
     {
         $tenant = $request->attributes->get('currentTenant');

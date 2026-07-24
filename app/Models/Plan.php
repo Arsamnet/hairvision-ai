@@ -42,6 +42,7 @@ class Plan extends Model
 
     protected $casts = [
         'plan_type' => PlanType::class,
+        'price' => 'integer',
         'features_json' => 'array',
         'duration_days' => 'integer',
         'usage_limit' => 'integer',
@@ -54,6 +55,8 @@ class Plan extends Model
      * Invoices created for purchases of this plan.
      *
      * @return HasMany<Invoice, $this>
+     *
+     * @since 1.0.0
      */
     public function invoices(): HasMany
     {
@@ -64,6 +67,8 @@ class Plan extends Model
      * Service credits granted by this plan.
      *
      * @return HasMany<PlanServiceEntitlement, $this>
+     *
+     * @since 1.0.0
      */
     public function serviceEntitlements(): HasMany
     {
@@ -74,6 +79,8 @@ class Plan extends Model
      * AI model accesses that must be provisioned when this plan is activated.
      *
      * @return BelongsToMany<AiModelAccess, $this>
+     *
+     * @since 1.0.0
      */
     public function aiModelAccesses(): BelongsToMany
     {
@@ -81,16 +88,37 @@ class Plan extends Model
             ->withTimestamps();
     }
 
+    /**
+     * Determine whether base subscription.
+     *
+     * @return bool Whether the requested condition is satisfied.
+     *
+     * @since 1.0.0
+     */
     public function isBaseSubscription(): bool
     {
         return $this->plan_type === PlanType::BaseSubscription;
     }
 
+    /**
+     * Determine whether service add on.
+     *
+     * @return bool Whether the requested condition is satisfied.
+     *
+     * @since 1.0.0
+     */
     public function isServiceAddOn(): bool
     {
         return $this->plan_type === PlanType::ServiceAddOn;
     }
 
+    /**
+     * Determine whether credit top up.
+     *
+     * @return bool Whether the requested condition is satisfied.
+     *
+     * @since 1.0.0
+     */
     public function isCreditTopUp(): bool
     {
         return $this->plan_type === PlanType::CreditTopUp;
@@ -100,6 +128,8 @@ class Plan extends Model
      * Return service credit definitions, falling back to legacy usage_limit.
      *
      * @return array<string, int>
+     *
+     * @since 1.0.0
      */
     public function serviceCredits(): array
     {
@@ -123,6 +153,8 @@ class Plan extends Model
      * Return usage category keys unlocked by this plan.
      *
      * @return array<int, string>
+     *
+     * @since 1.0.0
      */
     public function serviceKeys(): array
     {

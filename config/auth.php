@@ -1,5 +1,7 @@
 <?php
 
+use App\Models\ClinicUser;
+use App\Models\PlatformUser;
 use App\Models\User;
 
 return [
@@ -76,11 +78,11 @@ return [
         ],
         'platform_users' => [
             'driver' => 'eloquent',
-            'model' => App\Models\PlatformUser::class,
+            'model' => PlatformUser::class,
         ],
         'clinic_users' => [
             'driver' => 'eloquent',
-            'model' => App\Models\ClinicUser::class,
+            'model' => ClinicUser::class,
         ],
 
         // 'users' => [

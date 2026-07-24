@@ -39,6 +39,8 @@ class Upload extends Model
      * Tenant that owns this upload.
      *
      * @return BelongsTo<Tenant, $this>
+     *
+     * @since 1.0.0
      */
     public function tenant(): BelongsTo
     {
@@ -49,6 +51,8 @@ class Upload extends Model
      * Verified lead that submitted this upload.
      *
      * @return BelongsTo<Lead, $this>
+     *
+     * @since 1.0.0
      */
     public function lead(): BelongsTo
     {
@@ -59,6 +63,8 @@ class Upload extends Model
      * Generation group created from this upload.
      *
      * @return HasOne<GenerationGroup, $this>
+     *
+     * @since 1.0.0
      */
     public function generationGroup(): HasOne
     {

@@ -46,6 +46,8 @@ class SmsGateway extends Model
      * Legacy user owner relation for older gateway rows.
      *
      * @return BelongsTo<User, $this>
+     *
+     * @since 1.0.0
      */
     public function user(): BelongsTo
     {
@@ -56,6 +58,8 @@ class SmsGateway extends Model
      * Clinic that owns a tenant-scoped gateway.
      *
      * @return BelongsTo<Tenant, $this>
+     *
+     * @since 1.0.0
      */
     public function tenant(): BelongsTo
     {
@@ -66,6 +70,9 @@ class SmsGateway extends Model
      * Scope query to system-level gateways.
      *
      * @param  Builder<SmsGateway>  $query
+     * @return Builder Configured query builder.
+     *
+     * @since 1.0.0
      */
     public function scopeSystem(Builder $query): Builder
     {
@@ -76,6 +83,9 @@ class SmsGateway extends Model
      * Scope query to enabled gateway rows.
      *
      * @param  Builder<SmsGateway>  $query
+     * @return Builder Configured query builder.
+     *
+     * @since 1.0.0
      */
     public function scopeEnabled(Builder $query): Builder
     {
@@ -84,6 +94,11 @@ class SmsGateway extends Model
 
     /**
      * Return a safe masked credential value for dashboard display.
+     *
+     * @param  string  $key  The key value.
+     * @return string|null Resolved operation result.
+     *
+     * @since 1.0.0
      */
     public function maskedCredential(string $key): ?string
     {

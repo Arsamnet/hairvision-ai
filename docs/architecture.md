@@ -1,6 +1,6 @@
 # Engineering Architecture
 
-Version: `2.0.0`
+Version: [`2.0.0`](../CHANGELOG.md#200)
 
 This document is the canonical engineering reference for HairVision. It
 consolidates architecture, data model, setup, coding standards, frontend rules,
@@ -152,9 +152,9 @@ OTP, upload, generation, status, results, and assets.
 
 Generation creates three period jobs:
 
-- `two_weeks`
-- `intermediate_regrowth`
-- `final_result`
+- `two_weeks`: one day after the hair transplant (stable legacy key)
+- `intermediate_regrowth`: six months after the hair transplant
+- `final_result`: one year after the hair transplant
 
 The staged flow dispatches the first pending job, then dispatches the next
 stage only after the previous stage succeeds. This preserves the public result
@@ -200,12 +200,23 @@ Input-image preprocessing is a shared `RunAiModelAction` concern rather than a
 provider implementation detail. Each model access can optionally enable it with
 `input_image_processing_enabled`, `input_image_max_dimension`, and
 `input_image_jpeg_quality`. When enabled, both numeric settings are required.
+New model forms and every seeded model access default to enabled processing with
+an exact 800-pixel longest side and JPEG quality 85. Administrators may still
+override or explicitly disable input processing for an individual model.
 `ApiImagePreprocessor` creates a private temporary JPEG, scales proportionally
 so the longest side exactly matches the configured dimension, applies the
 configured JPEG quality, and leaves the original source untouched. The shared
 action replaces the provider payload path with this prepared file and removes
 the temporary file after the synchronous provider call, including failed calls.
 When disabled, the original private image path remains in the provider payload.
+
+Provider results pass through the shared `JpegImageNormalizer` in both legacy
+staged jobs and independent generation attempts. Before permanent private
+storage, every valid result is proportionally scaled without cropping to an
+exact 800-pixel longest side and encoded as JPEG at quality 85. Asset paths,
+MIME, byte size, and checksums describe this normalized JPEG rather than the raw
+provider response. The GapGPT request field `size=1024x1024` remains a separate
+provider contract and does not change this private storage profile.
 
 `sample_image` is a built-in local model type. Admins with model management
 permissions can create, edit, and assign its access records like other model
@@ -234,6 +245,22 @@ GapGPT calls are long-running paid requests. Do not use automatic HTTP or queue
 retries for the provider call itself. Keep the HTTP timeout, queued job timeout,
 Horizon worker timeout, and Redis `retry_after` aligned so the worker waits for
 the provider response instead of issuing a duplicate request.
+
+Independent generation uses `ModelQueueCoordinator` as a database-backed FIFO
+and capacity gate. Model selection, attempt creation, and clinic-credit
+reservation occur inside one short transaction. Only the oldest queued attempts
+up to `ai_models.concurrency_limit` receive a slot and enter the Laravel queue.
+Workers atomically claim transported attempts, so duplicate queue delivery cannot
+start a second provider call. A definite `429` response creates a delayed attempt
+and model cooldown; ambiguous failures retain their credit reservation for
+review. This path does not require Redis when the database queue is selected.
+
+Every model execution log stores the owning `lead_id` when execution originates
+from a visitor generation. Usage reporting is shared by the clinic credit report,
+the system clinic detail, and the system model detail. Clinic queries are always
+scoped by `clinic_id`; system model queries may span clinics. Tables show the
+localized usage category and link the lead phone to the policy-protected lead
+record without storing request images or private provider payloads in the log.
 
 ## Billing and Service Access
 
@@ -299,6 +326,14 @@ Runtime OTP delivery resolves the active default system SMS gateway first. IPPan
 may still be enabled for real delivery after credentials and operational policy
 are confirmed.
 
+IPPanel delivery performs at least three bounded attempts when the HTTP request
+times out, throws, or receives a rejected/unsuccessful provider response. A
+recovered attempt returns normally. Exhausted delivery writes one Laravel
+warning with safe operational context such as gateway id, endpoint host,
+attempt count, response status, and exception class; it excludes OTP values,
+phone numbers, credentials, request payloads, and raw responses. Visitor and
+dashboard callers receive only the shared localized generic message.
+
 ## Data Model
 
 Every tenant-owned table includes `tenant_id`. Visitor-owned tables include
@@ -331,6 +366,8 @@ Required invariants:
 
 - `tenant_domains.domain` maps active hosts to active tenants.
 - `leads` are unique by `tenant_id + phone_normalized`.
+- Currency amounts use unsigned BIGINT columns: `plans.price`,
+  `invoices.amount`, and `payments.amount`.
 - `otp_codes` never contain a plain `code` column.
 - `lead_notes` writes update CRM state transactionally.
 - private file paths are internal metadata and are never exposed directly.
@@ -347,6 +384,16 @@ release that introduces category-based generation.
 `tenant_ai_settings` is retained as legacy schema only and is not model-selection
 authority. Runtime model selection requires an active `clinic_ai_model_access`
 assignment created by an authorized system administrator.
+
+Lead detail history is source-image-centric. Dashboard queries load each
+tenant/lead-scoped `lead_source_images` record with its generation requests and
+all generated asset versions, ordered newest source version first. The view
+renders the source image and its results in one bounded history item; regenerated
+assets remain under the same request with current/archive labels. The current
+source is also rendered separately as the lead's primary image. Legacy
+`generation_groups` follow the same presentation contract by pairing each group
+with its original `upload`, jobs, and assets. Clinic and system users share this
+view after the normal policy and tenant-scope checks.
 
 ## Jalali Dates and Numbers
 
@@ -525,11 +572,12 @@ HAIRVISION_DEBUG_STEP_SLOW_QUERY_MS=0
 - Add abstractions only when they remove real complexity or match local
   patterns.
 
-PHPDoc should be useful, not ornamental. Add it for public classes/methods,
-controllers, services, Form Requests, models, policies, jobs, middleware,
-events/listeners, and complex protected/private methods. Include purpose,
-important data shapes, side effects, exceptions, and `@since 1.0.0` where
-version history is useful. Prefer native types where Laravel conventions allow.
+PHPDoc should be useful, not ornamental. Add it for all project-owned named
+classes, interfaces, traits, enums, functions, and methods. Include purpose,
+input/output types, important data shapes, side effects, exceptions, and the
+actual introduction version (`@since 1.0.0` or `@since 2.0.0`). Prefer native
+types where Laravel conventions allow, and enforce the contract with
+`composer phpdoc:audit`.
 
 ## Local Setup
 
@@ -573,7 +621,7 @@ active category-specific GapGPT model access records.
 Baseline configuration:
 
 ```env
-APP_VERSION=1.0.0
+APP_VERSION=2.0.0
 APP_LOCALE=fa
 APP_FAKER_LOCALE=fa_IR
 CACHE_STORE=redis
@@ -617,7 +665,8 @@ DB_QUEUE_RETRY_AFTER=1200
 HAIRVISION_QUEUE_WORKER_TIMEOUT=1020
 HAIRVISION_CPANEL_QUEUE_CRON_ENABLED=true
 HAIRVISION_CPANEL_QUEUE_CONNECTION=database
-HAIRVISION_CPANEL_QUEUE_NAMES=default
+HAIRVISION_CPANEL_QUEUE_NAMES=ai-generation,default
+HAIRVISION_CPANEL_QUEUE_PROCESSES=3
 HAIRVISION_CPANEL_QUEUE_WINDOW_SECONDS=58
 HAIRVISION_CPANEL_QUEUE_SLEEP_SECONDS=1
 HAIRVISION_CPANEL_QUEUE_OVERLAP_MINUTES=30
@@ -630,12 +679,22 @@ Laravel's scheduler every minute:
 * * * * * /usr/local/bin/php /home/CPANEL_USER/path/to/artisan schedule:run >> /home/CPANEL_USER/path/to/storage/logs/cron.log 2>&1
 ```
 
-Replace the PHP binary and project paths with the values shown by cPanel. The
-window keeps one worker ready for 58 seconds and checks the queue every second,
-so newly dispatched image jobs do not wait for the next full cron minute. The
-overlap lock remains valid longer than a paid image request. The CLI PHP build
-should have `pcntl`, and the `jobs` / `failed_jobs` migrations must be present
-when using the database queue.
+Replace the PHP binary and project paths with the values shown by cPanel. Each
+configured lane keeps one worker ready for 58 seconds and checks the queue every
+second, so newly dispatched image jobs do not wait for the next full cron minute.
+Start with one process and increase gradually after checking cPanel CPU/RAM
+limits. Each lane has an independent overlap lock that remains valid longer than
+a paid image request. The `jobs` / `failed_jobs` migrations must be present when
+using the database queue; CLI PHP should provide `pcntl` so worker and job
+timeouts are enforced reliably.
+
+For an equivalent local macOS session, run
+`./scripts/cpanel-queue-local` from the VS Code terminal. It starts Laravel
+`schedule:work` with the database queue, generation coordinator, dedicated
+`ai-generation,default` queue order, and three worker lanes without changing
+the developer's `.env`. It clears the local config cache first so process-only
+overrides cannot be shadowed. The `--once` mode mirrors one cPanel
+`schedule:run` invocation and `--list` prints the events that would run.
 
 ## Performance
 
@@ -657,6 +716,7 @@ Required after behavior changes:
 
 ```bash
 php artisan test
+composer phpdoc:audit
 ```
 
 Run after CSS, JavaScript, Blade, font, or Vite changes:

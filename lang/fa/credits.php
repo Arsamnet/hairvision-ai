@@ -18,6 +18,7 @@ return [
         'top_up' => 'افزایش اعتبار با بسته :plan',
         'ai_usage' => 'مصرف اعتبار برای تولید نتیجه :period',
         'daily_usage' => 'مجموع مصرف روزانه اعتبار',
+        'legacy_balance' => 'ثبت موجودی اولیه اعتبار در دفتر کل',
     ],
 
     'transaction_types' => [

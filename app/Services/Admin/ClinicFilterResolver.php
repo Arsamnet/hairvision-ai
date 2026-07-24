@@ -17,7 +17,14 @@ class ClinicFilterResolver
     /**
      * Resolve a filterable clinic after confirming the actor can access it.
      *
+     * @param  Request  $request  Incoming HTTP request.
+     * @param  User  $user  Authenticated user performing the operation.
+     * @param  string  $input  The input value.
+     * @return Tenant|null Resolved operation result.
+     *
      * @throws ValidationException
+     *
+     * @since 1.0.0
      */
     public function resolve(Request $request, User $user, string $input = 'clinic_id'): ?Tenant
     {

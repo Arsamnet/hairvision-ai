@@ -8,6 +8,10 @@ return new class extends Migration
 {
     /**
      * Unprotect existing AI model access records so admins can edit every model.
+     *
+     * @return void No value is returned.
+     *
+     * @since 2.0.0
      */
     public function up(): void
     {
@@ -16,6 +20,13 @@ return new class extends Migration
         }
     }
 
+    /**
+     * Execute the down operation.
+     *
+     * @return void No value is returned.
+     *
+     * @since 2.0.0
+     */
     public function down(): void
     {
         //

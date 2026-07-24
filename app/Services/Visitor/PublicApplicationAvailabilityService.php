@@ -21,12 +21,22 @@ use Illuminate\Validation\ValidationException;
  */
 class PublicApplicationAvailabilityService
 {
+    /**
+     * Create a new public application availability service instance.
+     *
+     * @param  ServiceEntitlementService  $entitlements  The entitlements value.
+     *
+     * @since 1.0.0
+     */
     public function __construct(private readonly ServiceEntitlementService $entitlements) {}
 
     /**
      * Return active requestable categories for the public landing/profile UI.
      *
+     * @param  Tenant  $tenant  Tenant in the current operation scope.
      * @return Collection<int, AiModelCategory>
+     *
+     * @since 1.0.0
      */
     public function categoriesForTenant(Tenant $tenant): Collection
     {
@@ -59,7 +69,11 @@ class PublicApplicationAvailabilityService
     /**
      * Return dashboard-facing availability summaries for subscription services.
      *
+     * @param  Tenant  $tenant  Tenant in the current operation scope.
+     * @param  Subscription|null  $subscription  The subscription value.
      * @return Collection<int, array{service_key: string, label: string, available: bool, status: string, message: string}>
+     *
+     * @since 1.0.0
      */
     public function summariesForSubscription(Tenant $tenant, ?Subscription $subscription): Collection
     {
@@ -78,7 +92,14 @@ class PublicApplicationAvailabilityService
     /**
      * Require that one public output is currently requestable by this tenant.
      *
+     * @param  Tenant  $tenant  Tenant in the current operation scope.
+     * @param  AiModelCategory  $category  The category value.
+     * @param  AiModelCategoryOutput  $output  The output value.
+     * @return void No value is returned.
+     *
      * @throws ValidationException
+     *
+     * @since 1.0.0
      */
     public function assertCanRequest(Tenant $tenant, AiModelCategory $category, AiModelCategoryOutput $output): void
     {
@@ -104,7 +125,12 @@ class PublicApplicationAvailabilityService
     /**
      * Build the executable model query scoped to a tenant-visible output.
      *
+     * @param  Tenant  $tenant  Tenant in the current operation scope.
+     * @param  AiModelCategory  $category  The category value.
+     * @param  AiModelCategoryOutput  $output  The output value.
      * @return Builder<AiModel>
+     *
+     * @since 1.0.0
      */
     public function eligibleModelsForOutput(
         Tenant $tenant,
@@ -124,7 +150,14 @@ class PublicApplicationAvailabilityService
     }
 
     /**
+     * Execute the summary for entitlement operation.
+     *
+     * @param  Tenant  $tenant  Tenant in the current operation scope.
+     * @param  Subscription  $subscription  The subscription value.
+     * @param  SubscriptionServiceEntitlement  $entitlement  The entitlement value.
      * @return array{service_key: string, label: string, available: bool, status: string, message: string}
+     *
+     * @since 1.0.0
      */
     private function summaryForEntitlement(
         Tenant $tenant,
@@ -148,6 +181,17 @@ class PublicApplicationAvailabilityService
         ];
     }
 
+    /**
+     * Execute the availability status operation.
+     *
+     * @param  Tenant  $tenant  Tenant in the current operation scope.
+     * @param  Subscription  $subscription  The subscription value.
+     * @param  SubscriptionServiceEntitlement  $entitlement  The entitlement value.
+     * @param  AiModelCategory|null  $category  The category value.
+     * @return string Resolved string value.
+     *
+     * @since 1.0.0
+     */
     private function availabilityStatus(
         Tenant $tenant,
         Subscription $subscription,
@@ -185,6 +229,15 @@ class PublicApplicationAvailabilityService
         return $hasExecutableOutput ? 'available' : 'executable_model_unavailable';
     }
 
+    /**
+     * Execute the category can be shown operation.
+     *
+     * @param  Tenant  $tenant  Tenant in the current operation scope.
+     * @param  AiModelCategory  $category  The category value.
+     * @return bool Whether the requested condition is satisfied.
+     *
+     * @since 1.0.0
+     */
     private function categoryCanBeShown(Tenant $tenant, AiModelCategory $category): bool
     {
         return $category->status === 'active'
@@ -192,11 +245,29 @@ class PublicApplicationAvailabilityService
             && $this->hasActiveAssignedModelAccess($tenant, $category->code);
     }
 
+    /**
+     * Determine whether active assigned model access.
+     *
+     * @param  Tenant  $tenant  Tenant in the current operation scope.
+     * @param  string  $categoryCode  The category code value.
+     * @return bool Whether the requested condition is satisfied.
+     *
+     * @since 1.0.0
+     */
     private function hasActiveAssignedModelAccess(Tenant $tenant, string $categoryCode): bool
     {
         return $this->activeAssignedModelAccessQuery($tenant, $categoryCode)->exists();
     }
 
+    /**
+     * Execute the model unavailable status operation.
+     *
+     * @param  Tenant  $tenant  Tenant in the current operation scope.
+     * @param  string  $categoryCode  The category code value.
+     * @return string Resolved string value.
+     *
+     * @since 1.0.0
+     */
     private function modelUnavailableStatus(Tenant $tenant, string $categoryCode): string
     {
         $assignedWithActiveClinicPivot = AiModelAccess::query()
@@ -217,7 +288,14 @@ class PublicApplicationAvailabilityService
     }
 
     /**
+     * Execute the active assigned model access query operation.
+     *
+     * @param  Tenant  $tenant  Tenant in the current operation scope.
+     * @param  string  $categoryCode  The category code value.
      * @return Builder<AiModelAccess>
+     *
+     * @since 1.0.0
+     * @since 2.0.0 Behavior updated for the version 2.0.0 release.
      */
     private function activeAssignedModelAccessQuery(Tenant $tenant, string $categoryCode): Builder
     {
@@ -227,19 +305,29 @@ class PublicApplicationAvailabilityService
             ->where(function ($query): void {
                 $query
                     ->whereNull('credit_limit')
-                    ->orWhereColumn('credit_used', '<', 'credit_limit');
+                    ->orWhereRaw('(credit_used + credit_reserved) < credit_limit');
             })
             ->whereHas('clinics', fn ($query) => $query
                 ->where('tenants.id', $tenant->id)
                 ->where('clinic_ai_model_access.is_active', true));
     }
 
+    /**
+     * Execute the output has executable model operation.
+     *
+     * @param  Tenant  $tenant  Tenant in the current operation scope.
+     * @param  AiModelCategory  $category  The category value.
+     * @param  AiModelCategoryOutput  $output  The output value.
+     * @return bool Whether the requested condition is satisfied.
+     *
+     * @since 1.0.0
+     * @since 2.0.0 Behavior updated for the version 2.0.0 release.
+     */
     private function outputHasExecutableModel(
         Tenant $tenant,
         AiModelCategory $category,
         AiModelCategoryOutput $output
-    ): bool
-    {
+    ): bool {
         return $this->eligibleModelsForOutput($tenant, $category, $output)->exists();
     }
 }

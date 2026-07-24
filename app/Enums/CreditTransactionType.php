@@ -2,6 +2,11 @@
 
 namespace App\Enums;
 
+/**
+ * Defines the supported credit transaction type values.
+ *
+ * @since 1.0.0
+ */
 enum CreditTransactionType: string
 {
     case Grant = 'grant';

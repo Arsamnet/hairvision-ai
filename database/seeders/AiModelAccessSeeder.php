@@ -10,12 +10,27 @@ use App\Models\Plan;
 use App\Models\Tenant;
 use App\Models\User;
 use App\Services\AI\ExecutableAiModelSyncService;
+use App\Services\AI\InputImageProcessingSettings;
 use Illuminate\Database\Seeder;
 
+/**
+ * Provides ai model access seeder behavior.
+ *
+ * @since 1.0.0
+ */
 class AiModelAccessSeeder extends Seeder
 {
+    /**
+     * Execute the ai model access seeder operation.
+     *
+     * @return void No value is returned.
+     *
+     * @since 1.0.0
+     */
     public function run(): void
     {
+        $this->seedCategoryOutputs();
+
         $superAdmin = User::query()->where('role', 'super_admin')->firstOrFail();
 
         $demoAccess = AiModelAccess::query()->updateOrCreate(
@@ -27,7 +42,7 @@ class AiModelAccessSeeder extends Seeder
             [
                 'description' => __('ai_models.seed.demo_access_description'),
                 'credentials' => [],
-                'settings' => [],
+                'settings' => InputImageProcessingSettings::defaults(),
                 'prompt' => null,
                 'credit_limit' => null,
                 'credit_used' => 0,
@@ -51,6 +66,7 @@ class AiModelAccessSeeder extends Seeder
                 'description' => __('ai_models.seed.eyebrow_demo_access_description'),
                 'credentials' => [],
                 'settings' => [
+                    ...InputImageProcessingSettings::defaults(),
                     'demo_images' => [
                         'eyebrow_final_result' => config('hairvision.sample_images.eyebrow_final_result'),
                     ],
@@ -81,6 +97,7 @@ class AiModelAccessSeeder extends Seeder
                     'api_key' => env('HAIRVISION_DEMO_GAPGPT_API_KEY', 'seed-demo-gapgpt-api-key'),
                 ],
                 'settings' => [
+                    ...InputImageProcessingSettings::defaults(),
                     'endpoint_url' => $gapGptModelConfig['endpoint'] ?? 'https://api.gapgpt.app/v1/images/edits',
                     'model' => $gapGptModelConfig['default_model'] ?? 'gpt-image-2',
                     'size' => $gapGptModelConfig['default_size'] ?? '1024x1024',
@@ -113,6 +130,7 @@ class AiModelAccessSeeder extends Seeder
                     'api_key' => env('HAIRVISION_DEMO_GAPGPT_API_KEY', 'seed-demo-gapgpt-api-key'),
                 ],
                 'settings' => [
+                    ...InputImageProcessingSettings::defaults(),
                     'endpoint_url' => $gapGptModelConfig['endpoint'] ?? 'https://api.gapgpt.app/v1/images/edits',
                     'model' => $gapGptModelConfig['default_model'] ?? 'gpt-image-2',
                     'size' => $gapGptModelConfig['default_size'] ?? '1024x1024',
@@ -182,6 +200,15 @@ class AiModelAccessSeeder extends Seeder
         $this->assignSeededPlanModels($demoAccess, $eyebrowDemoAccess);
     }
 
+    /**
+     * Assign seeded plan models.
+     *
+     * @param  AiModelAccess  $hairAccess  The hair access value.
+     * @param  AiModelAccess  $eyebrowAccess  The eyebrow access value.
+     * @return void No value is returned.
+     *
+     * @since 1.0.0
+     */
     private function assignSeededPlanModels(
         AiModelAccess $hairAccess,
         AiModelAccess $eyebrowAccess,
@@ -207,6 +234,17 @@ class AiModelAccessSeeder extends Seeder
             });
     }
 
+    /**
+     * Execute the seed executable sample model operation.
+     *
+     * @param  string  $categoryCode  The category code value.
+     * @param  string  $name  The name value.
+     * @param  AiModelAccess  $legacyAccess  The legacy access value.
+     * @param  User  $superAdmin  The super admin value.
+     * @return void No value is returned.
+     *
+     * @since 1.0.0
+     */
     private function seedExecutableSampleModel(
         string $categoryCode,
         string $name,
@@ -232,7 +270,7 @@ class AiModelAccessSeeder extends Seeder
                 'status' => 'active',
                 'priority' => $legacyAccess->priority,
                 'concurrency_limit' => (int) data_get(config('ai-models.types.sample_image'), 'defaults.concurrency_limit', 10),
-                'settings' => [],
+                'settings' => InputImageProcessingSettings::defaults(),
                 'credentials' => [],
                 'health_status' => 'healthy',
                 'legacy_ai_model_access_id' => $legacyAccess->id,
@@ -256,6 +294,14 @@ class AiModelAccessSeeder extends Seeder
         });
     }
 
+    /**
+     * Execute the sample path for output operation.
+     *
+     * @param  string  $outputCode  The output code value.
+     * @return string Resolved string value.
+     *
+     * @since 1.0.0
+     */
     private function samplePathForOutput(string $outputCode): string
     {
         return config('hairvision.generation.stages.'.$outputCode.'.sample_image')
@@ -264,148 +310,82 @@ class AiModelAccessSeeder extends Seeder
     }
 
     /**
-     * @return array<string, string>
+     * Execute the seed category outputs operation.
+     *
+     * @return void No value is returned.
+     *
+     * @since 1.0.0
      */
-    private function gapGptStagePrompts(): array
+    private function seedCategoryOutputs(): void
+    {
+        collect($this->categoryOutputDefinitions())
+            ->groupBy('category')
+            ->each(function ($definitions, string $categoryCode): void {
+                $category = AiModelCategory::query()->where('code', $categoryCode)->first();
+
+                if (! $category) {
+                    return;
+                }
+
+                $definitions->each(function (array $definition) use ($category): void {
+                    $category->outputs()->updateOrCreate(
+                        ['code' => $definition['code']],
+                        collect($definition)->except(['category', 'code'])->all(),
+                    );
+                });
+            });
+    }
+
+    /**
+     * @return array<int, array{
+     *     category: string,
+     *     code: string,
+     *     name: string,
+     *     description: string,
+     *     prompt: string
+     * }>
+     *
+     * @since 1.0.0
+     */
+    private function categoryOutputDefinitions(): array
     {
         return [
-            'two_weeks' => <<<'PROMPT'
-Use the uploaded photo as the direct reference and generate exactly one ultra-realistic photo edit of the same person, showing the person two weeks after a complete and successful hair transplant.
-
-Overall objective:
-Create a realistic 2-week post-hair-transplant photo edit based on the uploaded image. The transplant must not be limited to the person’s existing hair. Any bald or thinning areas, especially the frontal hairline, temples, front scalp, mid-scalp, and top of the head, must be treated as transplant recipient areas where new hair has been implanted.
-
-Very important transplant coverage rule:
-If the original person has a completely bald or heavily receded front area, reconstruct the recipient area as if it has been fully implanted. Do not only thicken old remaining hair. Create a natural new hairline design and visible implantation pattern across the bald frontal and top scalp areas.
-
-Stage requirements:
-
-Show the same person 2 weeks after a complete hair transplant.
-The transplanted zones should clearly show many visible transplant marks across the future hairline, frontal scalp, temples, mid-scalp, and top area where needed.
-Include realistic small red dots, healing micro-scabs, and mild post-transplant redness across the implanted areas.
-Hair should still appear very short, early-stage, and not grown in yet.
-The pattern of transplant marks must show that the previously bald or thinning areas have been fully implanted.
-Keep the result realistic, medically believable, and not overly graphic.
-
-Critical identity and consistency requirements:
-
-Preserve the exact same person.
-Do not change the face, facial structure, skin tone, ethnicity, age, expression, camera angle, pose, clothing, background, lighting, or overall composition.
-Keep the same framing and perspective as the original uploaded image.
-Do not make the person look like someone else.
-Do not change beard, eyebrows, eyes, nose, lips, jawline, ears, or facial details.
-Do not change the clothes, clothing color, or clothing style.
-Do not change the background in any way.
-Do not add or remove objects.
-The only allowed changes are the scalp, hairline, hair density, implanted area, and visible hair-transplant healing effects appropriate to this timeline.
-
-General realism requirements:
-
-Ultra-realistic medical-style photo edit.
-The result must look like a real hair transplant progress photo, not a 3D render, painting, cartoon, or beauty-retouched image.
-Keep natural skin texture, realistic scalp detail, and natural hair texture.
-Avoid artificial perfection or over-editing.
-Hair color and hair texture should remain consistent with the person’s natural appearance.
-
-Output requirements:
-
-Produce exactly one high-resolution realistic photo edit.
-The output must look like the same person in the same original photo setup.
-Do not alter any non-hair element of the original image.
+            [
+                'category' => 'hair_transplant',
+                'code' => 'two_weeks',
+                'name' => 'یک روز بعد از کاشت مو',
+                'description' => 'نمای طبیعی روز اول با گرافت‌های تازه، قرمزی ملایم و ریزدلمه‌های قابل‌انتظار',
+                'prompt' => <<<'PROMPT'
+Use the uploaded photo as the direct reference for an image-to-image/inpainting edit showing the same person 1 day after a complete hair transplant. Modify ONLY the scalp, hair, and hairline. Preserve the exact identity, face, age, skin tone, facial features, facial hair, expression, pose, camera angle, framing, clothing, background, objects, environment, and original lighting. No ring light, studio lighting, beauty filters, skin smoothing, retouching, or composition changes. Reconstruct a natural, age-appropriate hairline and fully implant all necessary bald or thinning recipient areas, including the frontal hairline, temples, frontal scalp, mid-scalp, and top. Do not limit the transplant to existing hair. Show a realistic day-one result: closely shaved recipient areas, densely placed visible grafts, tiny red implantation dots, mild redness, minimal swelling, and fresh micro-scabbing. The graft pattern must clearly cover the previously bald areas, but must remain medically believable and not overly graphic. Do not show grown or dense hair at this stage. Match the person’s natural hair color and texture. Ultra-realistic, high-resolution, unedited documentary medical-photo style. The only difference from the source image must be the newly transplanted scalp and reconstructed hairline.
 PROMPT,
-            'intermediate_regrowth' => <<<'PROMPT'
-Use the uploaded photo as the direct reference and generate exactly one ultra-realistic photo edit of the same person, showing an intermediate hair regrowth stage after a complete and successful hair transplant.
-
-Overall objective:
-Create a realistic intermediate post-hair-transplant regrowth photo edit based on the uploaded image. The transplant must not be limited to the person’s existing hair. Any bald or thinning areas, especially the frontal hairline, temples, front scalp, mid-scalp, and top of the head, must show early new hair growth from the transplanted areas.
-
-Very important transplant coverage rule:
-If the original person has a completely bald or heavily receded front area, reconstruct it as a fully treated recipient area with new hair growth beginning across the bald frontal and top scalp areas. Do not only thicken old remaining hair. Create a natural new hairline with sparse and uneven early regrowth.
-
-Stage requirements:
-
-Show the same person at a later intermediate stage after the transplant.
-The red transplant wounds and scabs should be mostly healed or no longer visible.
-New hair should appear across the transplanted bald or thinning areas, including the front hairline, temples, mid-scalp, and top scalp.
-Hair should still look thin, sparse, uneven, and incomplete.
-The scalp should still be partially visible, showing that the final density has not fully developed yet.
-This stage should look clearly improved compared to the 2-week stage, but not yet full or final.
-The new hairline should be visible but still developing.
-
-Critical identity and consistency requirements:
-
-Preserve the exact same person.
-Do not change the face, facial structure, skin tone, ethnicity, age, expression, camera angle, pose, clothing, background, lighting, or overall composition.
-Keep the same framing and perspective as the original uploaded image.
-Do not make the person look like someone else.
-Do not change beard, eyebrows, eyes, nose, lips, jawline, ears, or facial details.
-Do not change the clothes, clothing color, or clothing style.
-Do not change the background in any way.
-Do not add or remove objects.
-The only allowed changes are the scalp, hairline, hair density, implanted area, and hair regrowth stage.
-
-General realism requirements:
-
-Ultra-realistic medical-style photo edit.
-The result must look like a real hair transplant progress photo, not a 3D render, painting, cartoon, or beauty-retouched image.
-Keep natural skin texture, realistic scalp detail, and natural hair texture.
-Avoid artificial perfection, fake density, or unrealistic hairlines.
-Hair color and hair texture should remain consistent with the person’s natural appearance.
-
-Output requirements:
-
-Produce exactly one high-resolution realistic photo edit.
-The output must look like the same person in the same original photo setup.
-Do not alter any non-hair element of the original image.
+            ],
+            [
+                'category' => 'hair_transplant',
+                'code' => 'intermediate_regrowth',
+                'name' => '۶ ماه بعد از کاشت مو',
+                'description' => 'رشد میانی شش‌ماهه با خط رویش شکل‌گرفته، تراکم ناکامل و نمایان بودن طبیعی بخشی از پوست سر',
+                'prompt' => <<<'PROMPT'
+Use the uploaded photo as the direct reference for an image-to-image/inpainting edit showing the same person 6 months after a complete hair transplant. Modify ONLY the scalp, hair, and hairline. Preserve the exact identity, face, age, skin tone, facial features, facial hair, expression, pose, camera angle, framing, clothing, background, objects, environment, and original lighting. No ring light, studio lighting, beauty filters, skin smoothing, retouching, or composition changes. Show intermediate regrowth across all transplanted areas, including the reconstructed frontal hairline, temples, frontal scalp, mid-scalp, and top. New hair must extend into previously bald areas rather than only thickening the original hair. The wounds, redness, and scabs must be fully healed. The established hairline should be visible but still sparse, short, thin, slightly uneven, and incomplete. Keep some scalp visible and avoid final-stage density. Match the person’s natural hair color, direction, and texture. Ultra-realistic, high-resolution, unedited documentary style. The only difference from the source image must be the realistic 6-month hair-transplant growth.
 PROMPT,
-            'final_result' => <<<'PROMPT'
-Use the uploaded photo as the direct reference and generate exactly one ultra-realistic photo edit of the same person, showing the final successful result after full hair growth from a complete hair transplant.
-
-Overall objective:
-Create a realistic final 1-year post-hair-transplant result based on the uploaded image. The transplant must not be limited to the person’s existing hair. Any bald or thinning areas, especially the frontal hairline, temples, front scalp, mid-scalp, and top of the head, must now look naturally filled in with fully grown transplanted hair.
-
-Very important transplant coverage rule:
-If the original person has a completely bald or heavily receded front area, reconstruct it as a successful complete transplant result. Do not only thicken old remaining hair. Create a realistic full new hairline and new hair growth across the bald frontal and top scalp areas, as if the person no longer appears bald in the transplanted areas.
-
-Stage requirements:
-
-Show the same person at the final successful result stage after full hair growth.
-The previously bald or thinning front and top areas should now look naturally filled in.
-Create a realistic full hairline where needed, including the frontal area and temples.
-The person should no longer look bald in the transplanted areas.
-Hair should appear fully grown, naturally fuller, and complete across the front, mid-scalp, and top.
-The hairline must be natural, age-appropriate, and proportional to the face.
-The density should look successful and full, but still realistic and slightly imperfect.
-Avoid an unnaturally perfect, overly dense, fake, or wig-like result.
-The final image should look like a real successful 1-year post-transplant result, as if the person naturally has a full head of hair again.
-
-Critical identity and consistency requirements:
-
-Preserve the exact same person.
-Do not change the face, facial structure, skin tone, ethnicity, age, expression, camera angle, pose, clothing, background, lighting, or overall composition.
-Keep the same framing and perspective as the original uploaded image.
-Do not make the person look like someone else.
-Do not change beard, eyebrows, eyes, nose, lips, jawline, ears, or facial details.
-Do not change the clothes, clothing color, or clothing style.
-Do not change the background in any way.
-Do not add or remove objects.
-The only allowed changes are the scalp, hairline, hair density, and fully grown transplanted hair.
-
-General realism requirements:
-
-Ultra-realistic medical-style photo edit.
-The result must look like a real successful hair transplant photo, not a 3D render, painting, cartoon, or beauty-retouched image.
-Keep natural skin texture, realistic scalp detail, and natural hair texture.
-Avoid artificial perfection, fake density, or unrealistic hairlines.
-Hair color and hair texture should remain consistent with the person’s natural appearance.
-The final hair should look full and successful, but not like a wig or artificial hairpiece.
-
-Output requirements:
-
-Produce exactly one high-resolution realistic photo edit.
-The output must look like the same person in the same original photo setup.
-Do not alter any non-hair element of the original image.
+            ],
+            [
+                'category' => 'hair_transplant',
+                'code' => 'final_result',
+                'name' => 'یک سال بعد از کاشت مو',
+                'description' => 'نتیجه کامل یک‌ساله با خط رویش طبیعی، پوشش متناسب و تراکم باورپذیر',
+                'prompt' => <<<'PROMPT'
+Use the uploaded photo as the direct reference for an image-to-image/inpainting edit showing the same person 1 year after a complete and successful hair transplant. Modify ONLY the scalp, hair, and hairline. Preserve the exact identity, face, age, skin tone, facial features, facial hair, expression, pose, camera angle, framing, clothing, background, objects, environment, and original lighting. No ring light, studio lighting, beauty filters, skin smoothing, retouching, or composition changes. Naturally restore all previously bald or thinning areas, including the frontal hairline, temples, frontal scalp, mid-scalp, and top. Do not merely thicken the remaining original hair. Create a natural, age-appropriate hairline proportional to the person’s face. Show fully grown, healthy, naturally fuller hair with realistic density, direction, color, and texture matching the original person. The transplanted areas should no longer appear bald, while retaining slight natural irregularity and subtle scalp visibility where appropriate. Avoid excessive density, sharp artificial hairlines, perfect symmetry, helmet hair, or a wig-like appearance. Ultra-realistic, high-resolution, unedited documentary style. The only difference from the source image must be the natural final hair-transplant result.
 PROMPT,
+            ],
+            [
+                'category' => 'eyebrow_transplant',
+                'code' => 'eyebrow_final_result',
+                'name' => 'یک سال بعد از کاشت ابرو',
+                'description' => 'نتیجه کامل یک‌ساله با تراکم، جهت رشد و عدم تقارن طبیعی ابروها',
+                'prompt' => <<<'PROMPT'
+Use the uploaded photo as the direct reference for an image-to-image/inpainting edit showing the same person 1 year after a successful eyebrow transplant. Modify ONLY the eyebrows. Preserve the exact identity, face, age, skin tone, eyes, expression, pose, camera angle, framing, clothing, head hair, facial hair, background, and original lighting. No ring light, studio lighting, beauty filters, skin smoothing, retouching, or composition changes. Create naturally fuller, well-defined, age-appropriate eyebrows proportional to the face. Match the person’s natural eyebrow color and texture, with realistic individual hairs and growth direction: slightly upward at the inner brow, gradually angled outward through the arch and tail. Keep subtle irregularity and natural asymmetry. The transplant must appear fully healed, with no redness, scabs, swelling, or visible procedure marks. Avoid excessive thickness, sharp edges, perfect symmetry, painted-on makeup, tattooed or microbladed appearance, and artificial density. Ultra-realistic, high-resolution, unedited documentary-photo style. The only difference from the source image must be the realistic 1-year eyebrow-transplant result.
+PROMPT,
+            ],
         ];
     }
 }

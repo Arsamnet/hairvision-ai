@@ -8,8 +8,20 @@ use App\Models\Tenant;
 use App\Models\User;
 use Illuminate\Database\Seeder;
 
+/**
+ * Provides lead seeder behavior.
+ *
+ * @since 1.0.0
+ */
 class LeadSeeder extends Seeder
 {
+    /**
+     * Execute the lead seeder operation.
+     *
+     * @return void No value is returned.
+     *
+     * @since 1.0.0
+     */
     public function run(): void
     {
         $tenant = Tenant::query()->where('slug', 'arya')->firstOrFail();
@@ -60,7 +72,13 @@ class LeadSeeder extends Seeder
     }
 
     /**
+     * Execute the demo leads operation.
+     *
+     * @param  User  $admin  The admin value.
+     * @param  User  $editor  The editor value.
      * @return array<int, array<string, mixed>>
+     *
+     * @since 1.0.0
      */
     private function demoLeads(User $admin, User $editor): array
     {

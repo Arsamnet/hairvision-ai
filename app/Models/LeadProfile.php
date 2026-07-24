@@ -29,7 +29,11 @@ class LeadProfile extends Model
     ];
 
     /**
+     * Define the tenant Eloquent relationship.
+     *
      * @return BelongsTo<Tenant, $this>
+     *
+     * @since 2.0.0
      */
     public function tenant(): BelongsTo
     {
@@ -37,7 +41,11 @@ class LeadProfile extends Model
     }
 
     /**
+     * Define the lead Eloquent relationship.
+     *
      * @return BelongsTo<Lead, $this>
+     *
+     * @since 2.0.0
      */
     public function lead(): BelongsTo
     {
@@ -45,7 +53,11 @@ class LeadProfile extends Model
     }
 
     /**
+     * Define the source images Eloquent relationship.
+     *
      * @return HasMany<LeadSourceImage, $this>
+     *
+     * @since 2.0.0
      */
     public function sourceImages(): HasMany
     {
@@ -53,7 +65,11 @@ class LeadProfile extends Model
     }
 
     /**
+     * Define the current source image Eloquent relationship.
+     *
      * @return HasOne<LeadSourceImage, $this>
+     *
+     * @since 2.0.0
      */
     public function currentSourceImage(): HasOne
     {

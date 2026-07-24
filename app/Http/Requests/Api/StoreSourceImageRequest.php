@@ -11,13 +11,24 @@ use Illuminate\Foundation\Http\FormRequest;
  */
 class StoreSourceImageRequest extends FormRequest
 {
+    /**
+     * Determine whether the current user may submit this request.
+     *
+     * @return bool Whether the requested condition is satisfied.
+     *
+     * @since 2.0.0
+     */
     public function authorize(): bool
     {
         return true;
     }
 
     /**
+     * Return the validation rules for the request.
+     *
      * @return array<string, array<int, mixed>>
+     *
+     * @since 2.0.0
      */
     public function rules(): array
     {

@@ -15,13 +15,24 @@ use Illuminate\Validation\Rule;
  */
 class UpdateUserRequest extends FormRequest
 {
+    /**
+     * Determine whether the current user may submit this request.
+     *
+     * @return bool Whether the requested condition is satisfied.
+     *
+     * @since 1.0.0
+     */
     public function authorize(): bool
     {
         return $this->user()?->can('update', $this->route('user')) ?? false;
     }
 
     /**
+     * Return the validation rules for the request.
+     *
      * @return array<string, mixed>
+     *
+     * @since 1.0.0
      */
     public function rules(): array
     {
@@ -47,6 +58,13 @@ class UpdateUserRequest extends FormRequest
         ];
     }
 
+    /**
+     * Normalize request input before validation.
+     *
+     * @return void No value is returned.
+     *
+     * @since 1.0.0
+     */
     protected function prepareForValidation(): void
     {
         if ($this->has('phone_normalized')) {
@@ -71,7 +89,11 @@ class UpdateUserRequest extends FormRequest
     }
 
     /**
+     * Execute the allowed scopes operation.
+     *
      * @return array<int, string>
+     *
+     * @since 1.0.0
      */
     private function allowedScopes(): array
     {
@@ -79,7 +101,11 @@ class UpdateUserRequest extends FormRequest
     }
 
     /**
+     * Execute the allowed role codes operation.
+     *
      * @return array<int, string>
+     *
+     * @since 1.0.0
      */
     private function allowedRoleCodes(): array
     {
@@ -94,7 +120,11 @@ class UpdateUserRequest extends FormRequest
     }
 
     /**
+     * Execute the clinic role codes operation.
+     *
      * @return array<int, string>
+     *
+     * @since 1.0.0
      */
     private function clinicRoleCodes(): array
     {

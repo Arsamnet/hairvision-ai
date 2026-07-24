@@ -17,6 +17,16 @@ use Illuminate\Support\Facades\Storage;
  */
 class LeadUploadController extends Controller
 {
+    /**
+     * Display the requested lead upload resource.
+     *
+     * @param  Request  $request  Incoming HTTP request.
+     * @param  Lead  $lead  Lead in the current tenant scope.
+     * @param  Upload  $upload  The upload value.
+     * @return Response HTTP response.
+     *
+     * @since 1.0.0
+     */
     public function show(Request $request, Lead $lead, Upload $upload): Response
     {
         $scope = 'admin.lead_upload.show';
@@ -56,6 +66,15 @@ class LeadUploadController extends Controller
             ->header('Cache-Control', 'private, max-age=300');
     }
 
+    /**
+     * Resolve image mime.
+     *
+     * @param  string|null  $storedMime  The stored mime value.
+     * @param  string  $path  Storage or resource path.
+     * @return string Resolved string value.
+     *
+     * @since 1.0.0
+     */
     private function resolveImageMime(?string $storedMime, string $path): string
     {
         if (is_string($storedMime) && str_starts_with($storedMime, 'image/')) {

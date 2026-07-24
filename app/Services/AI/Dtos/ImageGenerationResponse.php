@@ -10,11 +10,15 @@ namespace App\Services\AI\Dtos;
 final class ImageGenerationResponse
 {
     /**
+     * Create a new image generation response instance.
+     *
      * @param  string  $status  Provider status such as `completed` or `failed`.
      * @param  string|null  $providerJobId  External provider job id when async.
      * @param  string|null  $binaryContent  Optional returned binary content.
      * @param  string|null  $localPath  Private local sample path for the sample provider.
      * @param  array<string, mixed>  $metadata  Provider metadata safe for internal storage.
+     *
+     * @since 1.0.0
      */
     public function __construct(
         public readonly string $status,

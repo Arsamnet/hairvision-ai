@@ -6,6 +6,7 @@ use App\Data\Ai\AiModelRequestData;
 use App\Data\Ai\AiModelResponseData;
 use App\Models\AiModelAccess;
 use App\Models\AiModelUsageLog;
+use App\Models\Lead;
 use App\Models\Tenant;
 use App\Models\User;
 use App\Services\AI\AiModelManager;
@@ -26,6 +27,15 @@ use Throwable;
  */
 class RunAiModelAction
 {
+    /**
+     * Create a new run ai model action instance.
+     *
+     * @param  AiModelManager  $manager  The manager value.
+     * @param  AiModelResolver  $resolver  The resolver value.
+     * @param  ApiImagePreprocessor  $imagePreprocessor  The image preprocessor value.
+     *
+     * @since 1.0.0
+     */
     public function __construct(
         private readonly AiModelManager $manager,
         private readonly AiModelResolver $resolver,
@@ -36,8 +46,17 @@ class RunAiModelAction
      * Execute an AI model and record usage.
      *
      * @param  array<string, mixed>  $payload
+     * @param  Tenant  $clinic  Tenant in the current operation scope.
+     * @param  string  $usageCategoryKey  The usage category key value.
+     * @param  User|null  $user  Authenticated user performing the operation.
+     * @param  AiModelAccess|null  $selectedAccess  The selected access value.
+     * @param  Lead|null  $lead  Lead in the current tenant scope.
+     * @return AiModelResponseData HTTP response.
      *
      * @throws ValidationException
+     *
+     * @since 1.0.0
+     * @since 2.0.0 Behavior updated for the version 2.0.0 release.
      */
     public function execute(
         Tenant $clinic,
@@ -45,21 +64,20 @@ class RunAiModelAction
         array $payload = [],
         ?User $user = null,
         ?AiModelAccess $selectedAccess = null,
+        ?Lead $lead = null,
     ): AiModelResponseData {
         $scope = 'ai.model.run';
 
-        try {
-            $access = $selectedAccess
-                ? $this->ensureSelectedAccessIsUsable($clinic, $selectedAccess, $usageCategoryKey, $scope)
-                : $this->manager->resolveForClinic($clinic, $usageCategoryKey);
-        } catch (ValidationException $exception) {
-            throw $exception;
-        } catch (Throwable $exception) {
-            throw $exception;
-        }
+        $access = $selectedAccess
+            ? $this->ensureSelectedAccessIsUsable($clinic, $selectedAccess, $usageCategoryKey, $scope)
+            : $this->manager->resolveForClinic($clinic, $usageCategoryKey);
+        $leadId = $lead && (int) $lead->tenant_id === (int) $clinic->id
+            ? $lead->id
+            : null;
 
         $log = AiModelUsageLog::create([
             'clinic_id' => $clinic->id,
+            'lead_id' => $leadId,
             'user_id' => $user?->id,
             'ai_model_access_id' => $access->id,
             'usage_category_key' => $usageCategoryKey,
@@ -72,8 +90,11 @@ class RunAiModelAction
         ]);
 
         $temporaryInput = null;
+        $providerCreditReserved = false;
+        $providerCallStarted = false;
 
         try {
+            $providerCreditReserved = $this->reserveProviderCredit($access);
             $modelConfig = $this->resolver->model($access->model_key);
 
             $provider = $this->resolver->providerFor($access);
@@ -97,11 +118,14 @@ class RunAiModelAction
                 user: $user,
             );
 
+            $providerCallStarted = true;
             $response = $provider->run($requestData);
         } catch (Throwable $exception) {
+            $this->releaseProviderCredit($access, $providerCreditReserved);
+            $errorCode = $providerCallStarted ? 'provider_exception' : 'provider_preflight_exception';
             $log->update([
                 'status' => 'failed',
-                'error_code' => 'provider_exception',
+                'error_code' => $errorCode,
                 'error_message' => __('ai_models.errors.provider_failed'),
                 'failed_at' => now(),
             ]);
@@ -109,7 +133,7 @@ class RunAiModelAction
             return new AiModelResponseData(
                 successful: false,
                 status: 'failed',
-                errorCode: 'provider_exception',
+                errorCode: $errorCode,
                 safeErrorMessage: __('ai_models.errors.provider_failed'),
                 creditConsumed: 0,
             );
@@ -120,6 +144,7 @@ class RunAiModelAction
         }
 
         if (! $response->successful) {
+            $this->releaseProviderCredit($access, $providerCreditReserved);
             $log->update([
                 'status' => 'failed',
                 'response_reference' => $response->providerReference,
@@ -135,18 +160,24 @@ class RunAiModelAction
         $creditConsumed = max(1, $response->creditConsumed);
 
         try {
-            DB::transaction(function () use ($access, $log, $response, $creditConsumed): void {
+            DB::transaction(function () use ($access, $log, $response, $creditConsumed, $providerCreditReserved): void {
                 $lockedAccess = AiModelAccess::query()
                     ->lockForUpdate()
                     ->findOrFail($access->id);
 
-                if (! $lockedAccess->hasAvailableCredit($creditConsumed)) {
+                $otherReservations = max(0, $lockedAccess->credit_reserved - ($providerCreditReserved ? 1 : 0));
+
+                if (! $lockedAccess->hasUnlimitedCredit()
+                    && $lockedAccess->credit_used + $otherReservations + $creditConsumed > $lockedAccess->credit_limit) {
                     throw ValidationException::withMessages([
                         'ai_model_access' => __('ai_models.errors.credit_finished'),
                     ]);
                 }
 
                 $lockedAccess->forceFill([
+                    'credit_reserved' => $lockedAccess->hasUnlimitedCredit()
+                        ? 0
+                        : $otherReservations,
                     'credit_used' => $lockedAccess->credit_used + ($lockedAccess->hasUnlimitedCredit() ? 0 : $creditConsumed),
                     'usage_count' => $lockedAccess->usage_count + 1,
                     'last_used_at' => now(),
@@ -162,8 +193,10 @@ class RunAiModelAction
 
             });
         } catch (ValidationException $exception) {
+            $this->releaseProviderCredit($access, $providerCreditReserved);
             throw $exception;
         } catch (Throwable $exception) {
+            $this->releaseProviderCredit($access, $providerCreditReserved);
             throw $exception;
         }
 
@@ -171,10 +204,68 @@ class RunAiModelAction
     }
 
     /**
+     * Reserve provider credit.
+     *
+     * @param  AiModelAccess  $access  The access value.
+     * @return bool Whether the requested condition is satisfied.
+     *
+     * @since 2.0.0
+     */
+    private function reserveProviderCredit(AiModelAccess $access): bool
+    {
+        return DB::transaction(function () use ($access): bool {
+            $locked = AiModelAccess::query()->lockForUpdate()->findOrFail($access->id);
+
+            if ($locked->hasUnlimitedCredit()) {
+                return false;
+            }
+
+            if (! $locked->hasAvailableCredit()) {
+                throw ValidationException::withMessages([
+                    'ai_model_access' => __('ai_models.errors.credit_finished'),
+                ]);
+            }
+
+            $locked->increment('credit_reserved');
+
+            return true;
+        });
+    }
+
+    /**
+     * Release provider credit.
+     *
+     * @param  AiModelAccess  $access  The access value.
+     * @param  bool  $reserved  The reserved value.
+     * @return void No value is returned.
+     *
+     * @since 2.0.0
+     */
+    private function releaseProviderCredit(AiModelAccess $access, bool $reserved): void
+    {
+        if (! $reserved) {
+            return;
+        }
+
+        DB::transaction(function () use ($access): void {
+            $locked = AiModelAccess::query()->lockForUpdate()->find($access->id);
+
+            if ($locked && $locked->credit_reserved > 0) {
+                $locked->decrement('credit_reserved');
+            }
+        });
+    }
+
+    /**
      * Replace the provider payload image with a private processed JPEG when enabled.
      *
      * @param  array<string, mixed>  $payload
+     * @param  Tenant  $clinic  Tenant in the current operation scope.
+     * @param  AiModelAccess  $access  The access value.
+     * @param  string  $requestReference  The request reference value.
      * @return array{0: array<string, mixed>, 1: array{disk: string, path: string}|null}
+     *
+     * @since 1.0.0
      */
     private function prepareInputImage(
         Tenant $clinic,
@@ -224,6 +315,14 @@ class RunAiModelAction
 
     /**
      * Ensure the selected model access can be used by the clinic.
+     *
+     * @param  Tenant  $clinic  Tenant in the current operation scope.
+     * @param  AiModelAccess  $access  The access value.
+     * @param  string  $usageCategoryKey  The usage category key value.
+     * @param  string  $scope  The scope value.
+     * @return AiModelAccess Resolved operation result.
+     *
+     * @since 1.0.0
      */
     private function ensureSelectedAccessIsUsable(
         Tenant $clinic,

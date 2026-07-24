@@ -27,6 +27,8 @@ class Permission extends Model
      * Access levels that include this permission.
      *
      * @return BelongsToMany<Role, $this>
+     *
+     * @since 1.0.0
      */
     public function roles(): BelongsToMany
     {

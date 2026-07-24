@@ -13,12 +13,23 @@ use Illuminate\Http\Request;
  */
 class EnsureAdminTenantSelected
 {
+    /**
+     * Create a new ensure admin tenant selected instance.
+     *
+     * @param  AdminTenantContext  $tenantContext  The tenant context value.
+     *
+     * @since 1.0.0
+     */
     public function __construct(private readonly AdminTenantContext $tenantContext) {}
 
     /**
      * Attach the active tenant and available tenant list to the request.
      *
      * @param  Closure(Request): mixed  $next
+     * @param  Request  $request  Incoming HTTP request.
+     * @return mixed Resolved operation result.
+     *
+     * @since 1.0.0
      */
     public function handle(Request $request, Closure $next): mixed
     {

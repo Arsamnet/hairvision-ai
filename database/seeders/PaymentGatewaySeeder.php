@@ -7,10 +7,22 @@ use App\Services\Payment\PaymentGatewayService;
 use App\Services\Payment\ZarinpalConfiguration;
 use Illuminate\Database\Seeder;
 
+/**
+ * Provides payment gateway seeder behavior.
+ *
+ * @since 1.0.0
+ */
 class PaymentGatewaySeeder extends Seeder
 {
     private const TEST_ZARINPAL_SANDBOX_MERCHANT_ID = '22222222-2222-4222-8222-222222222222';
 
+    /**
+     * Execute the payment gateway seeder operation.
+     *
+     * @return void No value is returned.
+     *
+     * @since 1.0.0
+     */
     public function run(): void
     {
         $isTesting = app()->environment('testing');

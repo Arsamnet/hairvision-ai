@@ -7,6 +7,13 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
+    /**
+     * Execute the up operation.
+     *
+     * @return void No value is returned.
+     *
+     * @since 1.0.0
+     */
     public function up(): void
     {
         if (! Schema::hasColumn('ai_model_accesses', 'usage_count')) {
@@ -41,6 +48,13 @@ return new class extends Migration
         }
     }
 
+    /**
+     * Execute the down operation.
+     *
+     * @return void No value is returned.
+     *
+     * @since 1.0.0
+     */
     public function down(): void
     {
         if (Schema::hasColumn('ai_model_accesses', 'usage_count')) {

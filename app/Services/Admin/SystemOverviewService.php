@@ -21,7 +21,11 @@ use App\Models\User;
 class SystemOverviewService
 {
     /**
+     * Execute the dashboard counts operation.
+     *
      * @return array<string, int>
+     *
+     * @since 1.0.0
      */
     public function dashboardCounts(): array
     {
@@ -41,7 +45,11 @@ class SystemOverviewService
     }
 
     /**
+     * Execute the management metrics operation.
+     *
      * @return array<string, int|float>
+     *
+     * @since 1.0.0
      */
     public function managementMetrics(): array
     {

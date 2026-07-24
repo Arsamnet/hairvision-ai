@@ -2,6 +2,11 @@
 
 namespace App\Enums;
 
+/**
+ * Defines the supported plan type values.
+ *
+ * @since 1.0.0
+ */
 enum PlanType: string
 {
     case BaseSubscription = 'base_subscription';

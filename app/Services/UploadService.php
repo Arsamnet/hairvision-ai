@@ -18,6 +18,13 @@ class UploadService
 {
     /**
      * Store an uploaded image and create its metadata.
+     *
+     * @param  Lead  $lead  Lead in the current tenant scope.
+     * @param  UploadedFile  $file  The file value.
+     * @param  Request|null  $request  Incoming HTTP request.
+     * @return Upload Resolved operation result.
+     *
+     * @since 1.0.0
      */
     public function storeUpload(Lead $lead, UploadedFile $file, ?Request $request = null): Upload
     {

@@ -29,6 +29,8 @@ class AiModelInputImageProcessingTest extends TestCase
         CapturingImageProvider::$capture = [];
 
         config([
+            'hairvision.api_image.max_dimension' => 800,
+            'hairvision.api_image.jpeg_quality' => 85,
             'ai-models.models.capturing_image' => [
                 'key' => 'capturing_image',
                 'driver' => CapturingImageProvider::class,
@@ -66,6 +68,28 @@ class AiModelInputImageProcessingTest extends TestCase
         $this->assertStringEndsWith('.jpg', CapturingImageProvider::$capture['path']);
         $this->assertSame($source, Storage::disk('local')->get('uploads/source.png'));
         Storage::disk('local')->assertMissing(CapturingImageProvider::$capture['path']);
+    }
+
+    public function test_product_defaults_send_an_800_pixel_jpeg_at_quality_85(): void
+    {
+        $tenant = Tenant::factory()->create();
+        Storage::disk('local')->put('uploads/default-source.png', $this->patternedPng(1200, 600));
+        $access = $this->assignedAccess($tenant, InputImageProcessingSettings::defaults());
+
+        $response = app(RunAiModelAction::class)->execute(
+            clinic: $tenant,
+            usageCategoryKey: 'hair_transplant',
+            payload: [
+                'upload_disk' => 'local',
+                'upload_path' => 'uploads/default-source.png',
+            ],
+            selectedAccess: $access,
+        );
+
+        $this->assertTrue($response->successful);
+        $this->assertSame('image/jpeg', CapturingImageProvider::$capture['mime']);
+        $this->assertSame([800, 400], CapturingImageProvider::$capture['dimensions']);
+        $this->assertSame(85, InputImageProcessingSettings::defaults()[InputImageProcessingSettings::JPEG_QUALITY]);
     }
 
     public function test_provider_receives_the_original_image_when_processing_is_disabled(): void
@@ -150,11 +174,15 @@ class AiModelInputImageProcessingTest extends TestCase
         $registry = app(AiModelTypeRegistry::class);
 
         foreach (['sample_image', 'gapgpt'] as $type) {
-            $keys = collect($registry->publicDefinition($type)['settings'])->pluck('key');
+            $settings = collect($registry->publicDefinition($type)['settings'])->keyBy('key');
+            $keys = $settings->keys();
 
             $this->assertContains(InputImageProcessingSettings::ENABLED, $keys);
             $this->assertContains(InputImageProcessingSettings::MAX_DIMENSION, $keys);
             $this->assertContains(InputImageProcessingSettings::JPEG_QUALITY, $keys);
+            $this->assertTrue($settings->get(InputImageProcessingSettings::ENABLED)['default']);
+            $this->assertSame(800, $settings->get(InputImageProcessingSettings::MAX_DIMENSION)['default']);
+            $this->assertSame(85, $settings->get(InputImageProcessingSettings::JPEG_QUALITY)['default']);
         }
 
         try {

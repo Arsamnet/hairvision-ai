@@ -14,6 +14,18 @@ use Illuminate\Http\Request;
  */
 class DateRangeFilter
 {
+    /**
+     * Apply the supported date range to a query.
+     *
+     * @param  Builder  $query  Query builder to constrain.
+     * @param  Request  $request  Incoming HTTP request.
+     * @param  string  $column  The column value.
+     * @param  string  $fromKey  The from key value.
+     * @param  string  $untilKey  The until key value.
+     * @return Builder Configured query builder.
+     *
+     * @since 1.0.0
+     */
     public static function apply(
         Builder $query,
         Request $request,
@@ -29,6 +41,14 @@ class DateRangeFilter
             ->when($until, fn (Builder $query) => $query->whereDate($column, '<=', $until?->toDateString()));
     }
 
+    /**
+     * Parse date.
+     *
+     * @param  mixed  $value  Input value supplied to the operation.
+     * @return CarbonImmutable|null Resolved operation result.
+     *
+     * @since 1.0.0
+     */
     private static function parseDate(mixed $value): ?CarbonImmutable
     {
         if (! is_string($value) || trim($value) === '') {

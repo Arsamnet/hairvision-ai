@@ -44,6 +44,8 @@ class CreditTransaction extends Model
      * Clinic tenant that owns the credit movement.
      *
      * @return BelongsTo<Tenant, $this>
+     *
+     * @since 1.0.0
      */
     public function tenant(): BelongsTo
     {
@@ -54,6 +56,8 @@ class CreditTransaction extends Model
      * Base subscription affected by the credit movement.
      *
      * @return BelongsTo<Subscription, $this>
+     *
+     * @since 1.0.0
      */
     public function subscription(): BelongsTo
     {
@@ -64,6 +68,8 @@ class CreditTransaction extends Model
      * Service entitlement affected by this ledger row.
      *
      * @return BelongsTo<SubscriptionServiceEntitlement, $this>
+     *
+     * @since 1.0.0
      */
     public function entitlement(): BelongsTo
     {
@@ -74,6 +80,8 @@ class CreditTransaction extends Model
      * Optional domain object that caused the credit movement.
      *
      * @return MorphTo<Model, $this>
+     *
+     * @since 1.0.0
      */
     public function related(): MorphTo
     {
@@ -84,6 +92,8 @@ class CreditTransaction extends Model
      * User that created the ledger entry, when the action was administrative.
      *
      * @return BelongsTo<User, $this>
+     *
+     * @since 1.0.0
      */
     public function creator(): BelongsTo
     {

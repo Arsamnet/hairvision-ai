@@ -271,6 +271,11 @@
             </x-admin.mobile-list>
         </x-admin.card>
 
+        @include('admin.ai-models.partials.usage-logs', [
+            'showClinic' => false,
+            'showModel' => true,
+        ])
+
         <x-admin.card>
             <div class="flex flex-wrap items-center justify-between gap-3">
                 <div>

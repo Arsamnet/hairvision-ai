@@ -42,6 +42,8 @@ class LeadNote extends Model
      * Tenant that owns this note.
      *
      * @return BelongsTo<Tenant, $this>
+     *
+     * @since 1.0.0
      */
     public function tenant(): BelongsTo
     {
@@ -52,6 +54,8 @@ class LeadNote extends Model
      * Lead this note belongs to.
      *
      * @return BelongsTo<Lead, $this>
+     *
+     * @since 1.0.0
      */
     public function lead(): BelongsTo
     {
@@ -62,6 +66,8 @@ class LeadNote extends Model
      * Dashboard user who wrote the note when admin auth is implemented.
      *
      * @return BelongsTo<User, $this>
+     *
+     * @since 1.0.0
      */
     public function user(): BelongsTo
     {

@@ -15,6 +15,10 @@ class StoreGenerationRequest extends FormRequest
     /**
      * Session lead authorization is enforced after validation in the controller
      * through tenant-scoped services.
+     *
+     * @return bool Whether the requested condition is satisfied.
+     *
+     * @since 1.0.0
      */
     public function authorize(): bool
     {
@@ -22,7 +26,11 @@ class StoreGenerationRequest extends FormRequest
     }
 
     /**
+     * Return the validation rules for the request.
+     *
      * @return array<string, array<int, string>>
+     *
+     * @since 1.0.0
      */
     public function rules(): array
     {
@@ -40,6 +48,13 @@ class StoreGenerationRequest extends FormRequest
         ];
     }
 
+    /**
+     * Normalize request input before validation.
+     *
+     * @return void No value is returned.
+     *
+     * @since 1.0.0
+     */
     protected function prepareForValidation(): void
     {
         if ($this->filled('source_image_id') && ! $this->filled('idempotency_key') && $this->header('Idempotency-Key')) {
@@ -48,7 +63,11 @@ class StoreGenerationRequest extends FormRequest
     }
 
     /**
+     * Return localized validation messages.
+     *
      * @return array<string, string>
+     *
+     * @since 1.0.0
      */
     public function messages(): array
     {

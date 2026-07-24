@@ -7,7 +7,9 @@ use App\Data\Ai\AiModelResponseData;
 use App\Models\AiModelOutputConfig;
 use App\Models\GeneratedAsset;
 use App\Models\GenerationAttempt;
+use App\Services\AI\JpegImageNormalizer;
 use App\Services\Billing\CreditLedgerService;
+use App\Services\Generation\ModelQueueCoordinator;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -43,11 +45,40 @@ class ProcessGenerationAttempt implements ShouldQueue
      */
     public int $tries = 1;
 
+    /**
+     * Create a new process generation attempt instance.
+     *
+     * @param  GenerationAttempt  $attempt  The attempt value.
+     *
+     * @since 2.0.0
+     */
     public function __construct(public GenerationAttempt $attempt) {}
 
-    public function handle(RunAiModelAction $runAiModel, CreditLedgerService $credits): void
-    {
+    /**
+     * Execute the process generation attempt operation.
+     *
+     * @param  RunAiModelAction  $runAiModel  The run ai model value.
+     * @param  CreditLedgerService  $credits  The credits value.
+     * @param  ModelQueueCoordinator  $queue  The queue value.
+     * @return void No value is returned.
+     *
+     * @since 2.0.0
+     */
+    public function handle(
+        RunAiModelAction $runAiModel,
+        CreditLedgerService $credits,
+        ModelQueueCoordinator $queue,
+    ): void {
+        $modelId = (int) $this->attempt->ai_model_id;
+
         try {
+            $claimed = $queue->claimForProcessing($this->attempt);
+
+            if (! $claimed) {
+                return;
+            }
+
+            $this->attempt = $claimed;
             $this->attempt->refresh()->load([
                 'generationRequest.tenant',
                 'generationRequest.lead',
@@ -56,14 +87,6 @@ class ProcessGenerationAttempt implements ShouldQueue
                 'generationRequest.output',
                 'model.legacyAiModelAccess',
             ]);
-
-            if ($this->attempt->status === 'completed') {
-                return;
-            }
-
-            if ($this->attempt->status === 'cancelled' || $this->attempt->generationRequest?->status === 'cancelled') {
-                return;
-            }
 
             $request = $this->attempt->generationRequest;
             $model = $this->attempt->model;
@@ -76,20 +99,9 @@ class ProcessGenerationAttempt implements ShouldQueue
                 throw new RuntimeException('Independent generation attempt dependencies could not be resolved.');
             }
 
-            $this->attempt->forceFill([
-                'status' => 'processing',
-                'provider_call_started_at' => now(),
-                'safe_failure_class' => null,
-                'safe_error_message' => null,
-            ])->save();
-
-            $request->forceFill([
-                'status' => 'processing',
-                'safe_error_code' => null,
-                'safe_error_message' => null,
-            ])->save();
-
             $outputConfig = $this->activeOutputConfig();
+
+            $this->attempt->forceFill(['provider_call_started_at' => now()])->save();
 
             $response = $runAiModel->execute(
                 clinic: $request->tenant,
@@ -105,6 +117,7 @@ class ProcessGenerationAttempt implements ShouldQueue
                     'output_config' => $outputConfig?->configuration ?? [],
                 ],
                 selectedAccess: $legacyAccess,
+                lead: $request->lead,
             );
 
             $this->attempt->forceFill([
@@ -113,31 +126,68 @@ class ProcessGenerationAttempt implements ShouldQueue
             ])->save();
 
             if (! $response->successful || ! $this->responseHasImage($response)) {
-                $this->markFailed($response->errorCode ?: 'missing_generated_image', $response->safeErrorMessage);
+                if ($response->retryable && $this->scheduleRateLimitedRetry($response, $queue)) {
+                    return;
+                }
+
+                $code = $response->errorCode ?: 'missing_generated_image';
+                if (! $this->isDefiniteFailure($code)) {
+                    $queue->recordProviderFailure($modelId);
+                }
+                $this->markFailed(
+                    $code,
+                    $response->safeErrorMessage,
+                    credits: $credits,
+                    releaseReservation: $this->isDefiniteFailure($code),
+                );
 
                 return;
             }
 
-            $transaction = $credits->consume(
+            try {
+                $normalizedImage = app(JpegImageNormalizer::class)->normalizeWithProductDefaults(
+                    (string) $response->output['binary_content'],
+                );
+            } catch (Throwable $exception) {
+                $this->markFailed(
+                    'missing_generated_image',
+                    __('ai_models.errors.missing_generated_image'),
+                    $exception,
+                    $credits,
+                    releaseReservation: true,
+                );
+
+                return;
+            }
+
+            $asset = $this->storeGeneratedAsset($response, $normalizedImage);
+            $transaction = $credits->consumeReservation(
+                attempt: $this->attempt,
                 tenant: $request->tenant,
                 serviceKey: $category->code,
                 amount: max(1, (int) $output->credit_cost),
-                related: $request,
                 description: __('credits.descriptions.ai_usage', ['period' => $output->name]),
             );
 
-            $asset = $this->storeGeneratedAsset($response);
-
             DB::transaction(function () use ($request, $asset, $transaction): void {
-                GeneratedAsset::query()
-                    ->where('generation_request_id', $request->id)
-                    ->whereKeyNot($asset->id)
-                    ->where('is_current', true)
-                    ->update([
+                $sourceIsCurrent = (bool) $request->sourceImage()->lockForUpdate()->value('is_current');
+
+                if ($sourceIsCurrent) {
+                    GeneratedAsset::query()
+                        ->where('generation_request_id', $request->id)
+                        ->whereKeyNot($asset->id)
+                        ->where('is_current', true)
+                        ->update([
+                            'is_current' => false,
+                            'archived_at' => now(),
+                            'updated_at' => now(),
+                        ]);
+                } else {
+                    $asset->forceFill([
                         'is_current' => false,
                         'archived_at' => now(),
-                        'updated_at' => now(),
-                    ]);
+                    ])->save();
+                }
 
                 $this->attempt->forceFill([
                     'status' => 'completed',
@@ -147,7 +197,7 @@ class ProcessGenerationAttempt implements ShouldQueue
                 ])->save();
 
                 $request->forceFill([
-                    'current_generated_asset_id' => $asset->id,
+                    'current_generated_asset_id' => $sourceIsCurrent ? $asset->id : null,
                     'credit_transaction_id' => $transaction->id,
                     'status' => 'completed',
                     'completed_at' => now(),
@@ -156,16 +206,54 @@ class ProcessGenerationAttempt implements ShouldQueue
                     'safe_error_message' => null,
                 ])->save();
             });
+            $queue->recordProviderSuccess($modelId);
         } catch (Throwable $exception) {
-            $this->markFailed('provider_exception', __('ai_models.errors.provider_failed'), $exception);
+            $providerStarted = (bool) GenerationAttempt::query()
+                ->whereKey($this->attempt->id)
+                ->value('provider_call_started_at');
+            $this->markFailed(
+                'provider_exception',
+                __('ai_models.errors.provider_failed'),
+                $exception,
+                $credits,
+                releaseReservation: ! $providerStarted,
+            );
+            $queue->recordProviderFailure($modelId);
+        } finally {
+            if ($modelId > 0) {
+                $queue->dispatchAvailableForModel($modelId);
+            }
         }
     }
 
+    /**
+     * Execute the failed operation.
+     *
+     * @param  Throwable  $exception  Failure being handled.
+     * @return void No value is returned.
+     *
+     * @since 2.0.0
+     */
     public function failed(Throwable $exception): void
     {
-        $this->markFailed('queue_failed', __('ai_models.errors.provider_failed'), $exception);
+        $providerStarted = (bool) $this->attempt->provider_call_started_at;
+        $this->markFailed(
+            'queue_failed',
+            __('ai_models.errors.provider_failed'),
+            $exception,
+            app(CreditLedgerService::class),
+            releaseReservation: ! $providerStarted,
+        );
+        app(ModelQueueCoordinator::class)->dispatchAvailableForModel((int) $this->attempt->ai_model_id);
     }
 
+    /**
+     * Execute the active output config operation.
+     *
+     * @return AiModelOutputConfig|null Resolved operation result.
+     *
+     * @since 2.0.0
+     */
     private function activeOutputConfig(): ?AiModelOutputConfig
     {
         return AiModelOutputConfig::query()
@@ -175,13 +263,30 @@ class ProcessGenerationAttempt implements ShouldQueue
             ->first();
     }
 
+    /**
+     * Execute the response has image operation.
+     *
+     * @param  AiModelResponseData  $response  The response value.
+     * @return bool Whether the requested condition is satisfied.
+     *
+     * @since 2.0.0
+     */
     private function responseHasImage(AiModelResponseData $response): bool
     {
         return is_string($response->output['binary_content'] ?? null)
             && ($response->output['binary_content'] ?? '') !== '';
     }
 
-    private function storeGeneratedAsset(AiModelResponseData $response): GeneratedAsset
+    /**
+     * Execute the store generated asset operation.
+     *
+     * @param  array{binary_content: string, mime: string, extension: string, size: int, width: int, height: int}  $normalized
+     * @param  AiModelResponseData  $response  The response value.
+     * @return GeneratedAsset Resolved operation result.
+     *
+     * @since 2.0.0
+     */
+    private function storeGeneratedAsset(AiModelResponseData $response, array $normalized): GeneratedAsset
     {
         $request = $this->attempt->generationRequest;
 
@@ -189,14 +294,11 @@ class ProcessGenerationAttempt implements ShouldQueue
             throw new RuntimeException('Generation request was not loaded for asset storage.');
         }
 
-        $extension = $this->safeExtension((string) ($response->output['extension'] ?? 'jpg'));
-        $mime = (string) ($response->output['mime'] ?? 'image/jpeg');
-        $safeMime = str_starts_with($mime, 'image/') ? $mime : 'image/jpeg';
-        $binary = (string) $response->output['binary_content'];
+        $binary = $normalized['binary_content'];
         $destination = 'tenants/'.$request->tenant->uuid
             .'/leads/'.$request->lead->uuid
             .'/results/'.$request->uuid
-            .'/'.$request->output->code.'-'.$this->attempt->attempt_number.'.'.$extension;
+            .'/'.$request->output->code.'-'.$this->attempt->attempt_number.'.jpg';
 
         $disk = Storage::disk('local');
         $disk->makeDirectory(dirname($destination));
@@ -219,15 +321,32 @@ class ProcessGenerationAttempt implements ShouldQueue
             'is_current' => true,
             'disk' => 'local',
             'path' => $destination,
-            'mime' => $safeMime,
-            'size' => $disk->size($destination),
+            'mime' => $normalized['mime'],
+            'size' => $normalized['size'],
             'checksum' => hash('sha256', $binary),
             'provider_metadata_json' => $response->metadata,
         ]);
     }
 
-    private function markFailed(string $code, ?string $message = null, ?Throwable $exception = null): void
-    {
+    /**
+     * Execute the mark failed operation.
+     *
+     * @param  string  $code  The code value.
+     * @param  string|null  $message  The message value.
+     * @param  Throwable|null  $exception  Failure being handled.
+     * @param  CreditLedgerService|null  $credits  The credits value.
+     * @param  bool  $releaseReservation  The release reservation value.
+     * @return void No value is returned.
+     *
+     * @since 2.0.0
+     */
+    private function markFailed(
+        string $code,
+        ?string $message = null,
+        ?Throwable $exception = null,
+        ?CreditLedgerService $credits = null,
+        bool $releaseReservation = false,
+    ): void {
         $message = $message ?: __('ai_models.errors.provider_failed');
 
         try {
@@ -247,6 +366,10 @@ class ProcessGenerationAttempt implements ShouldQueue
                 'safe_error_code' => $code,
                 'safe_error_message' => $message,
             ])->save();
+
+            if ($releaseReservation && $credits) {
+                $credits->releaseReservation($this->attempt, $message);
+            }
         } catch (Throwable $failureException) {
             Log::error('Could not mark independent generation attempt as failed.', [
                 'generation_attempt_id' => $this->attempt->id ?? null,
@@ -270,10 +393,95 @@ class ProcessGenerationAttempt implements ShouldQueue
         }
     }
 
-    private function safeExtension(string $extension): string
+    /**
+     * Execute the schedule rate limited retry operation.
+     *
+     * @param  AiModelResponseData  $response  The response value.
+     * @param  ModelQueueCoordinator  $queue  The queue value.
+     * @return bool Whether the requested condition is satisfied.
+     *
+     * @since 2.0.0
+     */
+    private function scheduleRateLimitedRetry(AiModelResponseData $response, ModelQueueCoordinator $queue): bool
     {
-        $extension = ltrim(strtolower($extension), '.');
+        $retryAfter = max(5, min(
+            (int) config('hairvision.generation.provider_rate_limit_max_delay_seconds', 300),
+            $response->retryAfterSeconds ?? (int) config('hairvision.generation.provider_rate_limit_delay_seconds', 30),
+        ));
+        $maxRetries = max(0, (int) config('hairvision.generation.provider_rate_limit_retries', 3));
 
-        return in_array($extension, ['jpg', 'jpeg', 'png', 'webp'], true) ? $extension : 'jpg';
+        $nextAttempt = DB::transaction(function () use ($maxRetries, $retryAfter): ?GenerationAttempt {
+            $request = $this->attempt->generationRequest()->lockForUpdate()->first();
+
+            if (! $request) {
+                return null;
+            }
+
+            $rateLimitFailures = $request->attempts()
+                ->where('safe_failure_class', 'provider_rate_limited')
+                ->count();
+
+            if ($rateLimitFailures >= $maxRetries) {
+                return null;
+            }
+
+            $this->attempt->forceFill([
+                'status' => 'failed',
+                'failed_at' => now(),
+                'safe_failure_class' => 'provider_rate_limited',
+                'safe_error_message' => __('ai_models.errors.provider_failed'),
+            ])->save();
+
+            $next = $request->attempts()->create([
+                'tenant_id' => $this->attempt->tenant_id,
+                'lead_id' => $this->attempt->lead_id,
+                'ai_model_id' => $this->attempt->ai_model_id,
+                'credit_transaction_id' => $this->attempt->credit_transaction_id,
+                'attempt_number' => ((int) $request->attempts()->max('attempt_number')) + 1,
+                'status' => 'queued',
+                'available_at' => now()->addSeconds($retryAfter),
+                'prompt' => $this->attempt->prompt,
+                'safe_failure_class' => null,
+                'safe_error_message' => null,
+            ]);
+
+            $request->forceFill([
+                'status' => 'queued',
+                'failed_at' => null,
+                'safe_error_code' => null,
+                'safe_error_message' => null,
+            ])->save();
+
+            return $next;
+        });
+
+        if (! $nextAttempt) {
+            return false;
+        }
+
+        $queue->coolDownModel((int) $this->attempt->ai_model_id, $retryAfter);
+
+        return true;
+    }
+
+    /**
+     * Determine whether definite failure.
+     *
+     * @param  string  $code  The code value.
+     * @return bool Whether the requested condition is satisfied.
+     *
+     * @since 2.0.0
+     */
+    private function isDefiniteFailure(string $code): bool
+    {
+        return in_array($code, [
+            'missing_credentials',
+            'missing_upload',
+            'sample_image_not_found',
+            'demo_failed',
+            'missing_generated_image',
+            'provider_rate_limited',
+            'provider_preflight_exception',
+        ], true);
     }
 }

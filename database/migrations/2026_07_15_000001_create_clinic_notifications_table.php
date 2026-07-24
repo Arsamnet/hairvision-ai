@@ -6,6 +6,13 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
+    /**
+     * Execute the up operation.
+     *
+     * @return void No value is returned.
+     *
+     * @since 2.0.0
+     */
     public function up(): void
     {
         Schema::create('clinic_notifications', function (Blueprint $table): void {
@@ -45,6 +52,13 @@ return new class extends Migration
         });
     }
 
+    /**
+     * Execute the down operation.
+     *
+     * @return void No value is returned.
+     *
+     * @since 2.0.0
+     */
     public function down(): void
     {
         Schema::dropIfExists('clinic_notification_recipients');

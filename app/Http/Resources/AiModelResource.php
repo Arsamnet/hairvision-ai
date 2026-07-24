@@ -13,7 +13,12 @@ use Illuminate\Http\Resources\Json\JsonResource;
 class AiModelResource extends JsonResource
 {
     /**
+     * Transform the resource into an API response array.
+     *
+     * @param  Request  $request  Incoming HTTP request.
      * @return array<string, mixed>
+     *
+     * @since 2.0.0
      */
     public function toArray(Request $request): array
     {

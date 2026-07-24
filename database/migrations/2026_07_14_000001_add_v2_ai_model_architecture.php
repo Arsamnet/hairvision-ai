@@ -7,6 +7,13 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
+    /**
+     * Execute the up operation.
+     *
+     * @return void No value is returned.
+     *
+     * @since 2.0.0
+     */
     public function up(): void
     {
         Schema::create('ai_model_categories', function (Blueprint $table): void {
@@ -186,6 +193,13 @@ return new class extends Migration
         $this->seedInitialCategories();
     }
 
+    /**
+     * Execute the down operation.
+     *
+     * @return void No value is returned.
+     *
+     * @since 2.0.0
+     */
     public function down(): void
     {
         Schema::table('credit_transactions', function (Blueprint $table): void {
@@ -212,6 +226,13 @@ return new class extends Migration
         Schema::dropIfExists('ai_model_categories');
     }
 
+    /**
+     * Execute the seed initial categories operation.
+     *
+     * @return void No value is returned.
+     *
+     * @since 2.0.0
+     */
     private function seedInitialCategories(): void
     {
         $now = now();
@@ -247,9 +268,11 @@ return new class extends Migration
                 'uuid' => (string) str()->uuid(),
                 'ai_model_category_id' => $hairId,
                 'code' => 'two_weeks',
-                'name' => 'دو هفته بعد از کاشت',
-                'description' => 'آثار ترمیم اولیه و خط رویش تازه',
-                'prompt' => 'یک تصویر واقع‌گرایانه از همان مراجعه‌کننده در مرحله دو هفته بعد از کاشت مو بساز. هویت چهره، زاویه دوربین، نور، رنگ پوست و پس‌زمینه را حفظ کن و فقط ناحیه خط رویش و پوست سر را با نشانه‌های طبیعی ترمیم اولیه، قرمزی ملایم و فولیکول‌های تازه ویرایش کن.',
+                'name' => 'یک روز بعد از کاشت مو',
+                'description' => 'نمای طبیعی روز اول با گرافت‌های تازه، قرمزی ملایم و ریزدلمه‌های قابل‌انتظار',
+                'prompt' => <<<'PROMPT'
+Use the uploaded photo as the direct reference for an image-to-image/inpainting edit showing the same person 1 day after a complete hair transplant. Modify ONLY the scalp, hair, and hairline. Preserve the exact identity, face, age, skin tone, facial features, facial hair, expression, pose, camera angle, framing, clothing, background, objects, environment, and original lighting. No ring light, studio lighting, beauty filters, skin smoothing, retouching, or composition changes. Reconstruct a natural, age-appropriate hairline and fully implant all necessary bald or thinning recipient areas, including the frontal hairline, temples, frontal scalp, mid-scalp, and top. Do not limit the transplant to existing hair. Show a realistic day-one result: closely shaved recipient areas, densely placed visible grafts, tiny red implantation dots, mild redness, minimal swelling, and fresh micro-scabbing. The graft pattern must clearly cover the previously bald areas, but must remain medically believable and not overly graphic. Do not show grown or dense hair at this stage. Match the person’s natural hair color and texture. Ultra-realistic, high-resolution, unedited documentary medical-photo style. The only difference from the source image must be the newly transplanted scalp and reconstructed hairline.
+PROMPT,
                 'sort_order' => 10,
                 'credit_cost' => 1,
                 'is_active' => true,
@@ -260,9 +283,11 @@ return new class extends Migration
                 'uuid' => (string) str()->uuid(),
                 'ai_model_category_id' => $hairId,
                 'code' => 'intermediate_regrowth',
-                'name' => 'مرحله رشد میانی',
-                'description' => 'رشد تدریجی و تراکم در حال شکل‌گیری',
-                'prompt' => 'یک تصویر واقع‌گرایانه از همان مراجعه‌کننده در مرحله رشد میانی بعد از کاشت مو بساز. هویت چهره و شرایط تصویر را حفظ کن و فقط ناحیه مو و خط رویش را با رشد تدریجی، تراکم در حال شکل‌گیری و ظاهر طبیعی و قابل قبول پزشکی ویرایش کن.',
+                'name' => '۶ ماه بعد از کاشت مو',
+                'description' => 'رشد میانی شش‌ماهه با خط رویش شکل‌گرفته، تراکم ناکامل و نمایان بودن طبیعی بخشی از پوست سر',
+                'prompt' => <<<'PROMPT'
+Use the uploaded photo as the direct reference for an image-to-image/inpainting edit showing the same person 6 months after a complete hair transplant. Modify ONLY the scalp, hair, and hairline. Preserve the exact identity, face, age, skin tone, facial features, facial hair, expression, pose, camera angle, framing, clothing, background, objects, environment, and original lighting. No ring light, studio lighting, beauty filters, skin smoothing, retouching, or composition changes. Show intermediate regrowth across all transplanted areas, including the reconstructed frontal hairline, temples, frontal scalp, mid-scalp, and top. New hair must extend into previously bald areas rather than only thickening the original hair. The wounds, redness, and scabs must be fully healed. The established hairline should be visible but still sparse, short, thin, slightly uneven, and incomplete. Keep some scalp visible and avoid final-stage density. Match the person’s natural hair color, direction, and texture. Ultra-realistic, high-resolution, unedited documentary style. The only difference from the source image must be the realistic 6-month hair-transplant growth.
+PROMPT,
                 'sort_order' => 20,
                 'credit_cost' => 1,
                 'is_active' => true,
@@ -273,9 +298,11 @@ return new class extends Migration
                 'uuid' => (string) str()->uuid(),
                 'ai_model_category_id' => $hairId,
                 'code' => 'final_result',
-                'name' => 'نتیجه نهایی',
-                'description' => 'پوشش کامل‌تر و ظاهر طبیعی‌تر',
-                'prompt' => 'یک تصویر واقع‌گرایانه از نتیجه نهایی کاشت مو برای همان مراجعه‌کننده بساز. هویت چهره، زاویه دوربین، نور، رنگ پوست و پس‌زمینه را حفظ کن و خط رویش، تراکم، جهت و بافت مو را طبیعی، متناسب با چهره و قابل قبول پزشکی نمایش بده.',
+                'name' => 'یک سال بعد از کاشت مو',
+                'description' => 'نتیجه کامل یک‌ساله با خط رویش طبیعی، پوشش متناسب و تراکم باورپذیر',
+                'prompt' => <<<'PROMPT'
+Use the uploaded photo as the direct reference for an image-to-image/inpainting edit showing the same person 1 year after a complete and successful hair transplant. Modify ONLY the scalp, hair, and hairline. Preserve the exact identity, face, age, skin tone, facial features, facial hair, expression, pose, camera angle, framing, clothing, background, objects, environment, and original lighting. No ring light, studio lighting, beauty filters, skin smoothing, retouching, or composition changes. Naturally restore all previously bald or thinning areas, including the frontal hairline, temples, frontal scalp, mid-scalp, and top. Do not merely thicken the remaining original hair. Create a natural, age-appropriate hairline proportional to the person’s face. Show fully grown, healthy, naturally fuller hair with realistic density, direction, color, and texture matching the original person. The transplanted areas should no longer appear bald, while retaining slight natural irregularity and subtle scalp visibility where appropriate. Avoid excessive density, sharp artificial hairlines, perfect symmetry, helmet hair, or a wig-like appearance. Ultra-realistic, high-resolution, unedited documentary style. The only difference from the source image must be the natural final hair-transplant result.
+PROMPT,
                 'sort_order' => 30,
                 'credit_cost' => 1,
                 'is_active' => true,
@@ -286,9 +313,11 @@ return new class extends Migration
                 'uuid' => (string) str()->uuid(),
                 'ai_model_category_id' => $eyebrowId,
                 'code' => 'eyebrow_final_result',
-                'name' => 'نتیجه کاشت ابرو',
-                'description' => 'فرم طبیعی‌تر و تراکم متناسب ابرو',
-                'prompt' => 'یک تصویر واقع‌گرایانه از نتیجه کاشت ابرو برای همان مراجعه‌کننده بساز. هویت چهره، زاویه دوربین، نور، رنگ پوست، چشم‌ها و پس‌زمینه را حفظ کن و فقط ناحیه ابرو را با تراکم طبیعی، جهت خواب مناسب مو و فرم هماهنگ با چهره و قابل قبول پزشکی ویرایش کن.',
+                'name' => 'یک سال بعد از کاشت ابرو',
+                'description' => 'نتیجه کامل یک‌ساله با تراکم، جهت رشد و عدم تقارن طبیعی ابروها',
+                'prompt' => <<<'PROMPT'
+Use the uploaded photo as the direct reference for an image-to-image/inpainting edit showing the same person 1 year after a successful eyebrow transplant. Modify ONLY the eyebrows. Preserve the exact identity, face, age, skin tone, eyes, expression, pose, camera angle, framing, clothing, head hair, facial hair, background, and original lighting. No ring light, studio lighting, beauty filters, skin smoothing, retouching, or composition changes. Create naturally fuller, well-defined, age-appropriate eyebrows proportional to the face. Match the person’s natural eyebrow color and texture, with realistic individual hairs and growth direction: slightly upward at the inner brow, gradually angled outward through the arch and tail. Keep subtle irregularity and natural asymmetry. The transplant must appear fully healed, with no redness, scabs, swelling, or visible procedure marks. Avoid excessive thickness, sharp edges, perfect symmetry, painted-on makeup, tattooed or microbladed appearance, and artificial density. Ultra-realistic, high-resolution, unedited documentary-photo style. The only difference from the source image must be the realistic 1-year eyebrow-transplant result.
+PROMPT,
                 'sort_order' => 10,
                 'credit_cost' => 1,
                 'is_active' => true,

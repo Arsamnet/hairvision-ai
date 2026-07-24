@@ -33,6 +33,7 @@ class AiModel extends Model
         'consecutive_failures',
         'last_health_check_at',
         'last_assigned_at',
+        'cooldown_until',
         'paused_at',
         'archived_at',
         'legacy_ai_model_access_id',
@@ -52,6 +53,7 @@ class AiModel extends Model
         'consecutive_failures' => 'integer',
         'last_health_check_at' => 'datetime',
         'last_assigned_at' => 'datetime',
+        'cooldown_until' => 'datetime',
         'paused_at' => 'datetime',
         'archived_at' => 'datetime',
         'created_at' => 'datetime',
@@ -60,7 +62,11 @@ class AiModel extends Model
     ];
 
     /**
+     * Define the category Eloquent relationship.
+     *
      * @return BelongsTo<AiModelCategory, $this>
+     *
+     * @since 2.0.0
      */
     public function category(): BelongsTo
     {
@@ -68,7 +74,11 @@ class AiModel extends Model
     }
 
     /**
+     * Define the legacy ai model access Eloquent relationship.
+     *
      * @return BelongsTo<AiModelAccess, $this>
+     *
+     * @since 2.0.0
      */
     public function legacyAiModelAccess(): BelongsTo
     {
@@ -76,7 +86,11 @@ class AiModel extends Model
     }
 
     /**
+     * Define the output configs Eloquent relationship.
+     *
      * @return HasMany<AiModelOutputConfig, $this>
+     *
+     * @since 2.0.0
      */
     public function outputConfigs(): HasMany
     {
@@ -84,7 +98,11 @@ class AiModel extends Model
     }
 
     /**
+     * Define the attempts Eloquent relationship.
+     *
      * @return HasMany<GenerationAttempt, $this>
+     *
+     * @since 2.0.0
      */
     public function attempts(): HasMany
     {
@@ -92,7 +110,12 @@ class AiModel extends Model
     }
 
     /**
+     * Constrain the query by assignable.
+     *
      * @param  Builder<AiModel>  $query
+     * @return Builder Configured query builder.
+     *
+     * @since 2.0.0
      */
     public function scopeAssignable(Builder $query): Builder
     {
@@ -104,7 +127,11 @@ class AiModel extends Model
     }
 
     /**
+     * Return credentials masked for safe display.
+     *
      * @return array<string, string>
+     *
+     * @since 2.0.0
      */
     public function maskedCredentials(): array
     {
@@ -113,6 +140,14 @@ class AiModel extends Model
             ->all();
     }
 
+    /**
+     * Mask secret.
+     *
+     * @param  string  $value  Input value supplied to the operation.
+     * @return string Resolved string value.
+     *
+     * @since 2.0.0
+     */
     private function maskSecret(string $value): string
     {
         if ($value === '') {

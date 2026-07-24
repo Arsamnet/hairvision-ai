@@ -21,6 +21,13 @@ class UploadController extends Controller
 {
     /**
      * Store an uploaded image for a verified visitor lead.
+     *
+     * @param  StoreUploadRequest  $request  Incoming HTTP request.
+     * @param  UploadService  $uploadService  The upload service value.
+     * @param  LeadSessionService  $leadSessionService  The lead session service value.
+     * @return JsonResponse JSON response payload.
+     *
+     * @since 1.0.0
      */
     public function store(
         StoreUploadRequest $request,
@@ -52,6 +59,12 @@ class UploadController extends Controller
 
     /**
      * Get the tenant resolved by tenant middleware.
+     *
+     * @param  Request  $request  Incoming HTTP request.
+     * @param  string  $scope  The scope value.
+     * @return Tenant Resolved operation result.
+     *
+     * @since 1.0.0
      */
     private function tenantFromRequest(Request $request, string $scope): Tenant
     {

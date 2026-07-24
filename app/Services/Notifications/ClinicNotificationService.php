@@ -19,7 +19,13 @@ use Illuminate\Support\Facades\DB;
 class ClinicNotificationService
 {
     /**
+     * Create and deliver.
+     *
      * @param  array<string, mixed>  $data
+     * @param  User  $user  Authenticated user performing the operation.
+     * @return ClinicNotification Resolved operation result.
+     *
+     * @since 1.0.0
      */
     public function createAndDeliver(array $data, User $user): ClinicNotification
     {
@@ -56,8 +62,12 @@ class ClinicNotificationService
     }
 
     /**
+     * Execute the targeting rules operation.
+     *
      * @param  array<string, mixed>  $data
      * @return array<string, mixed>
+     *
+     * @since 1.0.0
      */
     public function targetingRules(array $data): array
     {
@@ -88,8 +98,12 @@ class ClinicNotificationService
     }
 
     /**
+     * Resolve tenants.
+     *
      * @param  array<string, mixed>  $rules
      * @return Collection<int, Tenant>
+     *
+     * @since 1.0.0
      */
     public function resolveTenants(array $rules): Collection
     {
@@ -139,8 +153,12 @@ class ClinicNotificationService
     }
 
     /**
+     * Execute the filter rules operation.
+     *
      * @param  array<string, mixed>  $data
      * @return array<string, mixed>
+     *
+     * @since 1.0.0
      */
     private function filterRules(array $data): array
     {
@@ -153,6 +171,11 @@ class ClinicNotificationService
 
     /**
      * Return the number of active unread messages in a clinic inbox.
+     *
+     * @param  Tenant  $tenant  Tenant in the current operation scope.
+     * @return int Calculated numeric value.
+     *
+     * @since 1.0.0
      */
     public function unreadCountForTenant(Tenant $tenant): int
     {

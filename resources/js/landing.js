@@ -32,6 +32,8 @@ export function bootLanding() {
         otpRequestInFlight: false,
         hasRequestedAnyOutput: false,
         pendingOutputIds: new Set(),
+        sourceImageFromProfile: false,
+        serverSessionVerified: false,
     };
 
     const DIGIT_MAP = {
@@ -169,7 +171,9 @@ export function bootLanding() {
 
     const API = {
         bootstrap: () => requestJson('/api/v1/bootstrap'),
+        profile: () => requestJson('/api/v1/profile'),
         profileCategories: () => requestJson('/api/v1/profile/categories'),
+        profileGenerations: () => requestJson('/api/v1/profile/generations'),
         requestOtp: (phone) => requestJson('/api/v1/auth/otp/request', {
             method: 'POST',
             body: JSON.stringify({ phone }),
@@ -731,12 +735,24 @@ export function bootLanding() {
         const intervalMs = Number(GENERATION.pollIntervalMs || 5000);
         const softTimeoutMs = Number(GENERATION.softTimeoutMs || 120000);
         const legacyTimeoutMs = Number(GENERATION.pollTimeoutMs || 900000);
-        const maxWaitMs = Number(GENERATION.maxWaitMs || legacyTimeoutMs || 900000);
+        const maxWaitMs = Number(GENERATION.maxWaitMs ?? legacyTimeoutMs ?? 900000);
         let softMessageShown = false;
+        let transientFailures = 0;
+        const waitIndefinitely = GENERATION.allowBackgroundCompletion === false || maxWaitMs <= 0;
 
-        while (Date.now() - startedAt < maxWaitMs) {
-            await wait(intervalMs);
-            const statusResult = await refreshActiveGenerations();
+        while (waitIndefinitely || Date.now() - startedAt < maxWaitMs) {
+            await wait(document.hidden ? Math.max(intervalMs, 15000) : intervalMs);
+            let statusResult;
+
+            try {
+                statusResult = await refreshActiveGenerations();
+                transientFailures = 0;
+            } catch (error) {
+                transientFailures += 1;
+                UI.showStatus('ارتباط موقتاً قطع شده است؛ پردازش در سرور ادامه دارد و وضعیت دوباره بررسی می‌شود.');
+                await wait(Math.min(30000, intervalMs * transientFailures));
+                continue;
+            }
 
             if (statusResult.success === false) {
                 handleApiFailure(statusResult);
@@ -1156,6 +1172,7 @@ export function bootLanding() {
                 }
 
                 STATE.sourceImageId = result.data.id;
+                STATE.sourceImageFromProfile = false;
             }
 
             ensureSelectedOutput();
@@ -1270,6 +1287,51 @@ export function bootLanding() {
         UI.showStep(1);
     }
 
+    async function hydrateVerifiedProfile() {
+        const [profileResult, categoryResult, generationResult] = await Promise.all([
+            API.profile(),
+            API.profileCategories(),
+            API.profileGenerations(),
+        ]);
+
+        if (profileResult.success === false || categoryResult.success === false || generationResult.success === false) {
+            return false;
+        }
+
+        STATE.verified = true;
+        sessionStorage.setItem(STORAGE_KEYS.verified, '1');
+        applyCategories(categoriesFromPayload(categoryResult));
+        STATE.sourceImageId = profileResult.data?.source_image?.id || null;
+        STATE.sourceImageFromProfile = Boolean(STATE.sourceImageId);
+
+        const currentGenerations = (generationResult.data || [])
+            .filter((generation) => !STATE.sourceImageId || generation.source_image_id === STATE.sourceImageId);
+        const latestByOutput = new Map();
+
+        currentGenerations.forEach((generation) => {
+            const outputId = generation.output?.id;
+            if (outputId && !latestByOutput.has(outputId)) latestByOutput.set(outputId, generation);
+        });
+
+        STATE.generations = Array.from(latestByOutput.values());
+
+        const latestGeneration = STATE.generations[0];
+        if (latestGeneration?.category?.id && STATE.categories.some((category) => category.id === latestGeneration.category.id)) {
+            STATE.selectedCategoryId = latestGeneration.category.id;
+            ensureSelectedOutput();
+        }
+
+        saveActiveGenerations();
+
+        if (STATE.generations.length) {
+            const state = applyGenerationStatus(STATE.generations);
+
+            if (state === 'processing') pollUntilComplete();
+        }
+
+        return true;
+    }
+
     async function resumeActiveGenerationIfPresent() {
         const rawIds = sessionStorage.getItem(STORAGE_KEYS.activeGenerationIds);
         if (!rawIds) return;
@@ -1309,10 +1371,13 @@ export function bootLanding() {
         if (result.success === false) {
             document.getElementById('continueToImage').disabled = true;
             document.getElementById('noApplicationsPanel').classList.remove('hidden');
-            return;
+            return result;
         }
 
+        STATE.serverSessionVerified = result.session?.verified === true;
         applyCategories(categoriesFromPayload(result));
+
+        return result;
     }
 
     bindDigitOnlyInput(document.getElementById('phone'), 11);
@@ -1339,6 +1404,11 @@ export function bootLanding() {
     document.getElementById('image').addEventListener('change', (event) => {
         const file = event.target.files?.[0];
         if (!file) return;
+
+        STATE.sourceImageId = null;
+        STATE.sourceImageFromProfile = false;
+        STATE.generations = [];
+        clearActiveGeneration();
 
         const preview = document.getElementById('imagePreview');
         const placeholder = document.getElementById('imagePlaceholder');
@@ -1465,8 +1535,10 @@ export function bootLanding() {
     });
 
     renderStagePanels([]);
-    loadBootstrap().finally(() => {
+    loadBootstrap().finally(async () => {
         loadSessionState();
-        resumeActiveGenerationIfPresent();
+        const hydrated = STATE.serverSessionVerified ? await hydrateVerifiedProfile() : false;
+
+        if (!hydrated) resumeActiveGenerationIfPresent();
     });
 }

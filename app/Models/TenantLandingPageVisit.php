@@ -35,6 +35,8 @@ class TenantLandingPageVisit extends Model
      * Tenant that received the visit.
      *
      * @return BelongsTo<Tenant, $this>
+     *
+     * @since 1.0.0
      */
     public function tenant(): BelongsTo
     {

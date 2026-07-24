@@ -16,6 +16,10 @@ trait HasUuid
      * Register the creating hook that fills an empty UUID.
      *
      * Side effects: mutates the model before its first database insert.
+     *
+     * @return void No value is returned.
+     *
+     * @since 1.0.0
      */
     protected static function bootHasUuid(): void
     {

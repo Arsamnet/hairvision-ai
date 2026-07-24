@@ -22,6 +22,11 @@ class AuthController extends Controller
 {
     /**
      * Show the admin login form.
+     *
+     * @param  Request  $request  Incoming HTTP request.
+     * @return View|RedirectResponse Rendered response view.
+     *
+     * @since 1.0.0
      */
     public function showLogin(Request $request): View|RedirectResponse
     {
@@ -36,6 +41,12 @@ class AuthController extends Controller
 
     /**
      * Request a new admin OTP code.
+     *
+     * @param  RequestAdminOtpRequest  $request  Incoming HTTP request.
+     * @param  AdminOtpService  $otpService  The otp service value.
+     * @return RedirectResponse HTTP redirect response.
+     *
+     * @since 1.0.0
      */
     public function requestOtp(RequestAdminOtpRequest $request, AdminOtpService $otpService): RedirectResponse
     {
@@ -69,6 +80,11 @@ class AuthController extends Controller
 
     /**
      * Show the admin OTP verification form.
+     *
+     * @param  Request  $request  Incoming HTTP request.
+     * @return View|RedirectResponse Rendered response view.
+     *
+     * @since 1.0.0
      */
     public function showVerify(Request $request): View|RedirectResponse
     {
@@ -93,6 +109,13 @@ class AuthController extends Controller
 
     /**
      * Verify the admin OTP code and log the user in.
+     *
+     * @param  VerifyAdminOtpRequest  $request  Incoming HTTP request.
+     * @param  AdminOtpService  $otpService  The otp service value.
+     * @param  AdminTenantContext  $tenantContext  The tenant context value.
+     * @return RedirectResponse HTTP redirect response.
+     *
+     * @since 1.0.0
      */
     public function verify(
         VerifyAdminOtpRequest $request,
@@ -132,6 +155,11 @@ class AuthController extends Controller
 
     /**
      * Log the admin user out.
+     *
+     * @param  Request  $request  Incoming HTTP request.
+     * @return RedirectResponse HTTP redirect response.
+     *
+     * @since 1.0.0
      */
     public function logout(Request $request): RedirectResponse
     {

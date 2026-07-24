@@ -7,7 +7,6 @@
     @php
         $currentSourceImage = $lead->sourceImages->firstWhere('is_current', true);
         $primaryUpload = $lead->uploads->sortByDesc('created_at')->first();
-        $independentGenerations = $lead->generationRequests;
         $notes = $lead->notes->sortByDesc('created_at');
     @endphp
 
@@ -77,90 +76,11 @@
 
             <section class="rounded-lg bg-white p-5 shadow-sm ring-1 ring-zinc-200">
                 <h3 class="text-lg font-bold">{{ __('leads.generations.title') }}</h3>
-                <div class="mt-3 space-y-3">
-                    @foreach($independentGenerations->groupBy(fn ($generation) => $generation->category?->name ?: __('leads.generations.unknown_category')) as $categoryName => $categoryGenerations)
-                        <div class="rounded-lg border border-zinc-200 p-4">
-                            <div class="flex items-center justify-between gap-3">
-                                <h4 class="text-sm font-bold text-zinc-800">{{ $categoryName }}</h4>
-                                <x-admin.badge tone="teal">{{ __('leads.generations.independent') }}</x-admin.badge>
-                            </div>
-                            <div class="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-                                @foreach($categoryGenerations as $generation)
-                                    @php
-                                        $asset = $generation->currentAsset;
-                                        $wasRequested = $generation->requested_at !== null;
-                                        $statusTone = match ($generation->status) {
-                                            'completed' => 'emerald',
-                                            'failed', 'cancelled' => 'rose',
-                                            'processing', 'dispatched' => 'amber',
-                                            default => 'zinc',
-                                        };
-                                    @endphp
-                                    <article class="overflow-hidden rounded-lg bg-zinc-50 text-sm">
-                                        @if($asset)
-                                            <img src="{{ route('admin.leads.assets.show', [$lead, $asset]) }}" alt="{{ __('leads.generations.asset_alt', ['period' => $generation->output?->name ?: $asset->period]) }}" class="aspect-4/5 w-full bg-zinc-100 object-cover">
-                                        @elseif($wasRequested)
-                                            <div class="grid aspect-4/5 w-full place-items-center bg-zinc-100 px-3 text-center text-xs font-bold text-zinc-400">
-                                                {{ __('leads.generations.asset_pending') }}
-                                            </div>
-                                        @else
-                                            <div class="aspect-4/5 w-full bg-zinc-100" aria-hidden="true"></div>
-                                        @endif
-                                        <div class="space-y-2 p-3">
-                                            <div class="flex items-start justify-between gap-2">
-                                                <p class="font-bold">{{ $generation->output?->name ?: __('leads.generations.unknown_output') }}</p>
-                                                @if($wasRequested)
-                                                    <x-admin.badge :tone="$statusTone">
-                                                        {{ \Illuminate\Support\Facades\Lang::has('ai.generation.statuses.'.$generation->status) ? __('ai.generation.statuses.'.$generation->status) : $generation->status }}
-                                                    </x-admin.badge>
-                                                @endif
-                                            </div>
-                                            @if($wasRequested)
-                                                <p class="text-xs text-zinc-500">
-                                                    {{ __('leads.generations.requested_at', ['date' => \App\Support\JalaliDate::toJalaliDateTime($generation->requested_at)]) }}
-                                                </p>
-                                            @endif
-                                        </div>
-                                    </article>
-                                @endforeach
-                            </div>
-                        </div>
-                    @endforeach
-
-                    @foreach($lead->generationGroups as $group)
-                        <div class="rounded-lg border border-zinc-200 p-4">
-                            <div class="flex flex-wrap items-center justify-between gap-2">
-                                <span class="text-sm font-bold">{{ __('leads.generations.group', ['uuid' => $group->uuid]) }}</span>
-                                <span class="rounded-lg bg-zinc-100 px-3 py-1 text-xs font-bold text-zinc-700">{{ $group->status }}</span>
-                            </div>
-                            <div class="mt-3 grid gap-2 sm:grid-cols-3">
-                                @foreach($group->jobs as $job)
-                                    @php
-                                        $asset = $group->assets->firstWhere('generation_job_id', $job->id)
-                                            ?? $group->assets->firstWhere('period', $job->period);
-                                    @endphp
-                                    <div class="overflow-hidden rounded-lg bg-zinc-50 text-sm">
-                                        @if($asset)
-                                            <img src="{{ route('admin.leads.assets.show', [$lead, $asset]) }}" alt="{{ __('leads.generations.asset_alt', ['period' => __('leads.periods.'.$job->period)]) }}" class="aspect-4/5 w-full bg-zinc-100 object-cover">
-                                        @else
-                                            <div class="grid aspect-4/5 w-full place-items-center bg-zinc-100 px-3 text-center text-xs font-bold text-zinc-400">
-                                                {{ __('leads.generations.asset_pending') }}
-                                            </div>
-                                        @endif
-                                        <div class="p-3">
-                                            <p class="font-bold">{{ __('leads.periods.'.$job->period) }}</p>
-                                            <p class="mt-1 text-zinc-500">{{ $job->status }}</p>
-                                        </div>
-                                    </div>
-                                @endforeach
-                            </div>
-                        </div>
-                    @endforeach
-
-                    @if($independentGenerations->isEmpty() && $lead->generationGroups->isEmpty())
-                        <x-admin.empty-state icon="sparkles" class="py-5">{{ __('leads.generations.empty') }}</x-admin.empty-state>
-                    @endif
-                </div>
+                @if($lead->sourceImages->isEmpty() && $lead->generationGroups->isEmpty())
+                    <x-admin.empty-state icon="sparkles" class="py-5">{{ __('leads.generations.empty') }}</x-admin.empty-state>
+                @else
+                    @include('admin.leads.partials.processing-history', ['lead' => $lead])
+                @endif
             </section>
         </div>
 

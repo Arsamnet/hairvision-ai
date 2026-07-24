@@ -5,8 +5,20 @@ namespace Database\Seeders;
 use App\Models\SystemSetting;
 use Illuminate\Database\Seeder;
 
+/**
+ * Provides system setting seeder behavior.
+ *
+ * @since 1.0.0
+ */
 class SystemSettingSeeder extends Seeder
 {
+    /**
+     * Execute the system setting seeder operation.
+     *
+     * @return void No value is returned.
+     *
+     * @since 1.0.0
+     */
     public function run(): void
     {
         SystemSetting::query()
@@ -30,7 +42,11 @@ class SystemSettingSeeder extends Seeder
     }
 
     /**
+     * Execute the default settings operation.
+     *
      * @return array<string, array{group: string, label: string, type: string, value: mixed, description: string}>
+     *
+     * @since 1.0.0
      */
     private function defaultSettings(): array
     {

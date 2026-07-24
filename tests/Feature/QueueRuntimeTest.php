@@ -7,6 +7,7 @@ use App\Jobs\ProcessGenerationJob;
 use App\Models\GenerationAttempt;
 use App\Models\GenerationJob;
 use Illuminate\Bus\Queueable;
+use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -72,6 +73,40 @@ class QueueRuntimeTest extends TestCase
         ])
             ->expectsOutput('Queue retry_after (300) must be greater than worker timeout (1020).')
             ->assertExitCode(Command::FAILURE);
+    }
+
+    public function test_cpanel_scheduler_compiles_queue_connection_as_a_positional_argument(): void
+    {
+        config([
+            'hairvision.queue_worker.cpanel_cron_enabled' => true,
+            'hairvision.queue_worker.cpanel_connection' => 'database',
+            'hairvision.queue_worker.queues' => 'default',
+            'hairvision.queue_worker.processes' => 3,
+            'hairvision.queue_worker.window_seconds' => 58,
+            'hairvision.queue_worker.sleep_seconds' => 1,
+            'hairvision.queue_worker.timeout_seconds' => 1020,
+            'hairvision.queue_worker.overlap_expiration_minutes' => 30,
+        ]);
+
+        $schedule = $this->app->make(Schedule::class);
+        $eventCount = count($schedule->events());
+
+        require base_path('routes/console.php');
+
+        $events = collect(array_slice($schedule->events(), $eventCount))
+            ->filter(fn ($scheduledEvent): bool => is_string($scheduledEvent->command)
+                && str_contains(
+                    $scheduledEvent->command,
+                    'hairvision:queue-window'
+                ))
+            ->values();
+        $event = $events->first();
+
+        $this->assertNotNull($event);
+        $this->assertCount(3, $events);
+        $this->assertTrue($events->every(fn ($scheduledEvent): bool => $scheduledEvent->runInBackground));
+        $this->assertStringContainsString("hairvision:queue-window 'database'", $event->command);
+        $this->assertStringNotContainsString("connection='database'", $event->command);
     }
 }
 

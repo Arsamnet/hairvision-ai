@@ -14,13 +14,24 @@ use Illuminate\Validation\Rule;
  */
 class UpdateSmsGatewayRequest extends FormRequest
 {
+    /**
+     * Determine whether the current user may submit this request.
+     *
+     * @return bool Whether the requested condition is satisfied.
+     *
+     * @since 1.0.0
+     */
     public function authorize(): bool
     {
         return $this->user()?->can('update', $this->route('smsGateway')) ?? false;
     }
 
     /**
+     * Return the validation rules for the request.
+     *
      * @return array<string, mixed>
+     *
+     * @since 1.0.0
      */
     public function rules(): array
     {
@@ -48,7 +59,11 @@ class UpdateSmsGatewayRequest extends FormRequest
     }
 
     /**
+     * Execute the provider codes operation.
+     *
      * @return array<int, string>
+     *
+     * @since 1.0.0
      */
     private function providerCodes(): array
     {

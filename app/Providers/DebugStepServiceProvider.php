@@ -32,6 +32,13 @@ use Illuminate\Support\ServiceProvider;
  */
 final class DebugStepServiceProvider extends ServiceProvider
 {
+    /**
+     * Register model lifecycle behavior.
+     *
+     * @return void No value is returned.
+     *
+     * @since 1.0.0
+     */
     public function boot(): void
     {
         $this->listenForRoutes();
@@ -43,6 +50,13 @@ final class DebugStepServiceProvider extends ServiceProvider
         $this->listenForHttpClient();
     }
 
+    /**
+     * Execute the listen for routes operation.
+     *
+     * @return void No value is returned.
+     *
+     * @since 1.0.0
+     */
     private function listenForRoutes(): void
     {
         Event::listen(RouteMatched::class, function (RouteMatched $event): void {
@@ -55,6 +69,13 @@ final class DebugStepServiceProvider extends ServiceProvider
         });
     }
 
+    /**
+     * Execute the listen for database queries operation.
+     *
+     * @return void No value is returned.
+     *
+     * @since 1.0.0
+     */
     private function listenForDatabaseQueries(): void
     {
         DB::listen(function (QueryExecuted $query): void {
@@ -78,6 +99,13 @@ final class DebugStepServiceProvider extends ServiceProvider
         });
     }
 
+    /**
+     * Execute the listen for queue work operation.
+     *
+     * @return void No value is returned.
+     *
+     * @since 1.0.0
+     */
     private function listenForQueueWork(): void
     {
         Event::listen(JobQueued::class, function (JobQueued $event): void {
@@ -113,6 +141,13 @@ final class DebugStepServiceProvider extends ServiceProvider
         });
     }
 
+    /**
+     * Execute the listen for console commands operation.
+     *
+     * @return void No value is returned.
+     *
+     * @since 1.0.0
+     */
     private function listenForConsoleCommands(): void
     {
         Event::listen(CommandStarting::class, function (CommandStarting $event): void {
@@ -129,6 +164,13 @@ final class DebugStepServiceProvider extends ServiceProvider
         });
     }
 
+    /**
+     * Execute the listen for authentication operation.
+     *
+     * @return void No value is returned.
+     *
+     * @since 1.0.0
+     */
     private function listenForAuthentication(): void
     {
         Event::listen(Login::class, function (Login $event): void {
@@ -155,6 +197,13 @@ final class DebugStepServiceProvider extends ServiceProvider
         });
     }
 
+    /**
+     * Execute the listen for model changes operation.
+     *
+     * @return void No value is returned.
+     *
+     * @since 1.0.0
+     */
     private function listenForModelChanges(): void
     {
         Event::listen([
@@ -189,6 +238,13 @@ final class DebugStepServiceProvider extends ServiceProvider
         });
     }
 
+    /**
+     * Execute the listen for http client operation.
+     *
+     * @return void No value is returned.
+     *
+     * @since 1.0.0
+     */
     private function listenForHttpClient(): void
     {
         Event::listen(RequestSending::class, function (RequestSending $event): void {
@@ -210,7 +266,13 @@ final class DebugStepServiceProvider extends ServiceProvider
     }
 
     /**
+     * Execute the queue job context operation.
+     *
+     * @param  string  $connectionName  The connection name value.
+     * @param  Job  $job  The job value.
      * @return array<string, mixed>
+     *
+     * @since 1.0.0
      */
     private static function queueJobContext(string $connectionName, Job $job): array
     {
@@ -224,6 +286,14 @@ final class DebugStepServiceProvider extends ServiceProvider
         ];
     }
 
+    /**
+     * Execute the queued job name operation.
+     *
+     * @param  mixed  $job  The job value.
+     * @return string Resolved string value.
+     *
+     * @since 1.0.0
+     */
     private static function queuedJobName(mixed $job): string
     {
         if (is_object($job)) {
@@ -234,7 +304,12 @@ final class DebugStepServiceProvider extends ServiceProvider
     }
 
     /**
+     * Execute the http client context operation.
+     *
+     * @param  ClientRequest  $request  Incoming HTTP request.
      * @return array<string, mixed>
+     *
+     * @since 1.0.0
      */
     private static function httpClientContext(ClientRequest $request): array
     {
@@ -248,11 +323,27 @@ final class DebugStepServiceProvider extends ServiceProvider
         ];
     }
 
+    /**
+     * Execute the model event name operation.
+     *
+     * @param  string  $event  The event value.
+     * @return string Resolved string value.
+     *
+     * @since 1.0.0
+     */
     private static function modelEventName(string $event): string
     {
         return str($event)->before(':')->after('eloquent.')->toString();
     }
 
+    /**
+     * Execute the redact sql operation.
+     *
+     * @param  string  $sql  The sql value.
+     * @return string Resolved string value.
+     *
+     * @since 1.0.0
+     */
     private static function redactSql(string $sql): string
     {
         $sql = preg_replace("/'(?:''|[^'])*'/", "'?'", $sql) ?? $sql;

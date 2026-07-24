@@ -14,6 +14,11 @@ class LeadPolicy
 {
     /**
      * Super admins may bypass tenant-scoped checks.
+     *
+     * @param  User  $user  Authenticated user performing the operation.
+     * @return bool|null Resolved operation result.
+     *
+     * @since 1.0.0
      */
     public function before(User $user): ?bool
     {
@@ -22,6 +27,11 @@ class LeadPolicy
 
     /**
      * Determine whether a user may browse lead lists.
+     *
+     * @param  User  $user  Authenticated user performing the operation.
+     * @return bool Whether the requested condition is satisfied.
+     *
+     * @since 1.0.0
      */
     public function viewAny(User $user): bool
     {
@@ -31,6 +41,12 @@ class LeadPolicy
 
     /**
      * Determine whether a user may view a specific lead.
+     *
+     * @param  User  $user  Authenticated user performing the operation.
+     * @param  Lead  $lead  Lead in the current tenant scope.
+     * @return bool Whether the requested condition is satisfied.
+     *
+     * @since 1.0.0
      */
     public function view(User $user, Lead $lead): bool
     {
@@ -40,6 +56,11 @@ class LeadPolicy
 
     /**
      * Determine whether a user may create leads in the active tenant.
+     *
+     * @param  User  $user  Authenticated user performing the operation.
+     * @return bool Whether the requested condition is satisfied.
+     *
+     * @since 1.0.0
      */
     public function create(User $user): bool
     {
@@ -55,6 +76,12 @@ class LeadPolicy
 
     /**
      * Determine whether a user may update a tenant-owned lead.
+     *
+     * @param  User  $user  Authenticated user performing the operation.
+     * @param  Lead  $lead  Lead in the current tenant scope.
+     * @return bool Whether the requested condition is satisfied.
+     *
+     * @since 1.0.0
      */
     public function update(User $user, Lead $lead): bool
     {
@@ -67,6 +94,12 @@ class LeadPolicy
 
     /**
      * Determine whether a user may add a CRM follow-up note.
+     *
+     * @param  User  $user  Authenticated user performing the operation.
+     * @param  Lead  $lead  Lead in the current tenant scope.
+     * @return bool Whether the requested condition is satisfied.
+     *
+     * @since 1.0.0
      */
     public function createNote(User $user, Lead $lead): bool
     {
@@ -75,6 +108,13 @@ class LeadPolicy
 
     /**
      * Determine whether a user may update a CRM follow-up note for the lead.
+     *
+     * @param  User  $user  Authenticated user performing the operation.
+     * @param  Lead  $lead  Lead in the current tenant scope.
+     * @param  mixed  $note  The note value.
+     * @return bool Whether the requested condition is satisfied.
+     *
+     * @since 1.0.0
      */
     public function updateNote(User $user, Lead $lead, mixed $note): bool
     {
@@ -85,6 +125,12 @@ class LeadPolicy
 
     /**
      * Lead deletion requires explicit permission and tenant access.
+     *
+     * @param  User  $user  Authenticated user performing the operation.
+     * @param  Lead  $lead  Lead in the current tenant scope.
+     * @return bool Whether the requested condition is satisfied.
+     *
+     * @since 1.0.0
      */
     public function delete(User $user, Lead $lead): bool
     {

@@ -19,6 +19,10 @@ class SmsGatewayService
 
     /**
      * Return the default system SMS gateway for platform messages.
+     *
+     * @return SmsGateway|null Resolved operation result.
+     *
+     * @since 1.0.0
      */
     public function systemDefault(): ?SmsGateway
     {
@@ -51,6 +55,10 @@ class SmsGatewayService
 
     /**
      * Return a system-level gateway built from config when no DB gateway exists.
+     *
+     * @return SmsGateway|null Resolved operation result.
+     *
+     * @since 1.0.0
      */
     private function systemDefaultFromConfig(): ?SmsGateway
     {
@@ -97,6 +105,10 @@ class SmsGatewayService
 
     /**
      * Return the enabled system IPPanel gateway used for all OTP messages.
+     *
+     * @return SmsGateway|null Resolved operation result.
+     *
+     * @since 1.0.0
      */
     public function systemIppanel(): ?SmsGateway
     {
@@ -133,7 +145,13 @@ class SmsGatewayService
     /**
      * Send a platform/system message through the system default gateway.
      *
+     * @param  string  $phoneNormalized  The phone normalized value.
+     * @param  string  $message  The message value.
+     * @return SmsGateway Resolved operation result.
+     *
      * @throws ValidationException
+     *
+     * @since 1.0.0
      */
     public function sendSystemMessage(string $phoneNormalized, string $message): SmsGateway
     {
@@ -158,7 +176,13 @@ class SmsGatewayService
     /**
      * Send a platform/system OTP through the system IPPanel gateway.
      *
+     * @param  string  $phoneNormalized  The phone normalized value.
+     * @param  string  $code  The code value.
+     * @return SmsGateway Resolved operation result.
+     *
      * @throws ValidationException
+     *
+     * @since 1.0.0
      */
     public function sendSystemOtp(string $phoneNormalized, string $code): SmsGateway
     {
@@ -187,6 +211,11 @@ class SmsGatewayService
 
     /**
      * Mark one system or user gateway as default and unset peers.
+     *
+     * @param  SmsGateway  $gateway  The gateway value.
+     * @return SmsGateway Resolved operation result.
+     *
+     * @since 1.0.0
      */
     public function markDefault(SmsGateway $gateway): SmsGateway
     {
@@ -208,6 +237,13 @@ class SmsGatewayService
         return $gateway;
     }
 
+    /**
+     * Execute the last debug sms operation.
+     *
+     * @return string|null Resolved operation result.
+     *
+     * @since 1.0.0
+     */
     public function lastDebugSms(): ?string
     {
         return $this->debugSms;
@@ -215,6 +251,11 @@ class SmsGatewayService
 
     /**
      * Resolve an adapter for the configured provider code.
+     *
+     * @param  SmsGateway  $gateway  The gateway value.
+     * @return SmsGatewayAdapter Resolved operation result.
+     *
+     * @since 1.0.0
      */
     private function adapterFor(SmsGateway $gateway): SmsGatewayAdapter
     {
@@ -227,8 +268,23 @@ class SmsGatewayService
         return $adapter;
     }
 
+    /**
+     * Execute the reset debug steps operation.
+     *
+     * @return void No value is returned.
+     *
+     * @since 1.0.0
+     */
     private function resetDebugSteps(): void {}
 
+    /**
+     * Execute the gateway context operation.
+     *
+     * @param  SmsGateway  $gateway  The gateway value.
+     * @return array Resolved data array.
+     *
+     * @since 1.0.0
+     */
     private function gatewayContext(SmsGateway $gateway): array
     {
         $settings = $gateway->settings_json ?? [];
@@ -249,11 +305,27 @@ class SmsGatewayService
         ];
     }
 
+    /**
+     * Execute the phone hash operation.
+     *
+     * @param  string  $phoneNormalized  The phone normalized value.
+     * @return string Resolved string value.
+     *
+     * @since 1.0.0
+     */
     private function phoneHash(string $phoneNormalized): string
     {
         return hash('sha256', $phoneNormalized);
     }
 
+    /**
+     * Execute the endpoint host operation.
+     *
+     * @param  mixed  $endpointUrl  The endpoint url value.
+     * @return string|null Resolved operation result.
+     *
+     * @since 1.0.0
+     */
     private function endpointHost(mixed $endpointUrl): ?string
     {
         if (! is_string($endpointUrl) || trim($endpointUrl) === '') {

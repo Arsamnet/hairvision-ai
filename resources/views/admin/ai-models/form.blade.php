@@ -4,10 +4,16 @@
     $usageCategories = $usageCategories ?? [];
     $formKey = $formKey ?? 'ai_model_access_form';
     $returnToIndex = $returnToIndex ?? false;
+    $inputImageDefaults = \App\Services\AI\InputImageProcessingSettings::defaults();
     $selectedModel = old('model_key', $access?->model_key ?? array_key_first($models));
     $selectedCategory = old('usage_category_key', $access?->usage_category_key ?? array_key_first($usageCategories));
     $inputImageProcessingEnabled = filter_var(
-        old('settings.input_image_processing_enabled', data_get($access?->settings ?? [], 'input_image_processing_enabled', false)),
+        old(
+            'settings.input_image_processing_enabled',
+            $access
+                ? data_get($access->settings ?? [], 'input_image_processing_enabled', false)
+                : $inputImageDefaults['input_image_processing_enabled'],
+        ),
         FILTER_VALIDATE_BOOLEAN,
     );
     $credentialFields = collect($models)
@@ -102,7 +108,7 @@
                 type="text"
                 inputmode="numeric"
                 data-number-input
-                value="{{ old('settings.input_image_max_dimension', data_get($access?->settings ?? [], 'input_image_max_dimension')) }}"
+                value="{{ old('settings.input_image_max_dimension', $access ? data_get($access->settings ?? [], 'input_image_max_dimension') : $inputImageDefaults['input_image_max_dimension']) }}"
                 class="h-11 rounded-lg border border-zinc-200 bg-white px-3 text-sm outline-none focus:border-teal-500"
                 placeholder="{{ __('ai_models.input_image_max_dimension_placeholder') }}"
                 dir="ltr"
@@ -116,7 +122,7 @@
                 type="text"
                 inputmode="numeric"
                 data-number-input
-                value="{{ old('settings.input_image_jpeg_quality', data_get($access?->settings ?? [], 'input_image_jpeg_quality')) }}"
+                value="{{ old('settings.input_image_jpeg_quality', $access ? data_get($access->settings ?? [], 'input_image_jpeg_quality') : $inputImageDefaults['input_image_jpeg_quality']) }}"
                 class="h-11 rounded-lg border border-zinc-200 bg-white px-3 text-sm outline-none focus:border-teal-500"
                 placeholder="{{ __('ai_models.input_image_jpeg_quality_placeholder') }}"
                 dir="ltr"

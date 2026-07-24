@@ -22,6 +22,15 @@ use Illuminate\View\View;
  */
 class SmsGatewayController extends Controller
 {
+    /**
+     * Display the sms gateway listing.
+     *
+     * @param  Request  $request  Incoming HTTP request.
+     * @param  SmsGatewayManagementService  $manager  The manager value.
+     * @return View Rendered response view.
+     *
+     * @since 1.0.0
+     */
     public function index(Request $request, SmsGatewayManagementService $manager): View
     {
         Gate::authorize('viewAny', SmsGateway::class);
@@ -33,6 +42,15 @@ class SmsGatewayController extends Controller
         ]);
     }
 
+    /**
+     * Display the form for creating a new sms gateway.
+     *
+     * @param  Request  $request  Incoming HTTP request.
+     * @param  SmsGatewayManagementService  $manager  The manager value.
+     * @return View Rendered response view.
+     *
+     * @since 1.0.0
+     */
     public function create(Request $request, SmsGatewayManagementService $manager): View
     {
         Gate::authorize('create', SmsGateway::class);
@@ -40,6 +58,16 @@ class SmsGatewayController extends Controller
         return view('admin.system.sms-gateways.create', $this->formData($request, $manager));
     }
 
+    /**
+     * Persist a new sms gateway record.
+     *
+     * @param  StoreSmsGatewayRequest  $request  Incoming HTTP request.
+     * @param  SmsGatewayManagementService  $manager  The manager value.
+     * @param  SmsGatewayService  $gateways  The gateways value.
+     * @return RedirectResponse HTTP redirect response.
+     *
+     * @since 1.0.0
+     */
     public function store(StoreSmsGatewayRequest $request, SmsGatewayManagementService $manager, SmsGatewayService $gateways): RedirectResponse
     {
         $gateway = $manager->createSystem($request->validated(), $gateways);
@@ -51,6 +79,15 @@ class SmsGatewayController extends Controller
         return redirect()->route('admin.system.sms-gateways.show', $gateway)->with('status', __('sms.created'));
     }
 
+    /**
+     * Display the requested sms gateway resource.
+     *
+     * @param  Request  $request  Incoming HTTP request.
+     * @param  SmsGateway  $smsGateway  The sms gateway value.
+     * @return View Rendered response view.
+     *
+     * @since 1.0.0
+     */
     public function show(Request $request, SmsGateway $smsGateway): View
     {
         Gate::authorize('view', $smsGateway);
@@ -62,6 +99,16 @@ class SmsGatewayController extends Controller
         ]);
     }
 
+    /**
+     * Display the form for editing the requested sms gateway.
+     *
+     * @param  Request  $request  Incoming HTTP request.
+     * @param  SmsGateway  $smsGateway  The sms gateway value.
+     * @param  SmsGatewayManagementService  $manager  The manager value.
+     * @return View Rendered response view.
+     *
+     * @since 1.0.0
+     */
     public function edit(Request $request, SmsGateway $smsGateway, SmsGatewayManagementService $manager): View
     {
         Gate::authorize('update', $smsGateway);
@@ -71,6 +118,17 @@ class SmsGatewayController extends Controller
         ]);
     }
 
+    /**
+     * Update the requested sms gateway record.
+     *
+     * @param  UpdateSmsGatewayRequest  $request  Incoming HTTP request.
+     * @param  SmsGateway  $smsGateway  The sms gateway value.
+     * @param  SmsGatewayManagementService  $manager  The manager value.
+     * @param  SmsGatewayService  $gateways  The gateways value.
+     * @return RedirectResponse HTTP redirect response.
+     *
+     * @since 1.0.0
+     */
     public function update(UpdateSmsGatewayRequest $request, SmsGateway $smsGateway, SmsGatewayManagementService $manager, SmsGatewayService $gateways): RedirectResponse
     {
         $manager->updateSystem($smsGateway, $request->validated(), $gateways);
@@ -78,6 +136,15 @@ class SmsGatewayController extends Controller
         return redirect()->route('admin.system.sms-gateways.show', $smsGateway)->with('status', __('sms.updated'));
     }
 
+    /**
+     * Delete the requested sms gateway record.
+     *
+     * @param  Request  $request  Incoming HTTP request.
+     * @param  SmsGateway  $smsGateway  The sms gateway value.
+     * @return RedirectResponse HTTP redirect response.
+     *
+     * @since 1.0.0
+     */
     public function destroy(Request $request, SmsGateway $smsGateway): RedirectResponse
     {
         Gate::authorize('delete', $smsGateway);
@@ -88,7 +155,14 @@ class SmsGatewayController extends Controller
     }
 
     /**
+     * Execute the form data operation.
+     *
+     * @param  Request  $request  Incoming HTTP request.
+     * @param  SmsGatewayManagementService|null  $manager  The manager value.
+     * @param  SmsGateway|null  $gateway  The gateway value.
      * @return array<string, mixed>
+     *
+     * @since 1.0.0
      */
     private function formData(Request $request, ?SmsGatewayManagementService $manager = null, ?SmsGateway $gateway = null): array
     {

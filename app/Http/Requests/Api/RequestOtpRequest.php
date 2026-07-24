@@ -15,6 +15,10 @@ class RequestOtpRequest extends FormRequest
 {
     /**
      * Public tenant visitors may request OTP codes before authentication.
+     *
+     * @return bool Whether the requested condition is satisfied.
+     *
+     * @since 1.0.0
      */
     public function authorize(): bool
     {
@@ -22,7 +26,11 @@ class RequestOtpRequest extends FormRequest
     }
 
     /**
+     * Return the validation rules for the request.
+     *
      * @return array<string, array<int, string>>
+     *
+     * @since 1.0.0
      */
     public function rules(): array
     {
@@ -32,7 +40,11 @@ class RequestOtpRequest extends FormRequest
     }
 
     /**
+     * Return localized validation messages.
+     *
      * @return array<string, string>
+     *
+     * @since 1.0.0
      */
     public function messages(): array
     {
@@ -43,6 +55,13 @@ class RequestOtpRequest extends FormRequest
         ];
     }
 
+    /**
+     * Normalize request input before validation.
+     *
+     * @return void No value is returned.
+     *
+     * @since 1.0.0
+     */
     protected function prepareForValidation(): void
     {
         if ($this->has('phone')) {

@@ -1,6 +1,6 @@
 # AI Agent Instructions
 
-Version: `2.0.0`
+Version: [`2.0.0`](../CHANGELOG.md#200)
 
 This file is the compact operating prompt for AI agents. The primary guide is
 `AGENTS.md`; this file keeps the same rules inside `/docs`.
@@ -13,7 +13,7 @@ Read before editing code:
 2. `docs/business-rules-fa.md`
 3. `docs/architecture.md`
 4. `docs/api.md`
-5. `docs/release-notes.md`
+5. `CHANGELOG.md`
 
 The documentation set is intentionally consolidated. Do not create a new docs
 file for a small topic; update one of the canonical docs instead.
@@ -44,6 +44,9 @@ transplant, or dynamically added services like under-eye filler.
   displayed in plain text.
 - Uploads and generated assets stay under private storage and stream only
   through scoped routes.
+- Seeded/new model input processing defaults to an exact 800-pixel longest side
+  and JPEG quality 85; generated results are always normalized to the same
+  private JPEG profile before permanent storage.
 - AI provider logic stays behind services/actions/jobs/provider adapters, never
   controllers.
 - The local `sample_image` adapter may run only through an active model access
@@ -92,6 +95,8 @@ transplant, or dynamically added services like under-eye filler.
   locks alone.
 - Keep GapGPT image edits multipart with file field `image`, `model =
   gpt-image-2`, `n = 1`, `response_format = url`, and `size = 1024x1024`.
+- Keep the provider request size separate from private asset normalization:
+  provider inputs and persisted results use the 800px/JPEG 85 product default.
 - Never seed, commit, log, display, or document a real GapGPT API key.
 - Keep user-facing errors localized and generic; log only safe operational
   context.
@@ -100,6 +105,7 @@ transplant, or dynamically added services like under-eye filler.
 
 ```bash
 php artisan test
+composer phpdoc:audit
 ```
 
 Run this too after CSS, JavaScript, Blade, font, or Vite changes:

@@ -12,7 +12,12 @@ use App\Models\AiModelCategoryOutput;
 class GenerationStageCatalog
 {
     /**
+     * Execute the keys operation.
+     *
+     * @param  string  $usageCategoryKey  The usage category key value.
      * @return array<int, string>
+     *
+     * @since 1.0.0
      */
     public function keys(string $usageCategoryKey = 'hair_transplant'): array
     {
@@ -20,7 +25,12 @@ class GenerationStageCatalog
     }
 
     /**
+     * Execute the stages operation.
+     *
+     * @param  string  $usageCategoryKey  The usage category key value.
      * @return array<string, array<string, mixed>>
+     *
+     * @since 1.0.0
      */
     public function stages(string $usageCategoryKey = 'hair_transplant'): array
     {
@@ -46,21 +56,53 @@ class GenerationStageCatalog
         return $stages;
     }
 
+    /**
+     * Execute the count operation.
+     *
+     * @param  string  $usageCategoryKey  The usage category key value.
+     * @return int Calculated numeric value.
+     *
+     * @since 1.0.0
+     */
     public function count(string $usageCategoryKey = 'hair_transplant'): int
     {
         return count($this->stages($usageCategoryKey));
     }
 
+    /**
+     * Normalize key.
+     *
+     * @param  string  $stageKey  The stage key value.
+     * @return string Resolved string value.
+     *
+     * @since 1.0.0
+     */
     public function normalizeKey(string $stageKey): string
     {
         return config("hairvision.generation.legacy_stage_map.$stageKey", $stageKey);
     }
 
+    /**
+     * Execute the order operation.
+     *
+     * @param  string  $stageKey  The stage key value.
+     * @return int Calculated numeric value.
+     *
+     * @since 1.0.0
+     */
     public function order(string $stageKey): int
     {
         return (int) ($this->stage($stageKey)['order'] ?? 0);
     }
 
+    /**
+     * Execute the label operation.
+     *
+     * @param  string  $stageKey  The stage key value.
+     * @return string Resolved string value.
+     *
+     * @since 1.0.0
+     */
     public function label(string $stageKey): string
     {
         $stage = $this->stage($stageKey);
@@ -69,11 +111,27 @@ class GenerationStageCatalog
         return is_string($labelKey) ? __($labelKey) : $stageKey;
     }
 
+    /**
+     * Execute the caption operation.
+     *
+     * @param  string  $stageKey  The stage key value.
+     * @return string Resolved string value.
+     *
+     * @since 1.0.0
+     */
     public function caption(string $stageKey): string
     {
         return __('ai.generation.stage_captions.'.$this->normalizeKey($stageKey));
     }
 
+    /**
+     * Execute the sample image path operation.
+     *
+     * @param  string  $stageKey  The stage key value.
+     * @return string|null Resolved operation result.
+     *
+     * @since 1.0.0
+     */
     public function sampleImagePath(string $stageKey): ?string
     {
         $path = $this->stage($stageKey)['sample_image'] ?? null;
@@ -81,6 +139,14 @@ class GenerationStageCatalog
         return is_string($path) ? $path : null;
     }
 
+    /**
+     * Execute the default prompt operation.
+     *
+     * @param  string  $stageKey  The stage key value.
+     * @return string Resolved string value.
+     *
+     * @since 1.0.0
+     */
     public function defaultPrompt(string $stageKey): string
     {
         $prompt = $this->stage($stageKey)['prompt'] ?? null;
@@ -88,6 +154,15 @@ class GenerationStageCatalog
         return is_string($prompt) ? $prompt : 'Create one realistic hair transplant preview image.';
     }
 
+    /**
+     * Execute the prompt for operation.
+     *
+     * @param  string  $usageCategoryKey  The usage category key value.
+     * @param  string  $stageKey  The stage key value.
+     * @return string Resolved string value.
+     *
+     * @since 1.0.0
+     */
     public function promptFor(string $usageCategoryKey, string $stageKey): string
     {
         $stageKey = $this->normalizeKey($stageKey);
@@ -105,7 +180,12 @@ class GenerationStageCatalog
     }
 
     /**
+     * Execute the public stages operation.
+     *
+     * @param  string  $usageCategoryKey  The usage category key value.
      * @return array<int, array<string, mixed>>
+     *
+     * @since 1.0.0
      */
     public function publicStages(string $usageCategoryKey = 'hair_transplant'): array
     {
@@ -121,8 +201,12 @@ class GenerationStageCatalog
     }
 
     /**
+     * Execute the public stages for keys operation.
+     *
      * @param  array<int, string>  $stageKeys
      * @return array<int, array<string, mixed>>
+     *
+     * @since 1.0.0
      */
     public function publicStagesForKeys(array $stageKeys): array
     {
@@ -145,8 +229,12 @@ class GenerationStageCatalog
     }
 
     /**
+     * Execute the sort by stage order operation.
+     *
      * @param  array<int, object|array<string, mixed>>  $items
      * @return array<int, object|array<string, mixed>>
+     *
+     * @since 1.0.0
      */
     public function sortByStageOrder(iterable $items): array
     {
@@ -157,7 +245,12 @@ class GenerationStageCatalog
     }
 
     /**
+     * Execute the stage operation.
+     *
+     * @param  string  $stageKey  The stage key value.
      * @return array<string, mixed>
+     *
+     * @since 1.0.0
      */
     private function stage(string $stageKey): array
     {

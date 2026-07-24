@@ -74,6 +74,8 @@ return [
     'source_images' => [
         'alt' => 'تصویر اصلی لید',
         'version' => 'نسخه :version',
+        'current' => 'تصویر اصلی فعلی',
+        'archived' => 'تصویر قبلی',
     ],
 
     'generations' => [
@@ -86,12 +88,21 @@ return [
         'unknown_output' => 'خروجی نامشخص',
         'asset_alt' => 'تصویر نتیجه :period',
         'asset_pending' => 'تصویر هنوز آماده نیست',
+        'source_image' => 'تصویر ورودی',
+        'results' => 'نتایج این تصویر',
+        'no_results' => 'برای این تصویر هنوز نتیجه‌ای درخواست نشده است.',
+        'upload_round' => 'نوبت بارگذاری :version',
+        'legacy_upload' => 'پردازش قدیمی',
+        'result_version' => 'نسخه نتیجه :version',
+        'current_result' => 'نتیجه فعلی',
+        'archived_result' => 'نسخه قبلی نتیجه',
     ],
 
     'periods' => [
-        'two_weeks' => 'دو هفته بعد از کاشت',
-        'intermediate_regrowth' => 'مرحله رشد میانی',
-        'final_result' => 'نتیجه نهایی',
+        'two_weeks' => 'یک روز بعد از کاشت مو',
+        'intermediate_regrowth' => '۶ ماه بعد از کاشت مو',
+        'final_result' => 'یک سال بعد از کاشت مو',
+        'eyebrow_final_result' => 'یک سال بعد از کاشت ابرو',
         '3_months' => '۳ ماه',
         '6_months' => '۶ ماه',
         '12_months' => '۱۲ ماه',

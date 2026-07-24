@@ -15,7 +15,13 @@ use Symfony\Component\HttpFoundation\Response;
 final class NormalizeNumericInputs
 {
     /**
+     * Execute the normalize numeric inputs operation.
+     *
      * @param  Closure(Request): Response  $next
+     * @param  Request  $request  Incoming HTTP request.
+     * @return Response HTTP response.
+     *
+     * @since 1.0.0
      */
     public function handle(Request $request, Closure $next): Response
     {
@@ -29,7 +35,10 @@ final class NormalizeNumericInputs
      * Recursively normalize scalar numeric values while preserving secrets.
      *
      * @param  array<string|int, mixed>  $values
+     * @param  bool  $containsSensitiveValues  The contains sensitive values value.
      * @return array<string|int, mixed>
+     *
+     * @since 1.0.0
      */
     private function normalizeValues(array $values, bool $containsSensitiveValues = false): array
     {
@@ -50,6 +59,14 @@ final class NormalizeNumericInputs
         return $values;
     }
 
+    /**
+     * Determine whether sensitive key.
+     *
+     * @param  string  $key  The key value.
+     * @return bool Whether the requested condition is satisfied.
+     *
+     * @since 1.0.0
+     */
     private function isSensitiveKey(string $key): bool
     {
         return preg_match('/(?:password|secret|token|credential|api_key|merchant_id)/i', $key) === 1;

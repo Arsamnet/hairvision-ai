@@ -108,5 +108,12 @@
                 @endforelse
             </x-admin.mobile-list>
         </x-admin.card>
+
+        @if($usageLogs)
+            @include('admin.ai-models.partials.usage-logs', [
+                'showClinic' => false,
+                'showModel' => true,
+            ])
+        @endif
     </div>
 @endsection

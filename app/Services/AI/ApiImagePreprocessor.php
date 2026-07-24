@@ -3,9 +3,6 @@
 namespace App\Services\AI;
 
 use Illuminate\Support\Facades\Storage;
-use Intervention\Image\Drivers\Gd\Driver;
-use Intervention\Image\FileExtension;
-use Intervention\Image\ImageManager;
 use InvalidArgumentException;
 use RuntimeException;
 
@@ -17,8 +14,22 @@ use RuntimeException;
 class ApiImagePreprocessor
 {
     /**
+     * Create a new api image preprocessor instance.
+     *
+     * @param  JpegImageNormalizer  $normalizer  The normalizer value.
+     *
+     * @since 2.0.0
+     */
+    public function __construct(private readonly JpegImageNormalizer $normalizer) {}
+
+    /**
      * Prepare an optimized API input image while keeping the original upload unchanged.
      *
+     * @param  string  $sourceDisk  The source disk value.
+     * @param  string  $sourcePath  The source path value.
+     * @param  string  $destinationPath  The destination path value.
+     * @param  int  $maxDimension  The max dimension value.
+     * @param  int  $jpegQuality  The jpeg quality value.
      * @return array{
      *     disk: string,
      *     path: string,
@@ -29,6 +40,8 @@ class ApiImagePreprocessor
      *     height: int,
      *     binary_content: string
      * }
+     *
+     * @since 2.0.0
      */
     public function prepareForImageApi(
         string $sourceDisk,
@@ -59,27 +72,8 @@ class ApiImagePreprocessor
             throw new RuntimeException('Source image is empty.');
         }
 
-        $manager = ImageManager::usingDriver(Driver::class);
-
-        /* scale() fits the image inside the square boundary without cropping
-         * or changing its aspect ratio. The longest side becomes the exact
-         * configured dimension, including when a smaller image is enlarged. */
-        $image = $manager->decodeBinary($binary)->orient()->scale(
-            width: $maxDimension,
-            height: $maxDimension,
-        );
-
-        $encoded = $image->encodeUsingFileExtension(
-            FileExtension::JPG,
-            quality: $jpegQuality,
-            progressive: true,
-        );
-
-        $encodedBinary = (string) $encoded;
-
-        if ($encodedBinary === '') {
-            throw new RuntimeException('Encoded API image is empty.');
-        }
+        $normalized = $this->normalizer->normalize($binary, $maxDimension, $jpegQuality);
+        $encodedBinary = $normalized['binary_content'];
 
         $destinationPath = (string) preg_replace('/\.[^.\/]+$/', '', $destinationPath);
         $destinationPath .= '.jpg';
@@ -106,8 +100,8 @@ class ApiImagePreprocessor
             'mime' => 'image/jpeg',
             'extension' => 'jpg',
             'size' => $storedSize,
-            'width' => $image->width(),
-            'height' => $image->height(),
+            'width' => $normalized['width'],
+            'height' => $normalized['height'],
             'binary_content' => $encodedBinary,
         ];
     }

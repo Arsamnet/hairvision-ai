@@ -14,7 +14,10 @@ final class StateCatalog
     /**
      * Return localized options for a dot-notated catalog path.
      *
+     * @param  string  $catalog  The catalog value.
      * @return array<string, string>
+     *
+     * @since 2.0.0
      */
     public static function options(string $catalog): array
     {
@@ -35,7 +38,10 @@ final class StateCatalog
     /**
      * Return the allowed technical values for a catalog.
      *
+     * @param  string  $catalog  The catalog value.
      * @return array<int, string>
+     *
+     * @since 2.0.0
      */
     public static function values(string $catalog): array
     {
@@ -44,6 +50,12 @@ final class StateCatalog
 
     /**
      * Return a localized label while safely preserving unknown historical values.
+     *
+     * @param  string  $catalog  The catalog value.
+     * @param  string  $value  Input value supplied to the operation.
+     * @return string Resolved string value.
+     *
+     * @since 2.0.0
      */
     public static function label(string $catalog, string $value): string
     {

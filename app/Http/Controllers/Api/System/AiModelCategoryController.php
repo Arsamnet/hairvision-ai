@@ -19,6 +19,14 @@ use Symfony\Component\HttpFoundation\Response;
  */
 class AiModelCategoryController extends Controller
 {
+    /**
+     * Display the ai model category listing.
+     *
+     * @param  Request  $request  Incoming HTTP request.
+     * @return JsonResponse JSON response payload.
+     *
+     * @since 2.0.0
+     */
     public function index(Request $request): JsonResponse
     {
         $categories = AiModelCategory::query()
@@ -36,6 +44,14 @@ class AiModelCategoryController extends Controller
         return response()->json(AiModelCategoryResource::collection($categories)->response()->getData(true));
     }
 
+    /**
+     * Persist a new ai model category record.
+     *
+     * @param  StoreAiModelCategoryRequest  $request  Incoming HTTP request.
+     * @return JsonResponse JSON response payload.
+     *
+     * @since 2.0.0
+     */
     public function store(StoreAiModelCategoryRequest $request): JsonResponse
     {
         $category = AiModelCategory::query()->create($request->validated() + [
@@ -48,11 +64,28 @@ class AiModelCategoryController extends Controller
             ->setStatusCode(Response::HTTP_CREATED);
     }
 
+    /**
+     * Display the requested ai model category resource.
+     *
+     * @param  string  $category  The category value.
+     * @return AiModelCategoryResource Resolved operation result.
+     *
+     * @since 2.0.0
+     */
     public function show(string $category): AiModelCategoryResource
     {
         return new AiModelCategoryResource($this->findCategory($category)->load('outputs'));
     }
 
+    /**
+     * Update the requested ai model category record.
+     *
+     * @param  UpdateAiModelCategoryRequest  $request  Incoming HTTP request.
+     * @param  string  $category  The category value.
+     * @return AiModelCategoryResource Resolved operation result.
+     *
+     * @since 2.0.0
+     */
     public function update(UpdateAiModelCategoryRequest $request, string $category): AiModelCategoryResource
     {
         $model = $this->findCategory($category);
@@ -61,6 +94,14 @@ class AiModelCategoryController extends Controller
         return new AiModelCategoryResource($model->refresh()->load('outputs'));
     }
 
+    /**
+     * Delete the requested ai model category record.
+     *
+     * @param  string  $category  The category value.
+     * @return JsonResponse JSON response payload.
+     *
+     * @since 2.0.0
+     */
     public function destroy(string $category): JsonResponse
     {
         $model = $this->findCategory($category);
@@ -76,6 +117,14 @@ class AiModelCategoryController extends Controller
         return response()->json(status: Response::HTTP_NO_CONTENT);
     }
 
+    /**
+     * Find category.
+     *
+     * @param  string  $uuid  The uuid value.
+     * @return AiModelCategory Resolved operation result.
+     *
+     * @since 2.0.0
+     */
     private function findCategory(string $uuid): AiModelCategory
     {
         return AiModelCategory::query()->where('uuid', $uuid)->firstOrFail();

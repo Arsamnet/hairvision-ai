@@ -17,6 +17,11 @@ class SearchFilter
      *
      * @param  array<int, string>  $columns
      * @param  array<string, array<int, string>>  $relations
+     * @param  Builder  $query  Query builder to constrain.
+     * @param  string|null  $search  The search value.
+     * @return Builder Configured query builder.
+     *
+     * @since 1.0.0
      */
     public static function apply(Builder $query, ?string $search, array $columns, array $relations = []): Builder
     {
@@ -64,7 +69,12 @@ class SearchFilter
     }
 
     /**
+     * Execute the terms operation.
+     *
+     * @param  string  $search  The search value.
      * @return array<int, array<int, string>>
+     *
+     * @since 1.0.0
      */
     private static function terms(string $search): array
     {
@@ -80,7 +90,12 @@ class SearchFilter
     }
 
     /**
+     * Execute the variants operation.
+     *
+     * @param  string  $search  The search value.
      * @return array<int, string>
+     *
+     * @since 1.0.0
      */
     private static function variants(string $search): array
     {
@@ -98,6 +113,14 @@ class SearchFilter
             ->all();
     }
 
+    /**
+     * Execute the like term operation.
+     *
+     * @param  string  $search  The search value.
+     * @return string Resolved string value.
+     *
+     * @since 1.0.0
+     */
     private static function likeTerm(string $search): string
     {
         return '%'.addcslashes(trim($search), '\\%_').'%';

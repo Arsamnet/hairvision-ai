@@ -42,7 +42,11 @@ class LeadSourceImage extends Model
     ];
 
     /**
+     * Define the profile Eloquent relationship.
+     *
      * @return BelongsTo<LeadProfile, $this>
+     *
+     * @since 2.0.0
      */
     public function profile(): BelongsTo
     {
@@ -50,7 +54,11 @@ class LeadSourceImage extends Model
     }
 
     /**
+     * Define the generation requests Eloquent relationship.
+     *
      * @return HasMany<GenerationRequest, $this>
+     *
+     * @since 2.0.0
      */
     public function generationRequests(): HasMany
     {

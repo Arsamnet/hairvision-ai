@@ -35,6 +35,7 @@ class AiModelAccess extends Model
         'prompt',
         'credit_limit',
         'credit_used',
+        'credit_reserved',
         'usage_count',
         'is_active',
         'is_demo',
@@ -54,6 +55,7 @@ class AiModelAccess extends Model
         'settings' => 'array',
         'credit_limit' => 'integer',
         'credit_used' => 'integer',
+        'credit_reserved' => 'integer',
         'usage_count' => 'integer',
         'is_active' => 'boolean',
         'is_demo' => 'boolean',
@@ -69,6 +71,8 @@ class AiModelAccess extends Model
      * Clinics that may use this model access record.
      *
      * @return BelongsToMany<Tenant, $this>
+     *
+     * @since 1.0.0
      */
     public function clinics(): BelongsToMany
     {
@@ -81,6 +85,8 @@ class AiModelAccess extends Model
      * Purchasable plans that provision this model access.
      *
      * @return BelongsToMany<Plan, $this>
+     *
+     * @since 1.0.0
      */
     public function plans(): BelongsToMany
     {
@@ -92,6 +98,8 @@ class AiModelAccess extends Model
      * Executable v2 model synchronized from this access record.
      *
      * @return HasOne<AiModel, $this>
+     *
+     * @since 1.0.0
      */
     public function executableModel(): HasOne
     {
@@ -102,6 +110,8 @@ class AiModelAccess extends Model
      * Usage log rows for executions through this access record.
      *
      * @return HasMany<AiModelUsageLog, $this>
+     *
+     * @since 1.0.0
      */
     public function usageLogs(): HasMany
     {
@@ -112,6 +122,8 @@ class AiModelAccess extends Model
      * User that created the access record, when available.
      *
      * @return BelongsTo<User, $this>
+     *
+     * @since 1.0.0
      */
     public function creator(): BelongsTo
     {
@@ -122,6 +134,8 @@ class AiModelAccess extends Model
      * User that last updated the access record, when available.
      *
      * @return BelongsTo<User, $this>
+     *
+     * @since 1.0.0
      */
     public function updater(): BelongsTo
     {
@@ -132,6 +146,9 @@ class AiModelAccess extends Model
      * Scope active access records.
      *
      * @param  Builder<AiModelAccess>  $query
+     * @return Builder Configured query builder.
+     *
+     * @since 1.0.0
      */
     public function scopeActive(Builder $query): Builder
     {
@@ -140,6 +157,10 @@ class AiModelAccess extends Model
 
     /**
      * Determine whether this record has unlimited credit.
+     *
+     * @return bool Whether the requested condition is satisfied.
+     *
+     * @since 1.0.0
      */
     public function hasUnlimitedCredit(): bool
     {
@@ -148,15 +169,26 @@ class AiModelAccess extends Model
 
     /**
      * Determine whether at least one execution credit is available.
+     *
+     * @param  int  $amount  The amount value.
+     * @return bool Whether the requested condition is satisfied.
+     *
+     * @since 1.0.0
+     * @since 2.0.0 Behavior updated for the version 2.0.0 release.
      */
     public function hasAvailableCredit(int $amount = 1): bool
     {
         return $this->hasUnlimitedCredit()
-            || $this->credit_used + $amount <= $this->credit_limit;
+            || $this->credit_used + $this->credit_reserved + $amount <= $this->credit_limit;
     }
 
     /**
      * Return remaining credit when limited, otherwise null for unlimited.
+     *
+     * @return int|null Resolved operation result.
+     *
+     * @since 1.0.0
+     * @since 2.0.0 Behavior updated for the version 2.0.0 release.
      */
     public function remainingCredit(): ?int
     {
@@ -164,13 +196,15 @@ class AiModelAccess extends Model
             return null;
         }
 
-        return max(0, $this->credit_limit - $this->credit_used);
+        return max(0, $this->credit_limit - $this->credit_used - $this->credit_reserved);
     }
 
     /**
      * Return masked credential summaries safe for admin UI display.
      *
      * @return array<string, string>
+     *
+     * @since 1.0.0
      */
     public function maskedCredentials(): array
     {
@@ -187,6 +221,11 @@ class AiModelAccess extends Model
 
     /**
      * Mask stored secrets without revealing short API keys.
+     *
+     * @param  string  $value  Input value supplied to the operation.
+     * @return string Resolved string value.
+     *
+     * @since 1.0.0
      */
     private function maskCredentialValue(string $value): string
     {

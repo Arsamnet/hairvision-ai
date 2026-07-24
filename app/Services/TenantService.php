@@ -14,6 +14,10 @@ class TenantService
 {
     /**
      * Return the tenant resolved from the current request host.
+     *
+     * @return Tenant|null Resolved operation result.
+     *
+     * @since 1.0.0
      */
     public function current(): ?Tenant
     {

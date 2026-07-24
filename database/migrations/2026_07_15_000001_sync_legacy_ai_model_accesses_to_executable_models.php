@@ -7,6 +7,13 @@ use Illuminate\Support\Str;
 
 return new class extends Migration
 {
+    /**
+     * Execute the up operation.
+     *
+     * @return void No value is returned.
+     *
+     * @since 2.0.0
+     */
     public function up(): void
     {
         if (
@@ -29,11 +36,26 @@ return new class extends Migration
             });
     }
 
+    /**
+     * Execute the down operation.
+     *
+     * @return void No value is returned.
+     *
+     * @since 2.0.0
+     */
     public function down(): void
     {
         //
     }
 
+    /**
+     * Synchronize access.
+     *
+     * @param  object  $access  The access value.
+     * @return void No value is returned.
+     *
+     * @since 2.0.0
+     */
     private function syncAccess(object $access): void
     {
         $category = DB::table('ai_model_categories')
@@ -120,7 +142,12 @@ return new class extends Migration
     }
 
     /**
+     * Execute the decode json operation.
+     *
+     * @param  mixed  $value  Input value supplied to the operation.
      * @return array<string, mixed>
+     *
+     * @since 2.0.0
      */
     private function decodeJson(mixed $value): array
     {
@@ -138,7 +165,13 @@ return new class extends Migration
     }
 
     /**
+     * Execute the concurrency limit for operation.
+     *
      * @param  array<string, mixed>  $settings
+     * @param  string  $modelKey  The model key value.
+     * @return int Calculated numeric value.
+     *
+     * @since 2.0.0
      */
     private function concurrencyLimitFor(string $modelKey, array $settings): int
     {
@@ -150,8 +183,14 @@ return new class extends Migration
     }
 
     /**
+     * Execute the configuration for operation.
+     *
      * @param  array<string, mixed>  $settings
+     * @param  string  $modelKey  The model key value.
+     * @param  object  $output  The output value.
      * @return array<string, mixed>
+     *
+     * @since 2.0.0
      */
     private function configurationFor(string $modelKey, array $settings, object $output): array
     {

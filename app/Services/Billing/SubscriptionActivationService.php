@@ -25,6 +25,16 @@ use Throwable;
  */
 class SubscriptionActivationService
 {
+    /**
+     * Create a new subscription activation service instance.
+     *
+     * @param  ServiceEntitlementService  $entitlements  The entitlements value.
+     * @param  CreditLedgerService  $ledger  The ledger value.
+     * @param  ServiceCatalog  $services  The services value.
+     * @param  ClinicAiModelProvisioningService  $modelProvisioning  The model provisioning value.
+     *
+     * @since 1.0.0
+     */
     public function __construct(
         private readonly ServiceEntitlementService $entitlements,
         private readonly CreditLedgerService $ledger,
@@ -35,7 +45,15 @@ class SubscriptionActivationService
     /**
      * Validate purchase rules before an invoice is issued.
      *
+     * @param  User|null  $user  Authenticated user performing the operation.
+     * @param  Plan  $plan  The plan value.
+     * @param  Tenant|null  $tenant  Tenant in the current operation scope.
+     * @param  array|null  $modelAccessIds  The model access ids value.
+     * @return void No value is returned.
+     *
      * @throws ValidationException
+     *
+     * @since 1.0.0
      */
     public function validatePurchase(?User $user, Plan $plan, ?Tenant $tenant, ?array $modelAccessIds = null): void
     {
@@ -72,7 +90,10 @@ class SubscriptionActivationService
     /**
      * Return the validated plan-model selection to snapshot on an invoice.
      *
+     * @param  Plan  $plan  The plan value.
      * @return array<int, int>
+     *
+     * @since 1.0.0
      */
     public function modelAccessIdsForPlan(Plan $plan): array
     {
@@ -82,7 +103,12 @@ class SubscriptionActivationService
     /**
      * Activate a paid invoice exactly once.
      *
+     * @param  Invoice  $invoice  The invoice value.
+     * @return Subscription|null Resolved operation result.
+     *
      * @throws ValidationException
+     *
+     * @since 1.0.0
      */
     public function activateInvoice(Invoice $invoice): ?Subscription
     {
@@ -118,6 +144,16 @@ class SubscriptionActivationService
         }
     }
 
+    /**
+     * Validate base plan purchase.
+     *
+     * @param  Plan  $plan  The plan value.
+     * @param  Tenant  $tenant  Tenant in the current operation scope.
+     * @param  string  $scope  The scope value.
+     * @return void No value is returned.
+     *
+     * @since 1.0.0
+     */
     private function validateBasePlanPurchase(Plan $plan, Tenant $tenant, string $scope = 'billing.subscription_activation.validate_base_plan'): void
     {
         $active = $this->entitlements->activeBaseSubscriptionForTenant($tenant);
@@ -143,6 +179,16 @@ class SubscriptionActivationService
         }
     }
 
+    /**
+     * Validate service add on purchase.
+     *
+     * @param  Plan  $plan  The plan value.
+     * @param  Tenant  $tenant  Tenant in the current operation scope.
+     * @param  string  $scope  The scope value.
+     * @return void No value is returned.
+     *
+     * @since 1.0.0
+     */
     private function validateServiceAddOnPurchase(Plan $plan, Tenant $tenant, string $scope = 'billing.subscription_activation.validate_service_add_on'): void
     {
         $serviceKeys = $plan->serviceKeys();
@@ -167,6 +213,16 @@ class SubscriptionActivationService
 
     }
 
+    /**
+     * Validate credit top up purchase.
+     *
+     * @param  Plan  $plan  The plan value.
+     * @param  Tenant  $tenant  Tenant in the current operation scope.
+     * @param  string  $scope  The scope value.
+     * @return void No value is returned.
+     *
+     * @since 1.0.0
+     */
     private function validateCreditTopUpPurchase(Plan $plan, Tenant $tenant, string $scope = 'billing.subscription_activation.validate_credit_top_up'): void
     {
         $serviceKeys = $plan->serviceKeys();
@@ -191,6 +247,18 @@ class SubscriptionActivationService
 
     }
 
+    /**
+     * Execute the activate base plan operation.
+     *
+     * @param  User|null  $user  Authenticated user performing the operation.
+     * @param  Tenant|null  $tenant  Tenant in the current operation scope.
+     * @param  Plan  $plan  The plan value.
+     * @param  Invoice  $invoice  The invoice value.
+     * @param  string  $scope  The scope value.
+     * @return Subscription Resolved operation result.
+     *
+     * @since 1.0.0
+     */
     private function activateBasePlan(?User $user, ?Tenant $tenant, Plan $plan, Invoice $invoice, string $scope = 'billing.subscription_activation.activate_base_plan'): Subscription
     {
         if (! $tenant) {
@@ -268,6 +336,18 @@ class SubscriptionActivationService
         return $subscription;
     }
 
+    /**
+     * Execute the activate service add on operation.
+     *
+     * @param  User|null  $user  Authenticated user performing the operation.
+     * @param  Tenant|null  $tenant  Tenant in the current operation scope.
+     * @param  Plan  $plan  The plan value.
+     * @param  Invoice  $invoice  The invoice value.
+     * @param  string  $scope  The scope value.
+     * @return Subscription Resolved operation result.
+     *
+     * @since 1.0.0
+     */
     private function activateServiceAddOn(?User $user, ?Tenant $tenant, Plan $plan, Invoice $invoice, string $scope = 'billing.subscription_activation.activate_service_add_on'): Subscription
     {
         if (! $tenant) {
@@ -333,6 +413,18 @@ class SubscriptionActivationService
         return $subscription;
     }
 
+    /**
+     * Execute the activate credit top up operation.
+     *
+     * @param  User|null  $user  Authenticated user performing the operation.
+     * @param  Tenant|null  $tenant  Tenant in the current operation scope.
+     * @param  Plan  $plan  The plan value.
+     * @param  Invoice  $invoice  The invoice value.
+     * @param  string  $scope  The scope value.
+     * @return Subscription Resolved operation result.
+     *
+     * @since 1.0.0
+     */
     private function activateCreditTopUp(?User $user, ?Tenant $tenant, Plan $plan, Invoice $invoice, string $scope = 'billing.subscription_activation.activate_credit_top_up'): Subscription
     {
         if (! $tenant) {
@@ -379,8 +471,23 @@ class SubscriptionActivationService
         return $subscription;
     }
 
+    /**
+     * Execute the reset debug steps operation.
+     *
+     * @return void No value is returned.
+     *
+     * @since 1.0.0
+     */
     private function resetDebugSteps(): void {}
 
+    /**
+     * Execute the plan context operation.
+     *
+     * @param  Plan  $plan  The plan value.
+     * @return array Resolved data array.
+     *
+     * @since 1.0.0
+     */
     private function planContext(Plan $plan): array
     {
         $serviceCredits = $plan->serviceCredits();
@@ -398,6 +505,14 @@ class SubscriptionActivationService
         ];
     }
 
+    /**
+     * Execute the invoice context operation.
+     *
+     * @param  Invoice  $invoice  The invoice value.
+     * @return array Resolved data array.
+     *
+     * @since 1.0.0
+     */
     private function invoiceContext(Invoice $invoice): array
     {
         return [
@@ -412,6 +527,14 @@ class SubscriptionActivationService
         ];
     }
 
+    /**
+     * Execute the subscription context operation.
+     *
+     * @param  Subscription  $subscription  The subscription value.
+     * @return array Resolved data array.
+     *
+     * @since 1.0.0
+     */
     private function subscriptionContext(Subscription $subscription): array
     {
         return [
@@ -428,6 +551,14 @@ class SubscriptionActivationService
         ];
     }
 
+    /**
+     * Execute the entitlement context operation.
+     *
+     * @param  SubscriptionServiceEntitlement  $entitlement  The entitlement value.
+     * @return array Resolved data array.
+     *
+     * @since 1.0.0
+     */
     private function entitlementContext(SubscriptionServiceEntitlement $entitlement): array
     {
         return [
@@ -447,6 +578,14 @@ class SubscriptionActivationService
         ];
     }
 
+    /**
+     * Execute the plan type value operation.
+     *
+     * @param  Plan  $plan  The plan value.
+     * @return mixed Resolved operation result.
+     *
+     * @since 1.0.0
+     */
     private function planTypeValue(Plan $plan): mixed
     {
         if ($plan->plan_type instanceof PlanType) {

@@ -193,59 +193,9 @@
             </x-admin.mobile-list>
         </x-admin.card>
 
-        <x-admin.card>
-            <h3 class="text-base font-bold">{{ __('ai_models.usage_logs') }}</h3>
-            <div data-admin-table-container class="mt-4 hidden overflow-visible rounded-lg border border-zinc-100 lg:block">
-                <table class="w-full min-w-208 text-right text-sm">
-                    <thead class="bg-zinc-50 text-xs text-zinc-500">
-                        <tr>
-                            <th class="px-4 py-3">{{ __('system.clinic') }}</th>
-                            <th class="px-4 py-3">{{ __('ai_models.status') }}</th>
-                            <th class="px-4 py-3">{{ __('ai_models.credit_used') }}</th>
-                            <th class="px-4 py-3">{{ __('messages.created_at') }}</th>
-                        </tr>
-                    </thead>
-                    <tbody class="divide-y divide-zinc-100">
-                        @forelse($usageLogs as $log)
-                            <tr>
-                                <td class="px-4 py-3 font-bold">{{ $log->clinic?->name }}</td>
-                                <td class="px-4 py-3"><x-admin.badge :tone="$log->status === 'completed' ? 'emerald' : ($log->status === 'failed' ? 'rose' : 'zinc')">{{ __('ai_models.statuses.'.$log->status) }}</x-admin.badge></td>
-                                <td class="px-4 py-3" dir="ltr">{{ number_format($log->credit_consumed) }}</td>
-                                <td class="px-4 py-3 text-zinc-500"><x-jalali-date-time :value="$log->created_at" /></td>
-                            </tr>
-                        @empty
-                            <tr>
-                                <td colspan="4" class="px-4 py-12">
-                                    <x-admin.empty-state icon="chart">{{ __('ai_models.empty.usage_logs') }}</x-admin.empty-state>
-                                </td>
-                            </tr>
-                        @endforelse
-                    </tbody>
-                </table>
-            </div>
-            <x-admin.mobile-list>
-                @forelse($usageLogs as $log)
-                    <x-admin.mobile-list.card>
-                        <div class="admin-mobile-list-card-header">
-                            <div class="min-w-0">
-                                <p class="admin-mobile-list-card-title">{{ $log->clinic?->name }}</p>
-                                <p class="admin-mobile-list-card-subtitle"><x-jalali-date-time :value="$log->created_at" /></p>
-                            </div>
-                            <x-admin.badge :tone="$log->status === 'completed' ? 'emerald' : ($log->status === 'failed' ? 'rose' : 'zinc')">{{ __('ai_models.statuses.'.$log->status) }}</x-admin.badge>
-                        </div>
-                        <dl class="admin-mobile-list-fields">
-                            <x-admin.mobile-list.field :label="__('ai_models.credit_used')">
-                                <span dir="ltr">{{ number_format($log->credit_consumed) }}</span>
-                            </x-admin.mobile-list.field>
-                        </dl>
-                    </x-admin.mobile-list.card>
-                @empty
-                    <x-admin.mobile-list.card>
-                        <x-admin.empty-state icon="chart">{{ __('ai_models.empty.usage_logs') }}</x-admin.empty-state>
-                    </x-admin.mobile-list.card>
-                @endforelse
-            </x-admin.mobile-list>
-            <x-admin.table.pagination-footer :paginator="$usageLogs" />
-        </x-admin.card>
+        @include('admin.ai-models.partials.usage-logs', [
+            'showClinic' => true,
+            'showModel' => false,
+        ])
     </div>
 @endsection

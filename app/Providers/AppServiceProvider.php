@@ -2,13 +2,13 @@
 
 namespace App\Providers;
 
-use App\Models\Lead;
 use App\Models\AiModelAccess;
+use App\Models\Lead;
 use App\Models\SmsGateway;
 use App\Models\Tenant;
 use App\Models\User;
-use App\Policies\LeadPolicy;
 use App\Policies\AiModelAccessPolicy;
+use App\Policies\LeadPolicy;
 use App\Policies\SmsGatewayPolicy;
 use App\Policies\TenantPolicy;
 use App\Policies\UserPolicy;
@@ -25,11 +25,25 @@ use Illuminate\Support\ServiceProvider;
  */
 class AppServiceProvider extends ServiceProvider
 {
+    /**
+     * Execute the register operation.
+     *
+     * @return void No value is returned.
+     *
+     * @since 1.0.0
+     */
     public function register(): void
     {
         $this->app->bind(OtpSenderInterface::class, LocalOtpSender::class);
     }
 
+    /**
+     * Register model lifecycle behavior.
+     *
+     * @return void No value is returned.
+     *
+     * @since 1.0.0
+     */
     public function boot(): void
     {
         Gate::policy(Lead::class, LeadPolicy::class);

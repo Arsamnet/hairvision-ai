@@ -14,6 +14,11 @@ interface AiModelProviderInterface
 {
     /**
      * Execute a normalized AI model request and return a safe response object.
+     *
+     * @param  AiModelRequestData  $request  Incoming HTTP request.
+     * @return AiModelResponseData HTTP response.
+     *
+     * @since 1.0.0
      */
     public function run(AiModelRequestData $request): AiModelResponseData;
 }

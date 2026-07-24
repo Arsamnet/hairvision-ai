@@ -1,6 +1,6 @@
 # API Reference
 
-Version: `2.0.0`
+Version: [`2.0.0`](../CHANGELOG.md#200)
 
 All public product behavior goes through `/api/v1`, even when the UI is Blade.
 Blade may render the tenant shell and client-side interactions, but OTP, upload,
@@ -114,7 +114,10 @@ Response:
 ```
 
 OTP responses never include the plain OTP code. Rate limit failures return
-`429`.
+`429`. IPPanel delivery makes at least three bounded attempts for connection,
+timeout, and rejected-response failures. If every attempt fails, the response
+contains only a localized generic message; provider identity, failure details,
+credentials, OTP values, and raw responses are never exposed.
 
 ## OTP Verify
 
@@ -176,6 +179,9 @@ Response:
 ```
 
 The file is stored privately and scoped to the current tenant and lead.
+The original upload remains unchanged. For seeded/new models, the private copy
+sent to the provider defaults to JPEG quality 85 with an exact 800-pixel longest
+side; model-level settings may explicitly override or disable this preparation.
 
 ## Profile
 
@@ -252,6 +258,18 @@ request with a queued attempt. The backend snapshots and uses the prompt stored
 on the selected category output. Repeating the same idempotency key in the same
 tenant/lead scope returns the same generation request.
 
+Every successful generated image is normalized before permanent private
+storage to JPEG quality 85 with an exact 800-pixel longest side, without crop or
+aspect-ratio distortion. Stream responses therefore use `image/jpeg` regardless
+of the raw provider output format.
+
+Creation also reserves the output credit atomically. An attempt remains in the
+database FIFO as `queued` until its selected model has a free concurrency slot;
+only then is it transported to the database queue. Explicit provider `429`
+responses may produce a delayed follow-up attempt while the public generation
+request remains `queued`. Ambiguous post-call failures are not retried
+automatically.
+
 ```http
 GET /api/v1/generations/independent/{generation}
 POST /api/v1/generations/independent/{generation}/regenerate
@@ -306,27 +324,27 @@ Response:
   },
   "current_stage": {
     "key": "two_weeks",
-    "label": "دو هفته بعد از کاشت",
+    "label": "یک روز بعد از کاشت مو",
     "status": "pending"
   },
   "stages": [
     {
       "key": "two_weeks",
       "order": 1,
-      "label": "دو هفته بعد از کاشت",
-      "caption": "آثار ترمیم اولیه و خط رویش تازه"
+      "label": "یک روز بعد از کاشت مو",
+      "caption": "نمای طبیعی روز اول با گرافت‌های تازه، قرمزی ملایم و ریزدلمه‌های قابل‌انتظار"
     },
     {
       "key": "intermediate_regrowth",
       "order": 2,
-      "label": "مرحله رشد میانی",
-      "caption": "رشد تدریجی و تراکم در حال شکل‌گیری"
+      "label": "۶ ماه بعد از کاشت مو",
+      "caption": "رشد میانی شش‌ماهه با خط رویش شکل‌گرفته، تراکم ناکامل و نمایان بودن طبیعی بخشی از پوست سر"
     },
     {
       "key": "final_result",
       "order": 3,
-      "label": "نتیجه نهایی",
-      "caption": "پوشش کامل‌تر و ظاهر طبیعی‌تر"
+      "label": "یک سال بعد از کاشت مو",
+      "caption": "نتیجه کامل یک‌ساله با خط رویش طبیعی، پوشش متناسب و تراکم باورپذیر"
     }
   ],
   "jobs": [
@@ -334,7 +352,7 @@ Response:
       "id": "uuid",
       "period": "two_weeks",
       "key": "two_weeks",
-      "label": "دو هفته بعد از کاشت",
+      "label": "یک روز بعد از کاشت مو",
       "status": "pending",
       "asset_url": null
     }
@@ -360,7 +378,7 @@ Response:
   "status": "processing",
   "current_stage": {
     "key": "intermediate_regrowth",
-    "label": "مرحله رشد میانی",
+    "label": "۶ ماه بعد از کاشت مو",
     "status": "processing"
   },
   "jobs": [
@@ -401,17 +419,17 @@ Response:
   "results": [
     {
       "period": "two_weeks",
-      "label": "دو هفته بعد از کاشت",
+      "label": "یک روز بعد از کاشت مو",
       "url": "/api/v1/assets/uuid"
     },
     {
       "period": "intermediate_regrowth",
-      "label": "مرحله رشد میانی",
+      "label": "۶ ماه بعد از کاشت مو",
       "url": "/api/v1/assets/uuid"
     },
     {
       "period": "final_result",
-      "label": "نتیجه نهایی",
+      "label": "یک سال بعد از کاشت مو",
       "url": "/api/v1/assets/uuid"
     }
   ],
@@ -530,11 +548,13 @@ input-image processing fields:
 ```json
 {
   "input_image_processing_enabled": true,
-  "input_image_max_dimension": 1024,
+  "input_image_max_dimension": 800,
   "input_image_jpeg_quality": 85
 }
 ```
 
 When processing is enabled, dimension and quality are both required. Dimension
 accepts `1..8192` and quality accepts `1..100`. These are system-admin model
-settings; public generation clients cannot submit or override them.
+settings; public generation clients cannot submit or override them. Values
+shown above are the defaults used by new and seeded model accesses. Generated
+result storage always uses the 800px/JPEG 85 product profile.

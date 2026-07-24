@@ -46,6 +46,8 @@ class Lead extends Model
      * Tenant that owns this lead.
      *
      * @return BelongsTo<Tenant, $this>
+     *
+     * @since 1.0.0
      */
     public function tenant(): BelongsTo
     {
@@ -56,6 +58,8 @@ class Lead extends Model
      * Private uploads submitted by this lead.
      *
      * @return HasMany<Upload, $this>
+     *
+     * @since 1.0.0
      */
     public function uploads(): HasMany
     {
@@ -66,6 +70,8 @@ class Lead extends Model
      * Generation groups created for this lead.
      *
      * @return HasMany<GenerationGroup, $this>
+     *
+     * @since 1.0.0
      */
     public function generationGroups(): HasMany
     {
@@ -76,6 +82,8 @@ class Lead extends Model
      * Version 2 visitor profile owned by this lead.
      *
      * @return HasOne<LeadProfile, $this>
+     *
+     * @since 1.0.0
      */
     public function profile(): HasOne
     {
@@ -86,6 +94,8 @@ class Lead extends Model
      * Versioned private source images uploaded for this lead.
      *
      * @return HasMany<LeadSourceImage, $this>
+     *
+     * @since 1.0.0
      */
     public function sourceImages(): HasMany
     {
@@ -96,6 +106,8 @@ class Lead extends Model
      * Independent version 2 generation requests created by this lead.
      *
      * @return HasMany<GenerationRequest, $this>
+     *
+     * @since 1.0.0
      */
     public function generationRequests(): HasMany
     {
@@ -106,6 +118,8 @@ class Lead extends Model
      * Future admin notes for lead follow-up.
      *
      * @return HasMany<LeadNote, $this>
+     *
+     * @since 1.0.0
      */
     public function notes(): HasMany
     {
@@ -116,6 +130,8 @@ class Lead extends Model
      * Dashboard user assigned to follow up with this lead.
      *
      * @return BelongsTo<User, $this>
+     *
+     * @since 1.0.0
      */
     public function assignedUser(): BelongsTo
     {

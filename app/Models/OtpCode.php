@@ -38,6 +38,8 @@ class OtpCode extends Model
      * Tenant that owns this OTP record.
      *
      * @return BelongsTo<Tenant, $this>
+     *
+     * @since 1.0.0
      */
     public function tenant(): BelongsTo
     {

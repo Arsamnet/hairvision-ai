@@ -20,6 +20,14 @@ use Illuminate\Http\Request;
  */
 class SmsGatewayManagementService
 {
+    /**
+     * Execute the paginate system operation.
+     *
+     * @param  Request  $request  Incoming HTTP request.
+     * @return LengthAwarePaginator Paginated result set.
+     *
+     * @since 1.0.0
+     */
     public function paginateSystem(Request $request): LengthAwarePaginator
     {
         $pagination = PaginationParameters::fromRequest(
@@ -33,6 +41,15 @@ class SmsGatewayManagementService
             ->withQueryString();
     }
 
+    /**
+     * Execute the system query operation.
+     *
+     * @param  Request  $request  Incoming HTTP request.
+     * @param  PaginationParameters  $pagination  The pagination value.
+     * @return Builder Configured query builder.
+     *
+     * @since 1.0.0
+     */
     public function systemQuery(Request $request, PaginationParameters $pagination): Builder
     {
         $query = SmsGateway::query()
@@ -54,6 +71,14 @@ class SmsGatewayManagementService
             ->orderBy($pagination->sort, $pagination->direction);
     }
 
+    /**
+     * Execute the clinic settings operation.
+     *
+     * @param  Tenant  $tenant  Tenant in the current operation scope.
+     * @return SmsGateway|null Resolved operation result.
+     *
+     * @since 1.0.0
+     */
     public function clinicSettings(Tenant $tenant): ?SmsGateway
     {
         return SmsGateway::query()
@@ -70,7 +95,12 @@ class SmsGatewayManagementService
     }
 
     /**
+     * Execute the provider options for system operation.
+     *
+     * @param  SmsGateway|null  $gateway  The gateway value.
      * @return array<string, string>
+     *
+     * @since 1.0.0
      */
     public function providerOptionsForSystem(?SmsGateway $gateway = null): array
     {
@@ -96,7 +126,12 @@ class SmsGatewayManagementService
     }
 
     /**
+     * Execute the provider options for private operation.
+     *
+     * @param  SmsGateway|null  $gateway  The gateway value.
      * @return array<string, string>
+     *
+     * @since 1.0.0
      */
     public function providerOptionsForPrivate(?SmsGateway $gateway = null): array
     {
@@ -126,7 +161,13 @@ class SmsGatewayManagementService
     }
 
     /**
+     * Create system.
+     *
      * @param  array<string, mixed>  $data
+     * @param  SmsGatewayService  $gateways  The gateways value.
+     * @return SmsGateway Resolved operation result.
+     *
+     * @since 1.0.0
      */
     public function createSystem(array $data, SmsGatewayService $gateways): SmsGateway
     {
@@ -146,7 +187,14 @@ class SmsGatewayManagementService
     }
 
     /**
+     * Execute the update system operation.
+     *
      * @param  array<string, mixed>  $data
+     * @param  SmsGateway  $gateway  The gateway value.
+     * @param  SmsGatewayService  $gateways  The gateways value.
+     * @return SmsGateway Resolved operation result.
+     *
+     * @since 1.0.0
      */
     public function updateSystem(SmsGateway $gateway, array $data, SmsGatewayService $gateways): SmsGateway
     {
@@ -169,7 +217,14 @@ class SmsGatewayManagementService
     }
 
     /**
+     * Persist clinic settings.
+     *
      * @param  array<string, mixed>  $data
+     * @param  Tenant  $tenant  Tenant in the current operation scope.
+     * @param  SmsGatewayService  $gateways  The gateways value.
+     * @return SmsGateway Resolved operation result.
+     *
+     * @since 1.0.0
      */
     public function saveClinicSettings(Tenant $tenant, array $data, SmsGatewayService $gateways): SmsGateway
     {
@@ -194,8 +249,14 @@ class SmsGatewayManagementService
     }
 
     /**
+     * Return localized validation attribute names.
+     *
      * @param  array<string, mixed>  $data
+     * @param  SmsGateway|null  $gateway  The gateway value.
+     * @param  bool  $includeOwner  The include owner value.
      * @return array<string, mixed>
+     *
+     * @since 1.0.0
      */
     private function attributes(array $data, ?SmsGateway $gateway, bool $includeOwner): array
     {
@@ -247,7 +308,11 @@ class SmsGatewayManagementService
     }
 
     /**
+     * Execute the known provider options operation.
+     *
      * @return array<string, string>
+     *
+     * @since 1.0.0
      */
     private function knownProviderOptions(): array
     {
@@ -257,6 +322,15 @@ class SmsGatewayManagementService
         ];
     }
 
+    /**
+     * Execute the provider label operation.
+     *
+     * @param  string  $providerCode  The provider code value.
+     * @param  string|null  $gatewayName  The gateway name value.
+     * @return string Resolved string value.
+     *
+     * @since 1.0.0
+     */
     private function providerLabel(string $providerCode, ?string $gatewayName = null): string
     {
         $known = $this->knownProviderOptions();

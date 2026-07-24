@@ -12,10 +12,24 @@ use Illuminate\Support\Facades\Cache;
  */
 class PermissionService
 {
+    /**
+     * Create a new permission service instance.
+     *
+     * @param  PermissionCatalog  $catalog  The catalog value.
+     *
+     * @since 1.0.0
+     */
     public function __construct(private readonly PermissionCatalog $catalog) {}
 
     /**
      * Determine whether a user has a permission in the active tenant context.
+     *
+     * @param  mixed  $user  Authenticated user performing the operation.
+     * @param  string  $permission  The permission value.
+     * @param  int|null  $tenantId  The tenant id value.
+     * @return bool Whether the requested condition is satisfied.
+     *
+     * @since 1.0.0
      */
     public function can(mixed $user, string $permission, ?int $tenantId = null): bool
     {
@@ -34,6 +48,11 @@ class PermissionService
 
     /**
      * Clear cached permission lookups after role permission changes.
+     *
+     * @param  string  $roleCode  The role code value.
+     * @return void No value is returned.
+     *
+     * @since 1.0.0
      */
     public function forgetRole(string $roleCode): void
     {
@@ -43,7 +62,10 @@ class PermissionService
     /**
      * Return permission codes assigned to a role code.
      *
+     * @param  string  $roleCode  The role code value.
      * @return array<int, string>
+     *
+     * @since 1.0.0
      */
     private function permissionsForRole(string $roleCode): array
     {
@@ -64,6 +86,14 @@ class PermissionService
         });
     }
 
+    /**
+     * Execute the cache key operation.
+     *
+     * @param  string  $roleCode  The role code value.
+     * @return string Resolved string value.
+     *
+     * @since 1.0.0
+     */
     private function cacheKey(string $roleCode): string
     {
         return 'hairvision:role-permissions:'.$roleCode;

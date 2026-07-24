@@ -13,9 +13,10 @@ use App\Models\AiModelAccess;
 use App\Models\Invoice;
 use App\Models\Plan;
 use App\Models\Tenant;
-use App\Services\AI\AiModelResolver;
 use App\Services\Admin\ClinicManagementService;
 use App\Services\Admin\SmsGatewayManagementService;
+use App\Services\AI\AiModelResolver;
+use App\Services\AI\AiModelUsageReportService;
 use App\Services\Billing\BillingService;
 use App\Services\Billing\ServiceCatalog;
 use App\Services\Sms\SmsGatewayService;
@@ -35,6 +36,15 @@ use Throwable;
  */
 class ClinicController extends Controller
 {
+    /**
+     * Display the clinic listing.
+     *
+     * @param  Request  $request  Incoming HTTP request.
+     * @param  ClinicManagementService  $clinics  The clinics value.
+     * @return View Rendered response view.
+     *
+     * @since 1.0.0
+     */
     public function index(Request $request, ClinicManagementService $clinics): View
     {
         Gate::authorize('viewAny', Tenant::class);
@@ -56,6 +66,15 @@ class ClinicController extends Controller
         ]);
     }
 
+    /**
+     * Persist a new clinic record.
+     *
+     * @param  StoreClinicRequest  $request  Incoming HTTP request.
+     * @param  ClinicManagementService  $clinics  The clinics value.
+     * @return RedirectResponse HTTP redirect response.
+     *
+     * @since 1.0.0
+     */
     public function store(StoreClinicRequest $request, ClinicManagementService $clinics): RedirectResponse
     {
         $clinic = $clinics->create($request->validated());
@@ -65,14 +84,28 @@ class ClinicController extends Controller
             ->with('status', __('clinics.messages.created'));
     }
 
+    /**
+     * Display the requested clinic resource.
+     *
+     * @param  Request  $request  Incoming HTTP request.
+     * @param  Tenant  $clinic  Tenant in the current operation scope.
+     * @param  ServiceCatalog  $services  The services value.
+     * @param  AiModelResolver  $resolver  The resolver value.
+     * @param  SmsGatewayManagementService  $smsGateways  The sms gateways value.
+     * @param  AiModelUsageReportService  $usageReports  The usage reports value.
+     * @return View Rendered response view.
+     *
+     * @since 1.0.0
+     * @since 2.0.0 Behavior updated for the version 2.0.0 release.
+     */
     public function show(
         Request $request,
         Tenant $clinic,
         ServiceCatalog $services,
         AiModelResolver $resolver,
-        SmsGatewayManagementService $smsGateways
-    ): View
-    {
+        SmsGatewayManagementService $smsGateways,
+        AiModelUsageReportService $usageReports,
+    ): View {
         Gate::authorize('view', $clinic);
 
         return view('admin.clinics.show', [
@@ -114,9 +147,19 @@ class ClinicController extends Controller
                 ->get(),
             'clinicSmsGateway' => $smsGateways->clinicSettings($clinic),
             'smsProviderOptions' => $smsGateways->providerOptionsForPrivate($smsGateways->clinicSettings($clinic)),
+            'usageLogs' => $usageReports->forClinic($clinic, 'clinic_usage_page'),
         ]);
     }
 
+    /**
+     * Display the form for editing the requested clinic.
+     *
+     * @param  Request  $request  Incoming HTTP request.
+     * @param  Tenant  $clinic  Tenant in the current operation scope.
+     * @return View Rendered response view.
+     *
+     * @since 1.0.0
+     */
     public function edit(Request $request, Tenant $clinic): View
     {
         Gate::authorize('update', $clinic);
@@ -129,6 +172,16 @@ class ClinicController extends Controller
         ]);
     }
 
+    /**
+     * Update the requested clinic record.
+     *
+     * @param  UpdateClinicRequest  $request  Incoming HTTP request.
+     * @param  Tenant  $clinic  Tenant in the current operation scope.
+     * @param  ClinicManagementService  $clinics  The clinics value.
+     * @return RedirectResponse HTTP redirect response.
+     *
+     * @since 1.0.0
+     */
     public function update(UpdateClinicRequest $request, Tenant $clinic, ClinicManagementService $clinics): RedirectResponse
     {
         $clinics->update($clinic, $request->validated());
@@ -138,6 +191,15 @@ class ClinicController extends Controller
             ->with('status', __('clinics.messages.updated'));
     }
 
+    /**
+     * Delete the requested clinic record.
+     *
+     * @param  Tenant  $clinic  Tenant in the current operation scope.
+     * @param  ClinicManagementService  $clinics  The clinics value.
+     * @return RedirectResponse HTTP redirect response.
+     *
+     * @since 1.0.0
+     */
     public function destroy(Tenant $clinic, ClinicManagementService $clinics): RedirectResponse
     {
         Gate::authorize('delete', $clinic);
@@ -149,6 +211,16 @@ class ClinicController extends Controller
             ->with('status', __('clinics.messages.deleted'));
     }
 
+    /**
+     * Assign plan.
+     *
+     * @param  AssignClinicPlanRequest  $request  Incoming HTTP request.
+     * @param  Tenant  $clinic  Tenant in the current operation scope.
+     * @param  BillingService  $billing  The billing value.
+     * @return RedirectResponse HTTP redirect response.
+     *
+     * @since 1.0.0
+     */
     public function assignPlan(AssignClinicPlanRequest $request, Tenant $clinic, BillingService $billing): RedirectResponse
     {
         $plan = Plan::query()->with('serviceEntitlements')->findOrFail((int) $request->input('plan_id'));
@@ -178,6 +250,15 @@ class ClinicController extends Controller
         }
     }
 
+    /**
+     * Execute the store invoice operation.
+     *
+     * @param  StoreClinicInvoiceRequest  $request  Incoming HTTP request.
+     * @param  Tenant  $clinic  Tenant in the current operation scope.
+     * @return RedirectResponse HTTP redirect response.
+     *
+     * @since 1.0.0
+     */
     public function storeInvoice(StoreClinicInvoiceRequest $request, Tenant $clinic): RedirectResponse
     {
         abort_unless($this->invoiceUserBelongsToClinic($clinic, $request->integer('user_id') ?: null), 422);
@@ -189,6 +270,16 @@ class ClinicController extends Controller
             ->with('status', __('payments.manual_invoice_created', ['number' => $invoice->number]));
     }
 
+    /**
+     * Execute the update invoice operation.
+     *
+     * @param  UpdateClinicInvoiceRequest  $request  Incoming HTTP request.
+     * @param  Tenant  $clinic  Tenant in the current operation scope.
+     * @param  Invoice  $invoice  The invoice value.
+     * @return RedirectResponse HTTP redirect response.
+     *
+     * @since 1.0.0
+     */
     public function updateInvoice(UpdateClinicInvoiceRequest $request, Tenant $clinic, Invoice $invoice): RedirectResponse
     {
         $this->authorizeClinicInvoice($clinic, $invoice);
@@ -201,6 +292,17 @@ class ClinicController extends Controller
             ->with('status', __('payments.manual_invoice_updated', ['number' => $invoice->number]));
     }
 
+    /**
+     * Execute the approve invoice operation.
+     *
+     * @param  Request  $request  Incoming HTTP request.
+     * @param  Tenant  $clinic  Tenant in the current operation scope.
+     * @param  Invoice  $invoice  The invoice value.
+     * @param  BillingService  $billing  The billing value.
+     * @return RedirectResponse HTTP redirect response.
+     *
+     * @since 1.0.0
+     */
     public function approveInvoice(Request $request, Tenant $clinic, Invoice $invoice, BillingService $billing): RedirectResponse
     {
         abort_unless($request->user()?->hasPermission('billing.manage'), 403);
@@ -236,6 +338,17 @@ class ClinicController extends Controller
         }
     }
 
+    /**
+     * Execute the update sms gateway operation.
+     *
+     * @param  StoreClinicSmsGatewayRequest  $request  Incoming HTTP request.
+     * @param  Tenant  $clinic  Tenant in the current operation scope.
+     * @param  SmsGatewayManagementService  $manager  The manager value.
+     * @param  SmsGatewayService  $gateways  The gateways value.
+     * @return RedirectResponse HTTP redirect response.
+     *
+     * @since 1.0.0
+     */
     public function updateSmsGateway(
         StoreClinicSmsGatewayRequest $request,
         Tenant $clinic,
@@ -249,11 +362,29 @@ class ClinicController extends Controller
             ->with('status', __('sms.private_updated'));
     }
 
+    /**
+     * Execute the authorize clinic invoice operation.
+     *
+     * @param  Tenant  $clinic  Tenant in the current operation scope.
+     * @param  Invoice  $invoice  The invoice value.
+     * @return void No value is returned.
+     *
+     * @since 1.0.0
+     */
     private function authorizeClinicInvoice(Tenant $clinic, Invoice $invoice): void
     {
         abort_unless($invoice->tenant_id === $clinic->id, 404);
     }
 
+    /**
+     * Execute the invoice user belongs to clinic operation.
+     *
+     * @param  Tenant  $clinic  Tenant in the current operation scope.
+     * @param  int|null  $userId  The user id value.
+     * @return bool Whether the requested condition is satisfied.
+     *
+     * @since 1.0.0
+     */
     private function invoiceUserBelongsToClinic(Tenant $clinic, ?int $userId): bool
     {
         if (! $userId) {
@@ -267,8 +398,15 @@ class ClinicController extends Controller
     }
 
     /**
+     * Execute the invoice attributes operation.
+     *
      * @param  array<string, mixed>  $data
+     * @param  Tenant  $clinic  Tenant in the current operation scope.
+     * @param  int|null  $actorId  The actor id value.
+     * @param  Invoice|null  $invoice  The invoice value.
      * @return array<string, mixed>
+     *
+     * @since 1.0.0
      */
     private function invoiceAttributes(array $data, Tenant $clinic, ?int $actorId, ?Invoice $invoice = null): array
     {
@@ -295,6 +433,14 @@ class ClinicController extends Controller
         ];
     }
 
+    /**
+     * Execute the next invoice number operation.
+     *
+     * @param  Plan|null  $plan  The plan value.
+     * @return string Resolved string value.
+     *
+     * @since 1.0.0
+     */
     private function nextInvoiceNumber(?Plan $plan = null): string
     {
         $prefix = match ($plan?->plan_type?->value) {

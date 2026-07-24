@@ -17,6 +17,12 @@ class SystemSettingService
 
     /**
      * Return a setting value or default.
+     *
+     * @param  string  $key  The key value.
+     * @param  mixed  $default  The default value.
+     * @return mixed Resolved operation result.
+     *
+     * @since 1.0.0
      */
     public function get(string $key, mixed $default = null): mixed
     {
@@ -27,6 +33,8 @@ class SystemSettingService
      * Return all settings as key/value pairs.
      *
      * @return Collection<string, mixed>
+     *
+     * @since 1.0.0
      */
     public function all(): Collection
     {
@@ -48,6 +56,12 @@ class SystemSettingService
 
     /**
      * Store a value and clear the settings cache.
+     *
+     * @param  string  $key  The key value.
+     * @param  mixed  $value  Input value supplied to the operation.
+     * @return SystemSetting Resolved operation result.
+     *
+     * @since 1.0.0
      */
     public function set(string $key, mixed $value): SystemSetting
     {
@@ -70,6 +84,10 @@ class SystemSettingService
 
     /**
      * Clear cached settings.
+     *
+     * @return void No value is returned.
+     *
+     * @since 1.0.0
      */
     public function forget(): void
     {
@@ -80,6 +98,8 @@ class SystemSettingService
      * Load settings as cache-safe scalar and array values.
      *
      * @return array<string, mixed>
+     *
+     * @since 1.0.0
      */
     private function valuesFromDatabase(): array
     {

@@ -34,6 +34,8 @@ class PlanServiceEntitlement extends Model
      * Plan that grants this service credit definition.
      *
      * @return BelongsTo<Plan, $this>
+     *
+     * @since 1.0.0
      */
     public function plan(): BelongsTo
     {

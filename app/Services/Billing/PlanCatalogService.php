@@ -14,10 +14,22 @@ use Throwable;
  */
 class PlanCatalogService
 {
+    /**
+     * Create a new plan catalog service instance.
+     *
+     * @param  ServiceCatalog  $services  The services value.
+     *
+     * @since 1.0.0
+     */
     public function __construct(private readonly ServiceCatalog $services) {}
 
     /**
+     * Display the form for creating a new plan catalog service.
+     *
      * @param  array<string, mixed>  $data
+     * @return Plan Resolved operation result.
+     *
+     * @since 1.0.0
      */
     public function create(array $data): Plan
     {
@@ -46,7 +58,13 @@ class PlanCatalogService
     }
 
     /**
+     * Update the requested plan catalog service record.
+     *
      * @param  array<string, mixed>  $data
+     * @param  Plan  $plan  The plan value.
+     * @return Plan Resolved operation result.
+     *
+     * @since 1.0.0
      */
     public function update(Plan $plan, array $data): Plan
     {
@@ -75,8 +93,14 @@ class PlanCatalogService
     }
 
     /**
+     * Execute the plan attributes operation.
+     *
      * @param  array<string, mixed>  $data
+     * @param  Plan|null  $plan  The plan value.
+     * @param  string  $scope  The scope value.
      * @return array<string, mixed>
+     *
+     * @since 1.0.0
      */
     private function planAttributes(array $data, ?Plan $plan = null, string $scope = 'billing.plan_catalog.attributes'): array
     {
@@ -103,7 +127,14 @@ class PlanCatalogService
     }
 
     /**
+     * Synchronize service credits.
+     *
      * @param  array<string, mixed>  $data
+     * @param  Plan  $plan  The plan value.
+     * @param  string  $scope  The scope value.
+     * @return void No value is returned.
+     *
+     * @since 1.0.0
      */
     private function syncServiceCredits(Plan $plan, array $data, string $scope = 'billing.plan_catalog.service_credits'): void
     {
@@ -130,7 +161,13 @@ class PlanCatalogService
     }
 
     /**
+     * Normalize d plan entitlements.
+     *
+     * @param  Plan  $plan  The plan value.
+     * @param  array  $data  Validated operation data.
      * @return array<string, int>
+     *
+     * @since 1.0.0
      */
     private function normalizedPlanEntitlements(Plan $plan, array $data): array
     {
@@ -151,6 +188,10 @@ class PlanCatalogService
      * Persist the exact per-application model selections for this plan.
      *
      * @param  array<string, mixed>  $data
+     * @param  Plan  $plan  The plan value.
+     * @return void No value is returned.
+     *
+     * @since 1.0.0
      */
     private function syncModelAccesses(Plan $plan, array $data): void
     {
@@ -167,8 +208,12 @@ class PlanCatalogService
     }
 
     /**
+     * Normalize d credits.
+     *
      * @param  array<string, mixed>  $credits
      * @return array<string, int>
+     *
+     * @since 1.0.0
      */
     private function normalizedCredits(array $credits): array
     {
@@ -179,8 +224,12 @@ class PlanCatalogService
     }
 
     /**
+     * Normalize d service keys.
+     *
      * @param  array<string, mixed>  $data
      * @return array<int, string>
+     *
+     * @since 1.0.0
      */
     private function normalizedServiceKeys(array $data): array
     {
@@ -205,8 +254,23 @@ class PlanCatalogService
         return $this->services->has($serviceKey) ? [$serviceKey] : [];
     }
 
+    /**
+     * Execute the reset debug steps operation.
+     *
+     * @return void No value is returned.
+     *
+     * @since 1.0.0
+     */
     private function resetDebugSteps(): void {}
 
+    /**
+     * Execute the plan context operation.
+     *
+     * @param  Plan  $plan  The plan value.
+     * @return array Resolved data array.
+     *
+     * @since 1.0.0
+     */
     private function planContext(Plan $plan): array
     {
         return [
@@ -223,6 +287,14 @@ class PlanCatalogService
         ];
     }
 
+    /**
+     * Execute the plan type value operation.
+     *
+     * @param  mixed  $planType  The plan type value.
+     * @return mixed Resolved operation result.
+     *
+     * @since 1.0.0
+     */
     private function planTypeValue(mixed $planType): mixed
     {
         if ($planType instanceof PlanType) {
@@ -232,11 +304,27 @@ class PlanCatalogService
         return $planType;
     }
 
+    /**
+     * Execute the service credit keys operation.
+     *
+     * @param  mixed  $credits  The credits value.
+     * @return array Resolved data array.
+     *
+     * @since 1.0.0
+     */
     private function serviceCreditKeys(mixed $credits): array
     {
         return is_array($credits) ? array_map('strval', array_keys($credits)) : [];
     }
 
+    /**
+     * Execute the service credit count operation.
+     *
+     * @param  mixed  $credits  The credits value.
+     * @return int Calculated numeric value.
+     *
+     * @since 1.0.0
+     */
     private function serviceCreditCount(mixed $credits): int
     {
         return is_array($credits) ? count($credits) : 0;

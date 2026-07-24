@@ -39,7 +39,11 @@ class AiModelCategory extends Model
     ];
 
     /**
+     * Define the outputs Eloquent relationship.
+     *
      * @return HasMany<AiModelCategoryOutput, $this>
+     *
+     * @since 2.0.0
      */
     public function outputs(): HasMany
     {
@@ -47,7 +51,11 @@ class AiModelCategory extends Model
     }
 
     /**
+     * Define the models Eloquent relationship.
+     *
      * @return HasMany<AiModel, $this>
+     *
+     * @since 2.0.0
      */
     public function models(): HasMany
     {
@@ -55,23 +63,50 @@ class AiModelCategory extends Model
     }
 
     /**
+     * Constrain the query by active.
+     *
      * @param  Builder<AiModelCategory>  $query
+     * @return Builder Configured query builder.
+     *
+     * @since 2.0.0
      */
     public function scopeActive(Builder $query): Builder
     {
         return $query->where('status', 'active');
     }
 
+    /**
+     * Set icon attribute.
+     *
+     * @param  mixed  $value  Input value supplied to the operation.
+     * @return void No value is returned.
+     *
+     * @since 2.0.0
+     */
     public function setIconAttribute(mixed $value): void
     {
         $this->attributes['icon'] = AdminIcon::normalizeForStorage($value);
     }
 
+    /**
+     * Resolve d icon.
+     *
+     * @return string Resolved string value.
+     *
+     * @since 2.0.0
+     */
     public function resolvedIcon(): string
     {
         return AdminIcon::normalize($this->icon, AdminIcon::DEFAULT_CATEGORY_ICON);
     }
 
+    /**
+     * Execute the card image url operation.
+     *
+     * @return string|null Resolved operation result.
+     *
+     * @since 2.0.0
+     */
     public function cardImageUrl(): ?string
     {
         $path = trim((string) $this->card_image_path);

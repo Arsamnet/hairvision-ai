@@ -29,6 +29,12 @@ final class DebugStepLogger
      * Log a request-scoped step when debug mode is enabled.
      *
      * @param  array<string, mixed>  $context
+     * @param  Request  $request  Incoming HTTP request.
+     * @param  string  $scope  The scope value.
+     * @param  string  $message  The message value.
+     * @return void No value is returned.
+     *
+     * @since 1.0.0
      */
     public static function step(Request $request, string $scope, string $message, array $context = []): void
     {
@@ -47,6 +53,11 @@ final class DebugStepLogger
      * Log a non-request workflow step with an automatic per-scope counter.
      *
      * @param  array<string, mixed>  $context
+     * @param  string  $scope  The scope value.
+     * @param  string  $message  The message value.
+     * @return void No value is returned.
+     *
+     * @since 1.0.0
      */
     public static function record(string $scope, string $message, array $context = []): void
     {
@@ -62,6 +73,11 @@ final class DebugStepLogger
 
     /**
      * Reset automatic workflow counters.
+     *
+     * @param  string|null  $scope  The scope value.
+     * @return void No value is returned.
+     *
+     * @since 1.0.0
      */
     public static function reset(?string $scope = null): void
     {
@@ -76,6 +92,10 @@ final class DebugStepLogger
 
     /**
      * Determine whether step debugging is currently enabled.
+     *
+     * @return bool Whether the requested condition is satisfied.
+     *
+     * @since 1.0.0
      */
     public static function enabled(): bool
     {
@@ -87,6 +107,8 @@ final class DebugStepLogger
      *
      * @param  array<string, mixed>  $context
      * @return array<string, mixed>
+     *
+     * @since 1.0.0
      */
     public static function sanitize(array $context): array
     {
@@ -100,7 +122,15 @@ final class DebugStepLogger
     }
 
     /**
+     * Execute the write operation.
+     *
      * @param  array<string, mixed>  $context
+     * @param  string  $scope  The scope value.
+     * @param  int  $step  The step value.
+     * @param  string  $message  The message value.
+     * @return void No value is returned.
+     *
+     * @since 1.0.0
      */
     private static function write(string $scope, int $step, string $message, array $context): void
     {
@@ -113,7 +143,10 @@ final class DebugStepLogger
     /**
      * Build safe request metadata without request body, cookies, or headers.
      *
+     * @param  Request  $request  Incoming HTTP request.
      * @return array<string, mixed>
+     *
+     * @since 1.0.0
      */
     private static function requestContext(Request $request): array
     {
@@ -126,6 +159,16 @@ final class DebugStepLogger
         ];
     }
 
+    /**
+     * Execute the sanitize value operation.
+     *
+     * @param  string  $key  The key value.
+     * @param  mixed  $value  Input value supplied to the operation.
+     * @param  int  $depth  The depth value.
+     * @return mixed Resolved operation result.
+     *
+     * @since 1.0.0
+     */
     private static function sanitizeValue(string $key, mixed $value, int $depth = 0): mixed
     {
         if (self::isSensitiveKey($key)) {
@@ -199,6 +242,14 @@ final class DebugStepLogger
         return $value;
     }
 
+    /**
+     * Determine whether sensitive key.
+     *
+     * @param  string  $key  The key value.
+     * @return bool Whether the requested condition is satisfied.
+     *
+     * @since 1.0.0
+     */
     private static function isSensitiveKey(string $key): bool
     {
         $key = Str::lower($key);
@@ -229,11 +280,27 @@ final class DebugStepLogger
         ]);
     }
 
+    /**
+     * Determine whether phone key.
+     *
+     * @param  string  $key  The key value.
+     * @return bool Whether the requested condition is satisfied.
+     *
+     * @since 1.0.0
+     */
     private static function isPhoneKey(string $key): bool
     {
         return Str::contains(Str::lower($key), ['phone', 'mobile']);
     }
 
+    /**
+     * Mask phone.
+     *
+     * @param  string  $value  Input value supplied to the operation.
+     * @return string Resolved string value.
+     *
+     * @since 1.0.0
+     */
     private static function maskPhone(string $value): string
     {
         $digits = preg_replace('/\D+/', '', $value) ?? '';
@@ -245,6 +312,14 @@ final class DebugStepLogger
         return substr($digits, 0, 4).'***'.substr($digits, -2);
     }
 
+    /**
+     * Execute the limit operation.
+     *
+     * @param  string  $value  Input value supplied to the operation.
+     * @return string Resolved string value.
+     *
+     * @since 1.0.0
+     */
     private static function limit(string $value): string
     {
         if (mb_strlen($value) <= 300) {

@@ -14,6 +14,15 @@ use Illuminate\Http\Request;
  */
 class TenantSwitchController extends Controller
 {
+    /**
+     * Handle the incoming tenant switch request.
+     *
+     * @param  Request  $request  Incoming HTTP request.
+     * @param  AdminTenantContext  $tenantContext  The tenant context value.
+     * @return RedirectResponse HTTP redirect response.
+     *
+     * @since 1.0.0
+     */
     public function __invoke(Request $request, AdminTenantContext $tenantContext): RedirectResponse
     {
         $validated = $request->validate([

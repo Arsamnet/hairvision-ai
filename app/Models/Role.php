@@ -36,6 +36,8 @@ class Role extends Model
      * Permissions granted to this access level.
      *
      * @return BelongsToMany<Permission, $this>
+     *
+     * @since 1.0.0
      */
     public function permissions(): BelongsToMany
     {
@@ -46,6 +48,9 @@ class Role extends Model
      * Scope platform/system-level access roles.
      *
      * @param  Builder<Role>  $query
+     * @return Builder Configured query builder.
+     *
+     * @since 1.0.0
      */
     public function scopePlatform(Builder $query): Builder
     {
@@ -56,12 +61,22 @@ class Role extends Model
      * Scope predefined clinic-level access roles.
      *
      * @param  Builder<Role>  $query
+     * @return Builder Configured query builder.
+     *
+     * @since 1.0.0
      */
     public function scopeClinic(Builder $query): Builder
     {
         return $query->where('scope', 'clinic');
     }
 
+    /**
+     * Determine whether clinic role.
+     *
+     * @return bool Whether the requested condition is satisfied.
+     *
+     * @since 1.0.0
+     */
     public function isClinicRole(): bool
     {
         return $this->scope === 'clinic';

@@ -22,6 +22,14 @@ use Illuminate\Validation\ValidationException;
  */
 class ClinicAiModelProvisioningService
 {
+    /**
+     * Create a new clinic ai model provisioning service instance.
+     *
+     * @param  AssignAiModelToClinicAction  $assign  The assign value.
+     * @param  AiModelResolver  $resolver  The resolver value.
+     *
+     * @since 1.0.0
+     */
     public function __construct(
         private readonly AssignAiModelToClinicAction $assign,
         private readonly AiModelResolver $resolver,
@@ -32,6 +40,8 @@ class ClinicAiModelProvisioningService
      *
      * @param  array<int, string>|null  $serviceKeys
      * @return Collection<int, AiModelAccess>
+     *
+     * @since 1.0.0
      */
     public function assignableAccesses(?array $serviceKeys = null): Collection
     {
@@ -64,8 +74,11 @@ class ClinicAiModelProvisioningService
      *
      * @param  array<int, string>  $serviceKeys
      * @param  array<int, int|string>  $accessIds
+     * @return void No value is returned.
      *
      * @throws ValidationException
+     *
+     * @since 1.0.0
      */
     public function assertSelectionProvisionable(array $serviceKeys, array $accessIds): void
     {
@@ -83,8 +96,12 @@ class ClinicAiModelProvisioningService
      * Reject checkout when the models explicitly attached to a plan cannot run.
      *
      * @param  array<int, int|string>|null  $accessIds  Invoice-time snapshot.
+     * @param  Plan  $plan  The plan value.
+     * @return void No value is returned.
      *
      * @throws ValidationException
+     *
+     * @since 1.0.0
      */
     public function assertPlanProvisionable(Plan $plan, ?array $accessIds = null): void
     {
@@ -98,7 +115,10 @@ class ClinicAiModelProvisioningService
     /**
      * Return the stable model ids that must be saved on a new invoice.
      *
+     * @param  Plan  $plan  The plan value.
      * @return array<int, int>
+     *
+     * @since 1.0.0
      */
     public function modelAccessIdsForPlan(Plan $plan): array
     {
@@ -116,8 +136,14 @@ class ClinicAiModelProvisioningService
      * Idempotently assign exactly the plan-selected models to the clinic.
      *
      * @param  array<int, int|string>|null  $accessIds  Invoice-time snapshot.
+     * @param  Tenant  $clinic  Tenant in the current operation scope.
+     * @param  Plan  $plan  The plan value.
+     * @param  User|null  $actor  Authenticated user performing the operation.
+     * @return void No value is returned.
      *
      * @throws ValidationException
+     *
+     * @since 1.0.0
      */
     public function provisionPlan(
         Tenant $clinic,
@@ -136,7 +162,10 @@ class ClinicAiModelProvisioningService
     /**
      * Return system models that are currently safe to attach to a clinic.
      *
+     * @param  string|null  $serviceKey  The service key value.
      * @return Builder<AiModelAccess>
+     *
+     * @since 1.0.0
      */
     private function candidateQuery(?string $serviceKey = null): Builder
     {
@@ -165,8 +194,13 @@ class ClinicAiModelProvisioningService
     }
 
     /**
+     * Execute the model accesses for plan operation.
+     *
      * @param  array<int, int|string>|null  $accessIds
+     * @param  Plan  $plan  The plan value.
      * @return Collection<int, AiModelAccess>
+     *
+     * @since 1.0.0
      */
     private function modelAccessesForPlan(Plan $plan, ?array $accessIds = null): Collection
     {
@@ -192,10 +226,14 @@ class ClinicAiModelProvisioningService
     }
 
     /**
+     * Resolve selection.
+     *
      * @param  array<int, string>  $serviceKeys
      * @param  array<int, int|string>  $accessIds
      * @param  bool  $requiresOneModelPerService  False only for legacy plans without an explicit mapping.
      * @return Collection<int, AiModelAccess>
+     *
+     * @since 1.0.0
      */
     private function resolveSelection(
         array $serviceKeys,
@@ -241,8 +279,12 @@ class ClinicAiModelProvisioningService
     }
 
     /**
+     * Execute the legacy fallback selection operation.
+     *
      * @param  array<int, string>  $serviceKeys
      * @return Collection<int, AiModelAccess>
+     *
+     * @since 1.0.0
      */
     private function legacyFallbackSelection(array $serviceKeys): Collection
     {
@@ -275,8 +317,13 @@ class ClinicAiModelProvisioningService
     }
 
     /**
+     * Execute the assert output coverage operation.
+     *
      * @param  array<int, string>  $serviceKeys
      * @param  Collection<int, AiModelAccess>  $accesses
+     * @return void No value is returned.
+     *
+     * @since 1.0.0
      */
     private function assertOutputCoverage(array $serviceKeys, Collection $accesses): void
     {
@@ -291,7 +338,12 @@ class ClinicAiModelProvisioningService
     }
 
     /**
+     * Execute the required output ids operation.
+     *
+     * @param  string  $serviceKey  The service key value.
      * @return array<int, int>
+     *
+     * @since 1.0.0
      */
     private function requiredOutputIds(string $serviceKey): array
     {
@@ -307,9 +359,13 @@ class ClinicAiModelProvisioningService
     }
 
     /**
+     * Execute the uncovered output ids operation.
+     *
      * @param  array<int, int>  $requiredOutputIds
      * @param  Collection<int, AiModelAccess>  $accesses
      * @return array<int, int>
+     *
+     * @since 1.0.0
      */
     private function uncoveredOutputIds(array $requiredOutputIds, Collection $accesses): array
     {
@@ -322,8 +378,13 @@ class ClinicAiModelProvisioningService
     }
 
     /**
+     * Execute the covered output ids operation.
+     *
      * @param  array<int, int>  $requiredOutputIds
+     * @param  AiModelAccess  $access  The access value.
      * @return array<int, int>
+     *
+     * @since 1.0.0
      */
     private function coveredOutputIds(AiModelAccess $access, array $requiredOutputIds): array
     {
@@ -336,8 +397,12 @@ class ClinicAiModelProvisioningService
     }
 
     /**
+     * Normalize d service keys.
+     *
      * @param  array<int, string>  $serviceKeys
      * @return array<int, string>
+     *
+     * @since 1.0.0
      */
     private function normalizedServiceKeys(array $serviceKeys): array
     {
@@ -350,8 +415,12 @@ class ClinicAiModelProvisioningService
     }
 
     /**
+     * Normalize d access ids.
+     *
      * @param  array<int, int|string>  $accessIds
      * @return array<int, int>
+     *
+     * @since 1.0.0
      */
     private function normalizedAccessIds(array $accessIds): array
     {
@@ -364,7 +433,14 @@ class ClinicAiModelProvisioningService
     }
 
     /**
+     * Execute the throw unavailable operation.
+     *
+     * @param  string  $serviceKey  The service key value.
+     * @return never Resolved operation result.
+     *
      * @throws ValidationException
+     *
+     * @since 1.0.0
      */
     private function throwUnavailable(string $serviceKey): never
     {
@@ -376,7 +452,13 @@ class ClinicAiModelProvisioningService
     }
 
     /**
+     * Execute the throw one model per service operation.
+     *
+     * @return never Resolved operation result.
+     *
      * @throws ValidationException
+     *
+     * @since 1.0.0
      */
     private function throwOneModelPerService(): never
     {

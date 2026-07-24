@@ -5,8 +5,20 @@ namespace Database\Seeders;
 use App\Models\AiProvider;
 use Illuminate\Database\Seeder;
 
+/**
+ * Provides ai provider seeder behavior.
+ *
+ * @since 1.0.0
+ */
 class AiProviderSeeder extends Seeder
 {
+    /**
+     * Execute the ai provider seeder operation.
+     *
+     * @return void No value is returned.
+     *
+     * @since 1.0.0
+     */
     public function run(): void
     {
         AiProvider::query()->updateOrCreate(

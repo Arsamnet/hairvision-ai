@@ -20,6 +20,15 @@ use Illuminate\Http\Request;
  */
 class GenerationService
 {
+    /**
+     * Create a new generation service instance.
+     *
+     * @param  AiModelManager  $aiModels  The ai models value.
+     * @param  ServiceEntitlementService  $entitlements  The entitlements value.
+     * @param  GenerationStageCatalog  $stages  The stages value.
+     *
+     * @since 1.0.0
+     */
     public function __construct(
         private readonly AiModelManager $aiModels,
         private readonly ServiceEntitlementService $entitlements,
@@ -28,13 +37,19 @@ class GenerationService
 
     /**
      * Create or reuse a generation group for an upload.
+     *
+     * @param  Upload  $upload  The upload value.
+     * @param  string  $usageCategoryKey  The usage category key value.
+     * @param  Request|null  $request  Incoming HTTP request.
+     * @return GenerationGroup Resolved operation result.
+     *
+     * @since 1.0.0
      */
     public function createForUpload(
         Upload $upload,
         string $usageCategoryKey = 'hair_transplant',
         ?Request $request = null
-    ): GenerationGroup
-    {
+    ): GenerationGroup {
         $scope = 'generation.service.create_for_upload';
 
         $stageKeys = $this->stages->keys($usageCategoryKey);
@@ -89,6 +104,12 @@ class GenerationService
 
     /**
      * Dispatch the next pending stage when possible.
+     *
+     * @param  GenerationGroup  $group  The group value.
+     * @param  Request|null  $request  Incoming HTTP request.
+     * @return void No value is returned.
+     *
+     * @since 1.0.0
      */
     public function dispatchNextStage(GenerationGroup $group, ?Request $request = null): void
     {
@@ -131,8 +152,14 @@ class GenerationService
         dispatch(new ProcessGenerationJob($nextJob->refresh()));
 
     }
+
     /**
      * Resolve the provider record used by generation jobs.
+     *
+     * @param  AiModelAccess  $modelAccess  The model access value.
+     * @return AiProvider Resolved operation result.
+     *
+     * @since 1.0.0
      */
     private function resolveProvider(AiModelAccess $modelAccess): AiProvider
     {

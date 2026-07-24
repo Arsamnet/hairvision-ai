@@ -16,6 +16,13 @@ use Illuminate\Validation\Validator;
  */
 class StoreAiModelAccessRequest extends FormRequest
 {
+    /**
+     * Determine whether the current user may submit this request.
+     *
+     * @return bool Whether the requested condition is satisfied.
+     *
+     * @since 1.0.0
+     */
     public function authorize(): bool
     {
         return ($this->user()?->can('create', AiModelAccess::class) ?? false)
@@ -23,7 +30,11 @@ class StoreAiModelAccessRequest extends FormRequest
     }
 
     /**
+     * Return the validation rules for the request.
+     *
      * @return array<string, mixed>
+     *
+     * @since 1.0.0
      */
     public function rules(): array
     {
@@ -57,6 +68,14 @@ class StoreAiModelAccessRequest extends FormRequest
         ];
     }
 
+    /**
+     * Execute the with validator operation.
+     *
+     * @param  Validator  $validator  The validator value.
+     * @return void No value is returned.
+     *
+     * @since 1.0.0
+     */
     public function withValidator(Validator $validator): void
     {
         $validator->after(function (Validator $validator): void {
@@ -80,6 +99,13 @@ class StoreAiModelAccessRequest extends FormRequest
         });
     }
 
+    /**
+     * Normalize request input before validation.
+     *
+     * @return void No value is returned.
+     *
+     * @since 1.0.0
+     */
     protected function prepareForValidation(): void
     {
         $normalized = ['is_active' => $this->boolean('is_active')];
@@ -96,7 +122,11 @@ class StoreAiModelAccessRequest extends FormRequest
     }
 
     /**
+     * Return localized validation attribute names.
+     *
      * @return array<string, string>
+     *
+     * @since 1.0.0
      */
     public function attributes(): array
     {
@@ -106,6 +136,13 @@ class StoreAiModelAccessRequest extends FormRequest
         ];
     }
 
+    /**
+     * Execute the can manage submitted sensitive fields operation.
+     *
+     * @return bool Whether the requested condition is satisfied.
+     *
+     * @since 1.0.0
+     */
     private function canManageSubmittedSensitiveFields(): bool
     {
         $tenantId = $this->attributes->get('adminTenant')?->id;
@@ -129,7 +166,11 @@ class StoreAiModelAccessRequest extends FormRequest
     }
 
     /**
+     * Execute the model keys operation.
+     *
      * @return array<int, string>
+     *
+     * @since 1.0.0
      */
     private function modelKeys(): array
     {

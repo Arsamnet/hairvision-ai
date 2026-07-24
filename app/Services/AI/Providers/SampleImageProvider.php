@@ -18,11 +18,25 @@ class SampleImageProvider implements ImageGenerationProvider
 {
     private const DISK = 'local';
 
+    /**
+     * Execute the code operation.
+     *
+     * @return string Resolved string value.
+     *
+     * @since 1.0.0
+     */
     public function code(): string
     {
         return 'sample_image';
     }
 
+    /**
+     * Execute the supports async operation.
+     *
+     * @return bool Whether the requested condition is satisfied.
+     *
+     * @since 1.0.0
+     */
     public function supportsAsync(): bool
     {
         return false;
@@ -30,6 +44,11 @@ class SampleImageProvider implements ImageGenerationProvider
 
     /**
      * Resolve a local sample image for the requested progress period.
+     *
+     * @param  ImageGenerationRequest  $request  Incoming HTTP request.
+     * @return ImageGenerationResponse HTTP response.
+     *
+     * @since 1.0.0
      */
     public function submit(ImageGenerationRequest $request): ImageGenerationResponse
     {
@@ -71,6 +90,11 @@ class SampleImageProvider implements ImageGenerationProvider
 
     /**
      * Return the known status for local sample provider jobs.
+     *
+     * @param  string  $providerJobId  The provider job id value.
+     * @return string Resolved string value.
+     *
+     * @since 1.0.0
      */
     public function poll(string $providerJobId): string
     {
@@ -82,7 +106,10 @@ class SampleImageProvider implements ImageGenerationProvider
     /**
      * Return local file metadata for a completed sample response.
      *
+     * @param  ImageGenerationResponse  $response  The response value.
      * @return array{disk: string, path: string|null, mime: string, size: int, metadata: array<string, mixed>}
+     *
+     * @since 1.0.0
      */
     public function download(ImageGenerationResponse $response): array
     {
@@ -114,6 +141,14 @@ class SampleImageProvider implements ImageGenerationProvider
 
     /**
      * Resolve an existing local sample path.
+     *
+     * @param  mixed  $configured  The configured value.
+     * @param  mixed  $fallback  The fallback value.
+     * @param  string  $period  The period value.
+     * @param  string  $scope  The scope value.
+     * @return string|null Resolved operation result.
+     *
+     * @since 1.0.0
      */
     private function resolveSamplePath(mixed $configured, mixed $fallback, string $period, string $scope): ?string
     {
@@ -136,6 +171,13 @@ class SampleImageProvider implements ImageGenerationProvider
 
     /**
      * Resolve an existing fallback path.
+     *
+     * @param  mixed  $fallback  The fallback value.
+     * @param  string  $period  The period value.
+     * @param  string  $scope  The scope value.
+     * @return string|null Resolved operation result.
+     *
+     * @since 1.0.0
      */
     private function fallbackPath(mixed $fallback, string $period, string $scope): ?string
     {
@@ -148,6 +190,11 @@ class SampleImageProvider implements ImageGenerationProvider
 
     /**
      * Infer MIME type from the file extension.
+     *
+     * @param  string  $path  Storage or resource path.
+     * @return string Resolved string value.
+     *
+     * @since 1.0.0
      */
     private function mimeForPath(string $path): string
     {
@@ -161,6 +208,11 @@ class SampleImageProvider implements ImageGenerationProvider
 
     /**
      * Infer extension from MIME type.
+     *
+     * @param  string|null  $mime  The mime value.
+     * @return string Resolved string value.
+     *
+     * @since 1.0.0
      */
     private function extensionForMime(?string $mime): string
     {

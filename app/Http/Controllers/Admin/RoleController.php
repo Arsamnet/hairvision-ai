@@ -23,6 +23,14 @@ use Illuminate\View\View;
  */
 class RoleController extends Controller
 {
+    /**
+     * Display the role listing.
+     *
+     * @param  Request  $request  Incoming HTTP request.
+     * @return View Rendered response view.
+     *
+     * @since 1.0.0
+     */
     public function index(Request $request): View
     {
         $pagination = PaginationParameters::fromRequest(
@@ -48,6 +56,14 @@ class RoleController extends Controller
         ]);
     }
 
+    /**
+     * Persist a new role record.
+     *
+     * @param  Request  $request  Incoming HTTP request.
+     * @return RedirectResponse HTTP redirect response.
+     *
+     * @since 1.0.0
+     */
     public function store(Request $request): RedirectResponse
     {
         $validated = $request->validate([
@@ -68,6 +84,15 @@ class RoleController extends Controller
         return back()->with('status', __('permissions.role_created'));
     }
 
+    /**
+     * Display the form for editing the requested role.
+     *
+     * @param  Request  $request  Incoming HTTP request.
+     * @param  Role  $role  The role value.
+     * @return View Rendered response view.
+     *
+     * @since 1.0.0
+     */
     public function edit(Request $request, Role $role): View
     {
         abort_if($role->isClinicRole(), 404);
@@ -80,6 +105,16 @@ class RoleController extends Controller
         ]);
     }
 
+    /**
+     * Update the requested role record.
+     *
+     * @param  Request  $request  Incoming HTTP request.
+     * @param  Role  $role  The role value.
+     * @param  PermissionService  $permissions  The permissions value.
+     * @return RedirectResponse HTTP redirect response.
+     *
+     * @since 1.0.0
+     */
     public function update(Request $request, Role $role, PermissionService $permissions): RedirectResponse
     {
         if ($role->isClinicRole()) {
@@ -107,6 +142,15 @@ class RoleController extends Controller
         return redirect()->route('admin.system.roles.edit', $role)->with('status', __('permissions.role_updated'));
     }
 
+    /**
+     * Delete the requested role record.
+     *
+     * @param  Role  $role  The role value.
+     * @param  PermissionService  $permissions  The permissions value.
+     * @return RedirectResponse HTTP redirect response.
+     *
+     * @since 1.0.0
+     */
     public function destroy(Role $role, PermissionService $permissions): RedirectResponse
     {
         if ($role->isClinicRole() || $role->is_system) {

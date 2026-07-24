@@ -13,8 +13,23 @@ use Throwable;
  */
 class FinalGenerationSmsService
 {
+    /**
+     * Create a new final generation sms service instance.
+     *
+     * @param  SmsGatewayService  $smsGateways  The sms gateways value.
+     *
+     * @since 1.0.0
+     */
     public function __construct(private readonly SmsGatewayService $smsGateways) {}
 
+    /**
+     * Send completed.
+     *
+     * @param  GenerationGroup  $group  The group value.
+     * @return void No value is returned.
+     *
+     * @since 1.0.0
+     */
     public function sendCompleted(GenerationGroup $group): void
     {
         $scope = 'generation.final_sms';

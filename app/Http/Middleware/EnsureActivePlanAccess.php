@@ -14,10 +14,23 @@ use Illuminate\Http\Request;
  */
 class EnsureActivePlanAccess
 {
+    /**
+     * Create a new ensure active plan access instance.
+     *
+     * @param  PlanAccessService  $plans  The plans value.
+     *
+     * @since 1.0.0
+     */
     public function __construct(private readonly PlanAccessService $plans) {}
 
     /**
+     * Execute the ensure active plan access operation.
+     *
      * @param  Closure(Request): mixed  $next
+     * @param  Request  $request  Incoming HTTP request.
+     * @return mixed Resolved operation result.
+     *
+     * @since 1.0.0
      */
     public function handle(Request $request, Closure $next): mixed
     {
@@ -48,6 +61,14 @@ class EnsureActivePlanAccess
             ->withErrors(['plan' => __($state['message_key'])]);
     }
 
+    /**
+     * Execute the route is allowed without plan operation.
+     *
+     * @param  Request  $request  Incoming HTTP request.
+     * @return bool Whether the requested condition is satisfied.
+     *
+     * @since 1.0.0
+     */
     private function routeIsAllowedWithoutPlan(Request $request): bool
     {
         return $request->routeIs(

@@ -20,6 +20,8 @@ class AiModelResolver
      * Return configured AI models.
      *
      * @return array<string, array<string, mixed>>
+     *
+     * @since 1.0.0
      */
     public function models(): array
     {
@@ -30,6 +32,8 @@ class AiModelResolver
      * Return configured usage categories.
      *
      * @return array<string, array<string, mixed>>
+     *
+     * @since 1.0.0
      */
     public function usageCategories(): array
     {
@@ -60,7 +64,10 @@ class AiModelResolver
     /**
      * Resolve one configured model by key.
      *
+     * @param  string  $key  The key value.
      * @return array<string, mixed>
+     *
+     * @since 1.0.0
      */
     public function model(string $key): array
     {
@@ -81,7 +88,10 @@ class AiModelResolver
     /**
      * Resolve one configured usage category by key.
      *
+     * @param  string  $key  The key value.
      * @return array<string, mixed>
+     *
+     * @since 1.0.0
      */
     public function usageCategory(string $key): array
     {
@@ -101,6 +111,11 @@ class AiModelResolver
 
     /**
      * Check whether a model key exists.
+     *
+     * @param  string  $key  The key value.
+     * @return bool Whether the requested condition is satisfied.
+     *
+     * @since 1.0.0
      */
     public function hasModel(string $key): bool
     {
@@ -111,6 +126,11 @@ class AiModelResolver
 
     /**
      * Check whether a usage category key exists.
+     *
+     * @param  string  $key  The key value.
+     * @return bool Whether the requested condition is satisfied.
+     *
+     * @since 1.0.0
      */
     public function hasUsageCategory(string $key): bool
     {
@@ -121,6 +141,12 @@ class AiModelResolver
 
     /**
      * Check whether a model supports a usage category.
+     *
+     * @param  string  $modelKey  The model key value.
+     * @param  string  $usageCategoryKey  The usage category key value.
+     * @return bool Whether the requested condition is satisfied.
+     *
+     * @since 1.0.0
      */
     public function modelSupportsUsageCategory(string $modelKey, string $usageCategoryKey): bool
     {
@@ -140,6 +166,11 @@ class AiModelResolver
 
     /**
      * Resolve the provider implementation for an AI model access.
+     *
+     * @param  AiModelAccess  $access  The access value.
+     * @return AiModelProviderInterface Resolved operation result.
+     *
+     * @since 1.0.0
      */
     public function providerFor(AiModelAccess $access): AiModelProviderInterface
     {
@@ -167,6 +198,11 @@ class AiModelResolver
 
     /**
      * Return a display label for a model.
+     *
+     * @param  string  $key  The key value.
+     * @return string Resolved string value.
+     *
+     * @since 1.0.0
      */
     public function modelLabel(string $key): string
     {
@@ -179,6 +215,11 @@ class AiModelResolver
 
     /**
      * Return a display label for a usage category.
+     *
+     * @param  string  $key  The key value.
+     * @return string Resolved string value.
+     *
+     * @since 1.0.0
      */
     public function usageCategoryLabel(string $key): string
     {

@@ -34,6 +34,8 @@ class ClinicAiModelAccess extends Model
      * Clinic tenant receiving access.
      *
      * @return BelongsTo<Tenant, $this>
+     *
+     * @since 1.0.0
      */
     public function clinic(): BelongsTo
     {
@@ -44,6 +46,8 @@ class ClinicAiModelAccess extends Model
      * AI model access record assigned to the clinic.
      *
      * @return BelongsTo<AiModelAccess, $this>
+     *
+     * @since 1.0.0
      */
     public function aiModelAccess(): BelongsTo
     {
@@ -54,6 +58,8 @@ class ClinicAiModelAccess extends Model
      * Admin user that made the assignment.
      *
      * @return BelongsTo<User, $this>
+     *
+     * @since 1.0.0
      */
     public function assigner(): BelongsTo
     {

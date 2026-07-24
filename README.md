@@ -1,15 +1,12 @@
 # HairVision
 
-Version: `1.0.0`
+Version: [`2.0.0`](CHANGELOG.md#200)
 
-HairVision is a complete Laravel 13 multi-tenant SaaS for hair-transplant
-clinics. Visitors arrive through a clinic subdomain or custom domain, verify
-their mobile number by OTP, become a tenant-scoped lead, upload a private
-face/scalp image, and receive three staged preview results:
-
-- `two_weeks`
-- `intermediate_regrowth`
-- `final_result`
+HairVision is a complete Laravel 13 multi-tenant SaaS for clinics offering
+AI-assisted image previews. Visitors arrive through a clinic subdomain or
+custom domain, verify their mobile number by OTP, become a tenant-scoped lead,
+maintain a private current source image, and independently request eligible
+outputs from system-managed AI categories.
 
 The public product UI is Persian, right-to-left, and Blade-based. All business
 behavior is API-first: Blade renders the shell and calls `/api/v1` endpoints for
@@ -24,25 +21,29 @@ file unless a separate lifecycle or audience is genuinely needed.
 - [Persian Product and Business Rules](docs/business-rules-fa.md)
 - [Engineering Architecture](docs/architecture.md)
 - [API Reference](docs/api.md)
-- [Release Notes](docs/release-notes.md)
+- [Release Notes](CHANGELOG.md)
 
 `AGENTS.md` is the concise operating guide for AI agents and points to the same
 canonical references.
 
-## Version 1.0.0 Includes
+## Version 2.0.0 Includes
 
 - Laravel 13, PHP 8.3+, Blade, Tailwind CSS, Vite, Sanctum, Redis, Horizon.
 - Host-based tenant resolution and strict tenant isolation.
 - Public Persian RTL visitor flow with embedded Vazirmatn font.
 - Hashed, expiring, rate-limited OTP for public leads and dashboard users.
-- Private upload and generated-asset storage.
-- Provider-agnostic AI model access layer.
+- Private, versioned source-image and generated-asset storage.
+- System-managed AI categories and independently requestable outputs.
+- Database-backed model queue coordination, capacity limits, and credit
+  reservations.
+- Provider-agnostic AI model access with local input/output JPEG normalization.
 - Local `sample_image` model access assigned per clinic by a system admin.
 - Assigned GapGPT image-edit access through encrypted dashboard credentials.
 - Admin dashboard under `/admin` with OTP login, roles, permissions, tenant
   context, leads, CRM follow-ups, users, clinics, AI models, plans, billing,
   gateways, reports, and system settings.
 - SaaS plan, subscription, service entitlement, and credit ledger behavior.
+- Lead-aware AI usage reporting and tenant-scoped processing history.
 - Jalali/Shamsi business dates, Persian localization, and reusable dashboard UI
   components.
 
@@ -65,6 +66,19 @@ Map local hosts:
 ```
 
 Run locally:
+
+To reproduce the database-backed cPanel scheduler and queue behavior from the
+VS Code terminal on macOS, keep this command running:
+
+```bash
+./scripts/cpanel-queue-local
+```
+
+Use `./scripts/cpanel-queue-local --once` for one cron-equivalent tick or
+`./scripts/cpanel-queue-local --list` to inspect the coordinator and worker
+lanes. Stop watch mode with `Ctrl+C`. The runner overrides queue settings only
+for its own process, clears a stale local config cache, and does not modify
+`.env`.
 
 ```bash
 php artisan serve --host=127.0.0.1 --port=8000
@@ -108,5 +122,6 @@ Required commands:
 
 ```bash
 php artisan test
+composer phpdoc:audit
 npm run build
 ```

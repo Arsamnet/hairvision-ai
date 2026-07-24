@@ -12,6 +12,17 @@ use Illuminate\Http\Request;
  */
 class PaginationParameters
 {
+    /**
+     * Create a new pagination parameters instance.
+     *
+     * @param  int  $page  The page value.
+     * @param  int  $perPage  The per page value.
+     * @param  string|null  $search  The search value.
+     * @param  string  $sort  The sort value.
+     * @param  string  $direction  The direction value.
+     *
+     * @since 1.0.0
+     */
     public function __construct(
         public readonly int $page,
         public readonly int $perPage,
@@ -24,6 +35,12 @@ class PaginationParameters
      * Build pagination parameters from standard request input.
      *
      * @param  array<int, string>  $allowedSorts
+     * @param  Request  $request  Incoming HTTP request.
+     * @param  string  $defaultSort  The default sort value.
+     * @param  string  $defaultDirection  The default direction value.
+     * @return self Current fluent instance.
+     *
+     * @since 1.0.0
      */
     public static function fromRequest(
         Request $request,

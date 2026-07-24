@@ -4,12 +4,12 @@ This is the first file AI agents should read in the HairVision repository.
 
 Project: `HairVision`
 
-Version: `1.0.0`
+Version: [`2.0.0`](CHANGELOG.md#200)
 
-HairVision is a complete Laravel 13 multi-tenant SaaS for hair-transplant
-clinics. Public visitors use a tenant host, verify a phone number by OTP, upload
-a private face/scalp image, and receive three staged preview results through the
-versioned API.
+HairVision is a complete Laravel 13 multi-tenant SaaS for clinics offering
+AI-assisted image previews. Public visitors use a tenant host, verify a phone
+number by OTP, maintain a private source image, and independently request
+eligible outputs from system-managed AI categories through the versioned API.
 
 ## Must Read First
 
@@ -19,7 +19,7 @@ Before editing code, read these files in order:
 2. `docs/business-rules-fa.md`
 3. `docs/architecture.md`
 4. `docs/api.md`
-5. `docs/release-notes.md`
+5. `CHANGELOG.md`
 
 Do not reopen deleted legacy docs or recreate them. New documentation belongs in
 one of the files above unless a separate audience or lifecycle is unavoidable.
@@ -72,8 +72,10 @@ one of the files above unless a separate audience or lifecycle is unavoidable.
   scoped queries over fat controllers.
 - Reuse shared utilities for digit normalization, Jalali dates, pagination,
   search/filtering, tenant filters, billing, credits, and provider execution.
-- Add useful PHPDoc to public classes/methods and complex protected/private
-  methods. Use native types where safe and `@since 1.0.0` for version history.
+- Add useful PHPDoc to all project-owned named classes, interfaces, traits,
+  enums, functions, and methods. Document input/output types and use the actual
+  introduction version: `@since 1.0.0` for original declarations and
+  `@since 2.0.0` for version 2 declarations.
 - Keep comments concise and explain non-obvious intent, side effects, security
   decisions, or integration constraints.
 - Never expose private storage paths, OTP codes, credentials, bearer tokens,
@@ -86,6 +88,7 @@ Run after behavior changes:
 
 ```bash
 php artisan test
+composer phpdoc:audit
 ```
 
 Also run after frontend asset changes:

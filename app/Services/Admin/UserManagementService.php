@@ -26,10 +26,24 @@ class UserManagementService
 {
     private const CLINIC_ROLE_CODES = ['clinic_admin', 'editor', 'viewer'];
 
+    /**
+     * Create a new user management service instance.
+     *
+     * @param  ClinicFilterResolver  $clinicFilterResolver  The clinic filter resolver value.
+     *
+     * @since 1.0.0
+     */
     public function __construct(private readonly ClinicFilterResolver $clinicFilterResolver) {}
 
     /**
      * Paginate dashboard users visible to the actor.
+     *
+     * @param  Request  $request  Incoming HTTP request.
+     * @param  User  $actor  Authenticated user performing the operation.
+     * @param  Tenant|null  $clinicFilter  The clinic filter value.
+     * @return LengthAwarePaginator Paginated result set.
+     *
+     * @since 1.0.0
      */
     public function paginate(Request $request, User $actor, ?Tenant $clinicFilter = null): LengthAwarePaginator
     {
@@ -50,6 +64,14 @@ class UserManagementService
 
     /**
      * Build the filtered user query for Blade or JSON responses.
+     *
+     * @param  Request  $request  Incoming HTTP request.
+     * @param  User  $actor  Authenticated user performing the operation.
+     * @param  Tenant|null  $clinicFilter  The clinic filter value.
+     * @param  PaginationParameters  $pagination  The pagination value.
+     * @return Builder Configured query builder.
+     *
+     * @since 1.0.0
      */
     public function filteredQuery(Request $request, User $actor, ?Tenant $clinicFilter, PaginationParameters $pagination): Builder
     {
@@ -73,6 +95,11 @@ class UserManagementService
      * Create a dashboard user and attach the requested allowed tenant access.
      *
      * @param  array<string, mixed>  $data
+     * @param  User  $actor  Authenticated user performing the operation.
+     * @param  Tenant|null  $currentTenant  The current tenant value.
+     * @return User Resolved operation result.
+     *
+     * @since 1.0.0
      */
     public function create(array $data, User $actor, ?Tenant $currentTenant = null): User
     {
@@ -100,6 +127,12 @@ class UserManagementService
      * Update a dashboard user and their allowed tenant access.
      *
      * @param  array<string, mixed>  $data
+     * @param  User  $user  Authenticated user performing the operation.
+     * @param  User  $actor  Authenticated user performing the operation.
+     * @param  Tenant|null  $currentTenant  The current tenant value.
+     * @return User Resolved operation result.
+     *
+     * @since 1.0.0
      */
     public function update(User $user, array $data, User $actor, ?Tenant $currentTenant = null): User
     {
@@ -126,6 +159,12 @@ class UserManagementService
 
     /**
      * Delete a dashboard user after safety checks.
+     *
+     * @param  User  $user  Authenticated user performing the operation.
+     * @param  User  $actor  Authenticated user performing the operation.
+     * @return void No value is returned.
+     *
+     * @since 1.0.0
      */
     public function delete(User $user, User $actor): void
     {
@@ -142,6 +181,12 @@ class UserManagementService
 
     /**
      * Resolve an optional clinic filter without trusting arbitrary tenant input.
+     *
+     * @param  Request  $request  Incoming HTTP request.
+     * @param  User  $actor  Authenticated user performing the operation.
+     * @return Tenant|null Resolved operation result.
+     *
+     * @since 1.0.0
      */
     public function resolveClinicFilter(Request $request, User $actor): ?Tenant
     {
@@ -150,6 +195,12 @@ class UserManagementService
 
     /**
      * Query users visible to the actor in an optional clinic filter.
+     *
+     * @param  User  $actor  Authenticated user performing the operation.
+     * @param  Tenant|null  $clinicFilter  The clinic filter value.
+     * @return Builder Configured query builder.
+     *
+     * @since 1.0.0
      */
     private function baseQuery(User $actor, ?Tenant $clinicFilter): Builder
     {
@@ -169,7 +220,12 @@ class UserManagementService
     }
 
     /**
+     * Execute the allowed tenant ids operation.
+     *
+     * @param  User  $actor  Authenticated user performing the operation.
      * @return array<int, int>
+     *
+     * @since 1.0.0
      */
     private function allowedTenantIds(User $actor): array
     {
@@ -184,6 +240,15 @@ class UserManagementService
             ->all();
     }
 
+    /**
+     * Execute the authorized scope operation.
+     *
+     * @param  string  $scope  The scope value.
+     * @param  User  $actor  Authenticated user performing the operation.
+     * @return string Resolved string value.
+     *
+     * @since 1.0.0
+     */
     private function authorizedScope(string $scope, User $actor): string
     {
         if (! in_array($scope, ['system', 'clinic'], true)) {
@@ -201,6 +266,16 @@ class UserManagementService
         return $scope;
     }
 
+    /**
+     * Execute the authorized role operation.
+     *
+     * @param  string  $role  The role value.
+     * @param  string  $scope  The scope value.
+     * @param  User  $actor  Authenticated user performing the operation.
+     * @return string Resolved string value.
+     *
+     * @since 1.0.0
+     */
     private function authorizedRole(string $role, string $scope, User $actor): string
     {
         $roleQuery = Role::query()
@@ -230,7 +305,15 @@ class UserManagementService
     }
 
     /**
+     * Synchronize tenant access.
+     *
      * @param  array<string, mixed>  $data
+     * @param  User  $user  Authenticated user performing the operation.
+     * @param  User  $actor  Authenticated user performing the operation.
+     * @param  Tenant|null  $currentTenant  The current tenant value.
+     * @return void No value is returned.
+     *
+     * @since 1.0.0
      */
     private function syncTenantAccess(User $user, array $data, User $actor, ?Tenant $currentTenant): void
     {
@@ -307,6 +390,16 @@ class UserManagementService
         }
     }
 
+    /**
+     * Execute the guard last active super admin operation.
+     *
+     * @param  User  $user  Authenticated user performing the operation.
+     * @param  string  $newRole  The new role value.
+     * @param  string  $newStatus  The new status value.
+     * @return void No value is returned.
+     *
+     * @since 1.0.0
+     */
     private function guardLastActiveSuperAdmin(User $user, string $newRole, string $newStatus): void
     {
         if (! $user->isSuperAdmin()) {

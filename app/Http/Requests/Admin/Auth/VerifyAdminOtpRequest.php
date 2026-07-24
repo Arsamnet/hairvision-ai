@@ -13,13 +13,24 @@ use Illuminate\Foundation\Http\FormRequest;
  */
 class VerifyAdminOtpRequest extends FormRequest
 {
+    /**
+     * Determine whether the current user may submit this request.
+     *
+     * @return bool Whether the requested condition is satisfied.
+     *
+     * @since 1.0.0
+     */
     public function authorize(): bool
     {
         return true;
     }
 
     /**
+     * Return the validation rules for the request.
+     *
      * @return array<string, list<string>>
+     *
+     * @since 1.0.0
      */
     public function rules(): array
     {
@@ -30,7 +41,11 @@ class VerifyAdminOtpRequest extends FormRequest
     }
 
     /**
+     * Return localized validation messages.
+     *
      * @return array<string, string>
+     *
+     * @since 1.0.0
      */
     public function messages(): array
     {
@@ -44,6 +59,13 @@ class VerifyAdminOtpRequest extends FormRequest
         ];
     }
 
+    /**
+     * Normalize request input before validation.
+     *
+     * @return void No value is returned.
+     *
+     * @since 1.0.0
+     */
     protected function prepareForValidation(): void
     {
         $payload = [];

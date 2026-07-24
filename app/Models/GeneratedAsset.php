@@ -51,6 +51,8 @@ class GeneratedAsset extends Model
      * Tenant that owns this generated asset.
      *
      * @return BelongsTo<Tenant, $this>
+     *
+     * @since 1.0.0
      */
     public function tenant(): BelongsTo
     {
@@ -61,6 +63,8 @@ class GeneratedAsset extends Model
      * Generation job that produced this asset.
      *
      * @return BelongsTo<GenerationJob, $this>
+     *
+     * @since 1.0.0
      */
     public function generationJob(): BelongsTo
     {
@@ -71,6 +75,8 @@ class GeneratedAsset extends Model
      * V2 generation request that produced this asset, when applicable.
      *
      * @return BelongsTo<GenerationRequest, $this>
+     *
+     * @since 1.0.0
      */
     public function generationRequest(): BelongsTo
     {

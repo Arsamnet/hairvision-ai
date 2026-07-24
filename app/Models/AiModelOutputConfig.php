@@ -31,7 +31,11 @@ class AiModelOutputConfig extends Model
     ];
 
     /**
+     * Define the model Eloquent relationship.
+     *
      * @return BelongsTo<AiModel, $this>
+     *
+     * @since 2.0.0
      */
     public function model(): BelongsTo
     {
@@ -39,7 +43,11 @@ class AiModelOutputConfig extends Model
     }
 
     /**
+     * Define the output Eloquent relationship.
+     *
      * @return BelongsTo<AiModelCategoryOutput, $this>
+     *
+     * @since 2.0.0
      */
     public function output(): BelongsTo
     {

@@ -36,6 +36,8 @@ class Payment extends Model
      * Clinic tenant connected to this payment.
      *
      * @return BelongsTo<Tenant, $this>
+     *
+     * @since 1.0.0
      */
     public function tenant(): BelongsTo
     {
@@ -43,6 +45,7 @@ class Payment extends Model
     }
 
     protected $casts = [
+        'amount' => 'integer',
         'gateway_response_json' => 'array',
         'verified_at' => JalaliDateTimeCast::class,
         'created_at' => 'datetime',
@@ -53,6 +56,8 @@ class Payment extends Model
      * User that initiated this payment.
      *
      * @return BelongsTo<User, $this>
+     *
+     * @since 1.0.0
      */
     public function user(): BelongsTo
     {
@@ -63,6 +68,8 @@ class Payment extends Model
      * Invoice being paid.
      *
      * @return BelongsTo<Invoice, $this>
+     *
+     * @since 1.0.0
      */
     public function invoice(): BelongsTo
     {
@@ -73,6 +80,8 @@ class Payment extends Model
      * Gateway used for this payment.
      *
      * @return BelongsTo<PaymentGateway, $this>
+     *
+     * @since 1.0.0
      */
     public function gateway(): BelongsTo
     {

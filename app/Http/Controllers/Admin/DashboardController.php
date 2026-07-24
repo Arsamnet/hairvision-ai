@@ -7,6 +7,8 @@ use App\Http\Controllers\Controller;
 use App\Models\Tenant;
 use App\Services\Admin\LeadDashboardService;
 use App\Services\Admin\SystemOverviewService;
+use App\Services\AI\AiModelResolver;
+use App\Services\AI\AiModelUsageReportService;
 use App\Services\Billing\BillingService;
 use App\Services\Billing\CreditLedgerService;
 use App\Services\Billing\ServiceEntitlementService;
@@ -25,6 +27,15 @@ class DashboardController extends Controller
 {
     /**
      * Show the main dashboard for system or tenant users.
+     *
+     * @param  Request  $request  Incoming HTTP request.
+     * @param  LeadDashboardService  $leads  The leads value.
+     * @param  SystemOverviewService  $overview  The overview value.
+     * @param  ServiceEntitlementService  $entitlements  The entitlements value.
+     * @param  PublicApplicationAvailabilityService  $availability  The availability value.
+     * @return View Rendered response view.
+     *
+     * @since 1.0.0
      */
     public function index(
         Request $request,
@@ -89,6 +100,12 @@ class DashboardController extends Controller
 
     /**
      * Show lead and tenant reports.
+     *
+     * @param  Request  $request  Incoming HTTP request.
+     * @param  LeadDashboardService  $leads  The leads value.
+     * @return View Rendered response view.
+     *
+     * @since 1.0.0
      */
     public function reports(Request $request, LeadDashboardService $leads): View
     {
@@ -119,12 +136,25 @@ class DashboardController extends Controller
 
     /**
      * Show the clinic credit usage report.
+     *
+     * @param  Request  $request  Incoming HTTP request.
+     * @param  BillingService  $billing  The billing value.
+     * @param  ServiceEntitlementService  $entitlements  The entitlements value.
+     * @param  CreditLedgerService  $ledger  The ledger value.
+     * @param  AiModelResolver  $resolver  The resolver value.
+     * @param  AiModelUsageReportService  $usageReports  The usage reports value.
+     * @return View Rendered response view.
+     *
+     * @since 1.0.0
+     * @since 2.0.0 Behavior updated for the version 2.0.0 release.
      */
     public function creditUsageReport(
         Request $request,
         BillingService $billing,
         ServiceEntitlementService $entitlements,
-        CreditLedgerService $ledger
+        CreditLedgerService $ledger,
+        AiModelResolver $resolver,
+        AiModelUsageReportService $usageReports,
     ): View {
         $tenant = $request->attributes->get('adminTenant');
         $availableTenants = $request->attributes->get('adminTenants');
@@ -140,11 +170,20 @@ class DashboardController extends Controller
             'remainingCredit' => $entitlements->remainingCreditForSubscription($activeSubscription),
             'totalCredit' => $entitlements->totalCreditForSubscription($activeSubscription),
             'creditTimeline' => $ledger->timelineForSubscription($activeSubscription),
+            'resolver' => $resolver,
+            'usageLogs' => $tenant instanceof Tenant
+                ? $usageReports->forClinic($tenant, 'model_usage_page')
+                : null,
         ]);
     }
 
     /**
      * Return a safe tenant ID for logs.
+     *
+     * @param  mixed  $tenant  Tenant in the current operation scope.
+     * @return int|null Resolved operation result.
+     *
+     * @since 1.0.0
      */
     private function tenantId(mixed $tenant): ?int
     {
@@ -153,6 +192,11 @@ class DashboardController extends Controller
 
     /**
      * Count arrays and collections safely for logs.
+     *
+     * @param  mixed  $value  Input value supplied to the operation.
+     * @return int|null Resolved operation result.
+     *
+     * @since 1.0.0
      */
     private function countValue(mixed $value): ?int
     {
@@ -165,6 +209,11 @@ class DashboardController extends Controller
 
     /**
      * Return a safe plan status value for logs.
+     *
+     * @param  mixed  $planAccess  The plan access value.
+     * @return string|null Resolved operation result.
+     *
+     * @since 1.0.0
      */
     private function planStatusValue(mixed $planAccess): ?string
     {

@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Actions\Ai\RunAiModelAction;
 use App\Models\AiModel;
 use App\Models\AiModelAccess;
+use App\Models\AiModelCategory;
 use App\Models\AiModelCategoryOutput;
 use App\Models\AiModelUsageLog;
 use App\Models\AiProvider;
@@ -22,6 +23,8 @@ use App\Models\TenantDomain;
 use App\Models\Upload;
 use App\Models\User;
 use App\Services\AI\AiModelManager;
+use App\Services\AI\InputImageProcessingSettings;
+use Database\Seeders\AiModelAccessSeeder;
 use Database\Seeders\DatabaseSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
@@ -44,6 +47,8 @@ class AiModelAccessManagementTest extends TestCase
         config([
             'app.debug' => true,
             'hairvision.debug_fast_samples' => true,
+            'hairvision.api_image.max_dimension' => 800,
+            'hairvision.api_image.jpeg_quality' => 85,
             'hairvision.otp.max_requests' => 10,
             'hairvision.otp.decay_seconds' => 600,
         ]);
@@ -66,6 +71,10 @@ class AiModelAccessManagementTest extends TestCase
             ->whereHas('category', fn ($query) => $query->where('code', 'hair_transplant'))
             ->pluck('prompt', 'code')
             ->all();
+        $outputMetadata = AiModelCategoryOutput::query()
+            ->whereHas('category', fn ($query) => $query->where('code', 'hair_transplant'))
+            ->get(['code', 'name', 'description'])
+            ->keyBy('code');
 
         $this->assertArrayHasKey('sample_image', config('ai-models.models'));
         $this->assertArrayHasKey('gapgpt', config('ai-models.models'));
@@ -87,6 +96,12 @@ class AiModelAccessManagementTest extends TestCase
         $this->assertSame('url', data_get($gapGpt->settings, 'response_format'));
         $this->assertSame(900, data_get($gapGpt->settings, 'timeout_seconds'));
         $this->assertSame(30, data_get($gapGpt->settings, 'connect_timeout_seconds'));
+
+        foreach ([$demo, $gapGpt] as $seededAccess) {
+            $this->assertTrue(data_get($seededAccess->settings, InputImageProcessingSettings::ENABLED));
+            $this->assertSame(800, data_get($seededAccess->settings, InputImageProcessingSettings::MAX_DIMENSION));
+            $this->assertSame(85, data_get($seededAccess->settings, InputImageProcessingSettings::JPEG_QUALITY));
+        }
         $this->assertArrayNotHasKey('retry_attempts', $gapGpt->settings);
         $this->assertArrayNotHasKey('retry_sleep_ms', $gapGpt->settings);
         $this->assertArrayNotHasKey('stage_prompts', $gapGpt->settings);
@@ -96,9 +111,15 @@ class AiModelAccessManagementTest extends TestCase
         sort($stagePromptKeys);
 
         $this->assertSame($expectedStagePromptKeys, $stagePromptKeys);
-        $this->assertStringContainsString('دو هفته بعد', $outputPrompts['two_weeks']);
-        $this->assertStringContainsString('رشد میانی', $outputPrompts['intermediate_regrowth']);
-        $this->assertStringContainsString('نتیجه نهایی', $outputPrompts['final_result']);
+        $this->assertSame(config('hairvision.generation.stages.two_weeks.prompt'), $outputPrompts['two_weeks']);
+        $this->assertSame(config('hairvision.generation.stages.intermediate_regrowth.prompt'), $outputPrompts['intermediate_regrowth']);
+        $this->assertSame(config('hairvision.generation.stages.final_result.prompt'), $outputPrompts['final_result']);
+        $this->assertSame('یک روز بعد از کاشت مو', $outputMetadata['two_weeks']->name);
+        $this->assertSame('نمای طبیعی روز اول با گرافت‌های تازه، قرمزی ملایم و ریزدلمه‌های قابل‌انتظار', $outputMetadata['two_weeks']->description);
+        $this->assertSame('۶ ماه بعد از کاشت مو', $outputMetadata['intermediate_regrowth']->name);
+        $this->assertSame('رشد میانی شش‌ماهه با خط رویش شکل‌گرفته، تراکم ناکامل و نمایان بودن طبیعی بخشی از پوست سر', $outputMetadata['intermediate_regrowth']->description);
+        $this->assertSame('یک سال بعد از کاشت مو', $outputMetadata['final_result']->name);
+        $this->assertSame('نتیجه کامل یک‌ساله با خط رویش طبیعی، پوشش متناسب و تراکم باورپذیر', $outputMetadata['final_result']->description);
 
         $this->assertSame([
             'مدل دمو کاشت ابرو',
@@ -107,13 +128,15 @@ class AiModelAccessManagementTest extends TestCase
             'مدل واقعی GapGPT کاشت مو',
         ], AiModelAccess::query()->orderBy('name')->pluck('name')->all());
 
-        $eyebrowOutputPrompts = AiModelCategoryOutput::query()
+        $eyebrowOutputs = AiModelCategoryOutput::query()
             ->whereHas('category', fn ($query) => $query->where('code', 'eyebrow_transplant'))
-            ->pluck('prompt', 'code')
-            ->all();
+            ->get(['code', 'name', 'description', 'prompt'])
+            ->keyBy('code');
 
-        $this->assertSame(['eyebrow_final_result'], array_keys($eyebrowOutputPrompts));
-        $this->assertStringContainsString('ابرو', $eyebrowOutputPrompts['eyebrow_final_result']);
+        $this->assertSame(['eyebrow_final_result'], $eyebrowOutputs->keys()->all());
+        $this->assertSame('یک سال بعد از کاشت ابرو', $eyebrowOutputs['eyebrow_final_result']->name);
+        $this->assertSame('نتیجه کامل یک‌ساله با تراکم، جهت رشد و عدم تقارن طبیعی ابروها', $eyebrowOutputs['eyebrow_final_result']->description);
+        $this->assertSame(config('hairvision.generation.stages.eyebrow_final_result.prompt'), $eyebrowOutputs['eyebrow_final_result']->prompt);
 
         $this->assertSame(3, AiModel::query()
             ->where('type', 'sample_image')
@@ -154,6 +177,36 @@ class AiModelAccessManagementTest extends TestCase
             ->wherePivot('is_active', true)
             ->exists());
         $this->assertTrue($tenant->aiModelAccesses()->whereKey($gapGpt->id)->wherePivot('is_active', false)->exists());
+    }
+
+    public function test_ai_model_access_seeder_refreshes_output_metadata_and_executable_prompt(): void
+    {
+        $this->seed(DatabaseSeeder::class);
+
+        $output = AiModelCategoryOutput::query()
+            ->where('code', 'two_weeks')
+            ->whereHas('category', fn ($query) => $query->where('code', 'hair_transplant'))
+            ->firstOrFail();
+
+        $output->update([
+            'name' => 'عنوان قدیمی',
+            'description' => 'توضیح قدیمی',
+            'prompt' => 'stale prompt',
+        ]);
+
+        $this->seed(AiModelAccessSeeder::class);
+
+        $output->refresh();
+        $this->assertSame('یک روز بعد از کاشت مو', $output->name);
+        $this->assertSame('نمای طبیعی روز اول با گرافت‌های تازه، قرمزی ملایم و ریزدلمه‌های قابل‌انتظار', $output->description);
+        $this->assertSame(config('hairvision.generation.stages.two_weeks.prompt'), $output->prompt);
+        $this->assertTrue(AiModel::query()
+            ->where('type', 'gapgpt')
+            ->whereHas('category', fn ($query) => $query->where('code', 'hair_transplant'))
+            ->whereHas('outputConfigs', fn ($query) => $query
+                ->where('ai_model_category_output_id', $output->id)
+                ->where('configuration->prompt', $output->prompt))
+            ->exists());
     }
 
     public function test_seeded_gapgpt_accesses_use_category_specific_names_and_dashboard_settings(): void
@@ -291,7 +344,7 @@ class AiModelAccessManagementTest extends TestCase
         $this->seed(DatabaseSeeder::class);
 
         $superAdmin = User::query()->where('role', 'super_admin')->firstOrFail();
-        $category = \App\Models\AiModelCategory::query()
+        $category = AiModelCategory::query()
             ->where('code', 'eyebrow_transplant')
             ->firstOrFail();
 
@@ -552,6 +605,82 @@ class AiModelAccessManagementTest extends TestCase
             ->assertForbidden();
     }
 
+    public function test_model_usage_reports_show_application_and_link_only_visible_leads(): void
+    {
+        $this->seed(DatabaseSeeder::class);
+
+        $tenant = Tenant::query()->where('slug', 'arya')->firstOrFail();
+        $clinicUser = User::query()->where('role', 'clinic_admin')->firstOrFail();
+        $superAdmin = User::query()->where('role', 'super_admin')->firstOrFail();
+        $this->activateSubscription($clinicUser);
+        $access = $tenant->aiModelAccesses()
+            ->where('usage_category_key', 'hair_transplant')
+            ->firstOrFail();
+        $lead = Lead::query()->create([
+            'tenant_id' => $tenant->id,
+            'phone' => '09121234567',
+            'phone_normalized' => '09121234567',
+            'phone_verified_at' => now(),
+            'status' => 'verified',
+        ]);
+        AiModelUsageLog::query()->create([
+            'clinic_id' => $tenant->id,
+            'lead_id' => $lead->id,
+            'ai_model_access_id' => $access->id,
+            'usage_category_key' => 'hair_transplant',
+            'status' => 'completed',
+            'credit_consumed' => 1,
+            'started_at' => now(),
+            'completed_at' => now(),
+        ]);
+
+        $otherTenant = $this->createTenant('Clinic Other', 'other', 'other.hairvision-ai.test');
+        $otherLead = Lead::query()->create([
+            'tenant_id' => $otherTenant->id,
+            'phone' => '09129876543',
+            'phone_normalized' => '09129876543',
+            'phone_verified_at' => now(),
+            'status' => 'verified',
+        ]);
+        AiModelUsageLog::query()->create([
+            'clinic_id' => $otherTenant->id,
+            'lead_id' => $otherLead->id,
+            'ai_model_access_id' => $access->id,
+            'usage_category_key' => 'hair_transplant',
+            'status' => 'completed',
+            'credit_consumed' => 1,
+            'started_at' => now(),
+            'completed_at' => now(),
+        ]);
+
+        $this->actingAs($superAdmin)
+            ->forHost('hairvision-ai.test')
+            ->get(route('admin.ai-models.show', $access, false))
+            ->assertOk()
+            ->assertSee(__('ai_models.usage_type'))
+            ->assertSee(__('ai_models.usage_categories.hair_transplant'))
+            ->assertSee('09121234567')
+            ->assertSee('09129876543')
+            ->assertSee(route('admin.leads.show', $lead), false);
+
+        $this->actingAs($clinicUser)
+            ->withSession(['admin_active_tenant_id' => $tenant->id])
+            ->forHost('hairvision-ai.test')
+            ->get(route('admin.reports.credit-usage', absolute: false))
+            ->assertOk()
+            ->assertSee(__('ai_models.usage_type'))
+            ->assertSee(__('ai_models.usage_categories.hair_transplant'))
+            ->assertSee('09121234567')
+            ->assertDontSee('09129876543')
+            ->assertSee(route('admin.leads.show', $lead), false);
+
+        $this->actingAs($clinicUser)
+            ->withSession(['admin_active_tenant_id' => $tenant->id])
+            ->forHost('hairvision-ai.test')
+            ->get(route('admin.leads.show', $lead, false))
+            ->assertOk();
+    }
+
     public function test_assigned_active_model_is_used_for_generation_credit_and_logs(): void
     {
         $this->seed(DatabaseSeeder::class);
@@ -596,6 +725,11 @@ class AiModelAccessManagementTest extends TestCase
         $this->assertSame(3, $access->usage_count);
         $this->assertNotNull($access->last_used_at);
         $this->assertSame(3, AiModelUsageLog::query()->where('ai_model_access_id', $access->id)->where('status', 'completed')->count());
+        $this->assertSame(3, AiModelUsageLog::query()
+            ->where('ai_model_access_id', $access->id)
+            ->where('status', 'completed')
+            ->whereNotNull('lead_id')
+            ->count());
         $this->assertSame(3, GenerationGroup::query()->where('uuid', $groupId)->firstOrFail()->jobs()->where('ai_model_access_id', $access->id)->count());
     }
 
@@ -830,7 +964,7 @@ class AiModelAccessManagementTest extends TestCase
     public function test_active_demo_model_returns_predefined_image_for_each_stage(): void
     {
         $tenant = $this->createTenant('Clinic One', 'arya', 'arya.hairvision-ai.test');
-        $this->seedSampleImages();
+        $sampleImage = $this->seedSampleImages();
 
         $access = $this->createAccess([
             'is_demo' => true,
@@ -849,7 +983,7 @@ class AiModelAccessManagementTest extends TestCase
             );
 
             $this->assertTrue($response->successful);
-            $this->assertSame(base64_decode(self::TEST_JPEG_BASE64), $response->output['binary_content'] ?? null);
+            $this->assertSame($sampleImage, $response->output['binary_content'] ?? null);
             $this->assertSame('sample_image', $response->metadata['provider'] ?? null);
             $this->assertSame($stageKey, $response->metadata['stage_key'] ?? null);
         }
@@ -870,7 +1004,7 @@ class AiModelAccessManagementTest extends TestCase
         );
 
         $this->assertTrue($eyebrowResponse->successful);
-        $this->assertSame(base64_decode(self::TEST_JPEG_BASE64), $eyebrowResponse->output['binary_content'] ?? null);
+        $this->assertSame($sampleImage, $eyebrowResponse->output['binary_content'] ?? null);
         $this->assertSame('eyebrow_final_result', $eyebrowResponse->metadata['stage_key'] ?? null);
 
         $access->refresh();
@@ -1047,11 +1181,41 @@ class AiModelAccessManagementTest extends TestCase
         return new UploadedFile($path, 'scalp.jpg', 'image/jpeg', null, true);
     }
 
-    private function seedSampleImages(): void
+    private function seedSampleImages(): string
     {
+        $sampleImage = $this->patternedJpeg(1600, 800);
+
         foreach (['two-weeks.jpg', 'intermediate_regrowth.jpg', 'final_result.jpg', 'eyebrow_final_result.jpg'] as $filename) {
-            Storage::disk('local')->put('sample-results/'.$filename, base64_decode(self::TEST_JPEG_BASE64));
+            Storage::disk('local')->put('sample-results/'.$filename, $sampleImage);
         }
+
+        return $sampleImage;
+    }
+
+    private function patternedJpeg(int $width, int $height): string
+    {
+        $image = imagecreatetruecolor($width, $height);
+
+        for ($y = 0; $y < $height; $y += 20) {
+            for ($x = 0; $x < $width; $x += 20) {
+                $color = imagecolorallocate(
+                    $image,
+                    ($x * 13 + $y * 3) % 256,
+                    ($x * 5 + $y * 17) % 256,
+                    ($x * 19 + $y * 7) % 256,
+                );
+                imagefilledrectangle($image, $x, $y, min($x + 19, $width - 1), min($y + 19, $height - 1), $color);
+            }
+        }
+
+        ob_start();
+        imagejpeg($image, null, 95);
+        $binary = ob_get_clean();
+        imagedestroy($image);
+
+        $this->assertIsString($binary);
+
+        return $binary;
     }
 
     private function activateSubscription(User $user): Subscription

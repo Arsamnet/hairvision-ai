@@ -23,6 +23,14 @@ use Illuminate\View\View;
  */
 class PaymentGatewayController extends Controller
 {
+    /**
+     * Display the payment gateway listing.
+     *
+     * @param  Request  $request  Incoming HTTP request.
+     * @return View Rendered response view.
+     *
+     * @since 1.0.0
+     */
     public function index(Request $request): View
     {
         $pagination = PaginationParameters::fromRequest(
@@ -46,6 +54,15 @@ class PaymentGatewayController extends Controller
         ]);
     }
 
+    /**
+     * Persist a new payment gateway record.
+     *
+     * @param  Request  $request  Incoming HTTP request.
+     * @param  PaymentGatewayService  $gateways  The gateways value.
+     * @return RedirectResponse HTTP redirect response.
+     *
+     * @since 1.0.0
+     */
     public function store(Request $request, PaymentGatewayService $gateways): RedirectResponse
     {
         $gateway = PaymentGateway::create($this->validated($request));
@@ -57,6 +74,16 @@ class PaymentGatewayController extends Controller
         return back()->with('status', __('messages.payment_gateway_created'));
     }
 
+    /**
+     * Update the requested payment gateway record.
+     *
+     * @param  Request  $request  Incoming HTTP request.
+     * @param  PaymentGateway  $paymentGateway  The payment gateway value.
+     * @param  PaymentGatewayService  $gateways  The gateways value.
+     * @return RedirectResponse HTTP redirect response.
+     *
+     * @since 1.0.0
+     */
     public function update(Request $request, PaymentGateway $paymentGateway, PaymentGatewayService $gateways): RedirectResponse
     {
         $paymentGateway->update($this->validated($request, $paymentGateway));
@@ -69,7 +96,13 @@ class PaymentGatewayController extends Controller
     }
 
     /**
+     * Validate d.
+     *
+     * @param  Request  $request  Incoming HTTP request.
+     * @param  PaymentGateway|null  $gateway  The gateway value.
      * @return array<string, mixed>
+     *
+     * @since 1.0.0
      */
     private function validated(Request $request, ?PaymentGateway $gateway = null): array
     {

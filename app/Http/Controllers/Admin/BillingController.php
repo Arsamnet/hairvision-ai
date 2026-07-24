@@ -26,6 +26,16 @@ use Throwable;
  */
 class BillingController extends Controller
 {
+    /**
+     * Display the billing listing.
+     *
+     * @param  Request  $request  Incoming HTTP request.
+     * @param  BillingService  $billing  The billing value.
+     * @param  ServiceEntitlementService  $entitlements  The entitlements value.
+     * @return View Rendered response view.
+     *
+     * @since 1.0.0
+     */
     public function index(Request $request, BillingService $billing, ServiceEntitlementService $entitlements): View
     {
         $user = $request->user();
@@ -75,6 +85,16 @@ class BillingController extends Controller
         ]);
     }
 
+    /**
+     * Execute the pay operation.
+     *
+     * @param  Request  $request  Incoming HTTP request.
+     * @param  Invoice  $invoice  The invoice value.
+     * @param  BillingService  $billing  The billing value.
+     * @return RedirectResponse HTTP redirect response.
+     *
+     * @since 1.0.0
+     */
     public function pay(Request $request, Invoice $invoice, BillingService $billing): RedirectResponse
     {
         abort_unless($this->canAccessInvoice($request, $invoice), 403);
@@ -118,6 +138,16 @@ class BillingController extends Controller
         }
     }
 
+    /**
+     * Verify a payment gateway callback.
+     *
+     * @param  Request  $request  Incoming HTTP request.
+     * @param  Payment  $payment  The payment value.
+     * @param  BillingService  $billing  The billing value.
+     * @return RedirectResponse HTTP redirect response.
+     *
+     * @since 1.0.0
+     */
     public function verify(Request $request, Payment $payment, BillingService $billing): RedirectResponse
     {
         $payment->loadMissing('invoice');
@@ -162,6 +192,12 @@ class BillingController extends Controller
 
     /**
      * Show the persisted server-side result without trusting callback query data.
+     *
+     * @param  Request  $request  Incoming HTTP request.
+     * @param  Payment  $payment  The payment value.
+     * @return View Rendered response view.
+     *
+     * @since 1.0.0
      */
     public function result(Request $request, Payment $payment): View
     {
@@ -184,6 +220,15 @@ class BillingController extends Controller
         ]);
     }
 
+    /**
+     * Execute the can access invoice operation.
+     *
+     * @param  Request  $request  Incoming HTTP request.
+     * @param  Invoice  $invoice  The invoice value.
+     * @return bool Whether the requested condition is satisfied.
+     *
+     * @since 1.0.0
+     */
     private function canAccessInvoice(Request $request, Invoice $invoice): bool
     {
         $user = $request->user();
@@ -207,11 +252,27 @@ class BillingController extends Controller
         return ($isUserOwned || $isUnassignedTenantInvoice) && $isInCurrentTenant;
     }
 
+    /**
+     * Determine whether clinic admin host.
+     *
+     * @param  Request  $request  Incoming HTTP request.
+     * @return bool Whether the requested condition is satisfied.
+     *
+     * @since 1.0.0
+     */
     private function isClinicAdminHost(Request $request): bool
     {
         return ! HostClassifier::isPrimaryHost($request->getHost());
     }
 
+    /**
+     * Execute the redirect to gateway operation.
+     *
+     * @param  string  $url  The url value.
+     * @return RedirectResponse HTTP redirect response.
+     *
+     * @since 1.0.0
+     */
     private function redirectToGateway(string $url): RedirectResponse
     {
         // Payment starts from a POST form. A 303 guarantees the external
@@ -223,6 +284,14 @@ class BillingController extends Controller
         return redirect()->to($url, Response::HTTP_SEE_OTHER);
     }
 
+    /**
+     * Execute the redirect to payment result operation.
+     *
+     * @param  Payment  $payment  The payment value.
+     * @return RedirectResponse HTTP redirect response.
+     *
+     * @since 1.0.0
+     */
     private function redirectToPaymentResult(Payment $payment): RedirectResponse
     {
         return redirect()->route(
@@ -232,6 +301,14 @@ class BillingController extends Controller
         );
     }
 
+    /**
+     * Execute the gateway rejected callback operation.
+     *
+     * @param  Request  $request  Incoming HTTP request.
+     * @return bool Whether the requested condition is satisfied.
+     *
+     * @since 1.0.0
+     */
     private function gatewayRejectedCallback(Request $request): bool
     {
         if (! $request->hasAny(['Status', 'status'])) {
@@ -242,7 +319,12 @@ class BillingController extends Controller
     }
 
     /**
+     * Execute the callback payload operation.
+     *
+     * @param  Request  $request  Incoming HTTP request.
      * @return array<string, mixed>
+     *
+     * @since 1.0.0
      */
     private function callbackPayload(Request $request): array
     {

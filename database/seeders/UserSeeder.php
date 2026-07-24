@@ -7,8 +7,20 @@ use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 
+/**
+ * Provides user seeder behavior.
+ *
+ * @since 1.0.0
+ */
 class UserSeeder extends Seeder
 {
+    /**
+     * Execute the user seeder operation.
+     *
+     * @return void No value is returned.
+     *
+     * @since 1.0.0
+     */
     public function run(): void
     {
         foreach ($this->users() as $user) {
@@ -17,7 +29,11 @@ class UserSeeder extends Seeder
     }
 
     /**
+     * Execute the users operation.
+     *
      * @return array<int, array{name: string, email: string, phone: string, role: string}>
+     *
+     * @since 1.0.0
      */
     private function users(): array
     {
@@ -61,6 +77,17 @@ class UserSeeder extends Seeder
         ];
     }
 
+    /**
+     * Execute the upsert user operation.
+     *
+     * @param  string  $name  The name value.
+     * @param  string  $email  The email value.
+     * @param  string  $phone  The phone value.
+     * @param  string  $role  The role value.
+     * @return User Resolved operation result.
+     *
+     * @since 1.0.0
+     */
     private function upsertUser(string $name, string $email, string $phone, string $role): User
     {
         $user = User::query()

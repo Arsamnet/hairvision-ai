@@ -18,13 +18,24 @@ use Illuminate\Validation\Validator;
  */
 class UpdatePlanRequest extends FormRequest
 {
+    /**
+     * Determine whether the current user may submit this request.
+     *
+     * @return bool Whether the requested condition is satisfied.
+     *
+     * @since 1.0.0
+     */
     public function authorize(): bool
     {
         return $this->user()?->hasAnyPermission(['plans.edit', 'plans.manage']) ?? false;
     }
 
     /**
+     * Return the validation rules for the request.
+     *
      * @return array<string, mixed>
+     *
+     * @since 1.0.0
      */
     public function rules(): array
     {
@@ -50,6 +61,14 @@ class UpdatePlanRequest extends FormRequest
         ];
     }
 
+    /**
+     * Execute the with validator operation.
+     *
+     * @param  Validator  $validator  The validator value.
+     * @return void No value is returned.
+     *
+     * @since 1.0.0
+     */
     public function withValidator(Validator $validator): void
     {
         $validator->after(function (Validator $validator): void {
@@ -79,7 +98,11 @@ class UpdatePlanRequest extends FormRequest
     }
 
     /**
+     * Return localized validation messages.
+     *
      * @return array<string, string>
+     *
+     * @since 1.0.0
      */
     public function messages(): array
     {
@@ -90,6 +113,13 @@ class UpdatePlanRequest extends FormRequest
         ];
     }
 
+    /**
+     * Normalize request input before validation.
+     *
+     * @return void No value is returned.
+     *
+     * @since 1.0.0
+     */
     protected function prepareForValidation(): void
     {
         $serviceCredits = $this->input('service_credits');
@@ -130,7 +160,12 @@ class UpdatePlanRequest extends FormRequest
     }
 
     /**
+     * Execute the string array operation.
+     *
+     * @param  string  $key  The key value.
      * @return array<int, mixed>
+     *
+     * @since 1.0.0
      */
     private function stringArray(string $key): array
     {

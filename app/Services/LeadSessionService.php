@@ -18,7 +18,14 @@ class LeadSessionService
     /**
      * Return the verified lead for the current tenant session.
      *
+     * @param  Request  $request  Incoming HTTP request.
+     * @param  Tenant  $tenant  Tenant in the current operation scope.
+     * @param  string  $message  The message value.
+     * @return Lead Resolved operation result.
+     *
      * @throws HttpException
+     *
+     * @since 1.0.0
      */
     public function verifiedLead(Request $request, Tenant $tenant, string $message): Lead
     {

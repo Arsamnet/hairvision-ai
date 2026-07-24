@@ -20,6 +20,7 @@ class AiModelUsageLog extends Model
 
     protected $fillable = [
         'clinic_id',
+        'lead_id',
         'user_id',
         'ai_model_access_id',
         'usage_category_key',
@@ -49,6 +50,8 @@ class AiModelUsageLog extends Model
      * Clinic tenant where the model was used.
      *
      * @return BelongsTo<Tenant, $this>
+     *
+     * @since 1.0.0
      */
     public function clinic(): BelongsTo
     {
@@ -56,9 +59,23 @@ class AiModelUsageLog extends Model
     }
 
     /**
+     * Verified lead whose image caused this model execution.
+     *
+     * @return BelongsTo<Lead, $this>
+     *
+     * @since 2.0.0
+     */
+    public function lead(): BelongsTo
+    {
+        return $this->belongsTo(Lead::class);
+    }
+
+    /**
      * Dashboard user that initiated usage when available.
      *
      * @return BelongsTo<User, $this>
+     *
+     * @since 1.0.0
      */
     public function user(): BelongsTo
     {
@@ -69,6 +86,8 @@ class AiModelUsageLog extends Model
      * AI model access record used for execution.
      *
      * @return BelongsTo<AiModelAccess, $this>
+     *
+     * @since 1.0.0
      */
     public function aiModelAccess(): BelongsTo
     {

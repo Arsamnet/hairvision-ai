@@ -8,7 +8,11 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 
 /**
+ * Provides platform user factory behavior.
+ *
  * @extends Factory<PlatformUser>
+ *
+ * @since 1.0.0
  */
 class PlatformUserFactory extends Factory
 {
@@ -16,6 +20,13 @@ class PlatformUserFactory extends Factory
 
     protected static ?string $password;
 
+    /**
+     * Execute the definition operation.
+     *
+     * @return array Resolved data array.
+     *
+     * @since 1.0.0
+     */
     public function definition(): array
     {
         return [

@@ -17,8 +17,24 @@ use Illuminate\Support\Collection;
  */
 class ExecutableAiModelSyncService
 {
+    /**
+     * Create a new executable ai model sync service instance.
+     *
+     * @param  GenerationStageCatalog  $stageCatalog  The stage catalog value.
+     *
+     * @since 2.0.0
+     */
     public function __construct(private readonly GenerationStageCatalog $stageCatalog) {}
 
+    /**
+     * Synchronize sync.
+     *
+     * @param  AiModelAccess  $access  The access value.
+     * @param  User|null  $actor  Authenticated user performing the operation.
+     * @return AiModel|null Resolved operation result.
+     *
+     * @since 2.0.0
+     */
     public function sync(AiModelAccess $access, ?User $actor = null): ?AiModel
     {
         $category = AiModelCategory::query()
@@ -62,6 +78,14 @@ class ExecutableAiModelSyncService
         return $model->refresh();
     }
 
+    /**
+     * Synchronize for category.
+     *
+     * @param  AiModelCategory  $category  The category value.
+     * @return void No value is returned.
+     *
+     * @since 2.0.0
+     */
     public function syncForCategory(AiModelCategory $category): void
     {
         AiModelAccess::query()
@@ -69,11 +93,27 @@ class ExecutableAiModelSyncService
             ->each(fn (AiModelAccess $access): ?AiModel => $this->sync($access));
     }
 
+    /**
+     * Execute the type exists operation.
+     *
+     * @param  string  $type  The type value.
+     * @return bool Whether the requested condition is satisfied.
+     *
+     * @since 2.0.0
+     */
     private function typeExists(string $type): bool
     {
         return array_key_exists($type, config('ai-models.types', []));
     }
 
+    /**
+     * Execute the concurrency limit for operation.
+     *
+     * @param  AiModelAccess  $access  The access value.
+     * @return int Calculated numeric value.
+     *
+     * @since 2.0.0
+     */
     private function concurrencyLimitFor(AiModelAccess $access): int
     {
         return max(1, (int) data_get(
@@ -84,7 +124,14 @@ class ExecutableAiModelSyncService
     }
 
     /**
+     * Synchronize output configs.
+     *
      * @param  Collection<int, AiModelCategoryOutput>  $outputs
+     * @param  AiModel  $model  The model value.
+     * @param  AiModelAccess  $access  The access value.
+     * @return void No value is returned.
+     *
+     * @since 2.0.0
      */
     private function syncOutputConfigs(AiModel $model, AiModelAccess $access, Collection $outputs): void
     {
@@ -102,7 +149,13 @@ class ExecutableAiModelSyncService
     }
 
     /**
+     * Execute the configuration for operation.
+     *
+     * @param  AiModelAccess  $access  The access value.
+     * @param  AiModelCategoryOutput  $output  The output value.
      * @return array<string, mixed>
+     *
+     * @since 2.0.0
      */
     private function configurationFor(AiModelAccess $access, AiModelCategoryOutput $output): array
     {
@@ -117,6 +170,15 @@ class ExecutableAiModelSyncService
         };
     }
 
+    /**
+     * Execute the sample path for operation.
+     *
+     * @param  AiModelAccess  $access  The access value.
+     * @param  AiModelCategoryOutput  $output  The output value.
+     * @return string Resolved string value.
+     *
+     * @since 2.0.0
+     */
     private function samplePathFor(AiModelAccess $access, AiModelCategoryOutput $output): string
     {
         return data_get($access->settings, 'demo_images.'.$output->code)

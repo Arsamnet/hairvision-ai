@@ -46,6 +46,8 @@ class TenantThemeSetting extends Model
      * Tenant that owns these theme settings.
      *
      * @return BelongsTo<Tenant, $this>
+     *
+     * @since 1.0.0
      */
     public function tenant(): BelongsTo
     {
@@ -56,6 +58,9 @@ class TenantThemeSetting extends Model
      * Resolve a safe favicon URL, falling back when tenant input is invalid.
      *
      * @param  string  $fallback  Trusted application favicon URL.
+     * @return string Resolved string value.
+     *
+     * @since 1.0.0
      */
     public function faviconHref(string $fallback): string
     {
@@ -93,6 +98,8 @@ class TenantThemeSetting extends Model
      * Template selected for this tenant theme.
      *
      * @return BelongsTo<Template, $this>
+     *
+     * @since 1.0.0
      */
     public function template(): BelongsTo
     {

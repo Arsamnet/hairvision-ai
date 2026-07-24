@@ -39,6 +39,8 @@ class TenantAiSetting extends Model
      * Tenant that owns this provider setting.
      *
      * @return BelongsTo<Tenant, $this>
+     *
+     * @since 1.0.0
      */
     public function tenant(): BelongsTo
     {
@@ -49,6 +51,8 @@ class TenantAiSetting extends Model
      * Legacy provider catalog row referenced by this setting.
      *
      * @return BelongsTo<AiProvider, $this>
+     *
+     * @since 1.0.0
      */
     public function provider(): BelongsTo
     {

@@ -14,6 +14,14 @@ use Illuminate\Support\Str;
  */
 class UserSavedFilterController extends Controller
 {
+    /**
+     * Persist a new user saved filter record.
+     *
+     * @param  Request  $request  Incoming HTTP request.
+     * @return RedirectResponse HTTP redirect response.
+     *
+     * @since 1.0.0
+     */
     public function store(Request $request): RedirectResponse
     {
         $validated = $request->validate([
@@ -37,8 +45,12 @@ class UserSavedFilterController extends Controller
     }
 
     /**
+     * Execute the sanitize filters operation.
+     *
      * @param  array<string, mixed>  $filters
      * @return array<string, string>
+     *
+     * @since 1.0.0
      */
     private function sanitizeFilters(array $filters): array
     {

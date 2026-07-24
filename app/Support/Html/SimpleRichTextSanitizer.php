@@ -31,6 +31,14 @@ class SimpleRichTextSanitizer
         'ul',
     ];
 
+    /**
+     * Execute the sanitize operation.
+     *
+     * @param  string|null  $html  The html value.
+     * @return string Resolved string value.
+     *
+     * @since 1.0.0
+     */
     public function sanitize(?string $html): string
     {
         $html = trim((string) $html);
@@ -58,11 +66,27 @@ class SimpleRichTextSanitizer
         return trim($output);
     }
 
+    /**
+     * Execute the plain text operation.
+     *
+     * @param  string  $html  The html value.
+     * @return string Resolved string value.
+     *
+     * @since 1.0.0
+     */
     public function plainText(string $html): string
     {
         return trim(preg_replace('/\s+/', ' ', html_entity_decode(strip_tags($html), ENT_QUOTES | ENT_HTML5, 'UTF-8')) ?? '');
     }
 
+    /**
+     * Execute the sanitize node operation.
+     *
+     * @param  DOMNode|null  $node  The node value.
+     * @return void No value is returned.
+     *
+     * @since 1.0.0
+     */
     private function sanitizeNode(?DOMNode $node): void
     {
         if (! $node) {
@@ -90,6 +114,14 @@ class SimpleRichTextSanitizer
         }
     }
 
+    /**
+     * Execute the safe href operation.
+     *
+     * @param  string  $href  The href value.
+     * @return bool Whether the requested condition is satisfied.
+     *
+     * @since 1.0.0
+     */
     private function safeHref(string $href): bool
     {
         if ($href === '') {

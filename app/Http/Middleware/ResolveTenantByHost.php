@@ -19,6 +19,10 @@ class ResolveTenantByHost
      * Resolve an active tenant domain and bind it to the request.
      *
      * @param  Closure(Request): mixed  $next
+     * @param  Request  $request  Incoming HTTP request.
+     * @return mixed Resolved operation result.
+     *
+     * @since 1.0.0
      */
     public function handle(Request $request, Closure $next): mixed
     {

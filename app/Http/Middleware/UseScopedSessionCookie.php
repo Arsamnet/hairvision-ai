@@ -17,7 +17,13 @@ use Illuminate\Http\Request;
 class UseScopedSessionCookie
 {
     /**
+     * Execute the use scoped session cookie operation.
+     *
      * @param  Closure(Request): mixed  $next
+     * @param  Request  $request  Incoming HTTP request.
+     * @return mixed Resolved operation result.
+     *
+     * @since 1.0.0
      */
     public function handle(Request $request, Closure $next): mixed
     {
@@ -44,6 +50,14 @@ class UseScopedSessionCookie
         return $next($request);
     }
 
+    /**
+     * Execute the cookie name operation.
+     *
+     * @param  Request  $request  Incoming HTTP request.
+     * @return string Resolved string value.
+     *
+     * @since 1.0.0
+     */
     private function cookieName(Request $request): string
     {
         if ($request->is('api/v1/*')) {
@@ -59,6 +73,14 @@ class UseScopedSessionCookie
         return (string) config('session.cookie', 'hairvision_session');
     }
 
+    /**
+     * Determine whether platform host.
+     *
+     * @param  Request  $request  Incoming HTTP request.
+     * @return bool Whether the requested condition is satisfied.
+     *
+     * @since 1.0.0
+     */
     private function isPlatformHost(Request $request): bool
     {
         return HostClassifier::isPrimaryHost($request->getHost());

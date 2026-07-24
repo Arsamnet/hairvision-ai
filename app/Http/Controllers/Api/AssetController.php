@@ -19,6 +19,13 @@ class AssetController extends Controller
 {
     /**
      * Stream a generated image after tenant and lead checks.
+     *
+     * @param  Request  $request  Incoming HTTP request.
+     * @param  string  $uuid  The uuid value.
+     * @param  LeadSessionService  $leadSessionService  The lead session service value.
+     * @return Response HTTP response.
+     *
+     * @since 1.0.0
      */
     public function show(Request $request, string $uuid, LeadSessionService $leadSessionService): Response
     {
@@ -54,6 +61,13 @@ class AssetController extends Controller
 
     /**
      * Stream endpoint alias used by v2 generation resources.
+     *
+     * @param  Request  $request  Incoming HTTP request.
+     * @param  string  $uuid  The uuid value.
+     * @param  LeadSessionService  $leadSessionService  The lead session service value.
+     * @return Response HTTP response.
+     *
+     * @since 1.0.0
      */
     public function stream(Request $request, string $uuid, LeadSessionService $leadSessionService): Response
     {
@@ -62,6 +76,12 @@ class AssetController extends Controller
 
     /**
      * Get the tenant resolved by tenant middleware.
+     *
+     * @param  Request  $request  Incoming HTTP request.
+     * @param  string  $scope  The scope value.
+     * @return Tenant Resolved operation result.
+     *
+     * @since 1.0.0
      */
     private function tenantFromRequest(Request $request, string $scope): Tenant
     {

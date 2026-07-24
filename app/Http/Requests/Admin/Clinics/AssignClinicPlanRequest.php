@@ -14,6 +14,13 @@ use Illuminate\Validation\Validator;
  */
 class AssignClinicPlanRequest extends FormRequest
 {
+    /**
+     * Determine whether the current user may submit this request.
+     *
+     * @return bool Whether the requested condition is satisfied.
+     *
+     * @since 1.0.0
+     */
     public function authorize(): bool
     {
         $user = $this->user();
@@ -22,7 +29,11 @@ class AssignClinicPlanRequest extends FormRequest
     }
 
     /**
+     * Return the validation rules for the request.
+     *
      * @return array<string, mixed>
+     *
+     * @since 1.0.0
      */
     public function rules(): array
     {
@@ -36,6 +47,14 @@ class AssignClinicPlanRequest extends FormRequest
         ];
     }
 
+    /**
+     * Execute the with validator operation.
+     *
+     * @param  Validator  $validator  The validator value.
+     * @return void No value is returned.
+     *
+     * @since 1.0.0
+     */
     public function withValidator(Validator $validator): void
     {
         $validator->after(function (Validator $validator): void {
@@ -45,6 +64,13 @@ class AssignClinicPlanRequest extends FormRequest
         });
     }
 
+    /**
+     * Normalize request input before validation.
+     *
+     * @return void No value is returned.
+     *
+     * @since 1.0.0
+     */
     protected function prepareForValidation(): void
     {
         $clinic = $this->route('clinic');

@@ -15,8 +15,20 @@ use App\Services\Billing\SubscriptionActivationService;
 use App\Support\JalaliDate;
 use Illuminate\Database\Seeder;
 
+/**
+ * Provides subscription seeder behavior.
+ *
+ * @since 1.0.0
+ */
 class SubscriptionSeeder extends Seeder
 {
+    /**
+     * Execute the subscription seeder operation.
+     *
+     * @return void No value is returned.
+     *
+     * @since 1.0.0
+     */
     public function run(): void
     {
         $aryaAdmin = User::query()->where('phone_normalized', '09217359491')->firstOrFail();
@@ -53,6 +65,20 @@ class SubscriptionSeeder extends Seeder
         );
     }
 
+    /**
+     * Execute the seed starter subscription operation.
+     *
+     * @param  string  $tenantSlug  The tenant slug value.
+     * @param  string  $planName  The plan name value.
+     * @param  string  $invoiceNumber  The invoice number value.
+     * @param  string  $paymentKey  The payment key value.
+     * @param  string  $authority  The authority value.
+     * @param  string  $referenceId  The reference id value.
+     * @param  User|null  $user  Authenticated user performing the operation.
+     * @return void No value is returned.
+     *
+     * @since 1.0.0
+     */
     private function seedStarterSubscription(
         string $tenantSlug,
         string $planName,
@@ -132,6 +158,15 @@ class SubscriptionSeeder extends Seeder
         );
     }
 
+    /**
+     * Execute the active starter subscription operation.
+     *
+     * @param  Tenant  $tenant  Tenant in the current operation scope.
+     * @param  Plan  $starterPlan  The starter plan value.
+     * @return Subscription|null Resolved operation result.
+     *
+     * @since 1.0.0
+     */
     private function activeStarterSubscription(Tenant $tenant, Plan $starterPlan): ?Subscription
     {
         return Subscription::query()
@@ -144,6 +179,20 @@ class SubscriptionSeeder extends Seeder
             ->first();
     }
 
+    /**
+     * Execute the seed payment operation.
+     *
+     * @param  Tenant  $tenant  Tenant in the current operation scope.
+     * @param  User|null  $user  Authenticated user performing the operation.
+     * @param  Plan  $starterPlan  The starter plan value.
+     * @param  Invoice  $invoice  The invoice value.
+     * @param  string  $paymentKey  The payment key value.
+     * @param  string  $authority  The authority value.
+     * @param  string  $referenceId  The reference id value.
+     * @return void No value is returned.
+     *
+     * @since 1.0.0
+     */
     private function seedPayment(
         Tenant $tenant,
         ?User $user,
@@ -181,6 +230,18 @@ class SubscriptionSeeder extends Seeder
         );
     }
 
+    /**
+     * Synchronize seeded subscription entitlements.
+     *
+     * @param  Tenant  $tenant  Tenant in the current operation scope.
+     * @param  User|null  $user  Authenticated user performing the operation.
+     * @param  Plan  $starterPlan  The starter plan value.
+     * @param  Subscription  $subscription  The subscription value.
+     * @param  Invoice  $invoice  The invoice value.
+     * @return void No value is returned.
+     *
+     * @since 1.0.0
+     */
     private function syncSeededSubscriptionEntitlements(
         Tenant $tenant,
         ?User $user,

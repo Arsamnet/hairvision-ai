@@ -20,6 +20,13 @@ class LeadGeneratedAssetController extends Controller
 {
     /**
      * Stream an authorized generated image.
+     *
+     * @param  Request  $request  Incoming HTTP request.
+     * @param  Lead  $lead  Lead in the current tenant scope.
+     * @param  GeneratedAsset  $generatedAsset  The generated asset value.
+     * @return Response HTTP response.
+     *
+     * @since 1.0.0
      */
     public function show(Request $request, Lead $lead, GeneratedAsset $generatedAsset): Response
     {
@@ -67,6 +74,11 @@ class LeadGeneratedAssetController extends Controller
 
     /**
      * Return a safe tenant ID for logs.
+     *
+     * @param  mixed  $tenant  Tenant in the current operation scope.
+     * @return int|null Resolved operation result.
+     *
+     * @since 1.0.0
      */
     private function tenantId(mixed $tenant): ?int
     {
@@ -75,6 +87,12 @@ class LeadGeneratedAssetController extends Controller
 
     /**
      * Resolve a safe image MIME type without relying on Storage::mimeType().
+     *
+     * @param  string|null  $storedMime  The stored mime value.
+     * @param  string  $path  Storage or resource path.
+     * @return string Resolved string value.
+     *
+     * @since 1.0.0
      */
     private function resolveImageMime(?string $storedMime, string $path): string
     {

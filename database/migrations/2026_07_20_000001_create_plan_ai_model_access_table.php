@@ -7,6 +7,13 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
+    /**
+     * Execute the up operation.
+     *
+     * @return void No value is returned.
+     *
+     * @since 2.0.0
+     */
     public function up(): void
     {
         Schema::create('plan_ai_model_access', function (Blueprint $table): void {
@@ -22,6 +29,13 @@ return new class extends Migration
         $this->backfillExistingPlans();
     }
 
+    /**
+     * Execute the down operation.
+     *
+     * @return void No value is returned.
+     *
+     * @since 2.0.0
+     */
     public function down(): void
     {
         Schema::dropIfExists('plan_ai_model_access');
@@ -30,6 +44,10 @@ return new class extends Migration
     /**
      * Preserve legacy plans when one highest-priority executable model covers
      * every active output of each purchased application.
+     *
+     * @return void No value is returned.
+     *
+     * @since 2.0.0
      */
     private function backfillExistingPlans(): void
     {
@@ -65,6 +83,15 @@ return new class extends Migration
             ));
     }
 
+    /**
+     * Execute the backfill service operation.
+     *
+     * @param  int  $planId  The plan id value.
+     * @param  string  $serviceKey  The service key value.
+     * @return void No value is returned.
+     *
+     * @since 2.0.0
+     */
     private function backfillService(int $planId, string $serviceKey): void
     {
         $categoryId = DB::table('ai_model_categories')

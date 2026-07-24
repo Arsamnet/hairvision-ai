@@ -15,12 +15,23 @@ use App\Support\JalaliDate;
  */
 class PlanAccessService
 {
+    /**
+     * Create a new plan access service instance.
+     *
+     * @param  ServiceEntitlementService  $entitlements  The entitlements value.
+     *
+     * @since 1.0.0
+     */
     public function __construct(private readonly ServiceEntitlementService $entitlements) {}
 
     /**
      * Return the user's plan access state and relevant subscription record.
      *
+     * @param  User  $user  Authenticated user performing the operation.
+     * @param  Tenant|null  $tenant  Tenant in the current operation scope.
      * @return array{status: PlanAccessStatus, allowed: bool, subscription: ?Subscription, message_key: string}
+     *
+     * @since 1.0.0
      */
     public function stateFor(User $user, ?Tenant $tenant = null): array
     {
@@ -90,6 +101,11 @@ class PlanAccessService
 
     /**
      * Determine whether subscription gating should be skipped for this user.
+     *
+     * @param  User  $user  Authenticated user performing the operation.
+     * @return bool Whether the requested condition is satisfied.
+     *
+     * @since 1.0.0
      */
     public function isExempt(User $user): bool
     {
@@ -102,7 +118,14 @@ class PlanAccessService
     }
 
     /**
+     * Execute the state operation.
+     *
+     * @param  PlanAccessStatus  $status  Target lifecycle status.
+     * @param  bool  $allowed  The allowed value.
+     * @param  Subscription|null  $subscription  The subscription value.
      * @return array{status: PlanAccessStatus, allowed: bool, subscription: ?Subscription, message_key: string}
+     *
+     * @since 1.0.0
      */
     private function state(PlanAccessStatus $status, bool $allowed, ?Subscription $subscription = null): array
     {
