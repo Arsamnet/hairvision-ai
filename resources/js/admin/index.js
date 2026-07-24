@@ -10,6 +10,7 @@ import { bootNotifications } from './notifications.js';
 import { bootPlanModels } from './plan-models.js';
 import { bootNumericInputs } from './numeric-inputs.js';
 import { bootAiModelImageProcessing } from './ai-model-image-processing.js';
+import { bootLandingTemplateForm } from './landing-template-form.js';
 
 const closeUserMenus = () => {
     document.querySelectorAll('[data-admin-user-menu][open]').forEach((menu) => {
@@ -41,6 +42,7 @@ export const bootAdmin = () => {
     bootPlanModels();
     bootNumericInputs();
     bootAiModelImageProcessing();
+    bootLandingTemplateForm();
 
     document.addEventListener('keydown', (event) => {
         if (event.key !== 'Escape') {

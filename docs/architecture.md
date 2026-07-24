@@ -57,6 +57,30 @@ Base plans, add-ons, and top-ups add to the active subscription's global credit
 ledger. Generation consumes the selected output's `credit_cost` from that global
 balance rather than from a service-specific bucket.
 
+## Managed Landing Templates
+
+Landing templates are system-owned records. A system administrator edits their
+header, optional body, and footer as HTML fragments, selects one active default,
+and assigns active templates to clinics from the system dashboard. A clinic has
+one `tenant_theme_settings` row; its `template_id` is the assignment and
+`use_template_content` records whether centralized content has replaced its
+legacy per-tenant markup.
+
+`LandingTemplateResolver` is the single read boundary used by the public Blade
+shell and `/api/v1/bootstrap`. It falls back to the active default when an
+assignment is missing or inactive. New-clinic creation and default assignment
+run in one database transaction. Existing tenant markup remains authoritative
+until an administrator explicitly assigns a managed template.
+
+Template HTML is trusted administrator-authored code. Validation accepts inline
+`<style>` and `<script>` but rejects full documents, externally sourced scripts
+or styles, unsafe schemes, embedded documents, and asset URLs outside the
+primary HairVision domain. Public rendering must use only the resolved
+presentation and must never accept tenant or template identity from visitor
+input. The dashboard code fields use a dedicated theme-aware editor surface
+with explicit foreground, background, caret, selection, border, and focus
+contrast in both light and dark modes.
+
 ## Runtime Shape
 
 Public visitor flow:
@@ -352,7 +376,8 @@ Core tables:
 - `lead_profiles`, `lead_source_images`
 - `generation_requests`, `generation_attempts`
 - `generation_groups`, `generation_jobs`, `generated_assets`
-- `templates`, `tenant_theme_settings`
+- `templates` (system-owned landing code, lifecycle, default and revision),
+  `tenant_theme_settings` (one template assignment per tenant)
 - `audit_logs`
 - `roles`, `permissions`, `permission_role`
 - `system_settings`
@@ -731,3 +756,17 @@ asset scoping, admin auth, roles/permissions, active-plan middleware, billing,
 credits, AI model access, SMS/payment gateway security, Jalali dates, number
 normalization, localization keys, shared dashboard components, and responsive
 dashboard contracts.
+
+## Release and Versioning Workflow
+
+Every change starts in `CHANGELOG.md` under `Unreleased`. Work without an
+assigned release stays there; it is not silently added to an already published
+version. When a release is prepared, its entries move to a new SemVer section
+and the application metadata plus canonical documentation versions are updated
+together.
+
+A release section must account for behavior changes, fixes, migrations, tests,
+documentation, and relevant uncommitted work included in the final source
+state. The release is ready only after migrations are evaluated, the full PHP
+test suite and PHPDoc audit pass, and the frontend build passes whenever public
+or dashboard assets changed.

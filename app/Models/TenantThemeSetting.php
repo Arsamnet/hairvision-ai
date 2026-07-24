@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Models\Concerns\HasUuid;
+use App\Support\LandingAssetUrl;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -19,6 +20,7 @@ class TenantThemeSetting extends Model
     protected $fillable = [
         'tenant_id',
         'template_id',
+        'use_template_content',
         'favicon_path',
         'logo_path',
         'primary_color',
@@ -37,6 +39,7 @@ class TenantThemeSetting extends Model
     ];
 
     protected $casts = [
+        'use_template_content' => 'boolean',
         'settings_json' => 'array',
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
@@ -64,34 +67,7 @@ class TenantThemeSetting extends Model
      */
     public function faviconHref(string $fallback): string
     {
-        $faviconPath = trim((string) $this->favicon_path);
-
-        if ($faviconPath === '') {
-            return $fallback;
-        }
-
-        if (str_starts_with($faviconPath, '//')) {
-            return $fallback;
-        }
-
-        if (str_starts_with($faviconPath, '/')) {
-            $path = parse_url($faviconPath, PHP_URL_PATH);
-
-            if (! is_string($path) || ! is_file(public_path(ltrim($path, '/')))) {
-                return $fallback;
-            }
-
-            return $faviconPath;
-        }
-
-        $appHost = parse_url((string) config('app.url'), PHP_URL_HOST);
-        $assetHost = parse_url($faviconPath, PHP_URL_HOST);
-
-        if (is_string($appHost) && $appHost !== '' && $assetHost === $appHost) {
-            return $faviconPath;
-        }
-
-        return $fallback;
+        return LandingAssetUrl::resolve($this->favicon_path, $fallback);
     }
 
     /**

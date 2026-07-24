@@ -86,6 +86,11 @@ the historic three hair-transplant stages. Provider and model identifiers are
 not public feature metadata; the server selects from active model access records
 assigned to the current clinic by a system administrator.
 
+In version `2.0.0`, `tenant.theme` contains the effective managed landing
+presentation. The `template` field is the resolved template code and
+`primary_color` follows the same fallback rules as the Blade landing shell.
+Clients cannot submit tenant or template identity to override this response.
+
 ## OTP Request
 
 ```http
@@ -492,6 +497,28 @@ Page-specific filters such as `clinic_id`, `status`, `role`, `owner_scope`, or
 - Removing fields or changing field meaning requires `/api/v2`.
 - Dashboard web routes under `/admin` are session-authenticated routes, not
   public visitor API endpoints.
+- Source changes without an assigned release remain under `Unreleased` in the
+  changelog and move to a numbered version only during release preparation.
+
+## Dashboard Landing Template Routes
+
+Landing template management is intentionally dashboard-only and requires the
+matching system permissions:
+
+```text
+GET    /admin/system/landing-templates
+GET    /admin/system/landing-templates/create
+POST   /admin/system/landing-templates
+GET    /admin/system/landing-templates/clinics
+PUT    /admin/system/landing-templates/clinics/{clinic}
+GET    /admin/system/landing-templates/{landingTemplate}/edit
+PUT    /admin/system/landing-templates/{landingTemplate}
+PATCH  /admin/system/landing-templates/{landingTemplate}/default
+DELETE /admin/system/landing-templates/{landingTemplate}
+```
+
+These routes edit trusted administrator-authored HTML and assignments. They are
+not public API contracts and must never be exposed to visitor sessions.
 
 ## System AI Category APIs
 

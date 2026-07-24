@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Resources\AiModelCategoryResource;
 use App\Models\Lead;
 use App\Models\Tenant;
+use App\Services\Landing\LandingTemplateResolver;
 use App\Services\Visitor\PublicApplicationAvailabilityService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -23,18 +24,22 @@ class BootstrapController extends Controller
      *
      * @param  Request  $request  Incoming HTTP request.
      * @param  PublicApplicationAvailabilityService  $availability  The availability value.
+     * @param  LandingTemplateResolver  $landingTemplates  Tenant landing template resolver.
      * @return JsonResponse JSON response payload.
      *
      * @since 1.0.0
-     * @since 2.0.0 Behavior updated for the version 2.0.0 release.
+     * @since 2.0.0 Returns category and centrally managed effective template metadata.
      */
-    public function __invoke(Request $request, PublicApplicationAvailabilityService $availability): JsonResponse
-    {
+    public function __invoke(
+        Request $request,
+        PublicApplicationAvailabilityService $availability,
+        LandingTemplateResolver $landingTemplates,
+    ): JsonResponse {
         $scope = 'public.bootstrap';
 
         $tenant = $this->tenantFromRequest($request, $scope);
 
-        $theme = $tenant->theme;
+        $theme = $landingTemplates->resolve($tenant);
         $categories = $availability->categoriesForTenant($tenant);
         $sessionLeadId = $request->session()->get('lead_id');
         $hasVerifiedLead = $sessionLeadId && Lead::query()
@@ -48,9 +53,9 @@ class BootstrapController extends Controller
                 'name' => $tenant->name,
                 'slug' => $tenant->slug,
                 'theme' => [
-                    'primary_color' => $theme->primary_color ?? '#0f766e',
+                    'primary_color' => $theme['primary_color'],
                     'logo_url' => null,
-                    'template' => $theme->template?->code ?? 'classic',
+                    'template' => $theme['template_code'],
                 ],
             ],
             'features' => [

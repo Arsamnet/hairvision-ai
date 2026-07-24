@@ -144,6 +144,7 @@ class Breadcrumbs extends Component
             $this->section(['admin.clinics.*'], __('clinics.title'), 'admin.clinics.index', icon: 'building'),
             $this->section(['admin.leads.*'], __('leads.title'), 'admin.leads.index', icon: 'contact'),
             $this->section(['admin.users.*'], __('system.users_title'), 'admin.users.index', icon: 'users'),
+            $this->section(['admin.system.landing-templates.*'], __('landing_templates.title'), 'admin.system.landing-templates.index', icon: 'gallery'),
             $this->section(['admin.system.ai-model-categories.*'], __('ai_models.categories.title'), 'admin.system.ai-model-categories.index', icon: 'category'),
             $this->section(['admin.ai-models.*'], __('ai_models.title'), 'admin.ai-models.index', icon: 'sparkles'),
             $this->section(['admin.plans.*'], __('plans.title'), 'admin.plans.index', icon: 'package'),

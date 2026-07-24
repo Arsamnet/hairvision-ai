@@ -63,6 +63,9 @@ transplant, or dynamically added services like under-eye filler.
 - Do not introduce React, Vue, Inertia, Livewire, Next.js, CDN assets, or
   external dashboard icon packs unless explicitly requested.
 - Add/update tests for every behavior change and run the full test suite.
+- System landing templates are trusted HTML fragments managed only by authorized
+  platform users. Template CSS and JavaScript are inline; external template
+  assets, scripts, stylesheets, and fonts remain prohibited.
 
 ## Reuse Requirements
 
@@ -113,3 +116,11 @@ Run this too after CSS, JavaScript, Blade, font, or Vite changes:
 ```bash
 npm run build
 ```
+
+## Release Discipline
+
+Every change without an assigned version belongs under `Unreleased` in the root
+`CHANGELOG.md`. Preparing a release moves those entries to one dated SemVer
+section and updates runtime, environment-example, documentation-header, and
+version-test metadata together. Historical release sections are not rewritten
+for later work.

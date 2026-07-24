@@ -1,9 +1,67 @@
 # Release Notes
 
+## Unreleased
+
+Changes without an assigned release remain in this section and are moved into
+the next dated SemVer section when that release is prepared.
+
 ## 2.0.0
 
 HairVision `2.0.0` starts the category-based AI model architecture and includes
 all changes completed through 2026-07-24.
+
+### Managed landing templates
+
+#### Product
+
+- Added system-level landing template management with separate «قالب‌ها» and
+  «کلینیک‌ها» sections.
+- Added create/edit flows for trusted header, supplemental body, and footer HTML
+  fragments. Template CSS and JavaScript must be inline in those fragments;
+  external scripts, stylesheets, and non-primary assets are rejected.
+- Added one active default landing template and automatic assignment of that
+  template to every clinic created through system management.
+- Added explicit active-template assignment for every clinic while preserving
+  legacy per-clinic theme data until an administrator activates a central
+  template.
+- Added template status, revision, assignment count, stable code, primary color,
+  favicon, consent copy, and optional back-link management.
+
+#### Architecture and Security
+
+- Added additive template schema fields, a unique tenant-theme invariant,
+  restrictive template deletion, editor attribution, revision tracking, and a
+  central resolver that falls back safely when an assigned template is inactive.
+- Kept existing seeded clinics, users, and legacy theme values unchanged.
+- Limited template lifecycle and assignment actions to dedicated platform
+  permissions registered additively for existing installations and included in
+  the super-admin permission catalog.
+- Kept tenant landing assets local or on the primary HairVision host while
+  intentionally allowing trusted inline style and script blocks.
+
+#### Fixes
+
+- Removed conflicting static `hidden` plus `flex`/`grid` utility combinations
+  from the public landing and now applies display utilities only when JavaScript
+  reveals the affected elements.
+- Corrected the landing-template sidebar translation key so the Persian
+  «قالب‌های لندینگ» title is rendered instead of the untranslated key.
+- Replaced the forced dark landing-template code fields with readable,
+  theme-aware editors that explicitly control text, caret, selection, border,
+  and focus contrast.
+- Updated AI category and output deletion paths to use concrete paginator types
+  and Eloquent static destroy operations, preserving the pending management fix
+  that existed before this release work began.
+
+#### Documentation and Quality
+
+- Defined the canonical `Unreleased` to dated SemVer workflow across agent,
+  architecture, business-rule, API, and release documentation.
+- Updated runtime and environment metadata to `2.0.0`.
+- Added feature coverage for template code validation, legacy preservation,
+  default clinic activation, clinic assignment, authorization, effective public
+  rendering, Bootstrap metadata, landing display-utility regression, menu
+  translation, and theme-aware code-editor contrast.
 
 ### Release completion
 

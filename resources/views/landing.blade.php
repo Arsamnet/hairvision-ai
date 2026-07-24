@@ -1,14 +1,14 @@
 <!DOCTYPE html>
 <html lang="fa" dir="rtl">
 <head>
-    <?php $theme = $theme ?? null; ?>
+    <?php $landingTheme = $landingTheme ?? app(\App\Services\Landing\LandingTemplateResolver::class)->resolve($tenant); ?>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title><?php echo e($tenant->name ?? 'پیش‌نمایی هوشمند'); ?></title>
     <?php
         $defaultFaviconHref = app('Illuminate\Foundation\Vite')->asset('resources/img/favicon.png');
-        $faviconHref = $theme?->faviconHref($defaultFaviconHref) ?? $defaultFaviconHref;
-        $primaryColor = (string) ($theme?->primary_color ?: '#0f766e');
+        $faviconHref = app(\App\Services\Landing\LandingTemplateResolver::class)->faviconHref($landingTheme, $defaultFaviconHref);
+        $primaryColor = (string) ($landingTheme['primary_color'] ?? '#0f766e');
         $primaryColor = preg_match('/^#[0-9a-fA-F]{6}$/', $primaryColor) ? $primaryColor : '#0f766e';
         $hairConsultationHref = '/theme/category-icons/hair-transplant.svg';
         $faceConsultationHref = '/theme/category-icons/eyebrow-transplant.svg';
@@ -260,23 +260,28 @@
         }
     </style>
 </head>
-<body class="min-h-screen bg-[#eef2ff] font-sans text-zinc-900 antialiased" style="--hv-primary-color: <?php echo e($primaryColor); ?>;">
+<body class="min-h-screen bg-[#eef2ff] font-sans text-zinc-900 antialiased" style="--hv-primary-color: <?php echo e($primaryColor); ?>;" data-landing-template="<?php echo e($landingTheme['template_code']); ?>">
     <div class="flex min-h-screen flex-col">
         <header class="w-full bg-white/85 shadow-sm shadow-zinc-200/60 backdrop-blur">
-            <?php echo $theme?->header_html ?? '<div class="mx-auto flex w-full max-w-6xl flex-wrap items-center justify-between gap-4 px-4 py-5 sm:px-6"><div><p class="text-sm font-bold text-emerald-700">کلینیک کاشت مو</p><h1 class="mt-1 text-xl font-bold text-zinc-950">مشاوره و پیش نمایش اختصاصی کاشت مو</h1></div></div>'; ?>
+            <?php echo $landingTheme['header_html']; ?>
 
         </header>
 
         <main class="w-full flex-1">
+            <?php if(! empty($landingTheme['body_html'])): ?>
+                <section data-landing-template-body>
+                    <?php echo $landingTheme['body_html']; ?>
+                </section>
+            <?php endif; ?>
             <section class="relative isolate overflow-hidden px-4 py-6 sm:px-6 lg:py-8">
                 <div class="absolute inset-0 -z-10 bg-[linear-gradient(135deg,#ecfeff_0%,#f8fafc_32%,#eef2ff_68%,#faf5ff_100%)]"></div>
 
                 <div id="landingApp" class="mx-auto w-full max-w-6xl">
                     <section class="hv-app-shell rounded-3xl p-4 shadow-2xl shadow-indigo-100/90 backdrop-blur sm:p-5 lg:p-6">
-                        <?php if(! empty($theme?->back_link_url)): ?>
+                        <?php if(! empty($landingTheme['back_link_url'])): ?>
                             <div class="mb-4 flex justify-end">
-                                <a href="<?php echo e($theme?->back_link_url); ?>" class="hv-lift rounded-full bg-white px-4 py-2 text-sm font-bold text-zinc-700 ring-1 ring-zinc-200">
-                                    <?php echo e($theme?->back_link_title ?? 'بازگشت به سایت'); ?>
+                                <a href="<?php echo e($landingTheme['back_link_url']); ?>" class="hv-lift rounded-full bg-white px-4 py-2 text-sm font-bold text-zinc-700 ring-1 ring-zinc-200">
+                                    <?php echo e($landingTheme['back_link_title'] ?? 'بازگشت به سایت'); ?>
                                 </a>
                             </div>
                         <?php endif; ?>
@@ -350,7 +355,7 @@
                                     <div class="max-w-2xl space-y-4 rounded-3xl bg-white p-4 ring-1 ring-zinc-200 shadow-lg shadow-zinc-100/80">
                                         <div class="flex items-start gap-3">
                                             <input id="consent" type="checkbox" class="mt-1 h-4 w-4 rounded border-zinc-300 text-indigo-600 focus:ring-indigo-500" />
-                                            <label for="consent" class="text-sm leading-7 text-zinc-600"><?php echo e($theme?->consent_text ?? 'با پردازش تصویر برای این سرویس موافقم.'); ?></label>
+                                            <label for="consent" class="text-sm leading-7 text-zinc-600"><?php echo e($landingTheme['consent_text']); ?></label>
                                         </div>
                                         <p id="uploadError" class="hidden text-sm text-rose-600"></p>
                                         <div class="flex flex-wrap gap-3">
@@ -400,7 +405,7 @@
 
                                 <p id="mobileError" class="hidden text-sm text-rose-600"></p>
 
-                                <div id="otpActionPanel" class="hidden flex max-w-xl flex-wrap gap-3">
+                                <div id="otpActionPanel" class="hidden max-w-xl flex-wrap gap-3">
                                     <button id="verifyOtp" type="button" class="hv-primary-action inline-flex min-w-44 justify-center rounded-2xl px-5 py-3 text-sm font-bold text-white transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-60">تایید و شروع درخواست</button>
                                     <button id="backToPhone" type="button" class="hv-lift inline-flex min-w-32 justify-center rounded-2xl bg-white px-5 py-3 text-sm font-bold text-zinc-700 ring-1 ring-zinc-200">تغییر شماره</button>
                                 </div>
@@ -426,7 +431,7 @@
                                     <button id="confirmOutputRequest" type="button" class="hidden hv-primary-action mt-4 w-full rounded-2xl px-5 py-3 text-sm font-bold text-white transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-60" disabled>تایید و ساخت خروجی انتخاب‌شده</button>
                                 </div>
                                 <p id="generationError" class="hidden text-sm text-rose-600"></p>
-                                <div id="resultsContainer" class="hidden grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4"></div>
+                                <div id="resultsContainer" class="hidden grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4"></div>
                             </section>
                         </div>
                     </section>
@@ -435,7 +440,7 @@
         </main>
 
         <footer class="w-full bg-white/85 shadow-[0_-1px_20px_rgba(24,24,27,0.04)] backdrop-blur">
-            <?php echo $theme?->footer_html ?? '<div class="mx-auto flex w-full max-w-6xl flex-wrap items-center justify-between gap-3 px-4 py-5 text-sm text-zinc-500 sm:px-6"><p>یک پیش‌نمایش الهام‌بخش برای شروع گفت‌وگوی دقیق‌تر با کلینیک.</p><p class="flex items-center gap-2"><span>قدرت گرفته از</span><span class="grid h-7 w-7 place-items-center rounded-xl bg-linear-to-br from-emerald-500 via-indigo-500 to-fuchsia-500"><img src="/theme/admin-logo-dark.svg" alt="" class="h-5 w-5"></span></p></div>'; ?>
+            <?php echo $landingTheme['footer_html']; ?>
 
         </footer>
     </div>

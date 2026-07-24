@@ -20,6 +20,7 @@ return [
         'system_notifications' => 'اعلان‌ها و پیام‌ها',
         'leads' => 'لیدها',
         'clinics' => 'کلینیک‌ها',
+        'landing_templates' => 'قالب‌های لندینگ',
         'users' => 'کاربران',
         'access' => 'تخصیص دسترسی',
         'roles' => 'سطوح دسترسی',

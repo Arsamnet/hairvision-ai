@@ -8,6 +8,7 @@ use App\Http\Controllers\Admin\ClinicAiModelAccessController;
 use App\Http\Controllers\Admin\ClinicController;
 use App\Http\Controllers\Admin\ClinicNotificationController;
 use App\Http\Controllers\Admin\DashboardController;
+use App\Http\Controllers\Admin\LandingTemplateController;
 use App\Http\Controllers\Admin\LeadController;
 use App\Http\Controllers\Admin\LeadFollowUpController;
 use App\Http\Controllers\Admin\LeadGeneratedAssetController;
@@ -27,16 +28,21 @@ use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\Admin\UserSavedFilterController;
 use App\Http\Middleware\EnsureAdminTenantSelected;
 use App\Models\TenantDomain;
+use App\Services\Landing\LandingTemplateResolver;
 use App\Services\LandingPageVisitService;
 use App\Support\Tenancy\HostClassifier;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Route;
 
-Route::get('/', function (Request $request, LandingPageVisitService $visitService) {
+Route::get('/', function (
+    Request $request,
+    LandingPageVisitService $visitService,
+    LandingTemplateResolver $landingTemplates,
+) {
     $host = HostClassifier::normalize($request->getHost());
     $domain = TenantDomain::query()
-        ->with('tenant.theme')
+        ->with('tenant.theme.template')
         ->where('domain', $host)
         ->where('status', 'active')
         ->first();
@@ -55,7 +61,10 @@ Route::get('/', function (Request $request, LandingPageVisitService $visitServic
     $request->attributes->set('currentTenant', $tenant);
     $visitService->record($request, $tenant);
 
-    return view('landing', ['tenant' => $tenant, 'theme' => $tenant->theme]);
+    return view('landing', [
+        'tenant' => $tenant,
+        'landingTheme' => $landingTemplates->resolve($tenant),
+    ]);
 });
 
 Route::prefix('admin')->name('admin.')->group(function (): void {
@@ -144,6 +153,15 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
             Route::get('/notifications', [SystemClinicNotificationController::class, 'index'])->middleware('permission:notifications.manage')->name('notifications.index');
             Route::post('/notifications', [SystemClinicNotificationController::class, 'store'])->middleware('permission:notifications.manage')->name('notifications.store');
             Route::get('/notifications/{notification}', [SystemClinicNotificationController::class, 'show'])->middleware('permission:notifications.manage')->name('notifications.show');
+            Route::get('/landing-templates', [LandingTemplateController::class, 'index'])->middleware('permission:landing_templates.view')->name('landing-templates.index');
+            Route::get('/landing-templates/create', [LandingTemplateController::class, 'create'])->middleware('permission:landing_templates.create')->name('landing-templates.create');
+            Route::post('/landing-templates', [LandingTemplateController::class, 'store'])->middleware('permission:landing_templates.create')->name('landing-templates.store');
+            Route::get('/landing-templates/clinics', [LandingTemplateController::class, 'clinics'])->middleware('permission:landing_templates.assign')->name('landing-templates.clinics');
+            Route::put('/landing-templates/clinics/{clinic}', [LandingTemplateController::class, 'assign'])->middleware('permission:landing_templates.assign')->name('landing-templates.clinics.assign');
+            Route::get('/landing-templates/{landingTemplate}/edit', [LandingTemplateController::class, 'edit'])->middleware('permission:landing_templates.update')->name('landing-templates.edit');
+            Route::put('/landing-templates/{landingTemplate}', [LandingTemplateController::class, 'update'])->middleware('permission:landing_templates.update')->name('landing-templates.update');
+            Route::patch('/landing-templates/{landingTemplate}/default', [LandingTemplateController::class, 'makeDefault'])->middleware('permission:landing_templates.update')->name('landing-templates.default');
+            Route::delete('/landing-templates/{landingTemplate}', [LandingTemplateController::class, 'destroy'])->middleware('permission:landing_templates.delete')->name('landing-templates.destroy');
             Route::get('/ai-model-categories', [AiModelCategoryController::class, 'index'])->middleware('permission:ai_model_categories.view')->name('ai-model-categories.index');
             Route::post('/ai-model-categories', [AiModelCategoryController::class, 'store'])->middleware('permission:ai_model_categories.create')->name('ai-model-categories.store');
             Route::get('/ai-model-categories/{category}', [AiModelCategoryController::class, 'show'])->middleware('permission:ai_model_categories.view')->name('ai-model-categories.show');

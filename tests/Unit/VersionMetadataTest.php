@@ -36,17 +36,28 @@ class VersionMetadataTest extends TestCase
      */
     public function test_release_notes_have_one_canonical_root_file(): void
     {
+        $releaseNotes = (string) file_get_contents(base_path('CHANGELOG.md'));
+
         $this->assertFileExists(base_path('CHANGELOG.md'));
         $this->assertFileDoesNotExist(base_path('docs/release-notes.md'));
-        $this->assertStringContainsString(
-            '## 2.0.0',
-            (string) file_get_contents(base_path('CHANGELOG.md'))
-        );
+        $this->assertStringContainsString('## 2.0.0', $releaseNotes);
+        $this->assertStringContainsString('## Unreleased', $releaseNotes);
+        $this->assertStringNotContainsString('## 2.0.1', $releaseNotes);
 
-        foreach (['README.md', 'AGENTS.md', 'docs/agent-instructions.md'] as $documentation) {
+        foreach ([
+            'README.md',
+            'AGENTS.md',
+            'docs/agent-instructions.md',
+            'docs/business-rules-fa.md',
+            'docs/architecture.md',
+            'docs/api.md',
+        ] as $documentation) {
+            $contents = (string) file_get_contents(base_path($documentation));
+
+            $this->assertStringContainsString('CHANGELOG.md', $contents, $documentation);
             $this->assertStringContainsString(
-                'CHANGELOG.md',
-                (string) file_get_contents(base_path($documentation)),
+                '2.0.0',
+                $contents,
                 $documentation
             );
         }

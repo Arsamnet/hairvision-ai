@@ -13,9 +13,9 @@ use App\Models\SubscriptionServiceEntitlement;
 use App\Services\AI\ExecutableAiModelSyncService;
 use App\Support\Pagination\PaginationParameters;
 use App\Support\Query\SearchFilter;
-use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
@@ -200,7 +200,7 @@ class AiModelCategoryController extends Controller
 
         DB::transaction(function () use ($category): void {
             $category->outputs()->delete();
-            $category->delete();
+            AiModelCategory::destroy($category->getKey());
         });
 
         return back()->with('status', __('ai_models.categories.messages.deleted'));
@@ -317,7 +317,7 @@ class AiModelCategoryController extends Controller
             ]);
         }
 
-        $output->delete();
+        AiModelCategoryOutput::destroy($output->getKey());
 
         return back()->with('status', __('ai_models.outputs.messages.deleted'));
     }

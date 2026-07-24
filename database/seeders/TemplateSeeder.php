@@ -3,7 +3,9 @@
 namespace Database\Seeders;
 
 use App\Models\Template;
+use App\Support\LandingTemplateDefaults;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\DB;
 
 /**
  * Provides template seeder behavior.
@@ -21,12 +23,22 @@ class TemplateSeeder extends Seeder
      */
     public function run(): void
     {
-        Template::query()->updateOrCreate(
-            ['code' => 'classic'],
-            [
-                'name' => __('messages.classic_template'),
-                'is_active' => true,
-            ]
-        );
+        DB::transaction(function (): void {
+            $template = Template::query()->firstOrCreate(
+                ['code' => LandingTemplateDefaults::CODE],
+                array_merge(LandingTemplateDefaults::content(), [
+                    'name' => __('messages.classic_template'),
+                    'is_active' => true,
+                    'is_default' => true,
+                ])
+            );
+
+            if (! Template::query()->where('is_default', true)->exists()) {
+                $template->forceFill([
+                    'is_active' => true,
+                    'is_default' => true,
+                ])->save();
+            }
+        });
     }
 }

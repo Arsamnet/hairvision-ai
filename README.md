@@ -42,6 +42,9 @@ canonical references.
 - Admin dashboard under `/admin` with OTP login, roles, permissions, tenant
   context, leads, CRM follow-ups, users, clinics, AI models, plans, billing,
   gateways, reports, and system settings.
+- System-managed landing templates with trusted inline HTML/CSS/JavaScript,
+  theme-aware code editing, one active default for new clinics, and explicit
+  per-clinic assignment.
 - SaaS plan, subscription, service entitlement, and credit ledger behavior.
 - Lead-aware AI usage reporting and tenant-scoped processing history.
 - Jalali/Shamsi business dates, Persian localization, and reusable dashboard UI

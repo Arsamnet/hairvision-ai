@@ -63,6 +63,13 @@ class PermissionCatalog
                 ['code' => 'tenants.edit', 'name' => 'ویرایش کلینیک'],
                 ['code' => 'tenants.delete', 'name' => 'حذف کلینیک'],
             ],
+            'landing_templates' => [
+                ['code' => 'landing_templates.view', 'name' => 'مشاهده قالب‌های لندینگ'],
+                ['code' => 'landing_templates.create', 'name' => 'ایجاد قالب لندینگ'],
+                ['code' => 'landing_templates.update', 'name' => 'ویرایش و انتخاب قالب پیش‌فرض لندینگ'],
+                ['code' => 'landing_templates.delete', 'name' => 'حذف قالب لندینگ'],
+                ['code' => 'landing_templates.assign', 'name' => 'تخصیص قالب لندینگ به کلینیک‌ها'],
+            ],
             'users' => [
                 ['code' => 'users.list', 'name' => 'فهرست کاربران'],
                 ['code' => 'users.search', 'name' => 'جستجوی کاربران'],

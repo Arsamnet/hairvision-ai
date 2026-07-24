@@ -4,6 +4,7 @@ namespace App\Services\Admin;
 
 use App\Models\Tenant;
 use App\Services\Billing\ServiceEntitlementService;
+use App\Services\Landing\LandingTemplateManagementService;
 use App\Support\Pagination\PaginationParameters;
 use App\Support\Query\SearchFilter;
 use App\Support\StateCatalog;
@@ -22,10 +23,15 @@ class ClinicManagementService
      * Create a new clinic management service instance.
      *
      * @param  ServiceEntitlementService  $entitlements  The entitlements value.
+     * @param  LandingTemplateManagementService  $landingTemplates  Landing template management service.
      *
      * @since 1.0.0
+     * @since 2.0.0 Assigns the active default landing template during clinic creation.
      */
-    public function __construct(private readonly ServiceEntitlementService $entitlements) {}
+    public function __construct(
+        private readonly ServiceEntitlementService $entitlements,
+        private readonly LandingTemplateManagementService $landingTemplates,
+    ) {}
 
     /**
      * Paginate dashboard clinic records.
@@ -100,6 +106,8 @@ class ClinicManagementService
                 'ssl_status' => 'unknown',
                 'verified_at' => $data['domain_status'] === 'active' ? now() : null,
             ]);
+
+            $this->landingTemplates->assignDefaultToNewTenant($tenant);
 
             return $tenant;
         });

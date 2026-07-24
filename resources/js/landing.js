@@ -389,6 +389,7 @@ export function bootLanding() {
         phonePanel?.classList.toggle('hidden', isOtp);
         otpPanel?.classList.toggle('hidden', !isOtp);
         otpActions?.classList.toggle('hidden', !isOtp);
+        otpActions?.classList.toggle('flex', isOtp);
         otpTimer?.classList.toggle('hidden', !isOtp);
 
         if (lockedPhone) {
@@ -897,6 +898,7 @@ export function bootLanding() {
         const items = generationDisplayItemsFromJobs(jobs);
         STATE.galleryItems = items.filter((item) => item.url);
         container.classList.toggle('hidden', items.length === 0);
+        container.classList.toggle('grid', items.length > 0);
 
         items.forEach((item, index) => {
             const card = document.createElement('article');

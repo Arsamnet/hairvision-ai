@@ -64,6 +64,7 @@
                 'icon' => 'settings',
                 'items' => [
                     ['label' => __('menu.items.clinics'), 'route' => 'admin.clinics.index', 'active' => ['admin.clinics.index', 'admin.clinics.edit'], 'icon' => 'building', 'permissions' => ['tenants.list']],
+                    ['label' => __('menu.items.landing_templates'), 'route' => 'admin.system.landing-templates.index', 'active' => ['admin.system.landing-templates.*'], 'icon' => 'gallery', 'permissions' => ['landing_templates.view']],
                     ['label' => __('menu.items.system_notifications'), 'route' => 'admin.system.notifications.index', 'active' => ['admin.system.notifications.*'], 'icon' => 'bell', 'permissions' => ['notifications.manage']],
                     ['label' => __('menu.items.ai_model_categories'), 'route' => 'admin.system.ai-model-categories.index', 'active' => ['admin.system.ai-model-categories.*'], 'icon' => 'category', 'permissions' => ['ai_model_categories.view']],
                     ['label' => __('menu.items.ai_models'), 'route' => 'admin.ai-models.index', 'active' => ['admin.ai-models.*', 'admin.clinics.ai-models.*'], 'icon' => 'sparkles', 'permissions' => ['ai_models.list']],
