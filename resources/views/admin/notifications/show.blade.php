@@ -1,7 +1,7 @@
 @extends('admin.layout')
 
 @section('title', $recipient->notification->title)
-@section('page_title', __('notifications.inbox'))
+@section('page_title', $recipient->notification->title)
 
 @php
     $notification = $recipient->notification;

@@ -17,7 +17,7 @@
     $disabledButtonClass = $pageButtonClass.' border-zinc-200 bg-white text-zinc-400 opacity-45';
 @endphp
 
-<footer {{ $attributes->merge(['class' => 'mt-0 flex flex-col gap-3 border-t border-zinc-100 bg-zinc-50/60 px-4 py-3 sm:flex-row sm:items-center sm:justify-between']) }}>
+<footer {{ $attributes->merge(['class' => 'mt-0 flex flex-col gap-3 bg-zinc-50/60 px-4 py-3 sm:flex-row sm:items-center sm:justify-between']) }}>
     <p class="text-xs font-bold text-zinc-500">
         {{ __('messages.pagination_summary', ['from' => number_format($from), 'to' => number_format($to), 'total' => number_format($total)]) }}
     </p>

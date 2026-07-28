@@ -7,7 +7,7 @@ use DOMElement;
 use DOMNode;
 
 /**
- * Sanitizes the small rich-text surface allowed in dashboard messages.
+ * Sanitizes the small rich-text surface allowed in dashboard-managed content.
  *
  * @since 1.0.0
  */
@@ -47,6 +47,11 @@ class SimpleRichTextSanitizer
             return '';
         }
 
+        $html = preg_replace(
+            '/<(script|style|iframe|object|embed|template)\\b[^>]*>.*?<\\/\\1\\s*>/is',
+            '',
+            $html
+        ) ?? '';
         $html = strip_tags($html, '<'.implode('><', self::ALLOWED_TAGS).'>');
 
         $document = new DOMDocument('1.0', 'UTF-8');
@@ -103,8 +108,11 @@ class SimpleRichTextSanitizer
             if ($node->tagName === 'a') {
                 if ($this->safeHref($href)) {
                     $node->setAttribute('href', $href);
-                    $node->setAttribute('rel', 'noopener noreferrer');
-                    $node->setAttribute('target', '_blank');
+
+                    if (preg_match('/^https?:/i', $href) === 1) {
+                        $node->setAttribute('rel', 'noopener noreferrer');
+                        $node->setAttribute('target', '_blank');
+                    }
                 }
             }
         }
@@ -128,6 +136,6 @@ class SimpleRichTextSanitizer
             return false;
         }
 
-        return preg_match('/^(https?:|mailto:|tel:)/i', $href) === 1;
+        return preg_match('/^(?:https?:|mailto:|tel:|#|\\/(?!\\/))/i', $href) === 1;
     }
 }

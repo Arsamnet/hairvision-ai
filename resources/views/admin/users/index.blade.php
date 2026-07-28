@@ -7,7 +7,7 @@
     <x-admin.card>
         <div class="flex flex-wrap items-center justify-between gap-3">
             <div>
-                <h2 class="text-lg font-bold">{{ __('system.panel_users') }}</h2>
+                <h2 class="text-lg font-bold">{{ __('system.users_title') }}</h2>
                 <p class="mt-1 text-sm text-zinc-500">{{ $clinicFilter?->name ?? __('dashboard.all_clinics') }}</p>
             </div>
             @can('create', App\Models\User::class)

@@ -7,7 +7,7 @@
     <x-admin.card>
         <div class="flex flex-wrap items-center justify-between gap-3">
             <div>
-                <h2 class="text-lg font-bold">{{ __('clinics.manage') }}</h2>
+                <h2 class="text-lg font-bold">{{ __('clinics.title') }}</h2>
                 <p class="mt-1 text-sm text-zinc-500">{{ __('clinics.subtitle') }}</p>
             </div>
             @can('create', App\Models\Tenant::class)

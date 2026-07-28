@@ -42,36 +42,36 @@
                 @endif
             </div>
 
-            <div class="border-t border-teal-100 p-5 sm:p-6 lg:border-r lg:border-t-0 bg-white dark:bg-zinc-950">
+            <div class="border-t border-teal-100 bg-white p-5 sm:p-6 lg:border-r lg:border-t-0">
                 @if($displaySubscription)
                     <div class="flex flex-wrap items-center gap-2">
-                        <p class="text-sm font-bold text-zinc-500 dark:text-zinc-400">{{ $displaySubscription->plan?->name }}</p>
+                        <p class="text-sm font-bold text-zinc-500">{{ $displaySubscription->plan?->name }}</p>
                         @if($planStatus === 'plan_disabled')
                             <x-admin.badge tone="amber">{{ __('dashboard.plan.disabled_by_system_badge') }}</x-admin.badge>
                         @endif
                     </div>
-                    <p class="mt-3 text-2xl font-bold text-zinc-950 dark:text-zinc-100">{{ __('dashboard.plan.remaining_credit', ['count' => number_format($remainingCredit)]) }}</p>
-                    <p class="mt-2 text-sm text-zinc-600 dark:text-zinc-300">{{ __('dashboard.plan.active_until', ['date' => \App\Support\JalaliDate::toJalaliDate($displaySubscription->ends_at)]) }}</p>
+                    <p class="mt-3 text-2xl font-bold text-zinc-950">{{ __('dashboard.plan.remaining_credit', ['count' => number_format($remainingCredit)]) }}</p>
+                    <p class="mt-2 text-sm text-zinc-600">{{ __('dashboard.plan.active_until', ['date' => \App\Support\JalaliDate::toJalaliDate($displaySubscription->ends_at)]) }}</p>
                     <div class="mt-4 space-y-2">
-                        <p class="text-xs font-bold text-zinc-500 dark:text-zinc-400">{{ __('dashboard.applications.title') }}</p>
+                        <p class="text-xs font-bold text-zinc-500">{{ __('dashboard.applications.title') }}</p>
                         @forelse($applicationSummaries as $application)
-                            <div class="rounded-lg bg-white/80 px-3 py-2 text-xs ring-1 ring-zinc-100 dark:bg-white/[0.04] dark:ring-white/10">
+                            <div class="rounded-lg bg-white/80 px-3 py-2 text-xs ring-1 ring-zinc-100">
                                 <div class="flex items-center justify-between gap-3">
-                                    <span class="font-bold text-zinc-800 dark:text-zinc-100">{{ $application['label'] }}</span>
+                                    <span class="font-bold text-zinc-800">{{ $application['label'] }}</span>
                                     <x-admin.badge :tone="$application['available'] ? 'emerald' : 'amber'">
                                         {{ $application['available'] ? __('subscriptions.available') : __('dashboard.applications.unavailable') }}
                                     </x-admin.badge>
                                 </div>
-                                <p class="mt-2 leading-5 text-zinc-600 dark:text-zinc-300">{{ $application['message'] }}</p>
+                                <p class="mt-2 leading-5 text-zinc-600">{{ $application['message'] }}</p>
                             </div>
                         @empty
                             <x-admin.empty-state icon="category" class="py-2">{{ __('dashboard.plan.no_service_credit') }}</x-admin.empty-state>
                         @endforelse
                     </div>
                 @else
-                    <p class="text-sm font-bold text-zinc-500 dark:text-zinc-400">{{ $tenant?->name ?? __('dashboard.platform_overview') }}</p>
-                    <p class="mt-3 text-2xl font-bold text-zinc-950 dark:text-zinc-100">{{ __('dashboard.plan.'.($planStatus === 'exempt' ? 'exempt' : 'status_title')) }}</p>
-                    <p class="mt-2 text-sm text-zinc-600 dark:text-zinc-300">{{ $tenant?->name ?? __('dashboard.all_clinics') }}</p>
+                    <p class="text-sm font-bold text-zinc-500">{{ $tenant?->name ?? __('dashboard.platform_overview') }}</p>
+                    <p class="mt-3 text-2xl font-bold text-zinc-950">{{ __('dashboard.plan.'.($planStatus === 'exempt' ? 'exempt' : 'status_title')) }}</p>
+                    <p class="mt-2 text-sm text-zinc-600">{{ $tenant?->name ?? __('dashboard.all_clinics') }}</p>
                 @endif
             </div>
         </div>

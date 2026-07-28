@@ -445,7 +445,7 @@ class AiModelAccessManagementTest extends TestCase
 
         $this->actingAs($superAdmin)
             ->forHost('hairvision-ai.test')
-            ->post('/admin/ai-models', [
+            ->post('/admin/settings/ai-models', [
                 'model_key' => 'gapgpt',
                 'usage_category_key' => 'hair_transplant',
                 'name' => 'دسترسی امن تست',
@@ -476,7 +476,7 @@ class AiModelAccessManagementTest extends TestCase
 
         $this->actingAs($superAdmin)
             ->forHost('hairvision-ai.test')
-            ->get('/admin/ai-models')
+            ->get('/admin/settings/ai-models')
             ->assertOk()
             ->assertSee(__('ai_models.details'))
             ->assertSee(__('ai_models.edit'))
@@ -484,20 +484,20 @@ class AiModelAccessManagementTest extends TestCase
 
         $this->actingAs($superAdmin)
             ->forHost('hairvision-ai.test')
-            ->get('/admin/ai-models?search=secure-secret')
+            ->get('/admin/settings/ai-models?search=secure-secret')
             ->assertOk()
             ->assertDontSee('super-secret-ai-key');
 
         $this->actingAs($superAdmin)
             ->forHost('hairvision-ai.test')
-            ->get('/admin/ai-models/'.$access->id)
+            ->get('/admin/settings/ai-models/'.$access->id)
             ->assertOk()
             ->assertSee($access->maskedCredentials()['api_key'])
             ->assertDontSee('super-secret-ai-key');
 
         $this->actingAs($superAdmin)
             ->forHost('hairvision-ai.test')
-            ->get('/admin/ai-models/'.$access->id.'/edit')
+            ->get('/admin/settings/ai-models/'.$access->id.'/edit')
             ->assertOk()
             ->assertSee(__('ai_models.edit'))
             ->assertSee($access->name);
@@ -516,14 +516,14 @@ class AiModelAccessManagementTest extends TestCase
 
         $this->actingAs($superAdmin)
             ->forHost('hairvision-ai.test')
-            ->get('/admin/ai-models/'.$shortSecretAccess->id)
+            ->get('/admin/settings/ai-models/'.$shortSecretAccess->id)
             ->assertOk()
             ->assertSee('*****')
             ->assertDontSee('abcde');
 
         $this->actingAs($superAdmin)
             ->forHost('hairvision-ai.test')
-            ->put('/admin/ai-models/'.$access->id, [
+            ->put('/admin/settings/ai-models/'.$access->id, [
                 'model_key' => 'gapgpt',
                 'usage_category_key' => 'hair_transplant',
                 'name' => 'دسترسی امن ویرایش',
@@ -541,7 +541,7 @@ class AiModelAccessManagementTest extends TestCase
 
         $this->actingAs($superAdmin)
             ->forHost('hairvision-ai.test')
-            ->post('/admin/ai-models', [
+            ->post('/admin/settings/ai-models', [
                 'model_key' => 'sample_image',
                 'usage_category_key' => 'hair_transplant',
                 'name' => 'دسترسی نمونه مجاز',
@@ -558,7 +558,7 @@ class AiModelAccessManagementTest extends TestCase
 
         $this->actingAs($superAdmin)
             ->forHost('hairvision-ai.test')
-            ->patch('/admin/ai-models/'.$access->id.'/toggle')
+            ->patch('/admin/settings/ai-models/'.$access->id.'/toggle')
             ->assertRedirect();
 
         $this->assertFalse($access->refresh()->is_active);
@@ -572,14 +572,14 @@ class AiModelAccessManagementTest extends TestCase
 
         $this->actingAs($superAdmin)
             ->forHost('hairvision-ai.test')
-            ->get('/admin/ai-models/'.$demo->id.'/edit')
+            ->get('/admin/settings/ai-models/'.$demo->id.'/edit')
             ->assertOk()
             ->assertSee('value="sample_image"', false)
             ->assertSee('value="gapgpt"', false);
 
         $this->actingAs($superAdmin)
             ->forHost('hairvision-ai.test')
-            ->put('/admin/ai-models/'.$demo->id, [
+            ->put('/admin/settings/ai-models/'.$demo->id, [
                 'model_key' => 'sample_image',
                 'usage_category_key' => 'hair_transplant',
                 'name' => 'ویرایش مجاز دمو',
@@ -595,13 +595,13 @@ class AiModelAccessManagementTest extends TestCase
 
         $this->actingAs($superAdmin)
             ->forHost('hairvision-ai.test')
-            ->get('/admin/ai-models/'.$demo->id)
+            ->get('/admin/settings/ai-models/'.$demo->id)
             ->assertOk();
 
         $this->actingAs($clinicUser)
             ->withSession(['admin_active_tenant_id' => $clinicUser->tenants()->firstOrFail()->id])
             ->forHost('hairvision-ai.test')
-            ->get('/admin/ai-models')
+            ->get('/admin/settings/ai-models')
             ->assertForbidden();
     }
 
@@ -707,7 +707,7 @@ class AiModelAccessManagementTest extends TestCase
 
         $this->actingAs($superAdmin)
             ->forHost('hairvision-ai.test')
-            ->post('/admin/clinics/'.$tenant->id.'/ai-models', [
+            ->post('/admin/settings/clinics/'.$tenant->id.'/ai-models', [
                 'ai_model_access_id' => $access->id,
                 'is_active' => '1',
             ])
@@ -801,7 +801,7 @@ class AiModelAccessManagementTest extends TestCase
 
         $this->actingAs($superAdmin)
             ->forHost('hairvision-ai.test')
-            ->post('/admin/clinics/'.$tenant->id.'/ai-models', [
+            ->post('/admin/settings/clinics/'.$tenant->id.'/ai-models', [
                 'ai_model_access_id' => $hairAccessA->id,
                 'is_active' => '1',
             ])
@@ -809,7 +809,7 @@ class AiModelAccessManagementTest extends TestCase
 
         $this->actingAs($superAdmin)
             ->forHost('hairvision-ai.test')
-            ->post('/admin/clinics/'.$tenant->id.'/ai-models', [
+            ->post('/admin/settings/clinics/'.$tenant->id.'/ai-models', [
                 'ai_model_access_id' => $hairAccessB->id,
                 'is_active' => '1',
             ])
@@ -817,7 +817,7 @@ class AiModelAccessManagementTest extends TestCase
 
         $this->actingAs($superAdmin)
             ->forHost('hairvision-ai.test')
-            ->post('/admin/clinics/'.$tenant->id.'/ai-models', [
+            ->post('/admin/settings/clinics/'.$tenant->id.'/ai-models', [
                 'ai_model_access_id' => $eyebrowAccess->id,
                 'is_active' => '1',
             ])
@@ -854,7 +854,7 @@ class AiModelAccessManagementTest extends TestCase
 
         $this->actingAs($superAdmin)
             ->forHost('hairvision-ai.test')
-            ->patch('/admin/clinics/'.$tenant->id.'/ai-models/'.$hairAccessB->id, [
+            ->patch('/admin/settings/clinics/'.$tenant->id.'/ai-models/'.$hairAccessB->id, [
                 'ai_model_access_id' => $hairAccessB->id,
                 'is_active' => '0',
             ])
@@ -886,7 +886,7 @@ class AiModelAccessManagementTest extends TestCase
 
         $response = $this->actingAs($superAdmin)
             ->forHost('hairvision-ai.test')
-            ->get('/admin/clinics/'.$tenant->id);
+            ->get('/admin/settings/clinics/'.$tenant->id);
 
         $response->assertOk()
             ->assertSee('data-admin-modal-trigger="assign-clinic-ai-model-modal"', false)
@@ -1027,7 +1027,7 @@ class AiModelAccessManagementTest extends TestCase
         $this->actingAs($clinicManager)
             ->withSession(['admin_active_tenant_id' => $tenant->id])
             ->forHost('hairvision-ai.test')
-            ->post('/admin/users', [
+            ->post('/admin/security/users', [
                 'name' => 'کاربر کلینیک',
                 'email' => 'clinic-user@example.com',
                 'phone_normalized' => '09124445555',
@@ -1045,7 +1045,7 @@ class AiModelAccessManagementTest extends TestCase
         $this->actingAs($clinicManager)
             ->withSession(['admin_active_tenant_id' => $tenant->id])
             ->forHost('hairvision-ai.test')
-            ->post('/admin/users', [
+            ->post('/admin/security/users', [
                 'name' => 'کاربر بیرون کلینیک',
                 'email' => 'outside-user@example.com',
                 'phone_normalized' => '09124446666',
@@ -1068,7 +1068,7 @@ class AiModelAccessManagementTest extends TestCase
         $this->actingAs($clinicManager)
             ->withSession(['admin_active_tenant_id' => $tenant->id])
             ->forHost('hairvision-ai.test')
-            ->post('/admin/users', [
+            ->post('/admin/security/users', [
                 'name' => 'کاربر سیستم',
                 'email' => 'system-role-user@example.com',
                 'phone_normalized' => '09124447777',

@@ -56,4 +56,12 @@ export const bootAdminTheme = () => {
             applyTheme(document.documentElement.dataset.adminTheme === 'dark' ? 'light' : 'dark', true);
         });
     });
+
+    window.addEventListener('storage', (event) => {
+        if (event.key !== storageKey || !themes.includes(event.newValue)) {
+            return;
+        }
+
+        applyTheme(event.newValue);
+    });
 };

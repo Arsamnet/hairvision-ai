@@ -139,7 +139,7 @@ class AdminDashboardTest extends TestCase
     public function test_expired_admin_session_redirects_to_admin_login(): void
     {
         $this->forHost('hairvision-ai.test')
-            ->get('/admin/leads')
+            ->get('/admin/crm/leads')
             ->assertRedirect(route('admin.login'));
     }
 
@@ -160,20 +160,39 @@ class AdminDashboardTest extends TestCase
         $this->assertStringContainsString("font-family: 'Vazirmatn FD';", $css);
         $this->assertStringContainsString('Vazirmatn-FD-Regular.woff2', $css);
         $this->assertStringContainsString(':where(.admin-shell, .admin-auth-shell)', $css);
+        $this->assertStringContainsString('.admin-auth-theme-toggle', $css);
+        $this->assertStringContainsString('--admin-brand-start: #8b5cf6;', $css);
+        $this->assertStringContainsString('--admin-brand-end: #14b8a6;', $css);
+        $this->assertStringContainsString('background-image: var(--admin-brand-gradient) !important;', $css);
+        $this->assertStringContainsString('.divide-zinc-100 > :not(:last-child)', $css);
+        $this->assertStringContainsString('.disabled\\:bg-zinc-100:disabled', $css);
+        $this->assertStringContainsString("window.addEventListener('storage'", $themeModule);
+        $layout = file_get_contents(resource_path('views/admin/layout.blade.php'));
+        $breadcrumbs = file_get_contents(resource_path('views/components/admin/breadcrumbs.blade.php'));
+        $this->assertStringContainsString('admin-content min-h-0 flex-1 overflow-y-auto p-5', $layout);
+        $this->assertStringContainsString('\\App\\Support\\AdminNavigation::groups()', $layout);
+        $this->assertStringContainsString('<nav {{ $attributes->merge([\'class\' => \'admin-breadcrumbs\']) }}', $breadcrumbs);
+        $this->assertStringNotContainsString('admin-breadcrumbs-inner', $breadcrumbs);
 
         $this->forHost('hairvision-ai.test')
             ->get('/admin')
             ->assertOk()
             ->assertSee('data-admin-theme-script', false)
             ->assertSee('hairvision.admin.theme', false)
-            ->assertSee('admin-auth-shell', false);
+            ->assertSee('admin-auth-shell', false)
+            ->assertSee('data-theme-toggle', false)
+            ->assertSee('/theme/admin-logo-light.svg', false)
+            ->assertSee('/theme/admin-logo-dark.svg', false);
 
         $this->withSession(['admin_pending_phone' => '09217359491'])
             ->forHost('hairvision-ai.test')
             ->get('/admin/otp')
             ->assertOk()
             ->assertSee('data-admin-theme-script', false)
-            ->assertSee('admin-auth-shell', false);
+            ->assertSee('admin-auth-shell', false)
+            ->assertSee('data-theme-toggle', false)
+            ->assertSee('/theme/admin-logo-light.svg', false)
+            ->assertSee('/theme/admin-logo-dark.svg', false);
     }
 
     public function test_admin_buttons_use_shared_component_with_pointer_cursor(): void
@@ -280,9 +299,9 @@ class AdminDashboardTest extends TestCase
 
     public function test_table_view_actions_make_dashboard_rows_clickable(): void
     {
-        $menu = Blade::render('<x-admin.table.action-menu><x-admin.table.action-item href="/admin/leads/1" icon="eye">مشاهده</x-admin.table.action-item></x-admin.table.action-menu>');
-        $viewAction = Blade::render('<x-admin.table.action-item href="/admin/leads/1" icon="eye">مشاهده</x-admin.table.action-item>');
-        $editAction = Blade::render('<x-admin.table.action-item href="/admin/leads/1/edit" icon="edit">ویرایش</x-admin.table.action-item>');
+        $menu = Blade::render('<x-admin.table.action-menu><x-admin.table.action-item href="/admin/crm/leads/1" icon="eye">مشاهده</x-admin.table.action-item></x-admin.table.action-menu>');
+        $viewAction = Blade::render('<x-admin.table.action-item href="/admin/crm/leads/1" icon="eye">مشاهده</x-admin.table.action-item>');
+        $editAction = Blade::render('<x-admin.table.action-item href="/admin/crm/leads/1/edit" icon="edit">ویرایش</x-admin.table.action-item>');
         $actionMenus = file_get_contents(resource_path('js/admin/action-menus.js'));
 
         $this->assertStringContainsString('data-table-action-menu-panel', $menu);
@@ -409,7 +428,7 @@ class AdminDashboardTest extends TestCase
         $this->actingAs($user)
             ->withSession(['admin_active_tenant_id' => $tenantA->id])
             ->forHost('hairvision-ai.test')
-            ->get('/admin/leads')
+            ->get('/admin/crm/leads')
             ->assertOk()
             ->assertSee($leadA->full_name)
             ->assertDontSee($leadB->full_name);
@@ -417,7 +436,7 @@ class AdminDashboardTest extends TestCase
         $this->actingAs($user)
             ->withSession(['admin_active_tenant_id' => $tenantA->id])
             ->forHost('hairvision-ai.test')
-            ->get('/admin/leads/'.$leadB->id)
+            ->get('/admin/crm/leads/'.$leadB->id)
             ->assertForbidden();
     }
 
@@ -433,13 +452,13 @@ class AdminDashboardTest extends TestCase
         $this->actingAs($viewer)
             ->withSession(['admin_active_tenant_id' => $tenant->id])
             ->forHost('hairvision-ai.test')
-            ->get('/admin/leads/'.$lead->id.'/edit')
+            ->get('/admin/crm/leads/'.$lead->id.'/edit')
             ->assertForbidden();
 
         $this->actingAs($editor)
             ->withSession(['admin_active_tenant_id' => $tenant->id])
             ->forHost('hairvision-ai.test')
-            ->put('/admin/leads/'.$lead->id, [
+            ->put('/admin/crm/leads/'.$lead->id, [
                 'full_name' => 'Changed Name',
                 'phone_normalized' => '09125555555',
                 'source' => 'phone',

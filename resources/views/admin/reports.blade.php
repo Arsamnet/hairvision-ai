@@ -4,6 +4,11 @@
 @section('page_title', __('reports.title'))
 
 @section('content')
+    <div class="mb-4">
+        <h2 class="text-lg font-bold">{{ __('reports.title') }}</h2>
+        <p class="mt-1 text-sm leading-6 text-zinc-500">{{ __('reports.subtitle') }}</p>
+    </div>
+
     <div class="grid gap-4 lg:grid-cols-2">
         <section class="rounded-lg bg-white p-5 shadow-sm ring-1 ring-zinc-200">
             <h2 class="text-lg font-bold">{{ __('reports.leads_by_stage') }}</h2>

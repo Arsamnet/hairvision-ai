@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Permission;
 use App\Models\Role;
+use App\Services\Auth\PermissionCatalog;
 use App\Services\Auth\PermissionService;
 use App\Support\Pagination\PaginationParameters;
 use App\Support\Query\DateRangeFilter;
@@ -89,11 +90,12 @@ class RoleController extends Controller
      *
      * @param  Request  $request  Incoming HTTP request.
      * @param  Role  $role  The role value.
+     * @param  PermissionCatalog  $catalog  Canonical permission definitions.
      * @return View Rendered response view.
      *
      * @since 1.0.0
      */
-    public function edit(Request $request, Role $role): View
+    public function edit(Request $request, Role $role, PermissionCatalog $catalog): View
     {
         abort_if($role->isClinicRole(), 404);
 
@@ -101,7 +103,10 @@ class RoleController extends Controller
             'tenant' => $request->attributes->get('adminTenant'),
             'availableTenants' => $request->attributes->get('adminTenants'),
             'role' => $role->load('permissions'),
-            'permissions' => Permission::query()->orderBy('group')->orderBy('code')->get()->groupBy('group'),
+            'permissionGroupLabels' => $catalog->navigationGroups(),
+            'permissions' => $catalog->groupForDisplay(
+                Permission::query()->orderBy('group')->orderBy('code')->get()
+            ),
         ]);
     }
 

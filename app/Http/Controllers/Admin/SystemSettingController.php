@@ -31,7 +31,7 @@ class SystemSettingController extends Controller
             'tenant' => $request->attributes->get('adminTenant'),
             'availableTenants' => $request->attributes->get('adminTenants'),
             'settings' => SystemSetting::query()
-                ->where('group', '!=', 'catalog')
+                ->whereNotIn('group', ['catalog', 'guide'])
                 ->orderBy('group')
                 ->orderBy('key')
                 ->get()
@@ -54,7 +54,7 @@ class SystemSettingController extends Controller
             'settings' => ['required', 'array'],
         ])['settings'];
 
-        foreach (SystemSetting::query()->where('group', '!=', 'catalog')->get() as $setting) {
+        foreach (SystemSetting::query()->whereNotIn('group', ['catalog', 'guide'])->get() as $setting) {
             if (! array_key_exists($setting->key, $submitted)) {
                 continue;
             }

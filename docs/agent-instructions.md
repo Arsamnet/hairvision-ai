@@ -1,6 +1,6 @@
 # AI Agent Instructions
 
-Version: [`2.0.0`](../CHANGELOG.md#200)
+Version: [`2.0.1`](../CHANGELOG.md#201)
 
 This file is the compact operating prompt for AI agents. The primary guide is
 `AGENTS.md`; this file keeps the same rules inside `/docs`.
@@ -66,6 +66,23 @@ transplant, or dynamically added services like under-eye filler.
 - System landing templates are trusted HTML fragments managed only by authorized
   platform users. Template CSS and JavaScript are inline; external template
   assets, scripts, stylesheets, and fonts remain prohibited.
+- The clinic dashboard guide is system-owned relational content stored in
+  `guide_pages`, `guide_sections`, `guide_steps`, and `guide_faqs`. Every
+  authenticated clinic role can read it, including without an active plan;
+  only `guide.manage` can edit it through the two dedicated management pages.
+- The guide and FAQ are separate clinic-only help pages with distinct local
+  menu icons. Keep categorized anchor indexes, smooth in-page navigation, and
+  native accessible FAQ accordions that honor reduced-motion preferences.
+- Guide titles, audiences, step titles, and questions are escaped plain text.
+  Editable descriptions and answers use the reusable WYSIWYG/source editor and
+  must pass `SimpleRichTextSanitizer` before storage and every render. Preserve
+  selection across toolbar actions, normalize browser-generated formatting to
+  semantic allowlisted HTML, and sanitize pasted/source HTML. The one named
+  textarea is also the visible no-JavaScript fallback and is the sole submitted
+  source of truth.
+- Dashboard fragment links must scroll only `[data-admin-scroll-container]`.
+  Keep the admin body fixed to the viewport, suppress native initial-fragment
+  scrolling, reset root scroll offsets, and honor reduced-motion preferences.
 
 ## Reuse Requirements
 

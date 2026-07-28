@@ -2,6 +2,9 @@
 
 namespace App\Services\Auth;
 
+use App\Models\Permission;
+use Illuminate\Support\Collection;
+
 /**
  * Canonical permission and access-level definitions for HairVision.
  *
@@ -25,7 +28,7 @@ class PermissionCatalog
             ],
             'notifications' => [
                 ['code' => 'notifications.view', 'name' => 'مشاهده پیام‌ها و اعلان‌های کلینیک'],
-                ['code' => 'notifications.manage', 'name' => 'مدیریت پیام‌ها و اعلان‌های کلینیک‌ها'],
+                ['code' => 'notifications.manage', 'name' => 'مدیریت اعلان‌ها'],
             ],
             'ai_models' => [
                 ['code' => 'ai_models.list', 'name' => 'فهرست مدل‌های هوش مصنوعی'],
@@ -43,11 +46,11 @@ class PermissionCatalog
                 ['code' => 'ai_models.manage_credit', 'name' => 'مدیریت اعتبار مدل هوش مصنوعی'],
             ],
             'ai_model_categories' => [
-                ['code' => 'ai_model_categories.view', 'name' => 'مشاهده دسته‌بندی‌های مدل'],
-                ['code' => 'ai_model_categories.create', 'name' => 'ایجاد دسته‌بندی مدل'],
-                ['code' => 'ai_model_categories.update', 'name' => 'ویرایش دسته‌بندی مدل'],
-                ['code' => 'ai_model_categories.delete', 'name' => 'حذف دسته‌بندی مدل'],
-                ['code' => 'ai_model_category_outputs.manage', 'name' => 'مدیریت خروجی‌های دسته‌بندی مدل'],
+                ['code' => 'ai_model_categories.view', 'name' => 'مشاهده کاربردهای هوش مصنوعی'],
+                ['code' => 'ai_model_categories.create', 'name' => 'ایجاد کاربرد هوش مصنوعی'],
+                ['code' => 'ai_model_categories.update', 'name' => 'ویرایش کاربرد هوش مصنوعی'],
+                ['code' => 'ai_model_categories.delete', 'name' => 'حذف کاربرد هوش مصنوعی'],
+                ['code' => 'ai_model_category_outputs.manage', 'name' => 'مدیریت خروجی‌های کاربرد هوش مصنوعی'],
                 ['code' => 'ai_model_types.view', 'name' => 'مشاهده نوع‌های مدل'],
                 ['code' => 'ai_model_jobs.view', 'name' => 'مشاهده صف مدل‌ها'],
                 ['code' => 'ai_model_jobs.retry', 'name' => 'اجرای دوباره تلاش مدل'],
@@ -64,11 +67,11 @@ class PermissionCatalog
                 ['code' => 'tenants.delete', 'name' => 'حذف کلینیک'],
             ],
             'landing_templates' => [
-                ['code' => 'landing_templates.view', 'name' => 'مشاهده قالب‌های لندینگ'],
-                ['code' => 'landing_templates.create', 'name' => 'ایجاد قالب لندینگ'],
-                ['code' => 'landing_templates.update', 'name' => 'ویرایش و انتخاب قالب پیش‌فرض لندینگ'],
-                ['code' => 'landing_templates.delete', 'name' => 'حذف قالب لندینگ'],
-                ['code' => 'landing_templates.assign', 'name' => 'تخصیص قالب لندینگ به کلینیک‌ها'],
+                ['code' => 'landing_templates.view', 'name' => 'مشاهده قالب‌ها'],
+                ['code' => 'landing_templates.create', 'name' => 'ایجاد قالب'],
+                ['code' => 'landing_templates.update', 'name' => 'ویرایش و انتخاب قالب پیش‌فرض'],
+                ['code' => 'landing_templates.delete', 'name' => 'حذف قالب'],
+                ['code' => 'landing_templates.assign', 'name' => 'تخصیص قالب به کلینیک‌ها'],
             ],
             'users' => [
                 ['code' => 'users.list', 'name' => 'فهرست کاربران'],
@@ -90,12 +93,12 @@ class PermissionCatalog
                 ['code' => 'leads.manage', 'name' => 'مدیریت لیدها'],
             ],
             'roles' => [
-                ['code' => 'roles.list', 'name' => 'فهرست سطوح دسترسی'],
-                ['code' => 'roles.view', 'name' => 'مشاهده سطح دسترسی'],
-                ['code' => 'roles.create', 'name' => 'ایجاد سطح دسترسی'],
-                ['code' => 'roles.edit', 'name' => 'ویرایش سطح دسترسی'],
-                ['code' => 'roles.delete', 'name' => 'حذف سطح دسترسی'],
-                ['code' => 'roles.manage', 'name' => 'مدیریت سطوح دسترسی'],
+                ['code' => 'roles.list', 'name' => 'فهرست نقش‌های مدیریتی'],
+                ['code' => 'roles.view', 'name' => 'مشاهده نقش مدیریتی'],
+                ['code' => 'roles.create', 'name' => 'ایجاد نقش مدیریتی'],
+                ['code' => 'roles.edit', 'name' => 'ویرایش نقش مدیریتی'],
+                ['code' => 'roles.delete', 'name' => 'حذف نقش مدیریتی'],
+                ['code' => 'roles.manage', 'name' => 'مدیریت نقش‌های مدیریتی'],
             ],
             'permissions' => [
                 ['code' => 'permissions.list', 'name' => 'فهرست مجوزها'],
@@ -104,6 +107,9 @@ class PermissionCatalog
             ],
             'settings' => [
                 ['code' => 'settings.manage', 'name' => 'مدیریت تنظیمات سیستم'],
+            ],
+            'guide' => [
+                ['code' => 'guide.manage', 'name' => 'مدیریت محتوای راهنما'],
             ],
             'sms_gateways' => [
                 ['code' => 'sms_gateways.list', 'name' => 'فهرست درگاه‌های پیامک'],
@@ -130,16 +136,86 @@ class PermissionCatalog
                 ['code' => 'plans.manage', 'name' => 'مدیریت پلن‌ها'],
             ],
             'billing' => [
-                ['code' => 'billing.list', 'name' => 'فهرست مالی'],
-                ['code' => 'billing.view', 'name' => 'مشاهده مالی'],
+                ['code' => 'billing.list', 'name' => 'فهرست فاکتورها و پرداخت‌ها'],
+                ['code' => 'billing.view', 'name' => 'مشاهده فاکتورها و پرداخت‌ها'],
                 ['code' => 'billing.pay', 'name' => 'پرداخت فاکتورهای خود'],
-                ['code' => 'billing.manage', 'name' => 'مدیریت مالی'],
+                ['code' => 'billing.manage', 'name' => 'مدیریت فاکتورها و پرداخت‌ها'],
             ],
             'reports' => [
                 ['code' => 'reports.management.view', 'name' => 'مشاهده گزارش‌های مدیریتی'],
-                ['code' => 'reports.user.view', 'name' => 'مشاهده گزارش‌های خود'],
+                ['code' => 'reports.user.view', 'name' => 'مشاهده گزارش عملکرد و مصرف اعتبار'],
             ],
         ];
+    }
+
+    /**
+     * Return permission display groups aligned with administrator navigation.
+     *
+     * @return array<string, string>
+     *
+     * @since 2.0.1
+     */
+    public function navigationGroups(): array
+    {
+        return [
+            'crm' => __('menu.groups.crm'),
+            'security' => __('menu.groups.users_access'),
+            'finance' => __('menu.groups.plans_payments'),
+            'reports' => __('menu.groups.reports'),
+            'settings' => __('menu.groups.settings'),
+        ];
+    }
+
+    /**
+     * Group persisted permissions for display using the menu hierarchy.
+     *
+     * Stable permission codes and persisted resource groups remain unchanged;
+     * only the presentation hierarchy and canonical Persian names are applied.
+     *
+     * @param  Collection<int, Permission>  $permissions
+     * @return Collection<string, Collection<int, Permission>>
+     *
+     * @since 2.0.1
+     */
+    public function groupForDisplay(Collection $permissions): Collection
+    {
+        $definitions = collect($this->permissions())
+            ->flatten(1)
+            ->keyBy('code');
+
+        $permissions->each(function (Permission $permission) use ($definitions): void {
+            $definition = $definitions->get($permission->code);
+            $permission->setAttribute('display_name', $definition['name'] ?? $permission->name);
+        });
+
+        $grouped = $permissions
+            ->sortBy('code')
+            ->groupBy(fn (Permission $permission): string => $this->navigationGroupFor($permission->group));
+
+        return collect($this->navigationGroups())
+            ->mapWithKeys(fn (string $label, string $group): array => [
+                $group => $grouped->get($group, collect()),
+            ])
+            ->filter(fn (Collection $groupPermissions): bool => $groupPermissions->isNotEmpty());
+    }
+
+    /**
+     * Map a persisted permission resource group to its navigation group.
+     *
+     * @param  string  $permissionGroup  Persisted permission group.
+     * @return string Navigation group key.
+     *
+     * @since 2.0.1
+     */
+    private function navigationGroupFor(string $permissionGroup): string
+    {
+        return match ($permissionGroup) {
+            'leads' => 'crm',
+            'users', 'roles', 'permissions' => 'security',
+            'plans', 'billing', 'payment_gateways' => 'finance',
+            'reports' => 'reports',
+            default => 'settings',
+        };
     }
 
     /**

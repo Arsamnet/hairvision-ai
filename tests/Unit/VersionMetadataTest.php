@@ -18,11 +18,11 @@ class VersionMetadataTest extends TestCase
      *
      * @since 2.0.0
      */
-    public function test_project_version_defaults_to_2_0_0(): void
+    public function test_project_version_defaults_to_2_0_1(): void
     {
-        $this->assertSame('2.0.0', config('hairvision.version'));
+        $this->assertSame('2.0.1', config('hairvision.version'));
         $this->assertStringContainsString(
-            'APP_VERSION=2.0.0',
+            'APP_VERSION=2.0.1',
             (string) file_get_contents(base_path('.env.example'))
         );
     }
@@ -41,8 +41,8 @@ class VersionMetadataTest extends TestCase
         $this->assertFileExists(base_path('CHANGELOG.md'));
         $this->assertFileDoesNotExist(base_path('docs/release-notes.md'));
         $this->assertStringContainsString('## 2.0.0', $releaseNotes);
+        $this->assertStringContainsString('## 2.0.1', $releaseNotes);
         $this->assertStringContainsString('## Unreleased', $releaseNotes);
-        $this->assertStringNotContainsString('## 2.0.1', $releaseNotes);
 
         foreach ([
             'README.md',
@@ -56,7 +56,7 @@ class VersionMetadataTest extends TestCase
 
             $this->assertStringContainsString('CHANGELOG.md', $contents, $documentation);
             $this->assertStringContainsString(
-                '2.0.0',
+                '2.0.1',
                 $contents,
                 $documentation
             );

@@ -1,6 +1,6 @@
 # Engineering Architecture
 
-Version: [`2.0.0`](../CHANGELOG.md#200)
+Version: [`2.0.1`](../CHANGELOG.md#201)
 
 This document is the canonical engineering reference for HairVision. It
 consolidates architecture, data model, setup, coding standards, frontend rules,
@@ -381,6 +381,8 @@ Core tables:
 - `audit_logs`
 - `roles`, `permissions`, `permission_role`
 - `system_settings`
+- `guide_pages`, `guide_sections`, `guide_steps`, `guide_faqs` (system-owned
+  clinic help content with independent ordering and audit ownership)
 - `sms_gateways`, `payment_gateways`
 - `plans`, `plan_service_entitlements`, `plan_ai_model_access`
 - `invoices`, `payments`
@@ -493,13 +495,137 @@ Important tables render desktop tables from `lg` upward and mobile cards below
 remain authoritative.
 
 The dashboard defaults to light theme. Dark mode is enabled only by persisted
-browser choice in `localStorage` under `hairvision.admin.theme`.
+browser choice in `localStorage` under `hairvision.admin.theme`. The inline
+theme bootstrap applies that value before the Vite stylesheet loads, and
+`data-admin-theme` is the single styling authority; page-level Tailwind dark
+variants must not compete with the persisted choice. The administrator login
+and OTP screens expose the same theme control and render both logo variants.
+Both dashboard themes derive their restrained brand accents from the logo's
+violet `#8B5CF6` and teal `#14B8A6` endpoints. Dark dashboard surfaces stay
+neutral charcoal rather than green, gray, or navy dominant; primary actions use
+an accessible darker violet-to-teal gradient while semantic status colors
+remain distinct. Shared tokens cover backgrounds, typography, borders, focus,
+forms, tables, menus, modals, badges, and status colors. These tokens remain
+scoped to `.admin-shell` and `.admin-auth-shell` so public landing pages and
+managed landing templates are unchanged.
+
+Permission-aware dashboard navigation is grouped into dashboard, CRM,
+security, finance, reports, help, and settings. Platform management destinations
+including clinics, templates, system notifications, AI applications, AI
+models, SMS gateways, and runtime settings belong to the settings group; a
+separate system-management menu group must not be rendered. Roles, permissions,
+AI applications, AI models, and each report type use distinct semantic aliases
+backed by the local UIcons font.
+
+The clinic-only `مرکز راهنما` group uses a life-ring icon and has two children:
+`راهنمای کاربری` with a reader icon and `پرسش‌های متداول` with a question
+message icon. They lead every authenticated clinic role to separate shared help
+pages. Guide access is exempt from active-plan blocking so billing, access, and
+troubleshooting instructions remain available when a subscription is inactive.
+Platform-management destinations and instructions are not included in these
+clinic-user help surfaces.
+
+`App\Support\AdminNavigation` is the single metadata source for sidebar groups,
+menu items, semantic icons, active-route patterns, topbar context, and
+breadcrumbs. Canonical dashboard web paths mirror that hierarchy:
+
+```text
+/admin/crm/leads
+/admin/security/users
+/admin/security/roles
+/admin/security/permissions
+/admin/finance/plans
+/admin/finance/billing
+/admin/finance/payment-gateways
+/admin/reports/performance
+/admin/reports/credit-usage
+/admin/reports/management
+/admin/help/guide
+/admin/help/faq
+/admin/settings/clinics
+/admin/settings/templates
+/admin/settings/notifications
+/admin/settings/ai-applications
+/admin/settings/ai-models
+/admin/settings/sms-gateways
+/admin/settings/general
+/admin/settings/guide
+/admin/settings/faqs
+```
+
+Stable route names and permission codes remain backward-compatible internal
+identifiers. Legacy section-root URLs permanently redirect to their canonical
+hierarchical path. Permission presentation is grouped by the same CRM,
+security, finance, reports, and settings headings, with canonical Persian names
+shown beside stable English codes.
+
+### System-managed clinic guide
+
+The clinic guide is system-owned relational content, not tenant content and not
+public visitor content. `GuideContentService` reads and mutates four dedicated
+models so one management action cannot overwrite unrelated help content:
+
+```text
+guide_pages (guide and faq page metadata)
+  guide_sections (ordered guide categories)
+    guide_steps (ordered actionable steps)
+  guide_faqs (ordered questions on the faq page)
+```
+
+`GET /admin/help/guide` and `GET /admin/help/faq` are available to authenticated
+dashboard users without a guide-specific view permission or active plan. The
+first page renders a categorized anchor index and ordered clinic-user steps.
+The second page renders a question index and native `details/summary`
+accordions. Both pages link to each other.
+
+`/admin/settings/guide` and `/admin/settings/faqs` are separate management
+pages and both require `guide.manage`. Small Form Requests and thin controllers
+delegate page, section, step, FAQ, and transactional adjacent-order operations
+to `GuideContentService`. The master-detail UI renders compact lists and loads
+the full editor only for the selected item; forms are never nested. A migration
+imports any existing `guide.content` JSON into these records before deleting the
+legacy setting, and rollback exports a compatible document.
+
+Titles, audiences, step titles, and questions remain escaped plain text.
+Introduction, section descriptions, step bodies, and FAQ answers use a reusable
+visual/source WYSIWYG editor. It preserves the selected range across toolbar
+actions, exposes pressed states, provides an inline safe-link control, sanitizes
+paste and source transitions, converts browser-generated inline styles to
+semantic allowlisted elements, and synchronizes one named submitted textarea.
+That textarea stays visible as a progressive no-JavaScript fallback and is
+hidden only after successful editor initialization. The
+service passes rich text through `SimpleRichTextSanitizer` before persistence.
+Only the small local formatting allowlist and safe `http(s)`, `mailto`, `tel`,
+fragment, and root-relative links survive; executable markup, event attributes,
+embedded content, and unsafe schemes do not.
+
+Ordinary documents use CSS smooth scrolling and logical target offsets. The
+fixed-height administrator app shell marks its root as `admin-root`, fixes the
+body to the dynamic viewport, clips root document scrolling, and delegates
+anchor movement exclusively to `[data-admin-scroll-container]`. An early head
+guard temporarily suppresses native initial-hash scrolling; the shared fragment
+controller then restores the URL and calculates the target offset inside the
+content scroller. Root offsets are reset for direct links, reload, hash changes,
+page restoration, and modal state changes, so fragment navigation cannot
+displace the topbar or reveal layout below the shell. Triggerless global modals use a
+`display: contents` wrapper and therefore add no phantom block after the shell.
+The FAQ open/close panel and caret use short CSS transitions while native
+details semantics remain intact. All scrolling and accordion motion is
+effectively disabled when the operating system reports
+`prefers-reduced-motion: reduce`.
 
 Every dashboard page rendered through `admin.layout` includes the reusable
 `x-admin.breadcrumbs` component at the top of the main content area. The
 component builds a Persian RTL, accessible breadcrumb trail from the active
 route so system and clinic pages share one navigation contract without
-duplicating breadcrumb markup in individual pages.
+duplicating breadcrumb markup in individual pages. Breadcrumbs do not render a
+bottom separator, animated link underlines, or internal block padding. Group and
+item icons are resolved from the same navigation metadata as the sidebar.
+
+The scrollable `.admin-content` area uses a consistent `20px` inset on every
+side and breakpoint. Desktop table header cells own their semantic surface;
+the first and last `th` receive logical top corner radii so RTL and LTR table
+edges remain clipped to the rounded table container.
 
 Dashboard list pages should use backend query parameters, shared filters,
 sortable headings, shared pagination footers, Jalali date controls, and
@@ -646,7 +772,7 @@ active category-specific GapGPT model access records.
 Baseline configuration:
 
 ```env
-APP_VERSION=2.0.0
+APP_VERSION=2.0.1
 APP_LOCALE=fa
 APP_FAKER_LOCALE=fa_IR
 CACHE_STORE=redis

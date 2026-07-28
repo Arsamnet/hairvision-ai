@@ -320,7 +320,7 @@ class SystemManagementTest extends TestCase
 
         $this->actingAs($viewer)
             ->forHost('hairvision-ai.test')
-            ->get('/admin/system/settings')
+            ->get('/admin/settings/general')
             ->assertForbidden();
 
         $this->actingAs($viewer)
@@ -332,9 +332,9 @@ class SystemManagementTest extends TestCase
         $this->actingAs($superAdmin)
             ->withSession(['admin_all_tenants' => true])
             ->forHost('hairvision-ai.test')
-            ->get('/admin/system')
+            ->get('/admin/settings/overview')
             ->assertOk()
-            ->assertSee('مدیریت سیستم')
+            ->assertSee(__('system.dashboard_title'))
             ->assertSee('درگاه‌های پرداخت');
 
         $this->actingAs($superAdmin)
@@ -343,7 +343,14 @@ class SystemManagementTest extends TestCase
             ->get('/admin/dashboard')
             ->assertOk()
             ->assertSee('data-menu-group="'.__('menu.groups.settings').'"', false)
+            ->assertDontSee('data-menu-group="مدیریت سیستم"', false)
+            ->assertSee('data-menu-item="admin.clinics.index"', false)
+            ->assertSee('data-menu-item="admin.system.landing-templates.index"', false)
+            ->assertSee('data-menu-item="admin.system.notifications.index"', false)
+            ->assertSee('data-menu-item="admin.system.ai-model-categories.index"', false)
+            ->assertSee('data-menu-item="admin.ai-models.index"', false)
             ->assertSee('data-menu-item="admin.system.sms-gateways.index"', false)
+            ->assertSee('data-menu-item="admin.system.settings.edit"', false)
             ->assertDontSee('data-menu-item="admin.system.access.index"', false)
             ->assertDontSee('پنل پیامک اختصاصی');
     }
@@ -362,14 +369,14 @@ class SystemManagementTest extends TestCase
 
         $this->actingAs($superAdmin)
             ->forHost('hairvision-ai.test')
-            ->get('/admin/system/roles')
+            ->get('/admin/security/roles')
             ->assertOk()
             ->assertSee(__('system.roles.super_admin'))
             ->assertDontSee(__('system.roles.viewer'));
 
         $this->actingAs($superAdmin)
             ->forHost('hairvision-ai.test')
-            ->put('/admin/system/roles/'.$role->id, [
+            ->put('/admin/security/roles/'.$role->id, [
                 'name' => $role->name,
                 'description' => $role->description,
                 'status' => 'active',
@@ -383,7 +390,7 @@ class SystemManagementTest extends TestCase
         $this->assertFalse($viewer->hasPermission('settings.manage'));
         $this->actingAs($viewer)
             ->forHost('hairvision-ai.test')
-            ->get('/admin/system/settings')
+            ->get('/admin/settings/general')
             ->assertForbidden();
     }
 
@@ -429,7 +436,7 @@ class SystemManagementTest extends TestCase
 
         $this->actingAs($superAdmin)
             ->forHost('hairvision-ai.test')
-            ->get('/admin/system/settings')
+            ->get('/admin/settings/general')
             ->assertOk()
             ->assertDontSee('name="settings[catalog.states.leads.crm_stages]"', false)
             ->assertDontSee('کاتالوگ وضعیت‌ها')
@@ -437,7 +444,7 @@ class SystemManagementTest extends TestCase
 
         $this->actingAs($superAdmin)
             ->forHost('hairvision-ai.test')
-            ->put('/admin/system/settings', [
+            ->put('/admin/settings/general', [
                 'settings' => [
                     'system.name' => 'HairVision Enterprise',
                     'support.phone' => '09120001111',
@@ -465,7 +472,7 @@ class SystemManagementTest extends TestCase
         $this->actingAs($user)
             ->withSession(['admin_active_tenant_id' => $tenant->id])
             ->forHost('hairvision-ai.test')
-            ->getJson('/admin/leads?per_page=1&search=Alpha&sort=full_name&direction=asc')
+            ->getJson('/admin/crm/leads?per_page=1&search=Alpha&sort=full_name&direction=asc')
             ->assertOk()
             ->assertJsonPath('meta.per_page', 1)
             ->assertJsonPath('meta.total', 1);
@@ -473,7 +480,7 @@ class SystemManagementTest extends TestCase
         $response = $this->actingAs($user)
             ->withSession(['admin_active_tenant_id' => $tenant->id])
             ->forHost('hairvision-ai.test')
-            ->getJson('/admin/leads?per_page=1&page=2&search=Lead&sort=full_name&direction=desc')
+            ->getJson('/admin/crm/leads?per_page=1&page=2&search=Lead&sort=full_name&direction=desc')
             ->assertOk()
             ->assertJsonPath('meta.current_page', 2)
             ->assertJsonPath('meta.per_page', 1)
@@ -493,7 +500,7 @@ class SystemManagementTest extends TestCase
 
         $this->actingAs($superAdmin)
             ->forHost('hairvision-ai.test')
-            ->get('/admin/users')
+            ->get('/admin/security/users')
             ->assertOk()
             ->assertSee(__('system.roles.super_admin'))
             ->assertSee('data-menu-item="admin.users.index"', false)
@@ -510,20 +517,20 @@ class SystemManagementTest extends TestCase
 
         $this->actingAs($superAdmin)
             ->forHost('hairvision-ai.test')
-            ->get('/admin/users?search=09129999999')
+            ->get('/admin/security/users?search=09129999999')
             ->assertOk()
             ->assertSee('09129999999');
 
         $this->actingAs($superAdmin)
             ->forHost('hairvision-ai.test')
-            ->get('/admin/users/create')
+            ->get('/admin/security/users/create')
             ->assertOk()
             ->assertSee(__('system.access_scope'))
             ->assertSee(__('system.last_name'));
 
         $this->actingAs($superAdmin)
             ->forHost('hairvision-ai.test')
-            ->post('/admin/users', [
+            ->post('/admin/security/users', [
                 'name' => 'کاربر تست مدیریت',
                 'email' => 'managed-user@example.com',
                 'phone_normalized' => '09127770000',
@@ -540,7 +547,7 @@ class SystemManagementTest extends TestCase
 
         $this->actingAs($superAdmin)
             ->forHost('hairvision-ai.test')
-            ->get('/admin/users/'.$managedUser->id)
+            ->get('/admin/security/users/'.$managedUser->id)
             ->assertOk()
             ->assertSee('کاربر تست مدیریت')
             ->assertSee(__('system.roles.viewer'))
@@ -549,12 +556,12 @@ class SystemManagementTest extends TestCase
 
         $this->actingAs($superAdmin)
             ->forHost('hairvision-ai.test')
-            ->get('/admin/users/'.$managedUser->id.'/edit')
+            ->get('/admin/security/users/'.$managedUser->id.'/edit')
             ->assertOk();
 
         $this->actingAs($superAdmin)
             ->forHost('hairvision-ai.test')
-            ->put('/admin/users/'.$managedUser->id, [
+            ->put('/admin/security/users/'.$managedUser->id, [
                 'name' => 'کاربر تست ویرایش شده',
                 'email' => 'managed-user@example.com',
                 'phone_normalized' => '09127770001',
@@ -575,7 +582,7 @@ class SystemManagementTest extends TestCase
 
         $this->actingAs($superAdmin)
             ->forHost('hairvision-ai.test')
-            ->delete('/admin/users/'.$managedUser->id)
+            ->delete('/admin/security/users/'.$managedUser->id)
             ->assertRedirect(route('admin.users.index'));
 
         $this->assertDatabaseMissing('users', ['id' => $managedUser->id]);
@@ -590,7 +597,7 @@ class SystemManagementTest extends TestCase
 
         $this->actingAs($superAdmin)
             ->forHost('hairvision-ai.test')
-            ->post('/admin/users', [
+            ->post('/admin/security/users', [
                 'name' => 'کاربر با شماره تکراری',
                 'email' => 'duplicate-phone@example.com',
                 'phone_normalized' => $superAdmin->phone_normalized,
@@ -615,12 +622,12 @@ class SystemManagementTest extends TestCase
         $target = $this->createUserForTenant($tenant, 'editor', '09122222222');
         $this->activateSubscription($viewer);
 
-        $this->actingAs($viewer)->withSession(['admin_active_tenant_id' => $tenant->id])->forHost('hairvision-ai.test')->get('/admin/users')->assertForbidden();
-        $this->actingAs($viewer)->withSession(['admin_active_tenant_id' => $tenant->id])->forHost('hairvision-ai.test')->get('/admin/users/create')->assertForbidden();
-        $this->actingAs($viewer)->withSession(['admin_active_tenant_id' => $tenant->id])->forHost('hairvision-ai.test')->get('/admin/users/'.$target->id)->assertForbidden();
-        $this->actingAs($viewer)->withSession(['admin_active_tenant_id' => $tenant->id])->forHost('hairvision-ai.test')->get('/admin/users/'.$target->id.'/edit')->assertForbidden();
-        $this->actingAs($viewer)->withSession(['admin_active_tenant_id' => $tenant->id])->forHost('hairvision-ai.test')->put('/admin/users/'.$target->id, [])->assertForbidden();
-        $this->actingAs($viewer)->withSession(['admin_active_tenant_id' => $tenant->id])->forHost('hairvision-ai.test')->delete('/admin/users/'.$target->id)->assertForbidden();
+        $this->actingAs($viewer)->withSession(['admin_active_tenant_id' => $tenant->id])->forHost('hairvision-ai.test')->get('/admin/security/users')->assertForbidden();
+        $this->actingAs($viewer)->withSession(['admin_active_tenant_id' => $tenant->id])->forHost('hairvision-ai.test')->get('/admin/security/users/create')->assertForbidden();
+        $this->actingAs($viewer)->withSession(['admin_active_tenant_id' => $tenant->id])->forHost('hairvision-ai.test')->get('/admin/security/users/'.$target->id)->assertForbidden();
+        $this->actingAs($viewer)->withSession(['admin_active_tenant_id' => $tenant->id])->forHost('hairvision-ai.test')->get('/admin/security/users/'.$target->id.'/edit')->assertForbidden();
+        $this->actingAs($viewer)->withSession(['admin_active_tenant_id' => $tenant->id])->forHost('hairvision-ai.test')->put('/admin/security/users/'.$target->id, [])->assertForbidden();
+        $this->actingAs($viewer)->withSession(['admin_active_tenant_id' => $tenant->id])->forHost('hairvision-ai.test')->delete('/admin/security/users/'.$target->id)->assertForbidden();
     }
 
     public function test_user_edit_assigns_exactly_one_access_scope_and_role(): void
@@ -641,7 +648,7 @@ class SystemManagementTest extends TestCase
 
         $this->actingAs($superAdmin)
             ->forHost('hairvision-ai.test')
-            ->post('/admin/users', [
+            ->post('/admin/security/users', [
                 'name' => 'کاربر سیستم تست',
                 'email' => 'system-scope-user@example.com',
                 'phone_normalized' => '09127770010',
@@ -659,7 +666,7 @@ class SystemManagementTest extends TestCase
 
         $this->actingAs($superAdmin)
             ->forHost('hairvision-ai.test')
-            ->put('/admin/users/'.$user->id, [
+            ->put('/admin/security/users/'.$user->id, [
                 'name' => 'کاربر سیستم تست',
                 'email' => 'system-scope-user@example.com',
                 'phone_normalized' => '09127770010',
@@ -687,7 +694,7 @@ class SystemManagementTest extends TestCase
         $this->actingAs($clinicManager)
             ->withSession(['admin_active_tenant_id' => $tenant->id])
             ->forHost('hairvision-ai.test')
-            ->get('/admin/users/create')
+            ->get('/admin/security/users/create')
             ->assertOk()
             ->assertDontSee(__('system.access_scope'))
             ->assertSee(__('system.role'))
@@ -698,7 +705,7 @@ class SystemManagementTest extends TestCase
         $this->actingAs($clinicManager)
             ->withSession(['admin_active_tenant_id' => $tenant->id])
             ->forHost('hairvision-ai.test')
-            ->post('/admin/users', [
+            ->post('/admin/security/users', [
                 'first_name' => 'کاربر',
                 'last_name' => 'کلینیک',
                 'email' => 'clinic-status-user@example.com',
@@ -960,7 +967,7 @@ class SystemManagementTest extends TestCase
 
         $this->actingAs($superAdmin)
             ->forHost('hairvision-ai.test')
-            ->post('/admin/system/sms-gateways', [
+            ->post('/admin/settings/sms-gateways', [
                 'name' => 'درگاه تست IPPanel',
                 'provider_code' => 'ippanel',
                 'owner_scope' => 'system',
@@ -977,7 +984,7 @@ class SystemManagementTest extends TestCase
 
         $this->actingAs($superAdmin)
             ->forHost('hairvision-ai.test')
-            ->get('/admin/system/sms-gateways?search=IPPanel')
+            ->get('/admin/settings/sms-gateways?search=IPPanel')
             ->assertOk()
             ->assertSee('درگاه تست IPPanel')
             ->assertSee('درگاه پیامک IPPanel')
@@ -989,7 +996,7 @@ class SystemManagementTest extends TestCase
 
         $this->actingAs($superAdmin)
             ->forHost('hairvision-ai.test')
-            ->get('/admin/system/sms-gateways/'.$gateway->id)
+            ->get('/admin/settings/sms-gateways/'.$gateway->id)
             ->assertOk()
             ->assertSee($gateway->maskedCredential('api_key'))
             ->assertSee('data-confirm-form', false)
@@ -998,7 +1005,7 @@ class SystemManagementTest extends TestCase
 
         $this->actingAs($superAdmin)
             ->forHost('hairvision-ai.test')
-            ->put('/admin/system/sms-gateways/'.$gateway->id, [
+            ->put('/admin/settings/sms-gateways/'.$gateway->id, [
                 'name' => 'درگاه تست IPPanel ویرایش',
                 'provider_code' => 'ippanel',
                 'owner_scope' => 'system',
@@ -1017,7 +1024,7 @@ class SystemManagementTest extends TestCase
 
         $this->actingAs($superAdmin)
             ->forHost('hairvision-ai.test')
-            ->post('/admin/system/sms-gateways', [
+            ->post('/admin/settings/sms-gateways', [
                 'name' => 'درگاه کلینیک نوژا',
                 'provider_code' => 'local',
                 'owner_scope' => 'tenant',
@@ -1049,7 +1056,7 @@ class SystemManagementTest extends TestCase
 
         $this->actingAs($superAdmin)
             ->forHost('hairvision-ai.test')
-            ->get('/admin/system/sms-gateways?owner_scope=tenant')
+            ->get('/admin/settings/sms-gateways?owner_scope=tenant')
             ->assertOk()
             ->assertSee('درگاه کلینیک آریا')
             ->assertSee($tenant->name)
@@ -1057,12 +1064,12 @@ class SystemManagementTest extends TestCase
 
         $this->actingAs($viewer)
             ->forHost('hairvision-ai.test')
-            ->get('/admin/system/sms-gateways')
+            ->get('/admin/settings/sms-gateways')
             ->assertForbidden();
 
         $this->actingAs($superAdmin)
             ->forHost('hairvision-ai.test')
-            ->delete('/admin/system/sms-gateways/'.$gateway->id)
+            ->delete('/admin/settings/sms-gateways/'.$gateway->id)
             ->assertRedirect(route('admin.system.sms-gateways.index'));
 
         $this->assertDatabaseMissing('sms_gateways', ['id' => $gateway->id]);
@@ -1092,7 +1099,7 @@ class SystemManagementTest extends TestCase
         $this->actingAs($owner)
             ->withSession(['admin_active_tenant_id' => $tenant->id])
             ->forHost('hairvision-ai.test')
-            ->post('/admin/clinics/'.$tenant->id.'/sms-gateway', [
+            ->post('/admin/settings/clinics/'.$tenant->id.'/sms-gateway', [
                 '_form' => 'clinic_sms_gateway',
                 'provider_code' => 'ippanel',
                 'api_key' => 'private-secret-key',
@@ -1115,7 +1122,7 @@ class SystemManagementTest extends TestCase
         $this->actingAs($other)
             ->withSession(['admin_active_tenant_id' => $tenant->id])
             ->forHost('hairvision-ai.test')
-            ->post('/admin/clinics/'.$tenant->id.'/sms-gateway', [
+            ->post('/admin/settings/clinics/'.$tenant->id.'/sms-gateway', [
                 '_form' => 'clinic_sms_gateway',
                 'provider_code' => 'ippanel',
                 'from_number' => '+983000506',
@@ -1160,7 +1167,7 @@ class SystemManagementTest extends TestCase
         $superAdmin = User::query()->where('role', 'super_admin')->firstOrFail();
         $this->actingAs($superAdmin)
             ->forHost('hairvision-ai.test')
-            ->get('/admin/system/payment-gateways?search=zarinpal')
+            ->get('/admin/finance/payment-gateways?search=zarinpal')
             ->assertOk()
             ->assertSee('zarinpal')
             ->assertSee(__('messages.zarinpal_test_payment_gateway'))
@@ -1170,8 +1177,8 @@ class SystemManagementTest extends TestCase
             ->assertSee('admin-mobile-list', false)
             ->assertDontSee('mt-5 overflow-x-auto rounded-lg border border-zinc-100', false)
             ->assertSee('data-table-action-menu', false)
-            ->assertSee('open:z-[80]', false)
-            ->assertSee('z-[90]', false)
+            ->assertSee('open:z-80', false)
+            ->assertSee('z-90', false)
             ->assertSee('admin-confirm-modal-toggle', false)
             ->assertSee('data-admin-modal-backdrop="admin-confirm-modal"', false);
 
@@ -1314,7 +1321,7 @@ class SystemManagementTest extends TestCase
         $this->actingAs($user)
             ->withSession(['admin_active_tenant_id' => $tenant->id])
             ->forHost('hairvision-ai.test')
-            ->get('/admin/billing/payments/'.$payment->id.'/verify?Authority='.$failedAuthority.'&Status=NOK')
+            ->get('/admin/finance/billing/payments/'.$payment->id.'/verify?Authority='.$failedAuthority.'&Status=NOK')
             ->assertStatus(303)
             ->assertRedirect($resultUrl);
 
@@ -1336,7 +1343,7 @@ class SystemManagementTest extends TestCase
         $this->actingAs($user)
             ->withSession(['admin_active_tenant_id' => $tenant->id])
             ->forHost('hairvision-ai.test')
-            ->post('/admin/billing/invoices/'.$invoice->id.'/pay')
+            ->post('/admin/finance/billing/invoices/'.$invoice->id.'/pay')
             ->assertStatus(303)
             ->assertRedirect('https://sandbox.zarinpal.com/pg/StartPay/'.$successfulAuthority);
 
@@ -1346,7 +1353,7 @@ class SystemManagementTest extends TestCase
         $this->actingAs($user)
             ->withSession(['admin_active_tenant_id' => $tenant->id])
             ->forHost('hairvision-ai.test')
-            ->get('/admin/billing/payments/'.$successfulPayment->id.'/verify?Authority='.$successfulAuthority.'&Status=OK')
+            ->get('/admin/finance/billing/payments/'.$successfulPayment->id.'/verify?Authority='.$successfulAuthority.'&Status=OK')
             ->assertStatus(303)
             ->assertRedirect($successfulResultUrl);
 
@@ -1389,18 +1396,18 @@ class SystemManagementTest extends TestCase
 
         $this->actingAs($superAdmin)
             ->forHost('hairvision-ai.test')
-            ->get('/admin/system/payment-gateways?search=zarinpal')
+            ->get('/admin/finance/payment-gateways?search=zarinpal')
             ->assertOk()
             ->assertSee('data-admin-modal-trigger="edit-payment-gateway-'.$gateway->id.'"', false)
             ->assertSee('name="merchant_id"', false)
             ->assertSee('data-automatic-zarinpal-callback', false)
-            ->assertSee('https://hairvision-ai.test/admin/billing/payments/{payment}/verify', false)
+            ->assertSee('https://hairvision-ai.test/admin/finance/billing/payments/{payment}/verify', false)
             ->assertDontSee($legacyCallbackUrl, false)
             ->assertDontSee((string) $seededMerchantId, false);
 
         $this->actingAs($superAdmin)
             ->forHost('hairvision-ai.test')
-            ->put('/admin/system/payment-gateways/'.$gateway->id, [
+            ->put('/admin/finance/payment-gateways/'.$gateway->id, [
                 '_form' => 'edit_payment_gateway_'.$gateway->id,
                 'name' => $gateway->name,
                 'provider_code' => 'zarinpal',
@@ -1419,7 +1426,7 @@ class SystemManagementTest extends TestCase
 
         $this->actingAs($superAdmin)
             ->forHost('hairvision-ai.test')
-            ->put('/admin/system/payment-gateways/'.$gateway->id, [
+            ->put('/admin/finance/payment-gateways/'.$gateway->id, [
                 '_form' => 'edit_payment_gateway_'.$gateway->id,
                 'name' => 'زرین‌پال ویرایش‌شده',
                 'provider_code' => 'zarinpal',
@@ -1457,12 +1464,12 @@ class SystemManagementTest extends TestCase
         $this->actingAs($user)
             ->withSession(['admin_active_tenant_id' => $tenant->id])
             ->forHost('ai.arsamnet.com')
-            ->post('/admin/billing/invoices/'.$invoice->id.'/pay')
+            ->post('/admin/finance/billing/invoices/'.$invoice->id.'/pay')
             ->assertStatus(303)
             ->assertRedirect('https://sandbox.zarinpal.com/pg/StartPay/'.$authority);
 
         $payment = $invoice->payments()->latest('id')->firstOrFail();
-        $expectedCallback = 'https://ai.arsamnet.com/admin/billing/payments/'.$payment->id.'/verify';
+        $expectedCallback = 'https://ai.arsamnet.com/admin/finance/billing/payments/'.$payment->id.'/verify';
 
         Http::assertSent(fn ($request): bool => $request->url() === 'https://sandbox.zarinpal.com/pg/v4/payment/request.json'
             && $request['callback_url'] === $expectedCallback
@@ -1471,14 +1478,14 @@ class SystemManagementTest extends TestCase
         $this->actingAs($user)
             ->withSession(['admin_active_tenant_id' => $tenant->id])
             ->forHost('ai.arsamnet.com')
-            ->get('/admin/billing/payments/'.$payment->id.'/verify?Authority='.$authority.'&Status=NOK')
+            ->get('/admin/finance/billing/payments/'.$payment->id.'/verify?Authority='.$authority.'&Status=NOK')
             ->assertStatus(303)
-            ->assertRedirect('https://ai.arsamnet.com/admin/billing/payments/'.$payment->id.'/result');
+            ->assertRedirect('https://ai.arsamnet.com/admin/finance/billing/payments/'.$payment->id.'/result');
 
         $this->actingAs($user)
             ->withSession(['admin_active_tenant_id' => $tenant->id])
             ->forHost('ai.arsamnet.com')
-            ->get('/admin/billing/payments/'.$payment->id.'/result')
+            ->get('/admin/finance/billing/payments/'.$payment->id.'/result')
             ->assertOk()
             ->assertSee('data-payment-result="failed"', false)
             ->assertSee(__('payments.result.failed.title'));
@@ -1508,7 +1515,7 @@ class SystemManagementTest extends TestCase
 
         $this->actingAs($user)
             ->forHost('hairvision-ai.test')
-            ->get('/admin/billing/invoices/'.$invoice->id.'/pay')
+            ->get('/admin/finance/billing/invoices/'.$invoice->id.'/pay')
             ->assertRedirect(route('admin.billing.index'))
             ->assertSessionHasErrors([
                 'payment' => __('payments.gateway_not_configured'),
@@ -1542,7 +1549,7 @@ class SystemManagementTest extends TestCase
 
         $this->actingAs($user)
             ->forHost('hairvision-ai.test')
-            ->get('/admin/billing/invoices/'.$invoice->id.'/pay')
+            ->get('/admin/finance/billing/invoices/'.$invoice->id.'/pay')
             ->assertRedirect(route('admin.billing.index'))
             ->assertSessionHasErrors([
                 'payment' => __('payments.payment_failed_generic'),
@@ -1572,7 +1579,7 @@ class SystemManagementTest extends TestCase
 
         $this->actingAs($userA)
             ->forHost('hairvision-ai.test')
-            ->get('/admin/billing')
+            ->get('/admin/finance/billing')
             ->assertOk()
             ->assertSee($invoiceA->number)
             ->assertDontSee($invoiceB->number);
@@ -1582,7 +1589,7 @@ class SystemManagementTest extends TestCase
         $this->actingAs($superAdmin)
             ->withSession(['admin_all_tenants' => true])
             ->forHost('hairvision-ai.test')
-            ->get('/admin/billing')
+            ->get('/admin/finance/billing')
             ->assertOk()
             ->assertSee($invoiceA->number)
             ->assertSee($invoiceB->number);
@@ -1614,7 +1621,7 @@ class SystemManagementTest extends TestCase
 
         $this->actingAs($user)
             ->forHost('hairvision-ai.test')
-            ->get('/admin/billing')
+            ->get('/admin/finance/billing')
             ->assertOk()
             ->assertSee($invoice->number)
             ->assertSee('data-invoice-direct-pay="'.$invoice->id.'"', false)
@@ -1636,14 +1643,14 @@ class SystemManagementTest extends TestCase
 
         $this->actingAs($user)
             ->forHost('hairvision-ai.test')
-            ->get('/admin/billing')
+            ->get('/admin/finance/billing')
             ->assertOk()
             ->assertDontSee('data-active-subscription-card', false)
             ->assertDontSee(__('payments.active_subscription'));
 
         $this->actingAs($user)
             ->forHost('arya.hairvision-ai.test')
-            ->get('/admin/billing')
+            ->get('/admin/finance/billing')
             ->assertOk()
             ->assertSee('data-active-subscription-card', false)
             ->assertSee(__('payments.active_subscription'));
@@ -1725,7 +1732,10 @@ class SystemManagementTest extends TestCase
             ->assertDontSee('data-menu-group="'.__('menu.groups.dashboard').'"', false)
             ->assertDontSee('data-menu-group="'.__('menu.groups.crm').'"', false)
             ->assertSee('data-menu-group="'.__('menu.groups.plans_payments').'"', false)
+            ->assertSee('data-menu-icon="finance"', false)
             ->assertSee('data-menu-icon="package"', false)
+            ->assertSee('data-menu-icon="report-user"', false)
+            ->assertSee('data-menu-icon="report-credit"', false)
             ->assertSee('data-menu-icon="lock"', false)
             ->assertSee('aria-disabled="true"', false)
             ->assertSee('لیدها')
@@ -1742,20 +1752,98 @@ class SystemManagementTest extends TestCase
             ->assertDontSee('data-menu-group="'.__('menu.groups.dashboard').'"', false)
             ->assertDontSee('data-menu-item="admin.system.dashboard"', false)
             ->assertSee('data-menu-group="'.__('menu.groups.users_access').'"', false)
+            ->assertSee('data-menu-group="'.__('menu.groups.settings').'"', false)
+            ->assertDontSee('data-menu-group="مدیریت سیستم"', false)
+            ->assertSee('data-menu-icon="security"', false)
+            ->assertSee('data-menu-icon="role"', false)
+            ->assertSee('data-menu-icon="permission"', false)
             ->assertSee('data-menu-icon="package"', false)
-            ->assertSee('data-menu-icon="sparkles"', false)
+            ->assertSee('data-menu-icon="ai-applications"', false)
+            ->assertSee('data-menu-icon="ai-model"', false)
+            ->assertSee('data-menu-icon="report-user"', false)
+            ->assertSee('data-menu-icon="report-management"', false)
+            ->assertSee('data-menu-icon="template"', false)
             ->assertSee('data-menu-item="admin.system.roles.index"', false)
+            ->assertSee('data-menu-item="admin.system.permissions.index"', false)
             ->assertDontSee('name="tenant_id"', false);
 
         $this->actingAs($superAdmin)
             ->forHost('hairvision-ai.test')
-            ->get('/admin/system')
+            ->get('/admin/settings/overview')
             ->assertOk()
             ->assertSee('data-admin-breadcrumbs', false)
             ->assertDontSee(__('dashboard.breadcrumbs.scope').':')
             ->assertSee(__('dashboard.dashboard'))
             ->assertSee(__('system.dashboard_title'))
             ->assertSee('aria-current="page"', false);
+    }
+
+    public function test_navigation_paths_breadcrumbs_permissions_and_role_labels_share_one_contract(): void
+    {
+        $this->seed(DatabaseSeeder::class);
+
+        $superAdmin = User::query()->where('role', 'super_admin')->firstOrFail();
+        $clinicAdmin = User::query()->where('role', 'clinic_admin')->firstOrFail();
+
+        $this->assertSame('/admin/crm/leads', parse_url(route('admin.leads.index'), PHP_URL_PATH));
+        $this->assertSame('/admin/security/users', parse_url(route('admin.users.index'), PHP_URL_PATH));
+        $this->assertSame('/admin/security/roles', parse_url(route('admin.system.roles.index'), PHP_URL_PATH));
+        $this->assertSame('/admin/security/permissions', parse_url(route('admin.system.permissions.index'), PHP_URL_PATH));
+        $this->assertSame('/admin/finance/plans', parse_url(route('admin.plans.index'), PHP_URL_PATH));
+        $this->assertSame('/admin/finance/billing', parse_url(route('admin.billing.index'), PHP_URL_PATH));
+        $this->assertSame('/admin/finance/payment-gateways', parse_url(route('admin.system.payment-gateways.index'), PHP_URL_PATH));
+        $this->assertSame('/admin/reports/performance', parse_url(route('admin.reports'), PHP_URL_PATH));
+        $this->assertSame('/admin/reports/management', parse_url(route('admin.system.reports.index'), PHP_URL_PATH));
+        $this->assertSame('/admin/settings/templates', parse_url(route('admin.system.landing-templates.index'), PHP_URL_PATH));
+        $this->assertSame('/admin/settings/ai-applications', parse_url(route('admin.system.ai-model-categories.index'), PHP_URL_PATH));
+        $this->assertSame('/admin/settings/ai-models', parse_url(route('admin.ai-models.index'), PHP_URL_PATH));
+        $this->assertSame('/admin/settings/general', parse_url(route('admin.system.settings.edit'), PHP_URL_PATH));
+
+        $this->actingAs($superAdmin)
+            ->forHost('hairvision-ai.test')
+            ->get('/admin/users')
+            ->assertStatus(301)
+            ->assertRedirect('/admin/security/users');
+
+        $rolesResponse = $this->actingAs($superAdmin)
+            ->forHost('hairvision-ai.test')
+            ->get('/admin/security/roles')
+            ->assertOk()
+            ->assertSee(__('system.roles_title'))
+            ->assertSee(__('system.roles_subtitle'));
+
+        $this->assertMatchesRegularExpression(
+            '/<p\b[^>]*data-admin-topbar-section[^>]*>\s*'.preg_quote(__('menu.groups.users_access'), '/').'\s*<\/p>/u',
+            $rolesResponse->getContent()
+        );
+        $this->assertMatchesRegularExpression(
+            '/<h1\b[^>]*data-admin-topbar-title[^>]*>\s*'.preg_quote(__('system.roles_title'), '/').'\s*<\/h1>/u',
+            $rolesResponse->getContent()
+        );
+
+        preg_match('/<nav\b[^>]*data-admin-breadcrumbs[^>]*>.*?<\/nav>/s', $rolesResponse->getContent(), $breadcrumbMatch);
+        $this->assertNotEmpty($breadcrumbMatch);
+        $this->assertStringContainsString('data-menu-icon="security"', $breadcrumbMatch[0]);
+        $this->assertStringContainsString('data-menu-icon="role"', $breadcrumbMatch[0]);
+        $this->assertStringContainsString(__('menu.groups.users_access'), $breadcrumbMatch[0]);
+        $this->assertStringContainsString(__('menu.items.roles'), $breadcrumbMatch[0]);
+
+        $this->actingAs($superAdmin)
+            ->forHost('hairvision-ai.test')
+            ->get('/admin/security/permissions')
+            ->assertOk()
+            ->assertSee('<h3 class="font-bold">'.__('menu.groups.users_access').'</h3>', false)
+            ->assertSee('<h3 class="font-bold">'.__('menu.groups.plans_payments').'</h3>', false)
+            ->assertSee('مدیریت نقش‌های مدیریتی')
+            ->assertSee('roles.manage');
+
+        $this->actingAs($superAdmin)
+            ->forHost('hairvision-ai.test')
+            ->get('/admin/security/users/'.$clinicAdmin->id.'/edit')
+            ->assertOk()
+            ->assertSee(__('system.roles.super_admin').' — super_admin')
+            ->assertSee(__('system.roles.clinic_admin').' — clinic_admin')
+            ->assertSee(__('system.roles.viewer').' — viewer');
     }
 
     public function test_inactive_plan_users_can_access_allowed_pages_and_restricted_routes_are_blocked(): void
@@ -1765,17 +1853,17 @@ class SystemManagementTest extends TestCase
 
         $user = User::query()->where('role', 'clinic_admin')->firstOrFail();
 
-        $this->actingAs($user)->forHost('hairvision-ai.test')->get('/admin/plans')->assertOk();
-        $this->actingAs($user)->forHost('hairvision-ai.test')->get('/admin/billing')->assertOk();
+        $this->actingAs($user)->forHost('hairvision-ai.test')->get('/admin/finance/plans')->assertOk();
+        $this->actingAs($user)->forHost('hairvision-ai.test')->get('/admin/finance/billing')->assertOk();
 
         $this->actingAs($user)
             ->forHost('hairvision-ai.test')
-            ->get('/admin/leads')
+            ->get('/admin/crm/leads')
             ->assertRedirect(route('admin.plans.index'));
 
         $this->actingAs($user)
             ->forHost('hairvision-ai.test')
-            ->getJson('/admin/leads')
+            ->getJson('/admin/crm/leads')
             ->assertForbidden()
             ->assertSee(__('permissions.plan_required'), false);
     }
@@ -1793,7 +1881,7 @@ class SystemManagementTest extends TestCase
 
         $this->actingAs($superAdmin)
             ->forHost('hairvision-ai.test')
-            ->post('/admin/system/plans', [
+            ->post('/admin/finance/plans', [
                 'name' => 'پلن مدیریتی',
                 'description' => 'برای تست مدیریت پلن',
                 'price' => 4500000,
@@ -1821,7 +1909,7 @@ class SystemManagementTest extends TestCase
 
         $plansResponse = $this->actingAs($superAdmin)
             ->forHost('hairvision-ai.test')
-            ->get('/admin/plans?'.http_build_query(['search' => 'پلن مدیریتی', 'status' => 'active', 'sort' => 'name', 'direction' => 'asc']))
+            ->get('/admin/finance/plans?'.http_build_query(['search' => 'پلن مدیریتی', 'status' => 'active', 'sort' => 'name', 'direction' => 'asc']))
             ->assertOk()
             ->assertSee('پلن مدیریتی')
             ->assertSee(__('plans.statuses.active'))
@@ -1879,7 +1967,7 @@ class SystemManagementTest extends TestCase
 
         $this->actingAs($superAdmin)
             ->forHost('hairvision-ai.test')
-            ->post('/admin/system/plans', [
+            ->post('/admin/finance/plans', [
                 'name' => 'پلن با مدل نامرتبط',
                 'plan_type' => 'base_subscription',
                 'price' => 1000,
@@ -1896,7 +1984,7 @@ class SystemManagementTest extends TestCase
 
         $this->actingAs($superAdmin)
             ->forHost('hairvision-ai.test')
-            ->put('/admin/system/plans/'.$managedPlan->id, [
+            ->put('/admin/finance/plans/'.$managedPlan->id, [
                 '_form' => 'edit_plan_'.$managedPlan->id,
                 'name' => $managedPlan->name,
                 'description' => $managedPlan->description,
@@ -1923,14 +2011,14 @@ class SystemManagementTest extends TestCase
 
         $this->actingAs($superAdmin)
             ->forHost('hairvision-ai.test')
-            ->get('/admin/plans/'.$managedPlan->id)
+            ->get('/admin/finance/plans/'.$managedPlan->id)
             ->assertOk()
             ->assertSee(__('plans.assigned_services'))
             ->assertSee(__('ai_models.usage_categories.eyebrow_transplant'));
 
         $this->actingAs($normalUser)
             ->forHost('hairvision-ai.test')
-            ->get('/admin/plans')
+            ->get('/admin/finance/plans')
             ->assertOk()
             ->assertSee(__('plans.current_plan'))
             ->assertSee('data-current-plan="true"', false)
@@ -1941,7 +2029,7 @@ class SystemManagementTest extends TestCase
 
         $this->actingAs($normalUser)
             ->forHost('hairvision-ai.test')
-            ->get('/admin/plans?plan_type=service_add_on')
+            ->get('/admin/finance/plans?plan_type=service_add_on')
             ->assertOk()
             ->assertSee(__('plans.types.service_add_on'))
             ->assertSee(__('plans.not_purchasable'))
@@ -1956,7 +2044,7 @@ class SystemManagementTest extends TestCase
 
         $this->actingAs($normalUser)
             ->forHost('hairvision-ai.test')
-            ->post('/admin/system/plans', [
+            ->post('/admin/finance/plans', [
                 'name' => 'پلن غیرمجاز',
                 'description' => 'نباید ساخته شود',
                 'price' => 1000,
@@ -1992,7 +2080,7 @@ class SystemManagementTest extends TestCase
 
         $this->actingAs($superAdmin)
             ->forHost('hairvision-ai.test')
-            ->post('/admin/system/plans', $payload + [
+            ->post('/admin/finance/plans', $payload + [
                 'ai_model_access_ids' => $models->pluck('id')->all(),
             ])
             ->assertSessionHasErrors([
@@ -2009,7 +2097,7 @@ class SystemManagementTest extends TestCase
 
         $this->actingAs($superAdmin)
             ->forHost('hairvision-ai.test')
-            ->post('/admin/system/plans', array_replace($payload, [
+            ->post('/admin/finance/plans', array_replace($payload, [
                 'name' => 'پلن با کاربرد بدون مدل',
                 'service_keys' => ['hair_transplant', 'eyebrow_transplant'],
                 'ai_model_access_ids' => [$models->first()->id],
@@ -2022,7 +2110,7 @@ class SystemManagementTest extends TestCase
 
         $this->actingAs($superAdmin)
             ->forHost('hairvision-ai.test')
-            ->post('/admin/system/plans', $payload + [
+            ->post('/admin/finance/plans', $payload + [
                 'ai_model_access_ids' => [$models->first()->id],
             ])
             ->assertRedirect()
@@ -2033,7 +2121,7 @@ class SystemManagementTest extends TestCase
 
         $this->actingAs($superAdmin)
             ->forHost('hairvision-ai.test')
-            ->put('/admin/system/plans/'.$plan->id, $payload + [
+            ->put('/admin/finance/plans/'.$plan->id, $payload + [
                 '_form' => 'edit_plan_'.$plan->id,
                 'ai_model_access_ids' => $models->pluck('id')->all(),
             ])
@@ -2069,14 +2157,14 @@ class SystemManagementTest extends TestCase
 
         $this->actingAs($superAdmin)
             ->forHost('hairvision-ai.test')
-            ->get('/admin/clinics')
+            ->get('/admin/settings/clinics')
             ->assertOk()
             ->assertSee(__('clinics.create'))
             ->assertSee(__('menu.items.clinics'));
 
         $this->actingAs($superAdmin)
             ->forHost('hairvision-ai.test')
-            ->post('/admin/clinics', [
+            ->post('/admin/settings/clinics', [
                 '_form' => 'create_clinic',
                 'name' => 'کلینیک تست',
                 'slug' => 'test-clinic',
@@ -2096,14 +2184,14 @@ class SystemManagementTest extends TestCase
 
         $this->actingAs($superAdmin)
             ->forHost('hairvision-ai.test')
-            ->get('/admin/clinics/'.$clinic->id.'/edit')
+            ->get('/admin/settings/clinics/'.$clinic->id.'/edit')
             ->assertOk()
             ->assertSee('test-clinic.hairvision-ai.test')
             ->assertDontSee(__('clinics.manage_models'));
 
         $this->actingAs($superAdmin)
             ->forHost('hairvision-ai.test')
-            ->get('/admin/clinics/'.$clinic->id)
+            ->get('/admin/settings/clinics/'.$clinic->id)
             ->assertOk()
             ->assertSee('test-clinic.hairvision-ai.test')
             ->assertSee(__('clinics.manage_models'))
@@ -2112,7 +2200,7 @@ class SystemManagementTest extends TestCase
 
         $this->actingAs($superAdmin)
             ->forHost('hairvision-ai.test')
-            ->put('/admin/clinics/'.$clinic->id, [
+            ->put('/admin/settings/clinics/'.$clinic->id, [
                 '_form' => 'edit_clinic',
                 'name' => 'کلینیک تست ویرایش',
                 'slug' => 'test-clinic-updated',
@@ -2137,7 +2225,7 @@ class SystemManagementTest extends TestCase
 
         $this->actingAs($superAdmin)
             ->forHost('hairvision-ai.test')
-            ->post('/admin/clinics', [
+            ->post('/admin/settings/clinics', [
                 '_form' => 'create_clinic',
                 'name' => 'کلینیک تکراری',
                 'slug' => 'duplicate-clinic',
@@ -2151,12 +2239,12 @@ class SystemManagementTest extends TestCase
         $this->actingAs($normalUser)
             ->withSession(['admin_active_tenant_id' => $normalUser->tenants()->firstOrFail()->id])
             ->forHost('hairvision-ai.test')
-            ->get('/admin/clinics')
+            ->get('/admin/settings/clinics')
             ->assertForbidden();
 
         $this->actingAs($superAdmin)
             ->forHost('hairvision-ai.test')
-            ->delete('/admin/clinics/'.$clinic->id)
+            ->delete('/admin/settings/clinics/'.$clinic->id)
             ->assertRedirect(route('admin.clinics.index'));
 
         $this->assertDatabaseMissing('tenants', ['id' => $clinic->id]);
@@ -2195,7 +2283,7 @@ class SystemManagementTest extends TestCase
 
         $this->actingAs($superAdmin)
             ->forHost('hairvision-ai.test')
-            ->get('/admin/clinics')
+            ->get('/admin/settings/clinics')
             ->assertOk()
             ->assertSee(__('clinics.plan_status'))
             ->assertSee($currentSubscription->plan->name)
@@ -2205,7 +2293,7 @@ class SystemManagementTest extends TestCase
 
         $this->actingAs($superAdmin)
             ->forHost('hairvision-ai.test')
-            ->get('/admin/clinics/'.$clinic->id)
+            ->get('/admin/settings/clinics/'.$clinic->id)
             ->assertOk()
             ->assertSee(__('clinics.assign_plan'))
             ->assertSee('پلن ویژه کلینیک‌ها')
@@ -2215,7 +2303,7 @@ class SystemManagementTest extends TestCase
 
         $this->actingAs($superAdmin)
             ->forHost('hairvision-ai.test')
-            ->post('/admin/clinics/'.$clinic->id.'/plans', [
+            ->post('/admin/settings/clinics/'.$clinic->id.'/plans', [
                 '_form' => 'assign_clinic_plan_'.$clinic->id,
                 'plan_id' => $upgrade->id,
                 'discount_amount' => 5000000,
@@ -2237,7 +2325,7 @@ class SystemManagementTest extends TestCase
 
         $this->actingAs($superAdmin)
             ->forHost('hairvision-ai.test')
-            ->patch('/admin/clinics/'.$clinic->id.'/invoices/'.$invoice->id.'/approve')
+            ->patch('/admin/settings/clinics/'.$clinic->id.'/invoices/'.$invoice->id.'/approve')
             ->assertRedirect(route('admin.clinics.show', $clinic));
 
         $this->assertSame('replaced', $currentSubscription->refresh()->status);
@@ -2252,7 +2340,7 @@ class SystemManagementTest extends TestCase
 
         $this->actingAs($superAdmin)
             ->forHost('hairvision-ai.test')
-            ->post('/admin/clinics/'.$clinic->id.'/invoices', [
+            ->post('/admin/settings/clinics/'.$clinic->id.'/invoices', [
                 '_form' => 'create_clinic_invoice',
                 'plan_id' => $upgrade->id,
                 'amount' => 990000,
@@ -2272,7 +2360,7 @@ class SystemManagementTest extends TestCase
 
         $this->actingAs($superAdmin)
             ->forHost('hairvision-ai.test')
-            ->put('/admin/clinics/'.$clinic->id.'/invoices/'.$manualInvoice->id, [
+            ->put('/admin/settings/clinics/'.$clinic->id.'/invoices/'.$manualInvoice->id, [
                 '_form' => 'edit_clinic_invoice_'.$manualInvoice->id,
                 'plan_id' => $upgrade->id,
                 'user_id' => $clinicUser->id,
@@ -2295,7 +2383,7 @@ class SystemManagementTest extends TestCase
 
         $this->actingAs($superAdmin)
             ->forHost('hairvision-ai.test')
-            ->post('/admin/clinics/'.$clinic->id.'/sms-gateway', [
+            ->post('/admin/settings/clinics/'.$clinic->id.'/sms-gateway', [
                 '_form' => 'clinic_sms_gateway',
                 'provider_code' => 'local',
                 'api_key' => 'clinic-secret-key',
@@ -2315,7 +2403,7 @@ class SystemManagementTest extends TestCase
 
         $this->actingAs($superAdmin)
             ->forHost('hairvision-ai.test')
-            ->get('/admin/clinics')
+            ->get('/admin/settings/clinics')
             ->assertOk()
             ->assertSee('پلن ویژه کلینیک‌ها')
             ->assertSee(__('payments.subscription_statuses.active'));
@@ -2323,7 +2411,7 @@ class SystemManagementTest extends TestCase
         $this->actingAs($clinicUser)
             ->withSession(['admin_active_tenant_id' => $clinic->id])
             ->forHost('hairvision-ai.test')
-            ->post('/admin/clinics/'.$clinic->id.'/plans', [
+            ->post('/admin/settings/clinics/'.$clinic->id.'/plans', [
                 '_form' => 'assign_clinic_plan_'.$clinic->id,
                 'plan_id' => $upgrade->id,
             ])
@@ -2350,7 +2438,7 @@ class SystemManagementTest extends TestCase
 
         $this->actingAs($user)
             ->forHost('hairvision-ai.test')
-            ->post('/admin/plans/'.$starter->id.'/purchase')
+            ->post('/admin/finance/plans/'.$starter->id.'/purchase')
             ->assertRedirect(route('admin.billing.index'));
 
         $invoice = $user->invoices()->where('plan_id', $starter->id)->where('status', 'pending')->latest('id')->firstOrFail();
@@ -2362,7 +2450,7 @@ class SystemManagementTest extends TestCase
 
         $this->actingAs($user)
             ->forHost('hairvision-ai.test')
-            ->post('/admin/plans/'.$upgrade->id.'/purchase')
+            ->post('/admin/finance/plans/'.$upgrade->id.'/purchase')
             ->assertRedirect(route('admin.billing.index'));
 
         $upgradeInvoice = $user->invoices()->where('plan_id', $upgrade->id)->firstOrFail();
@@ -2391,7 +2479,7 @@ class SystemManagementTest extends TestCase
 
         $this->actingAs($user)
             ->forHost('hairvision-ai.test')
-            ->post('/admin/plans/'.$plan->id.'/purchase')
+            ->post('/admin/finance/plans/'.$plan->id.'/purchase')
             ->assertRedirect(route('admin.billing.index'))
             ->assertSessionHasNoErrors();
 
@@ -2425,7 +2513,7 @@ class SystemManagementTest extends TestCase
         $this->actingAs($otherUser)
             ->withSession(['admin_active_tenant_id' => $tenant->id])
             ->forHost('hairvision-ai.test')
-            ->get('/admin/billing/invoices/'.$invoice->id.'/pay')
+            ->get('/admin/finance/billing/invoices/'.$invoice->id.'/pay')
             ->assertForbidden();
 
         $otherTenant = $this->createTenant('Clinic Two', 'clinic-two', 'clinic-two.hairvision-ai.test');
@@ -2433,13 +2521,13 @@ class SystemManagementTest extends TestCase
         $this->actingAs($otherTenantUser)
             ->withSession(['admin_active_tenant_id' => $otherTenant->id])
             ->forHost('hairvision-ai.test')
-            ->get('/admin/billing/invoices/'.$invoice->id.'/pay')
+            ->get('/admin/finance/billing/invoices/'.$invoice->id.'/pay')
             ->assertForbidden();
 
         $this->actingAs($user)
             ->withSession(['admin_active_tenant_id' => $tenant->id])
             ->forHost('hairvision-ai.test')
-            ->get('/admin/billing/invoices/'.$invoice->id.'/pay')
+            ->get('/admin/finance/billing/invoices/'.$invoice->id.'/pay')
             ->assertStatus(303)
             ->assertRedirect('https://sandbox.zarinpal.com/pg/StartPay/'.$authority);
     }
@@ -2455,24 +2543,24 @@ class SystemManagementTest extends TestCase
 
         $this->actingAs($user)
             ->forHost('hairvision-ai.test')
-            ->post('/admin/plans/'.$plan->id.'/purchase')
+            ->post('/admin/finance/plans/'.$plan->id.'/purchase')
             ->assertSessionHasErrors('plan');
 
         $this->actingAs($user)
             ->forHost('hairvision-ai.test')
-            ->post('/admin/plans/'.$hairOnlyPlan->id.'/purchase')
+            ->post('/admin/finance/plans/'.$hairOnlyPlan->id.'/purchase')
             ->assertSessionHasErrors('plan');
 
         $active = $user->subscriptions()->where('status', 'active')->firstOrFail();
 
         $this->actingAs($user)
             ->forHost('hairvision-ai.test')
-            ->post('/admin/plans/'.$plan->id.'/purchase')
+            ->post('/admin/finance/plans/'.$plan->id.'/purchase')
             ->assertSessionHasErrors('plan');
 
         $this->actingAs($user)
             ->forHost('hairvision-ai.test')
-            ->get('/admin/plans')
+            ->get('/admin/finance/plans')
             ->assertOk()
             ->assertSee(__('plans.same_active_plan_blocked'));
 
@@ -2480,7 +2568,7 @@ class SystemManagementTest extends TestCase
 
         $this->actingAs($user)
             ->forHost('hairvision-ai.test')
-            ->post('/admin/plans/'.$plan->id.'/purchase')
+            ->post('/admin/finance/plans/'.$plan->id.'/purchase')
             ->assertRedirect(route('admin.billing.index'));
 
         $renewedInvoice = $user->invoices()->where('plan_id', $plan->id)->where('status', 'pending')->latest('id')->firstOrFail();
@@ -2491,7 +2579,7 @@ class SystemManagementTest extends TestCase
 
         $this->actingAs($user)
             ->forHost('hairvision-ai.test')
-            ->post('/admin/plans/'.$plan->id.'/purchase')
+            ->post('/admin/finance/plans/'.$plan->id.'/purchase')
             ->assertSessionHasErrors('plan');
 
         $this->assertSame('active', $renewed->refresh()->status);
@@ -2512,7 +2600,7 @@ class SystemManagementTest extends TestCase
         $this->actingAs($userA)
             ->withSession(['admin_active_tenant_id' => $tenantA->id])
             ->forHost('hairvision-ai.test')
-            ->post('/admin/leads/'.$leadA->id.'/follow-ups', [
+            ->post('/admin/crm/leads/'.$leadA->id.'/follow-ups', [
                 'status' => 'contacted',
                 'communication_channel' => 'phone',
                 'note' => 'تماس اولیه انجام شد و نیاز به پیگیری دارد.',
@@ -2537,7 +2625,7 @@ class SystemManagementTest extends TestCase
         $this->actingAs($userA)
             ->withSession(['admin_active_tenant_id' => $tenantA->id])
             ->forHost('hairvision-ai.test')
-            ->get('/admin/leads/'.$leadA->id)
+            ->get('/admin/crm/leads/'.$leadA->id)
             ->assertOk()
             ->assertSee('تماس اولیه انجام شد')
             ->assertSee(__('crm.timeline_title'))
@@ -2547,13 +2635,13 @@ class SystemManagementTest extends TestCase
         $this->actingAs($userA)
             ->withSession(['admin_active_tenant_id' => $tenantA->id])
             ->forHost('hairvision-ai.test')
-            ->get('/admin/leads/'.$leadB->id)
+            ->get('/admin/crm/leads/'.$leadB->id)
             ->assertForbidden();
 
         $this->actingAs($userB)
             ->withSession(['admin_active_tenant_id' => $tenantB->id])
             ->forHost('hairvision-ai.test')
-            ->get('/admin/leads/'.$leadA->id)
+            ->get('/admin/crm/leads/'.$leadA->id)
             ->assertForbidden();
     }
 
@@ -2619,7 +2707,7 @@ class SystemManagementTest extends TestCase
         $this->actingAs($userA)
             ->withSession(['admin_active_tenant_id' => $tenantA->id])
             ->forHost('hairvision-ai.test')
-            ->get('/admin/leads/'.$lead->id)
+            ->get('/admin/crm/leads/'.$lead->id)
             ->assertOk()
             ->assertSee(route('admin.leads.uploads.show', [$lead, $upload]))
             ->assertSee(route('admin.leads.assets.show', [$lead, $asset]))
@@ -2630,27 +2718,27 @@ class SystemManagementTest extends TestCase
         $this->actingAs($userA)
             ->withSession(['admin_active_tenant_id' => $tenantA->id])
             ->forHost('hairvision-ai.test')
-            ->get('/admin/leads/'.$lead->id.'/uploads/'.$upload->id)
+            ->get('/admin/crm/leads/'.$lead->id.'/uploads/'.$upload->id)
             ->assertOk()
             ->assertHeader('Content-Type', 'image/jpeg');
 
         $this->actingAs($userA)
             ->withSession(['admin_active_tenant_id' => $tenantA->id])
             ->forHost('hairvision-ai.test')
-            ->get('/admin/leads/'.$lead->id.'/assets/'.$asset->id)
+            ->get('/admin/crm/leads/'.$lead->id.'/assets/'.$asset->id)
             ->assertOk()
             ->assertHeader('Content-Type', 'image/jpeg');
 
         $this->actingAs($userB)
             ->withSession(['admin_active_tenant_id' => $tenantB->id])
             ->forHost('hairvision-ai.test')
-            ->get('/admin/leads/'.$lead->id.'/uploads/'.$upload->id)
+            ->get('/admin/crm/leads/'.$lead->id.'/uploads/'.$upload->id)
             ->assertForbidden();
 
         $this->actingAs($userB)
             ->withSession(['admin_active_tenant_id' => $tenantB->id])
             ->forHost('hairvision-ai.test')
-            ->get('/admin/leads/'.$lead->id.'/assets/'.$asset->id)
+            ->get('/admin/crm/leads/'.$lead->id.'/assets/'.$asset->id)
             ->assertForbidden();
     }
 
@@ -2734,7 +2822,7 @@ class SystemManagementTest extends TestCase
         $this->actingAs($clinicAdmin)
             ->withSession(['admin_active_tenant_id' => $tenantA->id])
             ->forHost('hairvision-ai.test')
-            ->get('/admin/leads/'.$lead->id)
+            ->get('/admin/crm/leads/'.$lead->id)
             ->assertOk()
             ->assertSee($sourceRoute)
             ->assertSee($assetRoute)
@@ -2745,21 +2833,21 @@ class SystemManagementTest extends TestCase
         $this->actingAs($clinicAdmin)
             ->withSession(['admin_active_tenant_id' => $tenantA->id])
             ->forHost('hairvision-ai.test')
-            ->get('/admin/leads/'.$lead->id.'/source-images/'.$source->id)
+            ->get('/admin/crm/leads/'.$lead->id.'/source-images/'.$source->id)
             ->assertOk()
             ->assertHeader('Content-Type', 'image/jpeg');
 
         $this->actingAs($clinicAdmin)
             ->withSession(['admin_active_tenant_id' => $tenantA->id])
             ->forHost('hairvision-ai.test')
-            ->get('/admin/leads/'.$lead->id.'/assets/'.$asset->id)
+            ->get('/admin/crm/leads/'.$lead->id.'/assets/'.$asset->id)
             ->assertOk()
             ->assertHeader('Content-Type', 'image/jpeg');
 
         $this->actingAs($otherClinicAdmin)
             ->withSession(['admin_active_tenant_id' => $tenantB->id])
             ->forHost('hairvision-ai.test')
-            ->get('/admin/leads/'.$lead->id.'/source-images/'.$source->id)
+            ->get('/admin/crm/leads/'.$lead->id.'/source-images/'.$source->id)
             ->assertForbidden();
 
         $systemAdmin = User::factory()->create([
@@ -2770,7 +2858,7 @@ class SystemManagementTest extends TestCase
 
         $this->actingAs($systemAdmin)
             ->forHost('hairvision-ai.test')
-            ->get('/admin/leads/'.$lead->id)
+            ->get('/admin/crm/leads/'.$lead->id)
             ->assertOk()
             ->assertSee($sourceRoute)
             ->assertSee($assetRoute);
@@ -2915,7 +3003,7 @@ class SystemManagementTest extends TestCase
         $response = $this->actingAs($clinicAdmin)
             ->withSession(['admin_active_tenant_id' => $tenant->id])
             ->forHost('hairvision-ai.test')
-            ->get('/admin/leads/'.$lead->id)
+            ->get('/admin/crm/leads/'.$lead->id)
             ->assertOk()
             ->assertSee('data-processing-source-image="'.$latestSource->uuid.'"', false)
             ->assertSee('data-processing-source-image="'.$firstSource->uuid.'"', false)
@@ -2949,7 +3037,7 @@ class SystemManagementTest extends TestCase
 
         $this->actingAs($systemAdmin)
             ->forHost('hairvision-ai.test')
-            ->get('/admin/leads/'.$lead->id)
+            ->get('/admin/crm/leads/'.$lead->id)
             ->assertOk()
             ->assertSee('data-processing-source-image="'.$latestSource->uuid.'"', false)
             ->assertSee('data-processing-source-image="'.$firstSource->uuid.'"', false)
@@ -3032,7 +3120,7 @@ class SystemManagementTest extends TestCase
         $this->actingAs($clinicAdmin)
             ->withSession(['admin_active_tenant_id' => $tenant->id])
             ->forHost('hairvision-ai.test')
-            ->get('/admin/leads/'.$lead->id)
+            ->get('/admin/crm/leads/'.$lead->id)
             ->assertOk()
             ->assertSee($requestedOutput->name)
             ->assertSee($unrequestedOutput->name)
@@ -3048,7 +3136,7 @@ class SystemManagementTest extends TestCase
         $this->actingAs($clinicAdmin)
             ->withSession(['admin_active_tenant_id' => $tenant->id])
             ->forHost('hairvision-ai.test')
-            ->get('/admin/leads/'.$lead->id)
+            ->get('/admin/crm/leads/'.$lead->id)
             ->assertOk()
             ->assertSee(__('ai.generation.statuses.failed'))
             ->assertSee(JalaliDate::toJalaliDateTime($failedRequestedAt));
@@ -3114,10 +3202,25 @@ class SystemManagementTest extends TestCase
         $this->assertSame('پیشخوان', __('menu.items.dashboard'));
         $this->assertSame('حالت شب', __('dashboard.theme.menu_item'));
         $this->assertSame('باز کردن منوی پنل', __('dashboard.mobile_menu.open'));
-        $this->assertSame('پلن‌ها و پرداخت‌ها', __('menu.groups.plans_payments'));
+        $this->assertSame('امنیت', __('menu.groups.users_access'));
+        $this->assertSame('مالی', __('menu.groups.plans_payments'));
+        $this->assertSame('قالب‌ها', __('menu.items.landing_templates'));
+        $this->assertSame('کاربردهای هوش مصنوعی', __('menu.items.ai_model_categories'));
+        $this->assertSame('نقش‌های مدیریتی', __('menu.items.roles'));
+        $this->assertSame('نقش‌های مدیریتی', __('system.roles_title'));
+        $this->assertSame('گزارش مصرف اعتبار', __('menu.items.credit_usage_report'));
+        $this->assertSame(__('menu.items.billing'), __('payments.title'));
+        $this->assertSame(__('menu.items.payment_gateways'), __('system.payment_gateways_title'));
+        $this->assertSame(__('menu.items.user_reports'), __('reports.title'));
+        $this->assertSame(__('menu.items.management_reports'), __('reports.management_title'));
+        $this->assertSame(__('menu.items.landing_templates'), __('landing_templates.title'));
+        $this->assertSame(__('menu.items.system_notifications'), __('notifications.title'));
+        $this->assertSame(__('menu.items.ai_model_categories'), __('ai_models.categories.title'));
+        $this->assertSame(__('menu.items.ai_models'), __('ai_models.title'));
+        $this->assertSame(__('menu.items.system_sms_gateways'), __('system.sms_gateways_title'));
         $this->assertSame('نیاز به پیگیری', __('leads.crm_stages.needs_follow_up'));
         $this->assertSame('تماس تلفنی', __('crm.channels.phone'));
-        $this->assertSame('مدیریت سیستم', __('system.dashboard_title'));
+        $this->assertSame('نمای کلی سیستم', __('system.dashboard_title'));
         $this->assertSame('سوپر ادمین', __('system.roles.super_admin'));
         $this->assertSame('مسدود', __('system.statuses.blocked'));
         $this->assertSame('برای دسترسی به این بخش باید پلن فعال داشته باشید.', __('permissions.plan_required'));
@@ -3178,7 +3281,7 @@ class SystemManagementTest extends TestCase
 
         $this->actingAs($superAdmin)
             ->forHost('hairvision-ai.test')
-            ->get('/admin/users?status=active&sort=name&direction=asc&per_page=100')
+            ->get('/admin/security/users?status=active&sort=name&direction=asc&per_page=100')
             ->assertOk()
             ->assertSee(__('messages.search'))
             ->assertSee('admin-list-filters-bar', false)
@@ -3199,11 +3302,11 @@ class SystemManagementTest extends TestCase
             ->assertSee('aria-disabled="true"', false)
             ->assertSee('admin-mobile-list', false)
             ->assertSee('admin-mobile-list-card', false)
-            ->assertSee('left-0 z-[90]', false);
+            ->assertSee('left-0 z-90', false);
 
         $this->actingAs($superAdmin)
             ->forHost('hairvision-ai.test')
-            ->get('/admin/system/payment-gateways?status=enabled&sort=provider_code&direction=asc')
+            ->get('/admin/finance/payment-gateways?status=enabled&sort=provider_code&direction=asc')
             ->assertOk()
             ->assertSee(__('messages.edit_filters'))
             ->assertSee(__('system.status').': '.__('system.statuses.enabled'))
@@ -3241,10 +3344,16 @@ class SystemManagementTest extends TestCase
         $dashboardCss = file_get_contents(resource_path('css/app.css'));
         $mobileCss = file_get_contents(resource_path('css/layouts/admin-mobile.css'));
 
-        $this->assertStringContainsString('--admin-header: #0f172a;', $dashboardCss);
-        $this->assertStringContainsString('--admin-user-menu-bg: #111625;', $dashboardCss);
-        $this->assertStringContainsString('rgba(139, 92, 246, 0.3)', $dashboardCss);
-        $this->assertStringContainsString('rgba(20, 184, 166, 0.24)', $dashboardCss);
+        $this->assertStringContainsString('--admin-brand-start: #8b5cf6;', $dashboardCss);
+        $this->assertStringContainsString('--admin-brand-end: #14b8a6;', $dashboardCss);
+        $this->assertStringContainsString('--admin-brand-gradient: linear-gradient(135deg, #7c3aed 0%, #0f766e 100%);', $dashboardCss);
+        $this->assertStringContainsString('--admin-header: #1a1a1f;', $dashboardCss);
+        $this->assertStringContainsString('--admin-user-menu-bg: #1d1d22;', $dashboardCss);
+        $this->assertStringContainsString('rgba(139, 92, 246, 0.12)', $dashboardCss);
+        $this->assertStringContainsString('rgba(20, 184, 166, 0.08)', $dashboardCss);
+        $this->assertStringNotContainsString('rgba(91, 141, 127, 0.11)', $dashboardCss);
+        $this->assertStringNotContainsString('rgba(151, 132, 112, 0.05)', $dashboardCss);
+        $this->assertStringNotContainsString('--admin-header: #0f172a;', $dashboardCss);
         $this->assertStringContainsString('border: 0;', $dashboardCss);
         $this->assertStringContainsString('border-radius: 999px;', $dashboardCss);
         $this->assertStringContainsString('background: transparent;', $dashboardCss);
@@ -3252,10 +3361,20 @@ class SystemManagementTest extends TestCase
         $this->assertStringNotContainsString('.admin-user-menu-trigger:hover', $dashboardCss);
         $this->assertStringContainsString('background: var(--admin-user-menu-bg);', $dashboardCss);
         $this->assertStringContainsString('.admin-breadcrumbs', $dashboardCss);
+        $this->assertStringNotContainsString('.admin-breadcrumbs-inner', $dashboardCss);
+        $this->assertStringNotContainsString('.admin-breadcrumbs-nav', $dashboardCss);
+        $this->assertStringNotContainsString('padding-block: 0 0.75rem;', $dashboardCss);
         $this->assertStringContainsString('overflow-x: auto;', $dashboardCss);
         $this->assertStringContainsString('flex-wrap: nowrap;', $dashboardCss);
         $this->assertStringContainsString('min-width: max-content;', $dashboardCss);
-        $this->assertStringContainsString("html[data-admin-theme='dark'] .admin-breadcrumbs", $dashboardCss);
+        $this->assertStringNotContainsString('.admin-breadcrumbs::before', $dashboardCss);
+        $this->assertStringNotContainsString('.admin-breadcrumbs-link::after', $dashboardCss);
+        $this->assertStringNotContainsString("html[data-admin-theme='dark'] .admin-breadcrumbs {", $dashboardCss);
+        $this->assertStringContainsString('[data-admin-table-container] thead tr:first-child > th:first-child', $dashboardCss);
+        $this->assertStringContainsString('border-start-start-radius: calc(0.5rem - 1px);', $dashboardCss);
+        $this->assertStringContainsString('[data-admin-table-container] thead tr:first-child > th:last-child', $dashboardCss);
+        $this->assertStringContainsString('border-start-end-radius: calc(0.5rem - 1px);', $dashboardCss);
+        $this->assertStringContainsString('padding: 1.25rem !important;', $mobileCss);
         $this->assertStringContainsString('jdp-container .jdp-icon-plus', $dashboardCss);
         $this->assertStringContainsString('jdp-container .jdp-icon-minus.not-in-range', $dashboardCss);
         $this->assertStringContainsString('.admin-mobile-menu-button', $mobileCss);
@@ -3430,7 +3549,7 @@ class SystemManagementTest extends TestCase
 
     private function completeInvoicePayment(User $user, Invoice $invoice, string $authority, string $method = 'post'): Payment
     {
-        $payUrl = '/admin/billing/invoices/'.$invoice->id.'/pay';
+        $payUrl = '/admin/finance/billing/invoices/'.$invoice->id.'/pay';
         $payRequest = $this->actingAs($user)->forHost('hairvision-ai.test');
         $payResponse = strtolower($method) === 'get'
             ? $payRequest->get($payUrl)
@@ -3445,7 +3564,7 @@ class SystemManagementTest extends TestCase
 
         $this->actingAs($user)
             ->forHost('hairvision-ai.test')
-            ->get('/admin/billing/payments/'.$payment->id.'/verify?Authority='.$authority.'&Status=OK')
+            ->get('/admin/finance/billing/payments/'.$payment->id.'/verify?Authority='.$authority.'&Status=OK')
             ->assertStatus(303)
             ->assertRedirect(route('admin.billing.result', $payment));
 

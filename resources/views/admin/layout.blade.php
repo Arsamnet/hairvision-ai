@@ -1,10 +1,38 @@
 <!DOCTYPE html>
-<html lang="fa" dir="rtl">
+<html lang="fa" dir="rtl" class="admin-root">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>@yield('title', __('dashboard.admin_title'))</title>
     <meta name="robots" content="noindex,nofollow">
+    <script data-admin-scroll-guard>
+        (() => {
+            if ('scrollRestoration' in history) {
+                history.scrollRestoration = 'manual';
+            }
+
+            window.__hairvisionAdminPendingHash = window.location.hash;
+
+            if (window.__hairvisionAdminPendingHash) {
+                history.replaceState(history.state, '', window.location.pathname + window.location.search);
+
+                window.setTimeout(() => {
+                    if (!window.__hairvisionAdminPendingHash) {
+                        return;
+                    }
+
+                    history.replaceState(
+                        history.state,
+                        '',
+                        window.location.pathname + window.location.search + window.__hairvisionAdminPendingHash,
+                    );
+                    window.__hairvisionAdminPendingHash = '';
+                }, 1500);
+            }
+
+            document.documentElement.scrollTop = 0;
+        })();
+    </script>
     <?php $faviconHref = app('Illuminate\Foundation\Vite')->asset('resources/img/favicon.png'); ?>
     <link rel="icon" href="<?php echo e($faviconHref); ?>">
     @include('admin.partials.theme-script')
@@ -26,68 +54,9 @@
             ? app(\App\Services\Notifications\ClinicNotificationService::class)->unreadCountForTenant($tenant)
             : 0;
 
-        $menuGroups = [
-            [
-                'label' => __('menu.groups.dashboard'),
-                'icon' => 'layout-dashboard',
-                'items' => [
-                    ['label' => __('menu.items.dashboard'), 'route' => 'admin.dashboard', 'active' => ['admin.dashboard'], 'icon' => 'layout-dashboard'],
-                ],
-            ],
-            [
-                'label' => __('menu.groups.crm'),
-                'icon' => 'contact',
-                'items' => [
-                    ['label' => __('menu.items.leads'), 'route' => 'admin.leads.index', 'active' => ['admin.leads.*'], 'icon' => 'contact', 'permissions' => ['leads.list'], 'planRestricted' => true],
-                ],
-            ],
-            [
-                'label' => __('menu.groups.users_access'),
-                'icon' => 'users',
-                'items' => [
-                    ['label' => __('menu.items.users'), 'route' => 'admin.users.index', 'active' => ['admin.users.*'], 'icon' => 'users', 'permissions' => ['users.list'], 'planRestricted' => true],
-                    ['label' => __('menu.items.roles'), 'route' => 'admin.system.roles.index', 'active' => ['admin.system.roles.*'], 'icon' => 'shield', 'permissions' => ['roles.list']],
-                    ['label' => __('menu.items.permissions'), 'route' => 'admin.system.permissions.index', 'active' => ['admin.system.permissions.*'], 'icon' => 'shield', 'permissions' => ['permissions.list']],
-                ],
-            ],
-            [
-                'label' => __('menu.groups.plans_payments'),
-                'icon' => 'credit-card',
-                'items' => [
-                    ['label' => __('menu.items.plans'), 'route' => 'admin.plans.index', 'active' => ['admin.plans.*'], 'icon' => 'package', 'permissions' => ['plans.list']],
-                    ['label' => __('menu.items.billing'), 'route' => 'admin.billing.index', 'active' => ['admin.billing.*'], 'icon' => 'invoice', 'permissions' => ['billing.list']],
-                    ['label' => __('menu.items.payment_gateways'), 'route' => 'admin.system.payment-gateways.index', 'active' => ['admin.system.payment-gateways.*'], 'icon' => 'credit-card', 'permissions' => ['payment_gateways.list']],
-                ],
-            ],
-            [
-                'label' => __('menu.groups.system_management'),
-                'icon' => 'settings',
-                'items' => [
-                    ['label' => __('menu.items.clinics'), 'route' => 'admin.clinics.index', 'active' => ['admin.clinics.index', 'admin.clinics.edit'], 'icon' => 'building', 'permissions' => ['tenants.list']],
-                    ['label' => __('menu.items.landing_templates'), 'route' => 'admin.system.landing-templates.index', 'active' => ['admin.system.landing-templates.*'], 'icon' => 'gallery', 'permissions' => ['landing_templates.view']],
-                    ['label' => __('menu.items.system_notifications'), 'route' => 'admin.system.notifications.index', 'active' => ['admin.system.notifications.*'], 'icon' => 'bell', 'permissions' => ['notifications.manage']],
-                    ['label' => __('menu.items.ai_model_categories'), 'route' => 'admin.system.ai-model-categories.index', 'active' => ['admin.system.ai-model-categories.*'], 'icon' => 'category', 'permissions' => ['ai_model_categories.view']],
-                    ['label' => __('menu.items.ai_models'), 'route' => 'admin.ai-models.index', 'active' => ['admin.ai-models.*', 'admin.clinics.ai-models.*'], 'icon' => 'sparkles', 'permissions' => ['ai_models.list']],
-                ],
-            ],
-            [
-                'label' => __('menu.groups.reports'),
-                'icon' => 'chart',
-                'items' => [
-                    ['label' => __('menu.items.user_reports'), 'route' => 'admin.reports', 'active' => ['admin.reports'], 'icon' => 'chart', 'permissions' => ['reports.user.view'], 'planRestricted' => true],
-                    ['label' => __('menu.items.credit_usage_report'), 'route' => 'admin.reports.credit-usage', 'active' => ['admin.reports.credit-usage'], 'icon' => 'credit-card', 'permissions' => ['reports.user.view'], 'planRestricted' => true, 'clinicOnly' => true],
-                    ['label' => __('menu.items.management_reports'), 'route' => 'admin.system.reports.index', 'active' => ['admin.system.reports.*'], 'icon' => 'chart', 'permissions' => ['reports.management.view']],
-                ],
-            ],
-            [
-                'label' => __('menu.groups.settings'),
-                'icon' => 'settings',
-                'items' => [
-                    ['label' => __('menu.items.system_sms_gateways'), 'route' => 'admin.system.sms-gateways.index', 'active' => ['admin.system.sms-gateways.*'], 'icon' => 'message', 'permissions' => ['sms_gateways.list']],
-                    ['label' => __('menu.items.system_settings'), 'route' => 'admin.system.settings.edit', 'active' => ['admin.system.settings.*'], 'icon' => 'settings', 'permissions' => ['settings.manage']],
-                ],
-            ],
-        ];
+        $menuGroups = \App\Support\AdminNavigation::groups();
+        $navigationContext = \App\Support\AdminNavigation::context();
+        $topbarSectionLabel = $navigationContext['group']['label'] ?? __('dashboard.management_panel');
 
         $canSeeItem = function (array $item) use ($user, $tenant): bool {
             if (($item['clinicOnly'] ?? false) && ($user?->isSuperAdmin() ?? false)) {
@@ -191,8 +160,8 @@
                 <div class="admin-topbar-wrapper hidden min-h-18.25 flex-wrap items-center justify-between gap-3 px-4 py-3 sm:px-6 lg:flex">
                     <div class="admin-topbar-heading flex min-w-0 items-center gap-3">
                         <div class="min-w-0">
-                            <p class="text-xs font-bold text-teal-600">{{ __('dashboard.management_panel') }}</p>
-                            <h1 class="mt-1 truncate text-lg font-bold">@yield('page_title', __('dashboard.dashboard'))</h1>
+                            <p class="text-xs font-bold text-teal-600" data-admin-topbar-section>{{ $topbarSectionLabel }}</p>
+                            <h1 class="mt-1 truncate text-lg font-bold" data-admin-topbar-title>@yield('page_title', __('dashboard.dashboard'))</h1>
                         </div>
                     </div>
                     <div class="admin-topbar-actions flex flex-wrap items-center gap-2">
@@ -219,7 +188,7 @@
                 </div>
             </header>
 
-            <main class="admin-content min-h-0 flex-1 overflow-y-auto px-4 py-5 sm:px-6 lg:px-8">
+            <main class="admin-content min-h-0 flex-1 overflow-y-auto p-5" data-admin-scroll-container>
                 <x-admin.breadcrumbs :tenant="$tenant" :page-title="trim($__env->yieldContent('page_title', __('dashboard.dashboard')))" />
 
                 @if(session('status'))

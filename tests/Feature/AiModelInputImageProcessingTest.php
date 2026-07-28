@@ -129,7 +129,7 @@ class AiModelInputImageProcessingTest extends TestCase
 
         $this->actingAs($superAdmin)
             ->forHost('hairvision-ai.test')
-            ->post('/admin/ai-models', $basePayload)
+            ->post('/admin/settings/ai-models', $basePayload)
             ->assertSessionHasErrors([
                 'settings.'.InputImageProcessingSettings::MAX_DIMENSION,
                 'settings.'.InputImageProcessingSettings::JPEG_QUALITY,
@@ -143,7 +143,7 @@ class AiModelInputImageProcessingTest extends TestCase
 
         $this->actingAs($superAdmin)
             ->forHost('hairvision-ai.test')
-            ->post('/admin/ai-models', $basePayload)
+            ->post('/admin/settings/ai-models', $basePayload)
             ->assertRedirect();
 
         $access = AiModelAccess::query()->where('name', 'مدل پردازش تصویر تست')->firstOrFail();
@@ -154,7 +154,7 @@ class AiModelInputImageProcessingTest extends TestCase
 
         $this->actingAs($superAdmin)
             ->forHost('hairvision-ai.test')
-            ->get('/admin/ai-models/'.$access->id.'/edit')
+            ->get('/admin/settings/ai-models/'.$access->id.'/edit')
             ->assertOk()
             ->assertSee('data-input-image-processing-toggle', false)
             ->assertSee('value="720"', false)
@@ -162,7 +162,7 @@ class AiModelInputImageProcessingTest extends TestCase
 
         $this->actingAs($superAdmin)
             ->forHost('hairvision-ai.test')
-            ->get('/admin/ai-models/'.$access->id)
+            ->get('/admin/settings/ai-models/'.$access->id)
             ->assertOk()
             ->assertSee(__('ai_models.input_image_processing_title'))
             ->assertSee('720')

@@ -11,6 +11,11 @@
 @endphp
 
 @section('content')
+    <div class="mb-4">
+        <h2 class="text-lg font-bold">{{ __('payments.title') }}</h2>
+        <p class="mt-1 text-sm leading-6 text-zinc-500">{{ __('payments.subtitle') }}</p>
+    </div>
+
     @if($showActiveSubscriptionBox)
         <x-admin.card class="mb-5" data-active-subscription-card>
             <div class="flex items-center gap-3">
@@ -69,7 +74,7 @@
         />
 
         <div data-admin-table-container class="hidden overflow-visible rounded-lg border border-zinc-100 lg:block">
-            <table class="w-full min-w-[50rem] text-right text-sm">
+            <table class="w-full min-w-200 text-right text-sm">
                 <thead class="bg-zinc-50 text-xs text-zinc-500">
                     <tr>
                         <th class="w-14 px-4 py-3">{{ __('messages.actions') }}</th>

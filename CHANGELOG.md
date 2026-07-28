@@ -5,6 +5,110 @@
 Changes without an assigned release remain in this section and are moved into
 the next dated SemVer section when that release is prepared.
 
+## 2.0.1
+
+HairVision `2.0.1` updates the administrator experience and includes all
+changes completed through 2026-07-26.
+
+### Admin theme and navigation
+
+- Rebuilt both dashboard palettes around the logo's violet and teal endpoints.
+  Light mode uses restrained brand-tinted neutrals, while dark mode keeps
+  neutral charcoal surfaces with balanced violet/teal influence instead of a
+  green- or navy-dominant cast.
+- Applied an accessible darker violet-to-teal brand gradient to primary actions
+  while retaining distinct semantic success, warning, danger, and information
+  colors.
+- Fixed persisted dark-mode rendering so the stored administrator preference is
+  applied before dashboard styles load and every card, table, form, modal,
+  filter, badge, menu, disabled state, and responsive surface follows the same
+  theme source.
+- Removed page-level Tailwind dark variants from the dashboard where they could
+  follow the operating-system preference instead of the administrator's stored
+  selection.
+- Added light/dark logo switching and an accessible theme control to both
+  dashboard authentication screens while retaining the existing controls in
+  desktop and mobile dashboard navigation.
+- Added cross-tab theme synchronization for an administrator changing the
+  preference in another browser tab.
+- Renamed the main navigation groups to «امنیت» and «مالی», moved every former
+  «مدیریت سیستم» item under «تنظیمات», removed that redundant menu group, and
+  shortened «قالب‌های لندینگ» to «قالب‌ها».
+- Added distinct local icons for roles, permissions, AI applications, AI models,
+  templates, finance, and each report type.
+- Removed the separator and animated underlines from the administrator
+  breadcrumb path.
+- Introduced one canonical navigation catalog for sidebar groups, topbar
+  context, and breadcrumb hierarchy so every route uses the same label and
+  semantic icon.
+- Aligned administrator URLs with the visible CRM, security, finance, reports,
+  and settings hierarchy, while retaining permanent redirects for legacy
+  section-root bookmarks and stable internal permission codes.
+- Grouped permissions under the Persian menu headings, aligned their displayed
+  names with menu terminology, renamed access levels to «نقش‌های مدیریتی», and
+  displayed each role's Persian name beside its English key in user forms.
+- Removed all internal breadcrumb block padding, standardized the main content
+  inset to 20 pixels on every side and breakpoint, and corrected logical top
+  corner rounding for first/last table header cells.
+- Kept the visitor landing page, public templates, and tenant presentation
+  unchanged.
+
+### Clinic dashboard guide
+
+- Added a clinic-only «مرکز راهنما» navigation group with distinct local icons
+  and separate «راهنمای کاربری» and «پرسش‌های متداول» pages for clinic
+  administrators, editors, and viewers.
+- Added categorized top indexes, step-by-step clinic operational sections for
+  CRM, visitor image generation, notifications, access control, billing,
+  reporting, privacy, and troubleshooting, plus accessible native FAQ
+  accordions with smooth open/close transitions.
+- Kept the delivered Persian content focused on clinic users and excluded
+  platform-management dashboard instructions.
+- Kept the guide available when a clinic plan is inactive so employees can
+  still reach billing, access, and troubleshooting instructions.
+- Added dedicated `guide_pages`, `guide_sections`, `guide_steps`, and
+  `guide_faqs` models/tables, with audited ownership and stable ordering; the
+  migration preserves existing `guide.content` data before removing that
+  legacy setting and the seeder never overwrites managed content.
+- Split platform management into distinct guide and FAQ menu items/pages with
+  different semantic icons, compact master-detail lists, single-record forms,
+  easy per-section step creation, transactional ordering, and confirmed deletes.
+- Made the reusable WYSIWYG editor functional by preserving selection across
+  toolbar actions, adding pressed states and an inline safe-link form,
+  sanitizing pasted/source HTML, synchronizing submission state, and validating
+  visible rich-text content on both client and server.
+- Fixed browser-generated Bold/Italic/Underline markup being discarded during
+  synchronization, removed inherited Bold styling from editor content, reduced
+  submission to one named textarea, and added a visible HTML fallback when the
+  JavaScript enhancement cannot initialize.
+- Added site-wide smooth anchor scrolling with target offsets and
+  reduced-motion fallbacks.
+- Fixed dashboard fragment navigation so anchor links scroll only the main
+  content container, keep the topbar in place, and cannot reveal a phantom
+  block below the fixed-height application shell.
+- Hardened that fix globally for initial hashes, full reloads, back/forward
+  restoration, modal toggles, and same-page links by fixing the admin body to
+  the dynamic viewport and routing all fragment offsets through the main
+  dashboard scroller.
+- Added the `guide.manage` permission while keeping plain labels escaped and
+  stripping executable HTML from every formatted field before storage/render.
+
+### Quality
+
+- Added regression coverage for authentication theme controls, both logo
+  variants, persisted-theme boot behavior, logo-derived palettes, semantic
+  utility coverage, menu grouping, distinct local icons, and line-free
+  breadcrumbs.
+- Audited every Blade view with the Tailwind CSS language service and replaced
+  all 24 non-canonical utilities reported by VS Code; the final audit reports
+  zero diagnostics.
+- Added guide coverage for both clinic help pages, every clinic role, no-plan
+  access, separate management authorization, relational idempotency,
+  single-record CRUD and ordering, WYSIWYG behavior contracts, motion fallbacks,
+  allowlisted HTML rendering, and unsafe markup removal.
+- Rebuilt the versioned frontend assets and updated runtime, environment,
+  documentation, and release metadata to `2.0.1`.
+
 ## 2.0.0
 
 HairVision `2.0.0` starts the category-based AI model architecture and includes

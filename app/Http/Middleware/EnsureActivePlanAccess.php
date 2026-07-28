@@ -73,6 +73,7 @@ class EnsureActivePlanAccess
     {
         return $request->routeIs(
             'admin.dashboard',
+            'admin.guide.*',
             'admin.notifications.*',
             'admin.plans.*',
             'admin.billing.*',
