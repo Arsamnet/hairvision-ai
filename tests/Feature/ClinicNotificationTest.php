@@ -27,7 +27,7 @@ class ClinicNotificationTest extends TestCase
 
         $this->actingAs($superAdmin)
             ->forHost('hairvision-ai.test')
-            ->get('/admin/system/notifications')
+            ->get('/admin/settings/notifications')
             ->assertOk()
             ->assertSee(__('notifications.empty_management'))
             ->assertSee('data-admin-empty-state', false)
@@ -52,14 +52,14 @@ class ClinicNotificationTest extends TestCase
 
         $this->actingAs($superAdmin)
             ->forHost('hairvision-ai.test')
-            ->get('/admin/system/notifications')
+            ->get('/admin/settings/notifications')
             ->assertOk()
             ->assertSee(__('notifications.matching_tenants_count'), false)
             ->assertDontSee('کلینیک‌های دارای شرط');
 
         $this->actingAs($superAdmin)
             ->forHost('hairvision-ai.test')
-            ->post('/admin/system/notifications', [
+            ->post('/admin/settings/notifications', [
                 'title' => 'ارسال شرطی قدیمی',
                 'body_html' => '<p>این scope دیگر معتبر نیست.</p>',
                 'type' => 'general',
@@ -72,7 +72,7 @@ class ClinicNotificationTest extends TestCase
 
         $this->actingAs($superAdmin)
             ->forHost('hairvision-ai.test')
-            ->post('/admin/system/notifications', [
+            ->post('/admin/settings/notifications', [
                 'title' => 'به‌روزرسانی نسخه',
                 'body_html' => '<p><strong>نسخه جدید HairVision</strong> فعال شد. <a href="https://hairvision-ai.test/changelog">جزئیات</a></p><script>alert(1)</script>',
                 'type' => 'release',
@@ -125,7 +125,7 @@ class ClinicNotificationTest extends TestCase
 
         $this->actingAs($superAdmin)
             ->forHost('hairvision-ai.test')
-            ->get('/admin/system/notifications/'.$notification->id)
+            ->get('/admin/settings/notifications/'.$notification->id)
             ->assertOk()
             ->assertSee($tenantA->name)
             ->assertSee($clinicUser->name)
@@ -149,7 +149,7 @@ class ClinicNotificationTest extends TestCase
 
         $this->actingAs($superAdmin)
             ->forHost('hairvision-ai.test')
-            ->post('/admin/system/notifications', [
+            ->post('/admin/settings/notifications', [
                 'title' => 'پیام فوری کلینیک',
                 'body' => 'لطفا پیام را بررسی کنید.',
                 'type' => 'system',
@@ -202,7 +202,7 @@ class ClinicNotificationTest extends TestCase
 
         $this->actingAs($superAdmin)
             ->forHost('hairvision-ai.test')
-            ->post('/admin/system/notifications', [
+            ->post('/admin/settings/notifications', [
                 'title' => 'پیام مدل نمونه',
                 'body' => 'این پیام فقط برای کلینیک دارای مدل ارسال می‌شود.',
                 'type' => 'system',
@@ -233,7 +233,7 @@ class ClinicNotificationTest extends TestCase
 
         $this->actingAs($superAdmin)
             ->forHost('hairvision-ai.test')
-            ->post('/admin/system/notifications', [
+            ->post('/admin/settings/notifications', [
                 'title' => 'پیام گزینشی',
                 'body_html' => '<p>فقط دو کلینیک انتخاب‌شده</p>',
                 'type' => 'general',
@@ -250,7 +250,7 @@ class ClinicNotificationTest extends TestCase
 
         $this->actingAs($superAdmin)
             ->forHost('hairvision-ai.test')
-            ->post('/admin/system/notifications', [
+            ->post('/admin/settings/notifications', [
                 'title' => 'پیام گزینشی دارای امکان',
                 'body_html' => '<p>برای کلینیک‌های انتخاب‌شده دارای امکان</p>',
                 'type' => 'general',
@@ -268,7 +268,7 @@ class ClinicNotificationTest extends TestCase
 
         $this->actingAs($superAdmin)
             ->forHost('hairvision-ai.test')
-            ->post('/admin/system/notifications', [
+            ->post('/admin/settings/notifications', [
                 'title' => 'پیام بدون پلن فعال',
                 'body_html' => '<p>برای کلینیک‌هایی که پلن فعال ندارند</p>',
                 'type' => 'billing',

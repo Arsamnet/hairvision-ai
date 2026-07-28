@@ -8,7 +8,7 @@
         <x-admin.card class="mb-5">
             <div class="flex flex-wrap items-center justify-between gap-3">
                 <div>
-                    <h2 class="text-lg font-bold">{{ __('plans.management_title') }}</h2>
+                    <h2 class="text-lg font-bold">{{ __('plans.title') }}</h2>
                     <p class="mt-1 text-sm leading-6 text-zinc-500">{{ __('plans.management_hint') }}</p>
                 </div>
                 <x-admin.modal id="create-plan-modal" :label="__('plans.new_plan')" :title="__('plans.new_plan')" icon="package" :open="$errors->any() && old('_form') === 'create_plan'">
@@ -44,7 +44,7 @@
 	                            @endphp
 	                            <div class="grid gap-2 md:grid-cols-2 xl:grid-cols-3">
 	                            @foreach($serviceOptions as $serviceKey => $serviceLabel)
-	                                <label class="flex min-h-16 cursor-pointer items-start gap-3 rounded-lg border border-zinc-200 bg-white px-3 py-3 text-sm transition has-[:checked]:border-teal-500 has-[:checked]:bg-teal-50">
+	                                <label class="flex min-h-16 cursor-pointer items-start gap-3 rounded-lg border border-zinc-200 bg-white px-3 py-3 text-sm transition has-checked:border-teal-500 has-checked:bg-teal-50">
 	                                    <input name="service_keys[]" type="checkbox" value="{{ $serviceKey }}" class="mt-1 rounded border-zinc-300 text-teal-600 focus:ring-teal-500" data-plan-service @checked(in_array($serviceKey, $selectedServiceKeys, true))>
 	                                    <span class="flex min-w-0 items-start gap-3">
 		                                        <span class="mt-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-zinc-50 text-teal-700 ring-1 ring-zinc-100">
@@ -98,7 +98,7 @@
             />
 
             <div data-admin-table-container class="hidden overflow-visible rounded-lg border border-zinc-100 lg:block">
-                <table class="w-full min-w-[46rem] text-right text-sm">
+                <table class="w-full min-w-184 text-right text-sm">
                     <thead class="bg-zinc-50 text-xs text-zinc-500">
                         <tr>
                             <th class="w-14 px-4 py-3">{{ __('messages.actions') }}</th>
@@ -253,7 +253,7 @@
 	                            @endphp
 	                            <div class="grid gap-2 md:grid-cols-2 xl:grid-cols-3">
 	                            @foreach($serviceOptions as $serviceKey => $serviceLabel)
-	                                <label class="flex min-h-16 cursor-pointer items-start gap-3 rounded-lg border border-zinc-200 bg-white px-3 py-3 text-sm transition has-[:checked]:border-teal-500 has-[:checked]:bg-teal-50">
+	                                <label class="flex min-h-16 cursor-pointer items-start gap-3 rounded-lg border border-zinc-200 bg-white px-3 py-3 text-sm transition has-checked:border-teal-500 has-checked:bg-teal-50">
 	                                    <input name="service_keys[]" type="checkbox" value="{{ $serviceKey }}" class="mt-1 rounded border-zinc-300 text-teal-600 focus:ring-teal-500" data-plan-service @checked(in_array($serviceKey, $selectedServiceKeys, true))>
 	                                    <span class="flex min-w-0 items-start gap-3">
 		                                        <span class="mt-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-zinc-50 text-teal-700 ring-1 ring-zinc-100">
@@ -344,7 +344,7 @@
                 >
                     <div class="flex items-start justify-between gap-2">
                         <div class="min-w-0">
-                            <h2 class="break-words text-base font-bold leading-6 text-zinc-950">{{ $plan->name }}</h2>
+                            <h2 class="wrap-break-word text-base font-bold leading-6 text-zinc-950">{{ $plan->name }}</h2>
                             @if($plan->description)
                                 <p class="mt-1 line-clamp-2 text-xs leading-5 {{ $isCurrentPlan ? 'text-emerald-800' : 'text-zinc-500' }}">{{ $plan->description }}</p>
                             @endif
@@ -360,15 +360,15 @@
                     <dl class="mt-3 grid grid-cols-3 gap-2 text-xs">
                         <div class="min-w-0 rounded-lg px-2.5 py-2 ring-1 {{ $metricClasses }}">
                             <dt class="font-bold text-zinc-500">{{ __('plans.fields.price') }}</dt>
-                            <dd class="mt-1 break-words font-bold leading-5">{{ number_format($plan->price) }} {{ $plan->currency }}</dd>
+                            <dd class="mt-1 wrap-break-word font-bold leading-5">{{ number_format($plan->price) }} {{ $plan->currency }}</dd>
                         </div>
                         <div class="min-w-0 rounded-lg px-2.5 py-2 ring-1 {{ $metricClasses }}">
                             <dt class="font-bold text-zinc-500">{{ __('plans.fields.duration_days') }}</dt>
-                            <dd class="mt-1 break-words font-bold leading-5">{{ $plan->duration_days ? number_format($plan->duration_days) : __('messages.none') }}</dd>
+                            <dd class="mt-1 wrap-break-word font-bold leading-5">{{ $plan->duration_days ? number_format($plan->duration_days) : __('messages.none') }}</dd>
                         </div>
                         <div class="min-w-0 rounded-lg px-2.5 py-2 ring-1 {{ $metricClasses }}">
                             <dt class="font-bold text-zinc-500">{{ __('plans.fields.usage_limit') }}</dt>
-                            <dd class="mt-1 break-words font-bold leading-5">{{ number_format($plan->usage_limit) }}</dd>
+                            <dd class="mt-1 wrap-break-word font-bold leading-5">{{ number_format($plan->usage_limit) }}</dd>
                         </div>
                     </dl>
 
@@ -376,7 +376,7 @@
                         @foreach($plan->serviceKeys() as $serviceKey)
                             <span class="inline-flex max-w-full items-start gap-1.5 rounded-lg px-2 py-1 text-xs font-bold {{ $isCurrentPlan ? 'bg-emerald-100 text-emerald-800' : 'bg-teal-50 text-teal-700' }}">
 	                                <x-admin.category-icon :icon="$serviceIcons[$serviceKey] ?? null" class="mt-0.5 h-3 w-3" />
-                                <span class="min-w-0 break-words leading-5">{{ $serviceOptions[$serviceKey] ?? $serviceKey }}</span>
+                                <span class="min-w-0 wrap-break-word leading-5">{{ $serviceOptions[$serviceKey] ?? $serviceKey }}</span>
                             </span>
                         @endforeach
                     </div>

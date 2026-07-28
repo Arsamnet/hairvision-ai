@@ -2,7 +2,7 @@
 
 return [
     'clinic_gateway_name' => 'درگاه پیامک کلینیک',
-    'system_gateways_title' => 'همه درگاه‌های پیامک',
+    'system_gateways_title' => 'درگاه‌های پیامک',
     'created' => 'درگاه پیامک ساخته شد.',
     'updated' => 'درگاه پیامک به‌روزرسانی شد.',
     'deleted' => 'درگاه پیامک حذف شد.',

@@ -11,7 +11,7 @@
     border-radius: 0.5rem;
     background: var(--admin-surface);
     padding: 1rem;
-    box-shadow: 0 10px 24px rgba(15, 23, 42, 0.06);
+    box-shadow: 0 10px 24px color-mix(in srgb, var(--admin-shadow-color) 44%, transparent);
 }
 
 .admin-mobile-list-card-header {

@@ -14,12 +14,21 @@ const syncModalScrollLock = () => {
 };
 
 const preserveScrollPosition = (callback) => {
-    const scrollX = window.scrollX;
-    const scrollY = window.scrollY;
+    const scroller = document.querySelector('[data-admin-scroll-container]');
+    const scrollLeft = scroller?.scrollLeft ?? 0;
+    const scrollTop = scroller?.scrollTop ?? 0;
 
     callback();
-    window.scrollTo(scrollX, scrollY);
-    requestAnimationFrame(() => window.scrollTo(scrollX, scrollY));
+    window.scrollTo(0, 0);
+
+    if (scroller) {
+        scroller.scrollTo({ top: scrollTop, left: scrollLeft, behavior: 'auto' });
+    }
+
+    requestAnimationFrame(() => {
+        window.scrollTo(0, 0);
+        scroller?.scrollTo({ top: scrollTop, left: scrollLeft, behavior: 'auto' });
+    });
 };
 
 export const openModal = (modalId) => {

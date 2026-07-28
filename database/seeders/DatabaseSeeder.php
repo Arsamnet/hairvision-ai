@@ -23,6 +23,7 @@ class DatabaseSeeder extends Seeder
         $this->call([
             AccessControlSeeder::class,
             SystemSettingSeeder::class,
+            GuideContentSeeder::class,
             SmsGatewaySeeder::class,
             PaymentGatewaySeeder::class,
             PlanSeeder::class,

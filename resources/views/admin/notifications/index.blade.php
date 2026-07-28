@@ -44,7 +44,7 @@
         />
 
         <div data-admin-table-container class="hidden overflow-visible rounded-lg border border-zinc-100 lg:block">
-            <table class="w-full min-w-[68rem] text-right text-sm">
+            <table class="w-full min-w-272 text-right text-sm">
                 <thead class="bg-zinc-50 text-xs text-zinc-500">
                     <tr>
                         <th class="w-14 px-4 py-3">{{ __('messages.actions') }}</th>

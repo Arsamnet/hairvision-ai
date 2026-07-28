@@ -28,7 +28,7 @@ class NumericInputPersistenceTest extends TestCase
 
         $this->actingAs($admin)
             ->withServerVariables(['HTTP_HOST' => 'hairvision-ai.test'])
-            ->post('/admin/system/plans', [
+            ->post('/admin/finance/plans', [
                 'name' => 'پلن با ارقام چندزبانه',
                 'plan_type' => 'base_subscription',
                 'price' => '۴٬۵۰۰٬۰۰۰٬۰۰۰',

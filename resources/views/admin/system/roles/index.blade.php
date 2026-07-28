@@ -8,10 +8,10 @@
         <div class="flex flex-wrap items-center justify-between gap-3">
             <div>
                 <h2 class="text-lg font-bold">{{ __('system.roles_title') }}</h2>
-                <p class="mt-1 text-sm text-zinc-500">{{ __('menu.items.roles') }}</p>
+                <p class="mt-1 text-sm text-zinc-500">{{ __('system.roles_subtitle') }}</p>
             </div>
             @can('permission', 'roles.create')
-                <x-admin.modal id="create-role-modal" :label="__('system.new_role')" :title="__('system.new_role')" icon="shield" :open="$errors->any() && old('_form') === 'create_role'">
+                <x-admin.modal id="create-role-modal" :label="__('system.new_role')" :title="__('system.new_role')" icon="role" :open="$errors->any() && old('_form') === 'create_role'">
                     <form method="POST" action="{{ route('admin.system.roles.store') }}" class="grid gap-3 lg:grid-cols-2">
                         @csrf
                         <input type="hidden" name="_form" value="create_role">
@@ -19,7 +19,7 @@
                         <input name="name" class="h-11 rounded-lg border border-zinc-200 px-3 text-sm outline-none focus:border-teal-500" placeholder="{{ __('system.name') }}">
                         <input name="code" class="h-11 rounded-lg border border-zinc-200 px-3 text-sm outline-none focus:border-teal-500" dir="ltr" placeholder="{{ __('system.code') }}">
                         <input name="description" class="h-11 rounded-lg border border-zinc-200 px-3 text-sm outline-none focus:border-teal-500 lg:col-span-2" placeholder="{{ __('system.description') }}">
-                        <x-admin.button type="submit" icon="shield" class="lg:col-span-2">
+                        <x-admin.button type="submit" icon="role" class="lg:col-span-2">
                             <span>{{ __('system.submit') }}</span>
                         </x-admin.button>
                     </form>
@@ -80,7 +80,7 @@
                     @empty
                         <tr>
                             <td colspan="6" class="px-4 py-12">
-                                <x-admin.empty-state icon="shield">{{ __('system.empty_roles') }}</x-admin.empty-state>
+                                <x-admin.empty-state icon="role">{{ __('system.empty_roles') }}</x-admin.empty-state>
                             </td>
                         </tr>
                     @endforelse
@@ -122,7 +122,7 @@
                 </x-admin.mobile-list.card>
             @empty
                 <x-admin.mobile-list.card>
-                    <x-admin.empty-state icon="shield">{{ __('system.empty_roles') }}</x-admin.empty-state>
+                    <x-admin.empty-state icon="role">{{ __('system.empty_roles') }}</x-admin.empty-state>
                 </x-admin.mobile-list.card>
             @endforelse
         </x-admin.mobile-list>

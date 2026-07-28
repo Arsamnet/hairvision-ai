@@ -53,10 +53,18 @@
         <span class="text-sm font-bold text-zinc-600">{{ __('system.role') }}</span>
         <select name="role" data-user-role class="mt-2 h-11 w-full rounded-lg border border-zinc-200 px-3 text-sm outline-none focus:border-teal-500">
             @foreach($systemRoles as $role)
-                <option value="{{ $role->code }}" data-scope="system" @selected($selectedRole === $role->code)>{{ __('system.roles.'.$role->code) }}</option>
+                @php
+                    $translationKey = 'system.roles.'.$role->code;
+                    $roleLabel = __($translationKey) === $translationKey ? $role->name : __($translationKey);
+                @endphp
+                <option value="{{ $role->code }}" data-scope="system" @selected($selectedRole === $role->code)>{{ $roleLabel }} — {{ $role->code }}</option>
             @endforeach
             @foreach($clinicRoles as $role)
-                <option value="{{ $role->code }}" data-scope="clinic" @selected($selectedRole === $role->code)>{{ __('system.roles.'.$role->code) }}</option>
+                @php
+                    $translationKey = 'system.roles.'.$role->code;
+                    $roleLabel = __($translationKey) === $translationKey ? $role->name : __($translationKey);
+                @endphp
+                <option value="{{ $role->code }}" data-scope="clinic" @selected($selectedRole === $role->code)>{{ $roleLabel }} — {{ $role->code }}</option>
             @endforeach
         </select>
     </label>

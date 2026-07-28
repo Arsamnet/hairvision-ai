@@ -11,6 +11,8 @@ import { bootPlanModels } from './plan-models.js';
 import { bootNumericInputs } from './numeric-inputs.js';
 import { bootAiModelImageProcessing } from './ai-model-image-processing.js';
 import { bootLandingTemplateForm } from './landing-template-form.js';
+import { bootRichTextEditors } from './rich-text-editor.js';
+import { bootAdminFragmentNavigation } from './fragment-navigation.js';
 
 const closeUserMenus = () => {
     document.querySelectorAll('[data-admin-user-menu][open]').forEach((menu) => {
@@ -29,6 +31,7 @@ const bootUserMenus = () => {
 };
 
 export const bootAdmin = () => {
+    bootAdminFragmentNavigation();
     bootAdminTheme();
     bootUserMenus();
     bootAdminModals();
@@ -43,6 +46,7 @@ export const bootAdmin = () => {
     bootNumericInputs();
     bootAiModelImageProcessing();
     bootLandingTemplateForm();
+    bootRichTextEditors();
 
     document.addEventListener('keydown', (event) => {
         if (event.key !== 'Escape') {

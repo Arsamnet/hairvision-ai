@@ -1,7 +1,7 @@
 <?php
 
 return [
-    'version' => env('APP_VERSION', '2.0.0'),
+    'version' => env('APP_VERSION', '2.0.1'),
 
     'primary_domain' => env('HAIRVISION_PRIMARY_DOMAIN', 'hairvision-ai.test'),
 

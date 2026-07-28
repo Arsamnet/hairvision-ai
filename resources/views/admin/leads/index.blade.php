@@ -7,7 +7,7 @@
     <x-admin.card>
         <div class="flex flex-wrap items-center justify-between gap-3">
             <div>
-                <h2 class="text-lg font-bold">{{ __('leads.manage') }}</h2>
+                <h2 class="text-lg font-bold">{{ __('leads.title') }}</h2>
                 <p class="mt-1 text-sm text-zinc-500">{{ $clinicFilter?->name ?? __('dashboard.all_clinics') }}</p>
             </div>
             @can('create', App\Models\Lead::class)

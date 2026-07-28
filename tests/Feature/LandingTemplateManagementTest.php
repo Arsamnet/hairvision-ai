@@ -33,7 +33,7 @@ class LandingTemplateManagementTest extends TestCase
 
         $this->actingAs($admin)
             ->forHost('hairvision-ai.test')
-            ->get('/admin/system/landing-templates')
+            ->get('/admin/settings/templates')
             ->assertOk()
             ->assertSee(__('landing_templates.title'))
             ->assertSee(__('landing_templates.clinics_tab'))
@@ -42,14 +42,14 @@ class LandingTemplateManagementTest extends TestCase
 
         $this->actingAs($admin)
             ->forHost('hairvision-ai.test')
-            ->get('/admin/system/landing-templates/create')
+            ->get('/admin/settings/templates/create')
             ->assertOk()
             ->assertSee(__('landing_templates.fields.header_html'))
             ->assertSee(__('landing_templates.code_editor_hint'));
 
         $this->actingAs($admin)
             ->forHost('hairvision-ai.test')
-            ->post('/admin/system/landing-templates', $this->templatePayload([
+            ->post('/admin/settings/templates', $this->templatePayload([
                 'name' => 'قالب مدرن',
                 'code' => 'modern',
                 'header_html' => '<style>.clinic-header{color:#123456}</style><header class="clinic-header">هدر مدرن</header>',
@@ -66,13 +66,13 @@ class LandingTemplateManagementTest extends TestCase
 
         $this->actingAs($admin)
             ->forHost('hairvision-ai.test')
-            ->get('/admin/system/landing-templates/'.$template->id.'/edit')
+            ->get('/admin/settings/templates/'.$template->id.'/edit')
             ->assertOk()
             ->assertSee('window.hairVisionTemplate = true;', false);
 
         $this->actingAs($admin)
             ->forHost('hairvision-ai.test')
-            ->put('/admin/system/landing-templates/'.$template->id, $this->templatePayload([
+            ->put('/admin/settings/templates/'.$template->id, $this->templatePayload([
                 'name' => 'قالب مدرن ویرایش‌شده',
                 'header_html' => '<header>نسخه دوم</header>',
             ], includeCode: false))
@@ -83,7 +83,7 @@ class LandingTemplateManagementTest extends TestCase
 
         $this->actingAs($admin)
             ->forHost('hairvision-ai.test')
-            ->post('/admin/system/landing-templates', $this->templatePayload([
+            ->post('/admin/settings/templates', $this->templatePayload([
                 'name' => 'قالب ناامن',
                 'code' => 'unsafe',
                 'header_html' => '<script src="https://cdn.example.test/app.js"></script>',
@@ -94,7 +94,7 @@ class LandingTemplateManagementTest extends TestCase
 
         $this->actingAs($admin)
             ->forHost('hairvision-ai.test')
-            ->post('/admin/system/landing-templates', $this->templatePayload([
+            ->post('/admin/settings/templates', $this->templatePayload([
                 'name' => 'قالب با فاوآیکون خارجی',
                 'code' => 'unsafe-favicon',
                 'favicon_path' => 'https://cdn.example.test/favicon.png',
@@ -147,14 +147,14 @@ class LandingTemplateManagementTest extends TestCase
 
         $this->actingAs($admin)
             ->forHost('hairvision-ai.test')
-            ->get('/admin/system/landing-templates/clinics')
+            ->get('/admin/settings/templates/clinics')
             ->assertOk()
             ->assertSee($clinic->name)
             ->assertSee(__('landing_templates.statuses.legacy'));
 
         $this->actingAs($admin)
             ->forHost('hairvision-ai.test')
-            ->put('/admin/system/landing-templates/clinics/'.$clinic->id, [
+            ->put('/admin/settings/templates/clinics/'.$clinic->id, [
                 'template_id' => $modern->id,
             ])
             ->assertRedirect();
@@ -208,7 +208,7 @@ class LandingTemplateManagementTest extends TestCase
 
         $this->actingAs($admin)
             ->forHost('hairvision-ai.test')
-            ->post('/admin/clinics', [
+            ->post('/admin/settings/clinics', [
                 '_form' => 'create_clinic',
                 'name' => 'کلینیک جدید',
                 'slug' => 'new-clinic',
@@ -270,12 +270,12 @@ class LandingTemplateManagementTest extends TestCase
 
         $this->actingAs($clinicUser)
             ->forHost('hairvision-ai.test')
-            ->get('/admin/system/landing-templates')
+            ->get('/admin/settings/templates')
             ->assertForbidden();
 
         $this->actingAs($admin)
             ->forHost('hairvision-ai.test')
-            ->patch('/admin/system/landing-templates/'.$modern->id.'/default')
+            ->patch('/admin/settings/templates/'.$modern->id.'/default')
             ->assertRedirect();
 
         $this->assertFalse($classic->refresh()->is_default);
@@ -284,7 +284,7 @@ class LandingTemplateManagementTest extends TestCase
 
         $this->actingAs($admin)
             ->forHost('hairvision-ai.test')
-            ->put('/admin/system/landing-templates/'.$modern->id, $this->templatePayload([
+            ->put('/admin/settings/templates/'.$modern->id, $this->templatePayload([
                 'name' => $modern->name,
                 'is_active' => false,
             ], includeCode: false))
@@ -292,7 +292,7 @@ class LandingTemplateManagementTest extends TestCase
 
         $this->actingAs($admin)
             ->forHost('hairvision-ai.test')
-            ->delete('/admin/system/landing-templates/'.$modern->id)
+            ->delete('/admin/settings/templates/'.$modern->id)
             ->assertSessionHasErrors('template');
     }
 

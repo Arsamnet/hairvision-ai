@@ -11,7 +11,7 @@ class NormalizeNumericInputsTest extends TestCase
 {
     public function test_it_normalizes_nested_numeric_inputs_before_the_request_is_handled(): void
     {
-        $request = Request::create('/admin/plans?per_page=۱۰۰', 'POST', [
+        $request = Request::create('/admin/finance/plans?per_page=۱۰۰', 'POST', [
             'price' => '۳,۵۰۰,۰۰۰,۰۰۰',
             'phone' => '٠٩١٢٣٤٥٦٧٨٩',
             'settings' => [

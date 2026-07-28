@@ -10,7 +10,7 @@
         @endphp
         @continue($visibleItems->isEmpty())
 
-        @if($visibleItems->count() === 1)
+        @if($visibleItems->count() === 1 && ! ($group['forceSubmenu'] ?? false))
             @php
                 $item = $visibleItems->first();
                 $locked = $itemIsLocked($item);

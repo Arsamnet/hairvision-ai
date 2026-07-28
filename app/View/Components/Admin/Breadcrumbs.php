@@ -3,8 +3,8 @@
 namespace App\View\Components\Admin;
 
 use App\Models\Tenant;
+use App\Support\AdminNavigation;
 use Illuminate\Contracts\View\View;
-use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Route;
 use Illuminate\View\Component;
 
@@ -65,25 +65,28 @@ class Breadcrumbs extends Component
             return $crumbs;
         }
 
-        $section = $this->sectionDefinitions()
-            ->first(fn (array $definition): bool => $this->matchesAny($definition['patterns']));
+        $context = AdminNavigation::context();
+        $group = $context['group'];
+        $item = $context['item'];
 
-        if (! $section) {
+        if (! $group || ! $item) {
             $this->addCrumb($crumbs, $this->resolvedPageTitle);
 
             return $crumbs;
         }
 
-        $sectionUrl = $this->routeUrl($section['route'], ($section['parameters'])());
+        if ($group['key'] !== 'dashboard') {
+            $this->addCrumb($crumbs, $group['label'], icon: $group['icon']);
+        }
 
-        if (request()->routeIs($section['route']) || $this->resolvedPageTitle === $section['label']) {
-            $this->addCrumb($crumbs, $section['label'], null, $section['icon']);
+        if (request()->routeIs($item['route'])) {
+            $this->addCrumb($crumbs, $item['label'], icon: $item['icon']);
 
             return $crumbs;
         }
 
-        $this->addCrumb($crumbs, $section['label'], $sectionUrl, $section['icon']);
-        $this->addCrumb($crumbs, $this->resolvedPageTitle);
+        $this->addCrumb($crumbs, $item['label'], $this->routeUrl($item['route']), $item['icon']);
+        $this->addCrumb($crumbs, $this->resolvedPageTitle, icon: $item['icon']);
 
         return $crumbs;
     }
@@ -122,92 +125,6 @@ class Breadcrumbs extends Component
             'url' => $url,
             'icon' => $icon,
         ];
-    }
-
-    /**
-     * @return Collection<int, array{
-     *     patterns: array<int, string>,
-     *     label: string,
-     *     route: string,
-     *     parameters: callable(): array<string, mixed>,
-     *     icon: string
-     * }>
-     *
-     * @since 1.0.0
-     */
-    private function sectionDefinitions(): Collection
-    {
-        return collect([
-            $this->section(['admin.clinics.ai-models.*'], __('ai_models.assignment_title'), 'admin.clinics.show', fn (): array => [
-                'clinic' => request()->route('clinic'),
-            ], 'sparkles'),
-            $this->section(['admin.clinics.*'], __('clinics.title'), 'admin.clinics.index', icon: 'building'),
-            $this->section(['admin.leads.*'], __('leads.title'), 'admin.leads.index', icon: 'contact'),
-            $this->section(['admin.users.*'], __('system.users_title'), 'admin.users.index', icon: 'users'),
-            $this->section(['admin.system.landing-templates.*'], __('landing_templates.title'), 'admin.system.landing-templates.index', icon: 'gallery'),
-            $this->section(['admin.system.ai-model-categories.*'], __('ai_models.categories.title'), 'admin.system.ai-model-categories.index', icon: 'category'),
-            $this->section(['admin.ai-models.*'], __('ai_models.title'), 'admin.ai-models.index', icon: 'sparkles'),
-            $this->section(['admin.plans.*'], __('plans.title'), 'admin.plans.index', icon: 'package'),
-            $this->section(['admin.billing.*'], __('payments.title'), 'admin.billing.index', icon: 'invoice'),
-            $this->section(['admin.reports', 'admin.reports.*'], __('reports.title'), 'admin.reports', icon: 'chart'),
-            $this->section(['admin.system.roles.*'], __('system.roles_title'), 'admin.system.roles.index', icon: 'shield'),
-            $this->section(['admin.system.permissions.*'], __('system.permissions_title'), 'admin.system.permissions.index', icon: 'shield'),
-            $this->section(['admin.system.settings.*'], __('system.settings_title'), 'admin.system.settings.edit', icon: 'settings'),
-            $this->section(['admin.system.sms-gateways.*'], __('system.sms_gateways_title'), 'admin.system.sms-gateways.index', icon: 'message'),
-            $this->section(['admin.system.payment-gateways.*'], __('system.payment_gateways_title'), 'admin.system.payment-gateways.index', icon: 'credit-card'),
-            $this->section(['admin.system.reports.*'], __('reports.management_title'), 'admin.system.reports.index', icon: 'chart'),
-        ]);
-    }
-
-    /**
-     * @param  array<int, string>  $patterns
-     * @param  string  $label  The label value.
-     * @param  string  $route  The route value.
-     * @param  callable|null  $parameters  The parameters value.
-     * @param  string  $icon  The icon value.
-     * @return array{
-     *     patterns: array<int, string>,
-     *     label: string,
-     *     route: string,
-     *     parameters: callable(): array<string, mixed>,
-     *     icon: string
-     * }
-     *
-     * @since 1.0.0
-     */
-    private function section(
-        array $patterns,
-        string $label,
-        string $route,
-        ?callable $parameters = null,
-        string $icon = 'layout-dashboard',
-    ): array {
-        return [
-            'patterns' => $patterns,
-            'label' => $label,
-            'route' => $route,
-            'parameters' => $parameters ?: fn (): array => [],
-            'icon' => $icon,
-        ];
-    }
-
-    /**
-     * Execute the matches any operation.
-     *
-     * @param  array<int, string>  $patterns
-     * @return bool Whether the requested condition is satisfied.
-     *
-     * @since 1.0.0
-     */
-    private function matchesAny(array $patterns): bool
-    {
-        foreach ($patterns as $pattern) {
-            if (request()->routeIs($pattern)) {
-                return true;
-            }
-        }
-
-        return false;
     }
 
     /**

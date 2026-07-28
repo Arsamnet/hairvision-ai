@@ -34,12 +34,15 @@
         <div class="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
             @foreach($permissions as $group => $groupPermissions)
                 <fieldset class="rounded-lg border border-zinc-200 p-4">
-                    <legend class="px-2 text-sm font-bold text-zinc-700">{{ $group }}</legend>
+                    <legend class="px-2 text-sm font-bold text-zinc-700">{{ $permissionGroupLabels[$group] ?? $group }}</legend>
                     <div class="mt-3 space-y-2">
                         @foreach($groupPermissions as $permission)
-                            <label class="flex items-center gap-2 text-sm text-zinc-700">
+                            <label class="flex items-start gap-2 text-sm text-zinc-700">
                                 <input type="checkbox" name="permissions[]" value="{{ $permission->id }}" @checked($role->permissions->contains('id', $permission->id)) @disabled($role->isClinicRole())>
-                                <span dir="ltr">{{ $permission->code }}</span>
+                                <span class="min-w-0">
+                                    <span class="block font-bold">{{ $permission->display_name }}</span>
+                                    <span class="mt-0.5 block text-xs text-zinc-500" dir="ltr">{{ $permission->code }}</span>
+                                </span>
                             </label>
                         @endforeach
                     </div>

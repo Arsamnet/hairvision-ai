@@ -1,6 +1,6 @@
 # API Reference
 
-Version: [`2.0.0`](../CHANGELOG.md#200)
+Version: [`2.0.1`](../CHANGELOG.md#201)
 
 All public product behavior goes through `/api/v1`, even when the UI is Blade.
 Blade may render the tenant shell and client-side interactions, but OTP, upload,
@@ -506,19 +506,56 @@ Landing template management is intentionally dashboard-only and requires the
 matching system permissions:
 
 ```text
-GET    /admin/system/landing-templates
-GET    /admin/system/landing-templates/create
-POST   /admin/system/landing-templates
-GET    /admin/system/landing-templates/clinics
-PUT    /admin/system/landing-templates/clinics/{clinic}
-GET    /admin/system/landing-templates/{landingTemplate}/edit
-PUT    /admin/system/landing-templates/{landingTemplate}
-PATCH  /admin/system/landing-templates/{landingTemplate}/default
-DELETE /admin/system/landing-templates/{landingTemplate}
+GET    /admin/settings/templates
+GET    /admin/settings/templates/create
+POST   /admin/settings/templates
+GET    /admin/settings/templates/clinics
+PUT    /admin/settings/templates/clinics/{clinic}
+GET    /admin/settings/templates/{landingTemplate}/edit
+PUT    /admin/settings/templates/{landingTemplate}
+PATCH  /admin/settings/templates/{landingTemplate}/default
+DELETE /admin/settings/templates/{landingTemplate}
 ```
 
 These routes edit trusted administrator-authored HTML and assignments. They are
 not public API contracts and must never be exposed to visitor sessions.
+
+## Dashboard Guide Routes
+
+The employee guide is dashboard-only and has no public `/api/v1` endpoint:
+
+```text
+GET /admin/help/guide
+GET /admin/help/faq
+```
+
+Every authenticated dashboard role may read these routes, even when clinic plan
+access is inactive. It reads system-owned relational guide records and renders
+clinic-user content on two linked pages: a categorized guide with ordered steps
+and a separate indexed FAQ with accessible native accordions.
+
+Guide management is restricted to `guide.manage`:
+
+```text
+GET /admin/settings/guide
+PUT /admin/settings/guide
+POST /admin/settings/guide/sections
+PUT|PATCH|DELETE /admin/settings/guide/sections/{guideSection}[...]
+POST /admin/settings/guide/sections/{guideSection}/steps
+PUT|PATCH|DELETE /admin/settings/guide/steps/{guideStep}[...]
+GET /admin/settings/faqs
+PUT /admin/settings/faqs
+POST /admin/settings/faqs/items
+PUT|PATCH|DELETE /admin/settings/faqs/items/{guideFaq}[...]
+```
+
+These dashboard-only forms mutate one page or record at a time. Page payloads
+contain `title` and `introduction`; section payloads contain `title`, optional
+`audience`, and `description`; steps contain `title` and `body`; FAQs contain
+`question` and `answer`; move operations accept `direction=up|down`. Labels
+remain escaped plain text. Rich fields are edited visually or in a source view
+and are sanitized on the server before storage and rendering. Only the
+documented small formatting allowlist and safe link schemes survive.
 
 ## System AI Category APIs
 
@@ -546,8 +583,8 @@ POST   /api/v1/system/ai-models/{model}/activate
 POST   /api/v1/system/ai-models/{model}/pause
 ```
 
-The visible dashboard category CRUD lives under
-`/admin/system/ai-model-categories`. The dashboard renders categories as table
+The visible dashboard AI-application CRUD lives under
+`/admin/settings/ai-applications`. The dashboard renders applications as table
 rows with view/edit actions and one lifecycle action. Unused categories may be
 deleted. Categories referenced by models, plans, subscriptions, credit ledger
 rows, or generation requests must be archived instead of deleted so historical
@@ -556,7 +593,7 @@ records keep their stable category code.
 Dashboard-only category pages:
 
 ```text
-GET /admin/system/ai-model-categories/{category}
+GET /admin/settings/ai-applications/{category}
 ```
 
 The category view contains the outputs table and output create/edit modals;

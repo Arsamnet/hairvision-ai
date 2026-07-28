@@ -12,7 +12,7 @@
     $toggleId = $id.'-toggle';
 @endphp
 
-<div class="inline-block">
+<div @class(['inline-block' => $trigger, 'contents' => ! $trigger])>
     <input id="{{ $toggleId }}" type="checkbox" class="peer sr-only" data-admin-modal-toggle="{{ $id }}" @checked($open)>
     @if($trigger)
         <label for="{{ $toggleId }}" class="{{ $triggerClass }}" role="button" tabindex="0" data-admin-modal-trigger="{{ $id }}">

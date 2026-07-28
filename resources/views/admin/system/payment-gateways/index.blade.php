@@ -8,7 +8,7 @@
         <div class="flex flex-wrap items-center justify-between gap-3">
             <div>
                 <h2 class="text-lg font-bold">{{ __('system.payment_gateways_title') }}</h2>
-                <p class="mt-1 text-sm text-zinc-500">{{ __('menu.items.payment_gateways') }}</p>
+                <p class="mt-1 text-sm text-zinc-500">{{ __('system.payment_gateways_subtitle') }}</p>
             </div>
             @can('permission', 'payment_gateways.create')
                 <x-admin.modal id="create-payment-gateway-modal" :label="__('system.new_gateway')" :title="__('system.new_gateway')" icon="credit-card" :open="$errors->any() && old('_form') === 'create_payment_gateway'">
@@ -175,7 +175,7 @@
                         @if($gateway->provider_code === 'zarinpal')
                             <div class="rounded-lg border border-teal-100 bg-teal-50 px-4 py-3 text-sm lg:col-span-2" data-automatic-zarinpal-callback>
                                 <p class="font-bold text-teal-900">{{ __('payments.callback_url_automatic') }}</p>
-                                <code class="mt-2 block overflow-x-auto rounded-lg bg-white px-3 py-2 text-left text-xs text-zinc-700" dir="ltr">{{ url('/admin/billing/payments/{payment}/verify') }}</code>
+                                <code class="mt-2 block overflow-x-auto rounded-lg bg-white px-3 py-2 text-left text-xs text-zinc-700" dir="ltr">{{ url('/admin/finance/billing/payments/{payment}/verify') }}</code>
                                 <p class="mt-2 leading-6 text-teal-700">{{ __('payments.callback_url_automatic_hint') }}</p>
                             </div>
                         @else

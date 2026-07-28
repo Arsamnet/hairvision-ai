@@ -44,7 +44,7 @@
         <x-admin.card>
             <h3 class="text-base font-bold">{{ __('notifications.delivery_recipients') }}</h3>
             <div data-admin-table-container class="mt-5 hidden overflow-visible rounded-lg border border-zinc-100 lg:block">
-                <table class="w-full min-w-[58rem] text-right text-sm">
+                <table class="w-full min-w-232 text-right text-sm">
                     <thead class="bg-zinc-50 text-xs text-zinc-500">
                         <tr>
                             <th class="px-4 py-3">{{ __('system.clinic') }}</th>
