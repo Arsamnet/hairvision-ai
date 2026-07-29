@@ -10,6 +10,9 @@ the next dated SemVer section when that release is prepared.
 - Added a checked-in cPanel Git deployment configuration that overwrites the
   matching contents of `public_html` from `public` and adjusts the deployed
   Laravel front controller to load the application from the cPanel repository.
+- Changed tenant seeding to derive the platform host and seeded clinic
+  subdomains from `APP_URL`, updating existing seeded domain mappings when the
+  configured application URL changes.
 
 ### Clinic management fixes
 

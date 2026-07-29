@@ -241,7 +241,7 @@ class SystemManagementTest extends TestCase
             ->where('amount', 10)
             ->count());
 
-        $silverSandsCategories = collect($this->forHost('silversands.hairvision.ir')
+        $silverSandsCategories = collect($this->forHost('silversands.hairvision-ai.test')
             ->getJson('/api/v1/bootstrap')
             ->assertOk()
             ->json('categories'))

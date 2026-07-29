@@ -6,6 +6,7 @@ use App\Models\SmsGateway;
 use App\Models\Tenant;
 use App\Models\TenantDomain;
 use Illuminate\Database\Seeder;
+use UnexpectedValueException;
 
 /**
  * Provides tenant seeder behavior.
@@ -25,6 +26,8 @@ class TenantSeeder extends Seeder
      */
     public function run(): void
     {
+        $appHost = $this->appUrlHost();
+
         $aryaTenant = Tenant::query()->where('slug', 'arya')->first()
             ?? Tenant::query()->where('slug', 'aria')->first()
             ?? new Tenant;
@@ -59,13 +62,33 @@ class TenantSeeder extends Seeder
             ]
         );
 
-        $this->upsertDomain($aryaTenant, 'arya.hairvision-ai.test', 'tenant_subdomain', 'aria.hairvision-ai.test');
-        $this->upsertDomain($nojaTenant, 'noja.hairvision-ai.test', 'tenant_subdomain');
-        $this->upsertDomain($demoTenant, 'demo.hairvision-ai.test', 'tenant_subdomain');
-        $this->upsertDomain($silverSandsTenant, 'silversands.hairvision.ir', 'tenant_subdomain');
-        $this->upsertDomain($aryaTenant, 'hairvision-ai.test', 'platform_subdomain');
+        $this->upsertDomain($aryaTenant, 'arya.'.$appHost, 'tenant_subdomain');
+        $this->upsertDomain($nojaTenant, 'noja.'.$appHost, 'tenant_subdomain');
+        $this->upsertDomain($demoTenant, 'demo.'.$appHost, 'tenant_subdomain');
+        $this->upsertDomain($silverSandsTenant, 'silversands.'.$appHost, 'tenant_subdomain');
+        $this->upsertDomain($aryaTenant, $appHost, 'platform_subdomain');
 
         $this->upsertDemoIppanelGateway($demoTenant);
+    }
+
+    /**
+     * Extract the normalized database host from the configured application URL.
+     *
+     * @return string The lowercase host without a trailing dot.
+     *
+     * @throws UnexpectedValueException When APP_URL does not contain a host.
+     *
+     * @since 2.0.0
+     */
+    private function appUrlHost(): string
+    {
+        $host = parse_url((string) config('app.url'), PHP_URL_HOST);
+
+        if (! is_string($host) || trim($host) === '') {
+            throw new UnexpectedValueException('APP_URL must contain a valid host before running TenantSeeder.');
+        }
+
+        return strtolower(rtrim($host, '.'));
     }
 
     /**
@@ -74,17 +97,17 @@ class TenantSeeder extends Seeder
      * @param  Tenant  $tenant  Tenant in the current operation scope.
      * @param  string  $domain  The domain value.
      * @param  string  $type  The type value.
-     * @param  string|null  $legacyDomain  The legacy domain value.
      * @return void No value is returned.
      *
      * @since 1.0.0
      */
-    private function upsertDomain(Tenant $tenant, string $domain, string $type, ?string $legacyDomain = null): void
+    private function upsertDomain(Tenant $tenant, string $domain, string $type): void
     {
-        $tenantDomain = TenantDomain::query()->where('domain', $domain)->first()
-            ?? ($legacyDomain
-                ? TenantDomain::query()->where('tenant_id', $tenant->id)->where('domain', $legacyDomain)->first()
-                : null)
+        $tenantDomain = TenantDomain::query()
+            ->where('tenant_id', $tenant->id)
+            ->where('type', $type)
+            ->first()
+            ?? TenantDomain::query()->where('domain', $domain)->first()
             ?? new TenantDomain;
 
         $tenantDomain->forceFill([

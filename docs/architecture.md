@@ -776,6 +776,10 @@ Local hosts:
 127.0.0.1 hairvision-ai.test
 ```
 
+`TenantSeeder` derives the platform domain from the host portion of `APP_URL`.
+The seeded clinic hosts prepend their tenant slug to that host, and reseeding
+updates the same seeded domain mappings when `APP_URL` changes.
+
 Run:
 
 ```bash
