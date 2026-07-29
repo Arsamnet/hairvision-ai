@@ -17,6 +17,9 @@ the next dated SemVer section when that release is prepared.
   changed the legacy widening migration to skip already-correct unsigned BIGINT
   columns, repair only outdated definitions, and verify the result before
   database seeding continues.
+- Added a new additive monetary-width enforcement migration so deployments that
+  already recorded the earlier repair still recheck and correct signed or
+  32-bit plan, invoice, and payment amount columns before seeding.
 - Added two-layer frontend cache busting: Vite retains content-hashed filenames
   so unchanged fonts and images keep stable cache keys, while every
   Laravel-resolved Vite asset URL includes the current `APP_VERSION` as a query

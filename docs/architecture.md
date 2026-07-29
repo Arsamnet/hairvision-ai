@@ -424,9 +424,10 @@ Required invariants:
 - Currency amounts use unsigned BIGINT columns: `plans.price`,
   `invoices.amount`, and `payments.amount`.
 - Fresh databases receive those final monetary types directly from the
-  system-management creator migration. The later widening migration is only a
-  guarded compatibility repair for an older schema and verifies the resulting
-  column types before seeding can continue.
+  system-management creator migration. Guarded additive migrations repair older
+  schemas and verify the resulting column types before seeding can continue.
+  The latest enforcement uses a new migration identity so servers that already
+  recorded an earlier repair still recheck their live monetary definitions.
 - `otp_codes` never contain a plain `code` column.
 - `lead_notes` writes update CRM state transactionally.
 - private file paths are internal metadata and are never exposed directly.
