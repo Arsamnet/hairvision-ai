@@ -5,6 +5,39 @@
 Changes without an assigned release remain in this section and are moved into
 the next dated SemVer section when that release is prepared.
 
+### Clinic management fixes
+
+- Added invoice view actions and row-click detail modals to the clinic detail
+  page so invoice and latest payment information is directly accessible.
+- Added permission-protected deletion of a clinic's dedicated SMS gateway from
+  the clinic detail page.
+- Moved clinic AI-model assignment activation/deactivation into a dedicated
+  per-row quick action with status-appropriate green and red styling.
+
+## 2.0.2 - 2026-07-28
+
+### OpenAI image editing
+
+- Added the code-owned `openai` AI model type and dashboard model definition
+  alongside the existing local demo and GapGPT adapters.
+- Added a dedicated OpenAI Images Edit adapter that sends encrypted API-key
+  credentials as a Bearer token, uploads the private source as multipart
+  `image[]`, uses the selected category output prompt, and decodes the returned
+  `data[0].b64_json` image without exposing provider payloads.
+- Added configurable API URL, model, `low`/`medium`/`high` quality, output size,
+  output format, background, moderation, output compression, and provider
+  timeouts. Defaults are `gpt-image-1.5`, `low`, `816x816`, `jpeg`, `opaque`,
+  `auto`, one image, and compression `70`.
+- Added category-specific seeded OpenAI model accesses for hair and eyebrow
+  transplant applications. Seeded credentials remain non-production
+  placeholders, clinic assignments remain inactive by default, and executable
+  output configurations copy their prompt from the application output.
+- Added Persian dashboard labels, select controls for constrained provider
+  settings, server-side setting validation, adapter/registry/seed coverage, and
+  OpenAI provider documentation.
+- Updated runtime, environment-example, canonical documentation, and version
+  metadata coverage to `2.0.2`.
+
 ## 2.0.1
 
 HairVision `2.0.1` updates the administrator experience and includes all

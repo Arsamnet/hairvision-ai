@@ -317,15 +317,18 @@ class AdminDashboardTest extends TestCase
 
     public function test_database_seeder_creates_super_admin_and_clinic_demo_data(): void
     {
-        config(['hairvision.super_admin.phone' => '09129999999']);
+        config([
+            'hairvision.super_admin.email' => 'satrapit@gmail.com',
+            'hairvision.super_admin.phone' => '09124248164',
+        ]);
 
         $this->seed(DatabaseSeeder::class);
 
         $tenant = Tenant::query()->where('slug', 'arya')->firstOrFail();
 
         $this->assertDatabaseHas('users', [
-            'email' => 'superadmin@example.com',
-            'phone_normalized' => '09129999999',
+            'email' => 'satrapit@gmail.com',
+            'phone_normalized' => '09124248164',
             'role' => 'super_admin',
             'status' => 'active',
         ]);

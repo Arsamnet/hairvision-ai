@@ -51,6 +51,21 @@ class PlanSeeder extends Seeder
         );
 
         $this->seedPlan(
+            'پلن دمو برای تست',
+            [
+                'description' => 'پلن اختصاصی یک‌ماهه کاشت مو با مدل OpenAI',
+                'plan_type' => 'base_subscription',
+                'price' => 1,
+                'duration_days' => 30,
+                'credits' => [
+                    'hair_transplant' => 10,
+                ],
+                'features_json' => $this->starterPlanFeatures(),
+                'is_public' => false,
+            ]
+        );
+
+        $this->seedPlan(
             'افزودن کاشت ابرو',
             [
                 'description' => 'سرویس افزوده کاشت ابرو برای پلن شروع کاشت مو',
@@ -66,7 +81,7 @@ class PlanSeeder extends Seeder
         $this->seedPlan(
             'بسته افزایش اعتبار کاشت مو',
             [
-                'description' => 'بسته ۶۰۰ اعتبار افزوده کاشت مو',
+                'description' => 'بسته افزیش به میزان ۶۰۰ اعتبار',
                 'plan_type' => 'credit_top_up',
                 'price' => 500000000,
                 'duration_days' => null,
@@ -92,7 +107,7 @@ class PlanSeeder extends Seeder
         $this->seedPlan(
             'بسته افزایش اعتبار کاشت مو و ابرو',
             [
-                'description' => 'بسته ۶۰۰ اعتبار افزوده کاشت مو و ۶۰۰ اعتبار افزوده کاشت ابرو',
+                'description' => 'بسته ۱۲۰۰ اعتبار افزوده',
                 'plan_type' => 'credit_top_up',
                 'price' => 1000000000,
                 'duration_days' => null,
@@ -130,7 +145,7 @@ class PlanSeeder extends Seeder
     /**
      * Execute the seed plan operation.
      *
-     * @param  array{description: string, plan_type: string, price: int, duration_days: int|null, credits: array<string, int>, features_json?: array<string, bool>}  $data
+     * @param  array{description: string, plan_type: string, price: int, duration_days: int|null, credits: array<string, int>, features_json?: array<string, bool>, is_public?: bool}  $data
      * @param  string  $name  The name value.
      * @return void No value is returned.
      *

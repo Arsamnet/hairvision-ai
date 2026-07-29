@@ -1,6 +1,6 @@
 # API Reference
 
-Version: [`2.0.1`](../CHANGELOG.md#201)
+Version: [`2.0.2`](../CHANGELOG.md#202)
 
 All public product behavior goes through `/api/v1`, even when the UI is Blade.
 Blade may render the tenant shell and client-side interactions, but OTP, upload,
@@ -622,3 +622,34 @@ accepts `1..8192` and quality accepts `1..100`. These are system-admin model
 settings; public generation clients cannot submit or override them. Values
 shown above are the defaults used by new and seeded model accesses. Generated
 result storage always uses the 800px/JPEG 85 product profile.
+
+The `openai` type returned by `GET /api/v1/system/ai-model-types/openai`
+publishes the following non-secret model defaults; `api_key` is a required
+secret credential and is never returned:
+
+```json
+{
+  "endpoint": "https://api.openai.com/v1/images/edits",
+  "model": "gpt-image-1.5",
+  "quality": "low",
+  "size": "816x816",
+  "output_format": "jpeg",
+  "background": "opaque",
+  "moderation": "auto",
+  "output_compression": 70,
+  "timeout_seconds": 900,
+  "concurrency_limit": 1
+}
+```
+
+`quality` accepts `low`, `medium`, or `high`; `output_format` accepts `jpeg`,
+`png`, or `webp`; and output compression accepts `0..100`. Every OpenAI output
+configuration has one required `prompt`, populated from the selected
+application output by the seeded legacy-to-v2 bridge. Provider calls send the
+private image as multipart `image[]`, fix `n` to `1`, and decode
+`data[0].b64_json`. Public APIs never accept or expose these settings.
+
+The product seed keeps `816x816` as its configurable default. The current
+official OpenAI endpoint documents only `auto`, `1024x1024`, `1536x1024`, and
+`1024x1536`, so direct `api.openai.com` deployments must change `size` to a
+supported upstream value before enabling the model.

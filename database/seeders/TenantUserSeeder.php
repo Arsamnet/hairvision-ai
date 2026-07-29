@@ -61,5 +61,20 @@ class TenantUserSeeder extends Seeder
                 'status' => 'active',
             ]);
         }
+
+        $silverSandsTenant = Tenant::query()->where('slug', 'silversands')->firstOrFail();
+        $silverSandsAdmin = User::query()->where('phone_normalized', '09121012193')->firstOrFail();
+
+        $silverSandsTenant->users()->syncWithoutDetaching([
+            $silverSandsAdmin->id => [
+                'role' => 'clinic_admin',
+                'status' => 'active',
+            ],
+        ]);
+
+        $silverSandsTenant->users()->updateExistingPivot($silverSandsAdmin->id, [
+            'role' => 'clinic_admin',
+            'status' => 'active',
+        ]);
     }
 }

@@ -151,17 +151,83 @@ class AiModelAccessSeeder extends Seeder
             ]
         );
 
+        $openAiModelConfig = config('ai-models.models.openai', []);
+        $openAiSettings = [
+            ...InputImageProcessingSettings::defaults(),
+            'endpoint_url' => $openAiModelConfig['endpoint'] ?? 'https://api.openai.com/v1/images/edits',
+            'model' => $openAiModelConfig['default_model'] ?? 'gpt-image-1.5',
+            'quality' => $openAiModelConfig['default_quality'] ?? 'low',
+            'size' => $openAiModelConfig['default_size'] ?? '816x816',
+            'output_format' => $openAiModelConfig['default_output_format'] ?? 'jpeg',
+            'background' => $openAiModelConfig['default_background'] ?? 'opaque',
+            'moderation' => $openAiModelConfig['default_moderation'] ?? 'auto',
+            'output_compression' => $openAiModelConfig['default_output_compression'] ?? 70,
+            'timeout_seconds' => $openAiModelConfig['default_timeout'] ?? 900,
+            'connect_timeout_seconds' => $openAiModelConfig['default_connect_timeout'] ?? 30,
+        ];
+        $hairOpenAiAccess = AiModelAccess::query()->updateOrCreate(
+            [
+                'model_key' => 'openai',
+                'usage_category_key' => 'hair_transplant',
+                'name' => __('ai_models.seed.openai_access_name'),
+            ],
+            [
+                'description' => __('ai_models.seed.openai_access_description'),
+                'credentials' => [
+                    'api_key' => env('HAIRVISION_DEMO_OPENAI_API_KEY', 'seed-demo-openai-api-key'),
+                ],
+                'settings' => $openAiSettings,
+                'prompt' => null,
+                'credit_limit' => null,
+                'credit_used' => 0,
+                'usage_count' => 0,
+                'is_active' => true,
+                'is_demo' => false,
+                'is_protected' => false,
+                'priority' => 2,
+                'created_by' => $superAdmin->id,
+                'updated_by' => $superAdmin->id,
+            ]
+        );
+
+        $eyebrowOpenAiAccess = AiModelAccess::query()->updateOrCreate(
+            [
+                'model_key' => 'openai',
+                'usage_category_key' => 'eyebrow_transplant',
+                'name' => __('ai_models.seed.eyebrow_openai_access_name'),
+            ],
+            [
+                'description' => __('ai_models.seed.eyebrow_openai_access_description'),
+                'credentials' => [
+                    'api_key' => env('HAIRVISION_DEMO_OPENAI_API_KEY', 'seed-demo-openai-api-key'),
+                ],
+                'settings' => $openAiSettings,
+                'prompt' => null,
+                'credit_limit' => null,
+                'credit_used' => 0,
+                'usage_count' => 0,
+                'is_active' => true,
+                'is_demo' => false,
+                'is_protected' => false,
+                'priority' => 2,
+                'created_by' => $superAdmin->id,
+                'updated_by' => $superAdmin->id,
+            ]
+        );
+
         $this->seedExecutableSampleModel('hair_transplant', __('ai_models.seed.demo_access_name'), $demoAccess, $superAdmin);
         $this->seedExecutableSampleModel('eyebrow_transplant', __('ai_models.seed.eyebrow_demo_access_name'), $eyebrowDemoAccess, $superAdmin);
 
         $executableModels = app(ExecutableAiModelSyncService::class);
         $executableModels->sync($hairGapGptAccess, $superAdmin);
         $executableModels->sync($eyebrowGapGptAccess, $superAdmin);
+        $executableModels->sync($hairOpenAiAccess, $superAdmin);
+        $executableModels->sync($eyebrowOpenAiAccess, $superAdmin);
 
         Tenant::query()
             ->whereIn('slug', ['arya', 'noja'], 'and', false)
             ->get()
-            ->each(function (Tenant $tenant) use ($demoAccess, $eyebrowDemoAccess, $hairGapGptAccess, $eyebrowGapGptAccess, $superAdmin): void {
+            ->each(function (Tenant $tenant) use ($demoAccess, $eyebrowDemoAccess, $hairGapGptAccess, $eyebrowGapGptAccess, $hairOpenAiAccess, $eyebrowOpenAiAccess, $superAdmin): void {
                 $tenant->aiModelAccesses()->syncWithoutDetaching([
                     $demoAccess->id => [
                         'is_active' => true,
@@ -176,6 +242,14 @@ class AiModelAccessSeeder extends Seeder
                         'assigned_by' => $superAdmin->id,
                     ],
                     $eyebrowGapGptAccess->id => [
+                        'is_active' => false,
+                        'assigned_by' => $superAdmin->id,
+                    ],
+                    $hairOpenAiAccess->id => [
+                        'is_active' => false,
+                        'assigned_by' => $superAdmin->id,
+                    ],
+                    $eyebrowOpenAiAccess->id => [
                         'is_active' => false,
                         'assigned_by' => $superAdmin->id,
                     ],
@@ -194,10 +268,18 @@ class AiModelAccessSeeder extends Seeder
                     'is_active' => true,
                     'assigned_by' => $superAdmin->id,
                 ],
+                $hairOpenAiAccess->id => [
+                    'is_active' => false,
+                    'assigned_by' => $superAdmin->id,
+                ],
+                $eyebrowOpenAiAccess->id => [
+                    'is_active' => false,
+                    'assigned_by' => $superAdmin->id,
+                ],
             ]);
         }
 
-        $this->assignSeededPlanModels($demoAccess, $eyebrowDemoAccess);
+        $this->assignSeededPlanModels($demoAccess, $eyebrowDemoAccess, $hairOpenAiAccess);
     }
 
     /**
@@ -205,6 +287,7 @@ class AiModelAccessSeeder extends Seeder
      *
      * @param  AiModelAccess  $hairAccess  The hair access value.
      * @param  AiModelAccess  $eyebrowAccess  The eyebrow access value.
+     * @param  AiModelAccess  $openAiHairAccess  The OpenAI hair-transplant access value.
      * @return void No value is returned.
      *
      * @since 1.0.0
@@ -212,19 +295,28 @@ class AiModelAccessSeeder extends Seeder
     private function assignSeededPlanModels(
         AiModelAccess $hairAccess,
         AiModelAccess $eyebrowAccess,
+        AiModelAccess $openAiHairAccess,
     ): void {
         $accessIdsByService = [
             'hair_transplant' => $hairAccess->id,
             'eyebrow_transplant' => $eyebrowAccess->id,
         ];
+        $accessIdsByPlan = [
+            'پلن دمو برای تست' => [$openAiHairAccess->id],
+        ];
 
         Plan::query()
             ->with('serviceEntitlements')
             ->get()
-            ->each(function (Plan $plan) use ($accessIdsByService): void {
-                $accessIds = $plan->isCreditTopUp()
-                    ? []
-                    : collect($plan->serviceKeys())
+            ->each(function (Plan $plan) use ($accessIdsByPlan, $accessIdsByService): void {
+                if ($plan->isCreditTopUp()) {
+                    $plan->aiModelAccesses()->sync([]);
+
+                    return;
+                }
+
+                $accessIds = $accessIdsByPlan[$plan->name]
+                    ?? collect($plan->serviceKeys())
                         ->map(fn (string $serviceKey): ?int => $accessIdsByService[$serviceKey] ?? null)
                         ->filter()
                         ->values()

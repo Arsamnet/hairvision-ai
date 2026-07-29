@@ -62,7 +62,7 @@ class SystemSettingSeeder extends Seeder
                 'group' => 'general',
                 'label' => 'شماره پشتیبانی',
                 'type' => 'string',
-                'value' => '09129999999',
+                'value' => '09124248164',
                 'description' => 'شماره تماس اصلی پشتیبانی برای کاربران داشبورد.',
             ],
             'notifications.global_enabled' => [

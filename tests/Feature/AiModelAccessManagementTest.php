@@ -64,7 +64,7 @@ class AiModelAccessManagementTest extends TestCase
         $gapGpt = AiModelAccess::query()
             ->where('model_key', 'gapgpt')
             ->where('usage_category_key', 'hair_transplant')
-            ->where('name', 'مدل واقعی GapGPT کاشت مو')
+            ->where('name', 'مدل GapGPT کاشت مو')
             ->firstOrFail();
         $rawGapGptCredentials = DB::table('ai_model_accesses')->where('id', $gapGpt->id)->value('credentials');
         $outputPrompts = AiModelCategoryOutput::query()
@@ -78,12 +78,14 @@ class AiModelAccessManagementTest extends TestCase
 
         $this->assertArrayHasKey('sample_image', config('ai-models.models'));
         $this->assertArrayHasKey('gapgpt', config('ai-models.models'));
+        $this->assertArrayHasKey('openai', config('ai-models.models'));
         $this->assertArrayHasKey('hair_transplant', config('ai-models.usage_categories'));
         $this->assertArrayHasKey('eyebrow_transplant', config('ai-models.usage_categories'));
         $this->assertSame('کاشت مو', __('ai_models.usage_categories.hair_transplant'));
         $this->assertFalse((bool) config('ai-models.models.sample_image.is_protected'));
         $this->assertFalse((bool) config('ai-models.models.sample_image.requires_credentials'));
         $this->assertTrue((bool) config('ai-models.models.gapgpt.requires_credentials'));
+        $this->assertTrue((bool) config('ai-models.models.openai.requires_credentials'));
         $this->assertFalse($demo->is_protected);
         $this->assertTrue($demo->is_active);
         $this->assertTrue($gapGpt->is_active);
@@ -121,12 +123,14 @@ class AiModelAccessManagementTest extends TestCase
         $this->assertSame('یک سال بعد از کاشت مو', $outputMetadata['final_result']->name);
         $this->assertSame('نتیجه کامل یک‌ساله با خط رویش طبیعی، پوشش متناسب و تراکم باورپذیر', $outputMetadata['final_result']->description);
 
-        $this->assertSame([
+        $this->assertEqualsCanonicalizing([
+            'مدل OpenAI کاشت ابرو',
+            'مدل OpenAI کاشت مو',
             'مدل دمو کاشت ابرو',
             'مدل دمو کاشت مو',
             'مدل واقعی GapGPT کاشت ابرو',
-            'مدل واقعی GapGPT کاشت مو',
-        ], AiModelAccess::query()->orderBy('name')->pluck('name')->all());
+            'مدل GapGPT کاشت مو',
+        ], AiModelAccess::query()->pluck('name')->all());
 
         $eyebrowOutputs = AiModelCategoryOutput::query()
             ->whereHas('category', fn ($query) => $query->where('code', 'eyebrow_transplant'))
@@ -221,7 +225,7 @@ class AiModelAccessManagementTest extends TestCase
 
         $this->assertSame([
             'eyebrow_transplant' => 'مدل واقعی GapGPT کاشت ابرو',
-            'hair_transplant' => 'مدل واقعی GapGPT کاشت مو',
+            'hair_transplant' => 'مدل GapGPT کاشت مو',
         ], $gapGptAccesses->pluck('name', 'usage_category_key')->all());
 
         $gapGptAccesses->each(function (AiModelAccess $gapGpt) use ($tenant): void {
@@ -575,7 +579,8 @@ class AiModelAccessManagementTest extends TestCase
             ->get('/admin/settings/ai-models/'.$demo->id.'/edit')
             ->assertOk()
             ->assertSee('value="sample_image"', false)
-            ->assertSee('value="gapgpt"', false);
+            ->assertSee('value="gapgpt"', false)
+            ->assertSee('value="openai"', false);
 
         $this->actingAs($superAdmin)
             ->forHost('hairvision-ai.test')
@@ -873,6 +878,15 @@ class AiModelAccessManagementTest extends TestCase
             ->where('ai_model_accesses.is_active', true)
             ->firstOrFail();
 
+        $inactiveAssignedAccess = $this->createAccess([
+            'name' => 'مدل متصل غیرفعال',
+            'is_active' => true,
+        ]);
+        $tenant->aiModelAccesses()->attach($inactiveAssignedAccess->id, [
+            'is_active' => false,
+            'assigned_by' => $superAdmin->id,
+        ]);
+
         $addableAccess = $this->createAccess([
             'name' => 'مدل فعال قابل اتصال',
             'is_demo' => true,
@@ -894,7 +908,15 @@ class AiModelAccessManagementTest extends TestCase
             ->assertSee('value="'.$assignedAccess->id.'" disabled', false)
             ->assertSee(__('ai_models.already_assigned'))
             ->assertSee($addableAccess->name)
-            ->assertDontSee($inactiveAccess->name);
+            ->assertDontSee($inactiveAccess->name)
+            ->assertSee('data-clinic-model-status-action="'.$assignedAccess->id.'"', false)
+            ->assertSee('data-clinic-model-status-target="0"', false)
+            ->assertSee(__('ai_models.deactivate_assignment'))
+            ->assertSee('border-rose-200 bg-rose-50 text-rose-700', false)
+            ->assertSee('data-clinic-model-status-action="'.$inactiveAssignedAccess->id.'"', false)
+            ->assertSee('data-clinic-model-status-target="1"', false)
+            ->assertSee(__('ai_models.activate_assignment'))
+            ->assertSee('border-emerald-200 bg-emerald-50 text-emerald-700', false);
 
         $this->assertStringNotContainsString(
             $addableAccess->name.' - '.__('ai_models.usage_categories.hair_transplant').' ('.__('ai_models.already_assigned').')',

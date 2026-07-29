@@ -1,6 +1,6 @@
 # Engineering Architecture
 
-Version: [`2.0.1`](../CHANGELOG.md#201)
+Version: [`2.0.2`](../CHANGELOG.md#202)
 
 This document is the canonical engineering reference for HairVision. It
 consolidates architecture, data model, setup, coding standards, frontend rules,
@@ -31,14 +31,15 @@ Core concepts:
 Configured model types remain code-owned in `config/ai-models.php`. The
 database never creates provider types; it creates executable instances or legacy
 access records that reference a configured type such as `sample_image` or
-`gapgpt`.
+`gapgpt` or `openai`.
 
 The dashboard exposes category CRUD under system management. Creating an active
 category immediately makes it available in plan service-credit inputs and AI
 model access forms. For example, a system admin can create
 `filler_under_the_eyes` with the Persian name `فیلر زیر چشم`, then grant credits
-for it in a plan and create a `sample_image` or `gapgpt` model access for that
-usage category.
+for it in a plan and create a `sample_image`, `gapgpt`, or `openai` model access
+for that usage category. OpenAI-backed access records use the same category and
+output boundaries.
 
 The category dashboard is a table-based system screen with a dedicated category
 icon and row action menu. Each row exposes view/edit plus exactly one lifecycle
@@ -265,10 +266,37 @@ size=1024x1024
 Do not send GapGPT requests as JSON. Do not seed, commit, log, display, or
 document real provider keys.
 
-GapGPT calls are long-running paid requests. Do not use automatic HTTP or queue
-retries for the provider call itself. Keep the HTTP timeout, queued job timeout,
-Horizon worker timeout, and Redis `retry_after` aligned so the worker waits for
-the provider response instead of issuing a duplicate request.
+OpenAI image edits use a separate `OpenAiImageEditProvider` and the current
+Images Edit multipart contract:
+
+```text
+POST <configured API URL>
+Authorization: Bearer <encrypted access credential>
+Accept: application/json
+image[]=<private source file>
+model=<configured model; seeded default gpt-image-1.5>
+prompt=<selected category-output prompt snapshot>
+quality=<low|medium|high; default low>
+size=<configured output size; product default 816x816>
+output_format=<jpeg|png|webp; default jpeg>
+background=<opaque|transparent|auto; default opaque>
+moderation=<auto|low; default auto>
+n=1
+output_compression=<0..100; default 70>
+```
+
+The adapter decodes `data[0].b64_json` and returns only image bytes plus safe
+metadata to the shared JPEG normalizer. It never returns a provider URL to the
+visitor. The product keeps `816x816` as the configurable seed default requested
+for compatible endpoints; direct `api.openai.com` installations must select a
+size currently accepted by the upstream API (`auto`, `1024x1024`, `1536x1024`,
+or `1024x1536`).
+
+GapGPT and OpenAI calls are long-running paid requests. Do not use automatic
+HTTP or queue retries for the provider call itself. Keep the HTTP timeout,
+queued job timeout, Horizon worker timeout, and Redis `retry_after` aligned so
+the worker waits for the provider response instead of issuing a duplicate
+request.
 
 Independent generation uses `ModelQueueCoordinator` as a database-backed FIFO
 and capacity gate. Model selection, attempt creation, and clinic-credit
@@ -758,7 +786,7 @@ php artisan horizon
 
 Demo users after seeding:
 
-- Super admin: `09129999999`
+- Super admin: `09124248164`
 - Clinic admin: `09217359491`
 - Editor: `09120000001`
 - Viewer: `09120000002`
@@ -767,12 +795,15 @@ Demo users after seeding:
 
 The seeded demo clinic uses the combined hair-and-eyebrow starter plan. Its
 `hair_transplant` and `eyebrow_transplant` applications are both assigned to
-active category-specific GapGPT model access records.
+active category-specific GapGPT model access records. Category-specific OpenAI
+records are also seeded with non-production credentials and requested defaults,
+but their clinic assignments are inactive until a system administrator enables
+them.
 
 Baseline configuration:
 
 ```env
-APP_VERSION=2.0.1
+APP_VERSION=2.0.2
 APP_LOCALE=fa
 APP_FAKER_LOCALE=fa_IR
 CACHE_STORE=redis

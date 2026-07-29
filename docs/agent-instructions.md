@@ -1,6 +1,6 @@
 # AI Agent Instructions
 
-Version: [`2.0.1`](../CHANGELOG.md#201)
+Version: [`2.0.2`](../CHANGELOG.md#202)
 
 This file is the compact operating prompt for AI agents. The primary guide is
 `AGENTS.md`; this file keeps the same rules inside `/docs`.
@@ -54,6 +54,8 @@ transplant, or dynamically added services like under-eye filler.
   mutate images, or use external URLs.
 - Real providers require active assigned AI model access, encrypted credentials,
   active subscription, service entitlement, and remaining service credit.
+- OpenAI image edits use the code-owned `openai` adapter, multipart `image[]`,
+  a server-side category-output prompt, and private base64 result decoding.
 - Credit is consumed atomically only after successful provider execution.
 - Seeded system SMS gateways keep `local` enabled/default and `ippanel`
   disabled/non-default until an admin explicitly enables IPPanel.
@@ -115,9 +117,14 @@ transplant, or dynamically added services like under-eye filler.
   locks alone.
 - Keep GapGPT image edits multipart with file field `image`, `model =
   gpt-image-2`, `n = 1`, `response_format = url`, and `size = 1024x1024`.
+- Keep OpenAI image edits multipart with file field `image[]`, a configurable
+  API URL and model, the selected application-output prompt, `n = 1`, and
+  base64 result handling. Seeded defaults are `quality = low`, `size =
+  816x816`, `output_format = jpeg`, `background = opaque`, `moderation = auto`,
+  and `output_compression = 70`.
 - Keep the provider request size separate from private asset normalization:
   provider inputs and persisted results use the 800px/JPEG 85 product default.
-- Never seed, commit, log, display, or document a real GapGPT API key.
+- Never seed, commit, log, display, or document a real GapGPT or OpenAI API key.
 - Keep user-facing errors localized and generic; log only safe operational
   context.
 

@@ -440,7 +440,7 @@ class HairVisionMvpTest extends TestCase
             'status' => 'active',
         ]);
         $platformAdmin = User::factory()->create([
-            'phone_normalized' => '09129999999',
+            'phone_normalized' => '09124248164',
             'role' => 'super_admin',
             'status' => 'active',
         ]);

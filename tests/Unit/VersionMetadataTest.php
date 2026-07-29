@@ -12,17 +12,17 @@ use Tests\TestCase;
 class VersionMetadataTest extends TestCase
 {
     /**
-     * Ensure runtime defaults and environment documentation identify version 2.
+     * Ensure runtime defaults and environment documentation identify version 2.0.2.
      *
      * @return void No value is returned.
      *
      * @since 2.0.0
      */
-    public function test_project_version_defaults_to_2_0_1(): void
+    public function test_project_version_defaults_to_2_0_2(): void
     {
-        $this->assertSame('2.0.1', config('hairvision.version'));
+        $this->assertSame('2.0.2', config('hairvision.version'));
         $this->assertStringContainsString(
-            'APP_VERSION=2.0.1',
+            'APP_VERSION=2.0.2',
             (string) file_get_contents(base_path('.env.example'))
         );
     }
@@ -42,6 +42,7 @@ class VersionMetadataTest extends TestCase
         $this->assertFileDoesNotExist(base_path('docs/release-notes.md'));
         $this->assertStringContainsString('## 2.0.0', $releaseNotes);
         $this->assertStringContainsString('## 2.0.1', $releaseNotes);
+        $this->assertStringContainsString('## 2.0.2', $releaseNotes);
         $this->assertStringContainsString('## Unreleased', $releaseNotes);
 
         foreach ([
@@ -56,7 +57,7 @@ class VersionMetadataTest extends TestCase
 
             $this->assertStringContainsString('CHANGELOG.md', $contents, $documentation);
             $this->assertStringContainsString(
-                '2.0.1',
+                '2.0.2',
                 $contents,
                 $documentation
             );

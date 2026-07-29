@@ -51,9 +51,18 @@ class TenantSeeder extends Seeder
             ]
         );
 
+        $silverSandsTenant = Tenant::query()->updateOrCreate(
+            ['slug' => 'silversands'],
+            [
+                'name' => 'کلینیک شن‌های نقره‌ای',
+                'status' => 'active',
+            ]
+        );
+
         $this->upsertDomain($aryaTenant, 'arya.hairvision-ai.test', 'tenant_subdomain', 'aria.hairvision-ai.test');
         $this->upsertDomain($nojaTenant, 'noja.hairvision-ai.test', 'tenant_subdomain');
         $this->upsertDomain($demoTenant, 'demo.hairvision-ai.test', 'tenant_subdomain');
+        $this->upsertDomain($silverSandsTenant, 'silversands.hairvision.ir', 'tenant_subdomain');
         $this->upsertDomain($aryaTenant, 'hairvision-ai.test', 'platform_subdomain');
 
         $this->upsertDemoIppanelGateway($demoTenant);
@@ -107,7 +116,7 @@ class TenantSeeder extends Seeder
             ],
             [
                 'user_id' => null,
-                'name' => 'پنل پیامک IPPanel کلینیک دمو',
+                'name' => 'سیستم پیامک کلینیک دمو',
                 'status' => 'enabled',
                 'is_default' => true,
                 'encrypted_credentials' => [

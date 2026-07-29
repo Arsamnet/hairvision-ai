@@ -363,6 +363,30 @@ class ClinicController extends Controller
     }
 
     /**
+     * Delete the clinic-scoped SMS gateway panel.
+     *
+     * @param  Tenant  $clinic  Tenant in the current operation scope.
+     * @param  SmsGatewayManagementService  $manager  The manager value.
+     * @return RedirectResponse HTTP redirect response.
+     *
+     * @since 2.0.0
+     */
+    public function destroySmsGateway(Tenant $clinic, SmsGatewayManagementService $manager): RedirectResponse
+    {
+        Gate::authorize('view', $clinic);
+
+        $gateway = $manager->clinicSettings($clinic);
+        abort_unless($gateway, 404);
+
+        Gate::authorize('delete', $gateway);
+        $gateway->delete();
+
+        return redirect()
+            ->route('admin.clinics.show', $clinic)
+            ->with('status', __('sms.private_deleted'));
+    }
+
+    /**
      * Execute the authorize clinic invoice operation.
      *
      * @param  Tenant  $clinic  Tenant in the current operation scope.

@@ -135,17 +135,45 @@
             <p class="text-sm font-bold text-zinc-700 md:col-span-2">{{ __('ai_models.settings') }}</p>
             @foreach($settingFields as $field)
                 @php
-                    $isNumericSetting = in_array($field, ['timeout_seconds', 'connect_timeout_seconds'], true);
+                    $isNumericSetting = in_array($field, ['output_compression', 'timeout_seconds', 'connect_timeout_seconds'], true);
+                    $selectOptions = match ($field) {
+                        'quality' => ['low', 'medium', 'high'],
+                        'output_format' => ['jpeg', 'png', 'webp'],
+                        'response_format' => ['url', 'b64_json'],
+                        'background' => ['opaque', 'transparent', 'auto'],
+                        'moderation' => ['auto', 'low'],
+                        default => [],
+                    };
+                    $settingValue = old('settings.'.$field, data_get($access?->settings ?? [], $field));
                 @endphp
-                <input
-                    name="settings[{{ $field }}]"
-                    value="{{ old('settings.'.$field, data_get($access?->settings ?? [], $field)) }}"
-                    @if($isNumericSetting) type="text" inputmode="numeric" data-number-input @endif
-                    class="h-11 rounded-lg border border-zinc-200 bg-white px-3 text-sm outline-none focus:border-teal-500"
-                    placeholder="{{ __('ai_models.'.$field) }} - {{ __('ai_models.setting_placeholder') }}"
-                    dir="ltr"
-                    autocomplete="off"
-                >
+                @if($selectOptions !== [])
+                    <label class="grid gap-1 text-sm font-bold">
+                        <span>{{ __('ai_models.'.$field) }}</span>
+                        <select
+                            name="settings[{{ $field }}]"
+                            class="h-11 rounded-lg border border-zinc-200 bg-white px-3 text-sm outline-none focus:border-teal-500"
+                            dir="ltr"
+                        >
+                            <option value="">{{ __('ai_models.setting_placeholder') }}</option>
+                            @foreach($selectOptions as $option)
+                                <option value="{{ $option }}" @selected($settingValue === $option)>{{ $option }}</option>
+                            @endforeach
+                        </select>
+                    </label>
+                @else
+                    <label class="grid gap-1 text-sm font-bold">
+                        <span>{{ __('ai_models.'.$field) }}</span>
+                        <input
+                            name="settings[{{ $field }}]"
+                            value="{{ $settingValue }}"
+                            @if($isNumericSetting) type="text" inputmode="numeric" data-number-input @endif
+                            class="h-11 rounded-lg border border-zinc-200 bg-white px-3 text-sm outline-none focus:border-teal-500"
+                            placeholder="{{ __('ai_models.'.$field) }} - {{ __('ai_models.setting_placeholder') }}"
+                            dir="ltr"
+                            autocomplete="off"
+                        >
+                    </label>
+                @endif
             @endforeach
         </div>
     @endif

@@ -109,19 +109,23 @@ class SystemManagementTest extends TestCase
         $this->assertSame('https://sandbox.zarinpal.com', $zarinpalGateway->settings_json['sandbox_base_url'] ?? null);
         $this->assertSame($preservedMerchantId, $zarinpalGateway->encrypted_credentials['merchant_id'] ?? null);
         $this->assertGreaterThan(0, SystemSetting::query()->count('*'));
-        $this->assertSame(6, Plan::query()->count('*'));
+        $this->assertSame(7, Plan::query()->count('*'));
 
         $tenant = Tenant::query()->where('slug', 'arya')->firstOrFail();
         $nojaTenant = Tenant::query()->where('slug', 'noja')->firstOrFail();
         $demoTenant = Tenant::query()->where('slug', 'demo')->firstOrFail();
+        $silverSandsTenant = Tenant::query()->where('slug', 'silversands')->firstOrFail();
         $demoAdmin = User::query()->where('phone_normalized', '09004666673')->firstOrFail();
         $kamranDemoAdmin = User::query()->where('phone_normalized', '09127072327')->firstOrFail();
+        $silverSandsAdmin = User::query()->where('phone_normalized', '09121012193')->firstOrFail();
         $activeSubscription = Subscription::query()->where('tenant_id', $tenant->id)->where('status', 'active')->firstOrFail();
         $nojaSubscription = Subscription::query()->where('tenant_id', $nojaTenant->id)->where('status', 'active')->firstOrFail();
         $demoSubscription = Subscription::query()->where('tenant_id', $demoTenant->id)->where('status', 'active')->firstOrFail();
+        $silverSandsSubscription = Subscription::query()->where('tenant_id', $silverSandsTenant->id)->where('status', 'active')->firstOrFail();
         $seededPlans = Plan::query()->with('serviceEntitlements')->get()->keyBy('name');
         $combinedStarter = $seededPlans->get('پلن شروع');
         $hairStarter = $seededPlans->get('پلن شروع کاشت مو');
+        $silverSandsPlan = $seededPlans->get('پلن دمو برای تست');
         $eyebrowAddOn = $seededPlans->get('افزودن کاشت ابرو');
         $hairTopUp = $seededPlans->get('بسته افزایش اعتبار کاشت مو');
         $eyebrowTopUp = $seededPlans->get('بسته افزایش اعتبار کاشت ابرو');
@@ -134,6 +138,12 @@ class SystemManagementTest extends TestCase
         $this->assertSame('پلن آغازین کاشت مو', $hairStarter?->description);
         $this->assertSame(3500000000, $hairStarter?->price);
         $this->assertSame(['hair_transplant' => 600], $hairStarter?->serviceCredits());
+        $this->assertSame('base_subscription', $silverSandsPlan?->plan_type->value);
+        $this->assertSame(1, $silverSandsPlan?->price);
+        $this->assertSame(30, $silverSandsPlan?->duration_days);
+        $this->assertSame(10, $silverSandsPlan?->usage_limit);
+        $this->assertFalse((bool) $silverSandsPlan?->is_public);
+        $this->assertSame(['hair_transplant' => 10], $silverSandsPlan?->serviceCredits());
         $this->assertSame('service_add_on', $eyebrowAddOn?->plan_type->value);
         $this->assertSame(500000000, $eyebrowAddOn?->price);
         $this->assertSame(['eyebrow_transplant' => 600], $eyebrowAddOn?->serviceCredits());
@@ -198,13 +208,55 @@ class SystemManagementTest extends TestCase
         $this->assertSame(600, (int) $demoSubscription->serviceEntitlements()->where('service_key', 'hair_transplant')->value('included_credit'));
         $this->assertSame(600, (int) $demoSubscription->serviceEntitlements()->where('service_key', 'eyebrow_transplant')->value('included_credit'));
 
+        $silverSandsInvoice = Invoice::query()
+            ->where('tenant_id', $silverSandsTenant->id)
+            ->where('number', 'BS-4')
+            ->firstOrFail();
+        $silverSandsPayment = Payment::query()
+            ->where('tenant_id', $silverSandsTenant->id)
+            ->where('idempotency_key', 'seed-silversands-openai-hair-plan-paid')
+            ->firstOrFail();
+        $silverSandsOpenAiAccess = AiModelAccess::query()
+            ->where('model_key', 'openai')
+            ->where('usage_category_key', 'hair_transplant')
+            ->firstOrFail();
+
+        $this->assertSame($silverSandsPlan?->id, $silverSandsSubscription->plan_id);
+        $this->assertSame($silverSandsAdmin->id, $silverSandsSubscription->user_id);
+        $this->assertSame(10, $silverSandsSubscription->usage_limit);
+        $this->assertSame('paid', $silverSandsInvoice->status);
+        $this->assertSame(1, $silverSandsInvoice->amount);
+        $this->assertNotNull($silverSandsInvoice->activated_at);
+        $this->assertSame([$silverSandsOpenAiAccess->id], $silverSandsInvoice->aiModelAccessIdsSnapshot());
+        $this->assertSame('paid', $silverSandsPayment->status);
+        $this->assertSame(1, $silverSandsPayment->amount);
+        $this->assertSame(1, $silverSandsSubscription->serviceEntitlements()->where('is_active', true)->count());
+        $this->assertSame(10, (int) $silverSandsSubscription->serviceEntitlements()->where('service_key', 'hair_transplant')->value('included_credit'));
+        $this->assertTrue($silverSandsPlan?->aiModelAccesses()->whereKey($silverSandsOpenAiAccess->id)->exists() ?? false);
+        $this->assertTrue($silverSandsTenant->aiModelAccesses()->whereKey($silverSandsOpenAiAccess->id)->wherePivot('is_active', true)->exists());
+        $this->assertSame(1, CreditTransaction::query()
+            ->where('tenant_id', $silverSandsTenant->id)
+            ->where('subscription_id', $silverSandsSubscription->id)
+            ->where('type', 'grant')
+            ->where('amount', 10)
+            ->count());
+
+        $silverSandsCategories = collect($this->forHost('silversands.hairvision.ir')
+            ->getJson('/api/v1/bootstrap')
+            ->assertOk()
+            ->json('categories'))
+            ->pluck('code')
+            ->values()
+            ->all();
+        $this->assertSame(['hair_transplant'], $silverSandsCategories);
+
         $demoGapGptAccesses = AiModelAccess::query()
             ->where('model_key', 'gapgpt')
             ->orderBy('usage_category_key')
             ->get();
         $this->assertSame([
             'eyebrow_transplant' => 'مدل واقعی GapGPT کاشت ابرو',
-            'hair_transplant' => 'مدل واقعی GapGPT کاشت مو',
+            'hair_transplant' => 'مدل GapGPT کاشت مو',
         ], $demoGapGptAccesses->pluck('name', 'usage_category_key')->all());
         $demoGapGptAccesses->each(function (AiModelAccess $access) use ($demoTenant): void {
             $this->assertTrue($access->is_active);
@@ -517,9 +569,9 @@ class SystemManagementTest extends TestCase
 
         $this->actingAs($superAdmin)
             ->forHost('hairvision-ai.test')
-            ->get('/admin/security/users?search=09129999999')
+            ->get('/admin/security/users?search=09124248164')
             ->assertOk()
-            ->assertSee('09129999999');
+            ->assertSee('09124248164');
 
         $this->actingAs($superAdmin)
             ->forHost('hairvision-ai.test')
@@ -2383,6 +2435,17 @@ class SystemManagementTest extends TestCase
 
         $this->actingAs($superAdmin)
             ->forHost('hairvision-ai.test')
+            ->get('/admin/settings/clinics/'.$clinic->id)
+            ->assertOk()
+            ->assertSee('data-admin-modal-trigger="clinic-invoice-details-'.$manualInvoice->id.'"', false)
+            ->assertSee('data-table-row-view-action', false)
+            ->assertSee(__('payments.view'))
+            ->assertSee(__('payments.invoice_information'))
+            ->assertSee(__('payments.payment_information'))
+            ->assertSee($manualInvoice->number);
+
+        $this->actingAs($superAdmin)
+            ->forHost('hairvision-ai.test')
             ->post('/admin/settings/clinics/'.$clinic->id.'/sms-gateway', [
                 '_form' => 'clinic_sms_gateway',
                 'provider_code' => 'local',
@@ -2399,6 +2462,25 @@ class SystemManagementTest extends TestCase
             'provider_code' => 'local',
             'status' => 'enabled',
             'is_default' => true,
+        ]);
+
+        $this->actingAs($superAdmin)
+            ->forHost('hairvision-ai.test')
+            ->get('/admin/settings/clinics/'.$clinic->id)
+            ->assertOk()
+            ->assertSee(route('admin.clinics.sms-gateway.destroy', $clinic), false)
+            ->assertSee(__('sms.delete'))
+            ->assertSee(__('sms.confirm_private_delete'));
+
+        $this->actingAs($superAdmin)
+            ->forHost('hairvision-ai.test')
+            ->delete('/admin/settings/clinics/'.$clinic->id.'/sms-gateway')
+            ->assertRedirect(route('admin.clinics.show', $clinic))
+            ->assertSessionHas('status', __('sms.private_deleted'));
+
+        $this->assertDatabaseMissing('sms_gateways', [
+            'tenant_id' => $clinic->id,
+            'owner_scope' => 'tenant',
         ]);
 
         $this->actingAs($superAdmin)
@@ -3298,7 +3380,7 @@ class SystemManagementTest extends TestCase
             ->assertSee('h-3.5 w-3.5', false)
             ->assertSee('data-menu-icon="chevron-right"', false)
             ->assertSee('data-menu-icon="chevron-left"', false)
-            ->assertSee(__('messages.pagination_summary', ['from' => '1', 'to' => '6', 'total' => '6']))
+            ->assertSee(__('messages.pagination_summary', ['from' => '1', 'to' => '7', 'total' => '7']))
             ->assertSee('aria-disabled="true"', false)
             ->assertSee('admin-mobile-list', false)
             ->assertSee('admin-mobile-list-card', false)

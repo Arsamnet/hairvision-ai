@@ -33,6 +33,7 @@ class SubscriptionSeeder extends Seeder
     {
         $aryaAdmin = User::query()->where('phone_normalized', '09217359491')->firstOrFail();
         $demoAdmin = User::query()->where('phone_normalized', '09004666673')->firstOrFail();
+        $silverSandsAdmin = User::query()->where('phone_normalized', '09121012193')->firstOrFail();
 
         $this->seedStarterSubscription(
             tenantSlug: 'arya',
@@ -62,6 +63,16 @@ class SubscriptionSeeder extends Seeder
             authority: 'SEED-DEMO-STARTER',
             referenceId: 'SEED-DEMO-PAID',
             user: $demoAdmin,
+        );
+
+        $this->seedStarterSubscription(
+            tenantSlug: 'silversands',
+            planName: 'پلن دمو برای تست',
+            invoiceNumber: 'BS-4',
+            paymentKey: 'seed-silversands-openai-hair-plan-paid',
+            authority: 'SEED-SILVERSANDS-OPENAI-HAIR',
+            referenceId: 'SEED-SILVERSANDS-OPENAI-HAIR-PAID',
+            user: $silverSandsAdmin,
         );
     }
 
@@ -96,6 +107,7 @@ class SubscriptionSeeder extends Seeder
 
         $activeStarter = $this->activeStarterSubscription($tenant, $starterPlan);
         $now = now();
+        $activation = app(SubscriptionActivationService::class);
 
         $invoice = Invoice::query()->firstOrNew([
             'number' => $invoiceNumber,
@@ -116,6 +128,7 @@ class SubscriptionSeeder extends Seeder
                 'clinic' => $tenantSlug,
                 'plan_type' => $starterPlan->plan_type->value,
                 'service_credits' => $starterPlan->serviceCredits(),
+                'ai_model_access_ids' => $activation->modelAccessIdsForPlan($starterPlan),
             ],
         ]);
 
@@ -132,8 +145,7 @@ class SubscriptionSeeder extends Seeder
         $subscription = $activeStarter;
 
         if (! $subscription) {
-            $subscription = app(SubscriptionActivationService::class)
-                ->activateInvoice($invoice->refresh());
+            $subscription = $activation->activateInvoice($invoice->refresh());
         }
 
         if (! $subscription) {

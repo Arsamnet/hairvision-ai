@@ -74,6 +74,12 @@ class UserSeeder extends Seeder
                 'phone' => '09127072327',
                 'role' => 'clinic_admin',
             ],
+            [
+                'name' => 'ایمان عباسی',
+                'email' => 'iman.abbasi.silversands@example.com',
+                'phone' => '09121012193',
+                'role' => 'clinic_admin',
+            ],
         ];
     }
 

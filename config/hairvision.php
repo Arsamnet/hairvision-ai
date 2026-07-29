@@ -1,7 +1,7 @@
 <?php
 
 return [
-    'version' => env('APP_VERSION', '2.0.1'),
+    'version' => env('APP_VERSION', '2.0.2'),
 
     'primary_domain' => env('HAIRVISION_PRIMARY_DOMAIN', 'hairvision-ai.test'),
 
@@ -29,8 +29,8 @@ return [
 
     'super_admin' => [
         'name' => env('HAIRVISION_SUPER_ADMIN_NAME', 'مدیر کل'),
-        'email' => env('HAIRVISION_SUPER_ADMIN_EMAIL', 'superadmin@example.com'),
-        'phone' => env('HAIRVISION_SUPER_ADMIN_PHONE', '09129999999'),
+        'email' => env('HAIRVISION_SUPER_ADMIN_EMAIL', 'satrapit@gmail.com'),
+        'phone' => env('HAIRVISION_SUPER_ADMIN_PHONE', '09124248164'),
     ],
 
     'pagination' => [

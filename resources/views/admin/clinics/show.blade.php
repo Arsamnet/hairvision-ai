@@ -16,6 +16,8 @@
         default => 'zinc',
     };
     $invoiceStatusTone = fn (string $status): string => $status === 'paid' ? 'emerald' : ($status === 'failed' ? 'rose' : ($status === 'canceled' ? 'zinc' : 'amber'));
+    $formatDateTime = fn ($date): string => \App\Support\JalaliDate::toJalaliDateTime($date) ?? __('messages.none');
+    $maskAuthority = fn ($authority): string => filled($authority) ? '•••• '.substr((string) $authority, -8) : __('messages.none');
 @endphp
 
 @section('content')
@@ -136,18 +138,31 @@
                         <h3 class="text-base font-bold">{{ __('clinics.sms_gateway') }}</h3>
                         <p class="mt-1 text-sm text-zinc-500">{{ __('clinics.sms_gateway_hint') }}</p>
                     </div>
-                    @if(auth()->user()?->hasAnyPermission(['sms_gateways.manage', 'sms_gateways.edit']))
-                        <x-admin.modal id="clinic-sms-gateway-modal" :label="__('clinics.edit_sms_gateway')" :title="__('clinics.edit_sms_gateway')" icon="message" :open="$errors->any() && old('_form') === 'clinic_sms_gateway'">
-                            <form method="POST" action="{{ route('admin.clinics.sms-gateway.update', $clinic) }}">
-                                @csrf
-                                @include('admin.sms-gateways.form', [
-                                    'gateway' => $clinicSmsGateway,
-                                    'formKey' => 'clinic_sms_gateway',
-                                    'providerOptions' => $smsProviderOptions,
-                                ])
-                            </form>
-                        </x-admin.modal>
-                    @endif
+                    <div class="flex flex-wrap items-center gap-2">
+                        @if(auth()->user()?->hasAnyPermission(['sms_gateways.manage', 'sms_gateways.edit']))
+                            <x-admin.modal id="clinic-sms-gateway-modal" :label="__('clinics.edit_sms_gateway')" :title="__('clinics.edit_sms_gateway')" icon="message" :open="$errors->any() && old('_form') === 'clinic_sms_gateway'">
+                                <form method="POST" action="{{ route('admin.clinics.sms-gateway.update', $clinic) }}">
+                                    @csrf
+                                    @include('admin.sms-gateways.form', [
+                                        'gateway' => $clinicSmsGateway,
+                                        'formKey' => 'clinic_sms_gateway',
+                                        'providerOptions' => $smsProviderOptions,
+                                    ])
+                                </form>
+                            </x-admin.modal>
+                        @endif
+                        @if($clinicSmsGateway)
+                            @can('delete', $clinicSmsGateway)
+                                <form method="POST" action="{{ route('admin.clinics.sms-gateway.destroy', $clinic) }}" data-confirm-form data-confirm-message="{{ __('sms.confirm_private_delete') }}">
+                                    @csrf
+                                    @method('DELETE')
+                                    <x-admin.button type="submit" variant="danger-outline" size="sm" icon="trash">
+                                        <span>{{ __('sms.delete') }}</span>
+                                    </x-admin.button>
+                                </form>
+                            @endcan
+                        @endif
+                    </div>
                 </div>
 
                 @if($clinicSmsGateway)
@@ -226,6 +241,7 @@
                             <th class="px-4 py-3">{{ __('ai_models.model') }}</th>
                             <th class="px-4 py-3">{{ __('ai_models.usage_category') }}</th>
                             <th class="px-4 py-3">{{ __('ai_models.status') }}</th>
+                            <th class="px-4 py-3">{{ __('ai_models.toggle_assignment') }}</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-zinc-100">
@@ -235,7 +251,6 @@
                                     <x-admin.table.action-menu>
                                         <x-admin.table.action-item :href="route('admin.ai-models.show', $access)" icon="eye">{{ __('clinics.view') }}</x-admin.table.action-item>
                                         @can('assignToClinic', App\Models\AiModelAccess::class)
-                                            <x-admin.table.action-item :action="route('admin.clinics.ai-models.update', [$clinic, $access])" method="PATCH" icon="check" :inputs="['ai_model_access_id' => $access->id, 'is_active' => $access->pivot->is_active ? '0' : '1']">{{ __('ai_models.toggle_assignment') }}</x-admin.table.action-item>
                                             <x-admin.table.action-item :action="route('admin.clinics.ai-models.destroy', [$clinic, $access])" method="DELETE" icon="trash" danger :confirm="__('messages.confirm_delete')">{{ __('ai_models.unassign') }}</x-admin.table.action-item>
                                         @endcan
                                     </x-admin.table.action-menu>
@@ -244,9 +259,34 @@
                                 <td class="px-4 py-3">{{ $resolver->modelLabel($access->model_key) }}</td>
                                 <td class="px-4 py-3">{{ $resolver->usageCategoryLabel($access->usage_category_key) }}</td>
                                 <td class="px-4 py-3"><x-admin.badge :tone="$access->pivot->is_active ? 'emerald' : 'zinc'">{{ $access->pivot->is_active ? __('ai_models.statuses.active') : __('ai_models.statuses.inactive') }}</x-admin.badge></td>
+                                <td class="px-4 py-3">
+                                    @can('assignToClinic', App\Models\AiModelAccess::class)
+                                        <form
+                                            method="POST"
+                                            action="{{ route('admin.clinics.ai-models.update', [$clinic, $access]) }}"
+                                            class="inline-flex"
+                                            data-clinic-model-status-action="{{ $access->id }}"
+                                            data-clinic-model-status-target="{{ $access->pivot->is_active ? '0' : '1' }}"
+                                        >
+                                            @csrf
+                                            @method('PATCH')
+                                            <input type="hidden" name="ai_model_access_id" value="{{ $access->id }}">
+                                            <input type="hidden" name="is_active" value="{{ $access->pivot->is_active ? '0' : '1' }}">
+                                            <x-admin.button
+                                                type="submit"
+                                                variant="unstyled"
+                                                size="none"
+                                                :icon="$access->pivot->is_active ? 'x' : 'check'"
+                                                class="inline-flex items-center justify-center gap-2 rounded-lg border px-3 py-2 text-xs font-bold transition focus:outline-none {{ $access->pivot->is_active ? 'border-rose-200 bg-rose-50 text-rose-700 hover:bg-rose-100' : 'border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100' }}"
+                                            >
+                                                <span>{{ $access->pivot->is_active ? __('ai_models.deactivate_assignment') : __('ai_models.activate_assignment') }}</span>
+                                            </x-admin.button>
+                                        </form>
+                                    @endcan
+                                </td>
                             </tr>
                         @empty
-                            <tr><td colspan="5" class="px-4 py-12"><x-admin.empty-state icon="sparkles">{{ __('ai_models.empty.assignments') }}</x-admin.empty-state></td></tr>
+                            <tr><td colspan="6" class="px-4 py-12"><x-admin.empty-state icon="sparkles">{{ __('ai_models.empty.assignments') }}</x-admin.empty-state></td></tr>
                         @endforelse
                     </tbody>
                 </table>
@@ -262,6 +302,29 @@
                             </div>
                             <x-admin.badge :tone="$access->pivot->is_active ? 'emerald' : 'zinc'">{{ $access->pivot->is_active ? __('ai_models.statuses.active') : __('ai_models.statuses.inactive') }}</x-admin.badge>
                         </div>
+                        @can('assignToClinic', App\Models\AiModelAccess::class)
+                            <form
+                                method="POST"
+                                action="{{ route('admin.clinics.ai-models.update', [$clinic, $access]) }}"
+                                class="mt-3"
+                                data-clinic-model-status-action="{{ $access->id }}"
+                                data-clinic-model-status-target="{{ $access->pivot->is_active ? '0' : '1' }}"
+                            >
+                                @csrf
+                                @method('PATCH')
+                                <input type="hidden" name="ai_model_access_id" value="{{ $access->id }}">
+                                <input type="hidden" name="is_active" value="{{ $access->pivot->is_active ? '0' : '1' }}">
+                                <x-admin.button
+                                    type="submit"
+                                    variant="unstyled"
+                                    size="none"
+                                    :icon="$access->pivot->is_active ? 'x' : 'check'"
+                                    class="inline-flex w-full items-center justify-center gap-2 rounded-lg border px-3 py-2 text-xs font-bold transition focus:outline-none {{ $access->pivot->is_active ? 'border-rose-200 bg-rose-50 text-rose-700 hover:bg-rose-100' : 'border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100' }}"
+                                >
+                                    <span>{{ $access->pivot->is_active ? __('ai_models.deactivate_assignment') : __('ai_models.activate_assignment') }}</span>
+                                </x-admin.button>
+                            </form>
+                        @endcan
                     </x-admin.mobile-list.card>
                 @empty
                     <x-admin.mobile-list.card>
@@ -311,9 +374,22 @@
                     </thead>
                     <tbody class="divide-y divide-zinc-100">
                         @forelse($clinic->invoices as $invoice)
+                            @php($invoiceModalId = 'clinic-invoice-details-'.$invoice->id)
                             <tr class="transition hover:bg-zinc-50/80">
                                 <td class="px-4 py-3 align-top">
                                     <x-admin.table.action-menu>
+                                        <label
+                                            for="{{ $invoiceModalId }}-toggle"
+                                            class="flex w-full cursor-pointer items-center gap-2 px-3 py-2 text-right text-xs font-bold text-zinc-700 transition hover:bg-teal-50 hover:text-teal-700"
+                                            role="button"
+                                            tabindex="0"
+                                            data-table-action-item
+                                            data-table-row-view-action
+                                            data-admin-modal-trigger="{{ $invoiceModalId }}"
+                                        >
+                                            <x-admin.icon name="eye" class="h-4 w-4" />
+                                            <span>{{ __('payments.view') }}</span>
+                                        </label>
                                         @if(auth()->user()?->hasPermission('billing.manage'))
                                             <label for="edit-invoice-{{ $invoice->id }}-toggle" class="flex w-full cursor-pointer items-center gap-2 px-3 py-2 text-right text-xs font-bold text-zinc-700 transition hover:bg-teal-50 hover:text-teal-700" role="button" tabindex="0" data-table-action-item data-admin-modal-trigger="edit-invoice-{{ $invoice->id }}">
                                                 <x-admin.icon name="edit" class="h-4 w-4" />
@@ -341,12 +417,29 @@
 
             <x-admin.mobile-list>
                 @forelse($clinic->invoices as $invoice)
+                    @php($invoiceModalId = 'clinic-invoice-details-'.$invoice->id)
                     <x-admin.mobile-list.card>
                         <div class="admin-mobile-list-card-header">
                             <div class="min-w-0">
                                 <p class="admin-mobile-list-card-title" dir="ltr">{{ $invoice->number }}</p>
                                 <p class="admin-mobile-list-card-subtitle">{{ $invoice->plan?->name ?? __('messages.none') }}</p>
                             </div>
+                            <x-admin.table.action-menu>
+                                <label
+                                    for="{{ $invoiceModalId }}-toggle"
+                                    class="flex w-full cursor-pointer items-center gap-2 px-3 py-2 text-right text-xs font-bold text-zinc-700 transition hover:bg-teal-50 hover:text-teal-700"
+                                    role="button"
+                                    tabindex="0"
+                                    data-table-action-item
+                                    data-table-row-view-action
+                                    data-admin-modal-trigger="{{ $invoiceModalId }}"
+                                >
+                                    <x-admin.icon name="eye" class="h-4 w-4" />
+                                    <span>{{ __('payments.view') }}</span>
+                                </label>
+                            </x-admin.table.action-menu>
+                        </div>
+                        <div class="mt-3">
                             <x-admin.badge :tone="$invoiceStatusTone($invoice->status)">{{ __('payments.invoice_statuses.'.$invoice->status) }}</x-admin.badge>
                         </div>
                     </x-admin.mobile-list.card>
@@ -358,6 +451,13 @@
             </x-admin.mobile-list>
 
             @foreach($clinic->invoices as $invoice)
+                @include('admin.clinics.partials.invoice-details', [
+                    'modalId' => 'clinic-invoice-details-'.$invoice->id,
+                    'invoice' => $invoice,
+                    'invoiceStatusTone' => $invoiceStatusTone,
+                    'formatDateTime' => $formatDateTime,
+                    'maskAuthority' => $maskAuthority,
+                ])
                 <x-admin.modal id="edit-invoice-{{ $invoice->id }}" :label="__('system.edit')" :title="$invoice->number" icon="edit" :trigger="false" :open="$errors->any() && old('_form') === 'edit_clinic_invoice_'.$invoice->id">
                     @include('admin.clinics.partials.invoice-form', [
                         'action' => route('admin.clinics.invoices.update', [$clinic, $invoice]),

@@ -1,6 +1,6 @@
 # سند جامع قوانین محصول HairVision
 
-نسخه: [`2.0.1`](../CHANGELOG.md#201)
+نسخه: [`2.0.2`](../CHANGELOG.md#202)
 
 این سند مرجع فارسی قوانین حاکم بر HairVision است. هر تصمیم محصولی، فنی،
 امنیتی، مالی یا عملیاتی باید با این سند سازگار باشد. اگر قانون جدیدی برای
@@ -12,13 +12,21 @@
 نسخه دسته‌بندی مدل، نوع مدل، نمونه اجرایی مدل، خروجی قابل درخواست، دسترسی
 کلینیک و صف اجرای مدل مفاهیم مستقل هستند.
 
+## تغییرات نسخه 2.0.2
+
+- نوع مدل code-owned جدید `openai` با adapter مستقل Images Edit اضافه شد.
+- API key رمزنگاری می‌شود، پارامترهای provider از تنظیمات مدل و prompt از
+  output کاربرد خوانده می‌شود.
+- seed برای هر دو کاربرد اولیه مدل OpenAI و تنظیمات پیش‌فرض آن را می‌سازد، ولی
+  assignment کلینیک را تا فعال‌سازی صریح مدیر غیرفعال نگه می‌دارد.
+
 ## خلاصه تغییرات نسخه 2.0.0
 
 - دسته‌بندی‌های مدل هوش مصنوعی به منابع سیستمی قابل مدیریت با API و CRUD تبدیل
   می‌شوند.
 - دسته‌بندی‌هایی مانند `hair_transplant` و `eyebrow_transplant` مبنای خرید،
   entitlement و دسترسی کلینیک هستند.
-- نوع مدل مانند `sample_image` و `gapgpt` در فایل کانفیگ تعریف می‌شود و از طریق
+- نوع مدل مانند `sample_image`، `gapgpt` و `openai` در فایل کانفیگ تعریف می‌شود و از طریق
   دیتابیس ساخته یا حذف نمی‌شود.
 - هر رکورد مدل در دیتابیس یک نمونه اجرایی و قابل صف‌بندی از یک نوع مدل است.
 - فرم تنظیم مدل بر اساس schema تعریف‌شده در کانفیگ نوع مدل به صورت پویا ساخته
@@ -89,7 +97,7 @@ code شود.
 ### نوع مدل
 
 `AI Model Type` یک adapter یا provider فنی است که فقط در کانفیگ برنامه تعریف
-می‌شود؛ برای مثال `sample_image` و `gapgpt`. نوع مدل مشخص می‌کند چه
+می‌شود؛ برای مثال `sample_image`، `gapgpt` و `openai`. نوع مدل مشخص می‌کند چه
 credentialها، تنظیمات عمومی و تنظیمات تکرارشونده برای هر خروجی لازم است.
 
 ### نمونه مدل
@@ -553,6 +561,8 @@ return [
   می‌شود و نباید به صورت counter ناسازگار ذخیره شود.
 - مدل sample برای هر output فعال باید `sample_asset_id` خصوصی داشته باشد.
 - مدل GapGPT برای هر output فعال باید prompt معتبر داشته باشد.
+- مدل OpenAI نیز prompt هر output را از همان کاربرد می‌گیرد و تنظیم prompt
+  مستقل داخل تنظیمات مدل ندارد.
 - مدل بدون credential لازم، output config کامل یا health معتبر فعال نمی‌شود.
 - مدل دارای job در وضعیت processing حذف نمی‌شود؛ pause مانع assignment جدید
   می‌شود و job جاری را قطع نمی‌کند.
@@ -976,6 +986,46 @@ storage/app/private/tenants/{tenant_uuid}/leads/{lead_uuid}/results/{source_imag
 - test connection باید درخواست کم‌هزینه یا endpoint مناسب provider را استفاده
   کند و بدون رضایت مدیر generation هزینه‌دار اجرا نکند.
 
+## OpenAI Provider
+
+`openai` یک نوع مدل واقعی برای endpoint ویرایش تصویر OpenAI یا endpoint سازگار
+با همان قرارداد است. تعریف type و adapter آن در کد است، اما API key و همه
+تنظیمات غیرحساس هر نمونه مدل از پنل مدیریت و رکورد مدل خوانده می‌شوند.
+قرارداد مرجع در
+[OpenAI Images Edit API](https://developers.openai.com/api/reference/resources/images/methods/edit)
+قرار دارد.
+
+تنظیمات مدل:
+
+- `endpoint_url` با مقدار seed پیش‌فرض
+  `https://api.openai.com/v1/images/edits`
+- `model` با مقدار پیش‌فرض `gpt-image-1.5`
+- `quality` با سه انتخاب `low`، `medium` و `high` و پیش‌فرض `low`
+- `size` قابل تنظیم با پیش‌فرض محصول `816x816`
+- `output_format` با پیش‌فرض `jpeg`
+- `background` با پیش‌فرض `opaque`
+- `moderation` با پیش‌فرض `auto`
+- `output_compression` با پیش‌فرض `70`
+- timeout اتصال و پاسخ provider
+
+قوانین درخواست:
+
+- درخواست `multipart/form-data` است و boundary را Laravel HTTP client می‌سازد.
+- هدرهای `Authorization: Bearer <encrypted api key>` و
+  `Accept: application/json` ارسال می‌شوند.
+- نام فیلد فایل `image[]` است.
+- `prompt` فقط snapshot پرامپت output انتخاب‌شده همان کاربرد است.
+- `n` همیشه `1` است و client عمومی نمی‌تواند آن یا هیچ پارامتر provider را
+  تغییر دهد.
+- پاسخ GPT Image از `data[0].b64_json` decode می‌شود و فقط bytes تصویر برای
+  نرمال‌سازی و ذخیره خصوصی به لایه بعد تحویل داده می‌شود.
+- مقدار پیش‌فرض `816x816` بنا بر قرارداد محصول قابل تنظیم نگه داشته می‌شود.
+  endpoint رسمی OpenAI در مستندات فعلی فقط `auto`، `1024x1024`، `1536x1024`
+  و `1024x1536` را اعلام می‌کند؛ مدیر هنگام استفاده مستقیم از endpoint رسمی
+  باید `size` را به یکی از مقادیر پشتیبانی‌شده تغییر دهد.
+- API key، prompt، bytes تصویر، مسیر خصوصی و raw response لاگ یا نمایش داده
+  نمی‌شوند و درخواست پولی retry خودکار ندارد.
+
 ## circuit breaker و سلامت مدل
 
 برای جلوگیری از ارسال مداوم job به مدل خراب:
@@ -1197,7 +1247,7 @@ JSON نمایش داده شود.
 5. تعیین تعداد outputهای پشتیبانی‌شده یا انتخاب outputهای دسته‌بندی
 6. رندر fieldهای تکرارشونده هر output
 7. برای sample، upload تصویر نمونه هر output
-8. برای GapGPT، prompt هر output و تنظیمات API
+8. برای GapGPT و OpenAI، prompt هر output و تنظیمات API
 9. ذخیره امن credential
 10. test connection/validation
 11. activation پس از کامل بودن تنظیمات
@@ -1486,6 +1536,8 @@ status، duration، safe error class و correlation ID باشد.
 - sample هیچ network call نداشته باشد.
 - sample asset خصوصی و scoped کپی شود.
 - GapGPT multipart صحیح باشد.
+- OpenAI multipart با `image[]` و پارامترهای تنظیم‌شده صحیح باشد و خروجی
+  `b64_json` را decode کند.
 - prompt درست output منتخب استفاده شود.
 - no automatic retry پس از provider call started
 - download URL provider validate و خصوصی ذخیره شود.

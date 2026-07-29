@@ -163,7 +163,7 @@ class ExecutableAiModelSyncService
             'sample_image' => [
                 'sample_path' => $this->samplePathFor($access, $output),
             ],
-            'gapgpt' => [
+            'gapgpt', 'openai' => [
                 'prompt' => $output->prompt,
             ],
             default => [],

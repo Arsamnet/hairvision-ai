@@ -153,6 +153,7 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
             Route::put('/clinics/{clinic}/invoices/{invoice}', [ClinicController::class, 'updateInvoice'])->middleware('permission:billing.manage')->name('clinics.invoices.update');
             Route::patch('/clinics/{clinic}/invoices/{invoice}/approve', [ClinicController::class, 'approveInvoice'])->middleware('permission:billing.manage')->name('clinics.invoices.approve');
             Route::post('/clinics/{clinic}/sms-gateway', [ClinicController::class, 'updateSmsGateway'])->middleware('permission:sms_gateways.edit,sms_gateways.manage')->name('clinics.sms-gateway.update');
+            Route::delete('/clinics/{clinic}/sms-gateway', [ClinicController::class, 'destroySmsGateway'])->middleware('permission:sms_gateways.delete')->name('clinics.sms-gateway.destroy');
             Route::get('/clinics/{clinic}', [ClinicController::class, 'show'])->middleware('permission:tenants.view')->name('clinics.show');
             Route::get('/clinics/{clinic}/edit', [ClinicController::class, 'edit'])->middleware('permission:tenants.edit')->name('clinics.edit');
             Route::put('/clinics/{clinic}', [ClinicController::class, 'update'])->middleware('permission:tenants.edit')->name('clinics.update');

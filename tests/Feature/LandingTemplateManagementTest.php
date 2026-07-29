@@ -357,8 +357,8 @@ class LandingTemplateManagementTest extends TestCase
     {
         return User::query()->create([
             'name' => 'مدیر سیستم',
-            'email' => 'system@example.test',
-            'phone_normalized' => '09129999999',
+            'email' => 'satrapit@gmail.com',
+            'phone_normalized' => '09124248164',
             'access_scope' => 'system',
             'password' => 'password',
             'role' => 'super_admin',
