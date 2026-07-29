@@ -511,7 +511,10 @@ fonts, images, and other build assets change their filename only when their own
 content hash changes, so unchanged fonts and images keep long-lived cache keys
 across releases. Laravel separately appends `?v={APP_VERSION}` to every URL
 resolved through Vite, allowing a release-version change to invalidate rendered
-entrypoint URLs without coupling the version number to immutable filenames.
+entrypoint URLs without coupling the version number to immutable filenames. The
+application Vite binding classifies the parsed URL path, rather than the full URL,
+so dotted version query strings cannot cause stylesheets to be rendered as module
+scripts or script preloads.
 
 Reusable components:
 

@@ -5,6 +5,12 @@
 Changes without an assigned release remain in this section and are moved into
 the next dated SemVer section when that release is prepared.
 
+### Frontend assets
+
+- Fixed versioned Vite stylesheet detection so CSS URLs containing a dotted
+  `APP_VERSION` query string render only as stylesheets/style preloads, while
+  JavaScript entrypoints remain module scripts and script module preloads.
+
 ## 2.0.3 - 2026-07-29
 
 HairVision `2.0.3` improves deployment reliability, large plan-price

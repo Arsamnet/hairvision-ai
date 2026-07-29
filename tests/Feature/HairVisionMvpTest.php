@@ -157,18 +157,48 @@ class HairVisionMvpTest extends TestCase
             ->assertOk()
             ->content();
 
-        $this->assertMatchesRegularExpression(
-            '/href="[^"]*\/build\/assets\/app-[a-zA-Z0-9_-]+\.css\?v=2\.0\.3"/',
-            $content,
-        );
-        $this->assertMatchesRegularExpression(
-            '/src="[^"]*\/build\/assets\/app-[a-zA-Z0-9_-]+\.js\?v=2\.0\.3"/',
-            $content,
+        $cssFiles = [
+            $manifest['resources/css/app.css']['file'],
+            ...$manifest['resources/js/app.js']['css'],
+        ];
+
+        foreach ($cssFiles as $cssFile) {
+            $versionedPath = '/build/'.$cssFile.'?v=2.0.3';
+            $quotedPath = preg_quote($versionedPath, '/');
+
+            $this->assertSame(
+                1,
+                preg_match_all('/<link rel="stylesheet" href="[^"]*'.$quotedPath.'"/', $content),
+            );
+            $this->assertDoesNotMatchRegularExpression(
+                '/<script[^>]+src="[^"]*'.$quotedPath.'"/',
+                $content,
+            );
+            $this->assertDoesNotMatchRegularExpression(
+                '/<link[^>]+rel="modulepreload"[^>]+href="[^"]*'.$quotedPath.'"/',
+                $content,
+            );
+        }
+
+        $javascriptPath = '/build/'.$manifest['resources/js/app.js']['file'].'?v=2.0.3';
+
+        $this->assertSame(
+            1,
+            preg_match_all(
+                '/<script type="module" src="[^"]*'.preg_quote($javascriptPath, '/').'"><\/script>/',
+                $content,
+            ),
         );
         $this->assertMatchesRegularExpression(
             '/href="[^"]*\/build\/assets\/favicon-[a-zA-Z0-9_-]+\.png\?v=2\.0\.3"/',
             $content,
         );
+
+        preg_match_all('/<link rel="stylesheet" href="([^"]+)"/', $content, $stylesheetMatches);
+        preg_match_all('/<script type="module" src="([^"]+)"><\/script>/', $content, $scriptMatches);
+
+        $this->assertSame($stylesheetMatches[1], array_values(array_unique($stylesheetMatches[1])));
+        $this->assertSame($scriptMatches[1], array_values(array_unique($scriptMatches[1])));
     }
 
     public function test_otp_request_stores_only_hash_and_is_rate_limited(): void

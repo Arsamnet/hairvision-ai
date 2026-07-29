@@ -15,6 +15,8 @@ use App\Policies\UserPolicy;
 use App\Services\Auth\PermissionService;
 use App\Services\Otp\LocalOtpSender;
 use App\Services\Otp\OtpSenderInterface;
+use App\Support\QueryAwareVite;
+use Illuminate\Foundation\Vite as LaravelVite;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Vite;
 use Illuminate\Support\ServiceProvider;
@@ -36,6 +38,7 @@ class AppServiceProvider extends ServiceProvider
     public function register(): void
     {
         $this->app->bind(OtpSenderInterface::class, LocalOtpSender::class);
+        $this->app->singleton(LaravelVite::class, QueryAwareVite::class);
     }
 
     /**
