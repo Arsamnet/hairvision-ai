@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Enums\PlanType;
 use App\Models\Concerns\HasUuid;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
@@ -42,7 +43,6 @@ class Plan extends Model
 
     protected $casts = [
         'plan_type' => PlanType::class,
-        'price' => 'integer',
         'features_json' => 'array',
         'duration_days' => 'integer',
         'usage_limit' => 'integer',
@@ -50,6 +50,25 @@ class Plan extends Model
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
     ];
+
+    /**
+     * Get and set the plan price without changing its numeric value.
+     *
+     * Large unsigned BIGINT values are stored as numeric strings so PDO does
+     * not bind them as platform-sized integers. Eloquent callers still read
+     * the price as a PHP integer.
+     *
+     * @return Attribute<int, string>
+     *
+     * @since 2.0.3
+     */
+    protected function price(): Attribute
+    {
+        return Attribute::make(
+            get: static fn (mixed $value): int => (int) $value,
+            set: static fn (mixed $value): string => (string) $value,
+        );
+    }
 
     /**
      * Invoices created for purchases of this plan.

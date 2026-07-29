@@ -5,6 +5,20 @@
 Changes without an assigned release remain in this section and are moved into
 the next dated SemVer section when that release is prepared.
 
+## 2.0.3 - 2026-07-29
+
+HairVision `2.0.3` improves deployment reliability, large plan-price
+persistence, frontend cache invalidation, and clinic management actions.
+
+### Billing reliability
+
+- Changed the `Plan` price boundary to persist unsigned BIGINT values as
+  numeric strings, preventing PDO from binding large prices such as
+  `4000000000` as `PDO::PARAM_INT`, while preserving integer reads through
+  Eloquent.
+- Kept seeded plan prices and the rial currency unchanged, and confirmed that
+  all application writes to `plans.price` pass through the model boundary.
+
 ### Deployment
 
 - Added a checked-in cPanel Git deployment configuration that overwrites the
@@ -33,6 +47,14 @@ the next dated SemVer section when that release is prepared.
   the clinic detail page.
 - Moved clinic AI-model assignment activation/deactivation into a dedicated
   per-row quick action with status-appropriate green and red styling.
+
+### Quality and release metadata
+
+- Added regression coverage for the raw numeric-string plan-price attribute,
+  lossless database persistence, integer model reads, and both seeded prices
+  above the 32-bit signed integer range.
+- Updated runtime, environment-example, canonical documentation, asset URL
+  expectations, and version metadata coverage to `2.0.3`.
 
 ## 2.0.2 - 2026-07-28
 

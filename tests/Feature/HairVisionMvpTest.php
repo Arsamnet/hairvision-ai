@@ -99,7 +99,7 @@ class HairVisionMvpTest extends TestCase
             ->assertOk()
             ->assertSee('rel="icon"', false)
             ->assertSee('/build/assets/favicon-', false)
-            ->assertSee('.png?v=2.0.2', false)
+            ->assertSee('.png?v=2.0.3', false)
             ->assertDontSee('/build/img/favicon.png', false);
 
         $template = Template::create([
@@ -149,7 +149,7 @@ class HairVisionMvpTest extends TestCase
                 '/\/[^\/]+-[a-zA-Z0-9_-]+\.[a-z0-9]+$/',
                 (string) $chunk['file'],
             );
-            $this->assertStringNotContainsString('-v2.0.2-', (string) $chunk['file']);
+            $this->assertStringNotContainsString('-v2.0.3-', (string) $chunk['file']);
         }
 
         $content = $this->forHost('aria.hairvision-ai.test')
@@ -158,15 +158,15 @@ class HairVisionMvpTest extends TestCase
             ->content();
 
         $this->assertMatchesRegularExpression(
-            '/href="[^"]*\/build\/assets\/app-[a-zA-Z0-9_-]+\.css\?v=2\.0\.2"/',
+            '/href="[^"]*\/build\/assets\/app-[a-zA-Z0-9_-]+\.css\?v=2\.0\.3"/',
             $content,
         );
         $this->assertMatchesRegularExpression(
-            '/src="[^"]*\/build\/assets\/app-[a-zA-Z0-9_-]+\.js\?v=2\.0\.2"/',
+            '/src="[^"]*\/build\/assets\/app-[a-zA-Z0-9_-]+\.js\?v=2\.0\.3"/',
             $content,
         );
         $this->assertMatchesRegularExpression(
-            '/href="[^"]*\/build\/assets\/favicon-[a-zA-Z0-9_-]+\.png\?v=2\.0\.2"/',
+            '/href="[^"]*\/build\/assets\/favicon-[a-zA-Z0-9_-]+\.png\?v=2\.0\.3"/',
             $content,
         );
     }

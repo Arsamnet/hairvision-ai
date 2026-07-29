@@ -1,6 +1,6 @@
 # AI Agent Instructions
 
-Version: [`2.0.2`](../CHANGELOG.md#202)
+Version: [`2.0.3`](../CHANGELOG.md#203)
 
 This file is the compact operating prompt for AI agents. The primary guide is
 `AGENTS.md`; this file keeps the same rules inside `/docs`.

@@ -1,6 +1,6 @@
 # Engineering Architecture
 
-Version: [`2.0.2`](../CHANGELOG.md#202)
+Version: [`2.0.3`](../CHANGELOG.md#203)
 
 This document is the canonical engineering reference for HairVision. It
 consolidates architecture, data model, setup, coding standards, frontend rules,
@@ -423,6 +423,11 @@ Required invariants:
 - `leads` are unique by `tenant_id + phone_normalized`.
 - Currency amounts use unsigned BIGINT columns: `plans.price`,
   `invoices.amount`, and `payments.amount`.
+- `Plan` stores `price` as a numeric string at the Eloquent write boundary so
+  PDO does not bind large unsigned values as `PDO::PARAM_INT`; its accessor
+  exposes the unchanged value as a PHP integer. Application writes to
+  `plans.price` must continue to pass through this model boundary, while any
+  future raw query-builder write must bind the price as a numeric string.
 - Fresh databases receive those final monetary types directly from the
   system-management creator migration. Guarded additive migrations repair older
   schemas and verify the resulting column types before seeding can continue.
@@ -819,7 +824,7 @@ them.
 Baseline configuration:
 
 ```env
-APP_VERSION=2.0.2
+APP_VERSION=2.0.3
 APP_LOCALE=fa
 APP_FAKER_LOCALE=fa_IR
 CACHE_STORE=redis

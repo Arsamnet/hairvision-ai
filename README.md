@@ -1,6 +1,6 @@
 # HairVision
 
-Version: [`2.0.2`](CHANGELOG.md#202)
+Version: [`2.0.3`](CHANGELOG.md#203)
 
 HairVision is a complete Laravel 13 multi-tenant SaaS for clinics offering
 AI-assisted image previews. Visitors arrive through a clinic subdomain or
@@ -26,7 +26,7 @@ file unless a separate lifecycle or audience is genuinely needed.
 `AGENTS.md` is the concise operating guide for AI agents and points to the same
 canonical references.
 
-## Version 2.0.2 Includes
+## Version 2.0.3 Includes
 
 - Laravel 13, PHP 8.3+, Blade, Tailwind CSS, Vite, Sanctum, Redis, Horizon.
 - Host-based tenant resolution and strict tenant isolation.
@@ -36,6 +36,8 @@ canonical references.
 - System-managed AI categories and independently requestable outputs.
 - Database-backed model queue coordination, capacity limits, and credit
   reservations.
+- Lossless unsigned BIGINT plan-price persistence for rial amounts above the
+  32-bit signed integer range.
 - Provider-agnostic AI model access with local input/output JPEG normalization.
 - Local `sample_image` model access assigned per clinic by a system admin.
 - Assigned GapGPT image-edit access through encrypted dashboard credentials.

@@ -1,6 +1,6 @@
 # API Reference
 
-Version: [`2.0.2`](../CHANGELOG.md#202)
+Version: [`2.0.3`](../CHANGELOG.md#203)
 
 All public product behavior goes through `/api/v1`, even when the UI is Blade.
 Blade may render the tenant shell and client-side interactions, but OTP, upload,

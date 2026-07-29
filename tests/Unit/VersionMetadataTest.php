@@ -12,18 +12,22 @@ use Tests\TestCase;
 class VersionMetadataTest extends TestCase
 {
     /**
-     * Ensure runtime defaults and environment documentation identify version 2.0.2.
+     * Ensure runtime defaults and environment documentation identify version 2.0.3.
      *
      * @return void No value is returned.
      *
      * @since 2.0.0
      */
-    public function test_project_version_defaults_to_2_0_2(): void
+    public function test_project_version_defaults_to_2_0_3(): void
     {
-        $this->assertSame('2.0.2', config('hairvision.version'));
+        $this->assertSame('2.0.3', config('hairvision.version'));
         $this->assertStringContainsString(
-            'APP_VERSION=2.0.2',
+            'APP_VERSION=2.0.3',
             (string) file_get_contents(base_path('.env.example'))
+        );
+        $this->assertStringContainsString(
+            '<env name="APP_VERSION" value="2.0.3"/>',
+            (string) file_get_contents(base_path('phpunit.xml'))
         );
     }
 
@@ -43,6 +47,7 @@ class VersionMetadataTest extends TestCase
         $this->assertStringContainsString('## 2.0.0', $releaseNotes);
         $this->assertStringContainsString('## 2.0.1', $releaseNotes);
         $this->assertStringContainsString('## 2.0.2', $releaseNotes);
+        $this->assertStringContainsString('## 2.0.3', $releaseNotes);
         $this->assertStringContainsString('## Unreleased', $releaseNotes);
 
         foreach ([
@@ -57,7 +62,7 @@ class VersionMetadataTest extends TestCase
 
             $this->assertStringContainsString('CHANGELOG.md', $contents, $documentation);
             $this->assertStringContainsString(
-                '2.0.2',
+                '2.0.3',
                 $contents,
                 $documentation
             );
