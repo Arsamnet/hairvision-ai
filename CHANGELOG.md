@@ -19,6 +19,17 @@ the next dated SemVer section when that release is prepared.
 - Fixed clinic invoice approval returning a false `404` when the database
   exposes matching tenant foreign keys as numeric strings.
 
+### Deployment configuration
+
+- Completed the local environment baseline with the application domain,
+  database cache/session details, Redis/Horizon alternative, secure cookie
+  controls, canonical sample paths, provider seed placeholders, and supported
+  mail/storage settings without replacing existing local secrets.
+- Added a secret-free shared-cPanel production environment template with
+  production logging, HTTPS-only cookies, database queue/cache/session drivers,
+  one non-overlapping cron worker lane, disabled debug shortcuts, and blank
+  server-only credentials.
+
 ## 2.0.3 - 2026-07-29
 
 HairVision `2.0.3` improves deployment reliability, large plan-price

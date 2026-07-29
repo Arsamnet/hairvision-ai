@@ -111,6 +111,18 @@ http://hairvision-ai.test:8000/admin
 
 ## cPanel Queue Worker
 
+Start from the checked-in production template instead of copying the local
+development environment verbatim:
+
+```bash
+cp .env.cpanel.example .env
+```
+
+The template assumes the canonical `hairvision.ir` host and the checked-in
+`/home/hairvision/...` deployment paths. Change the host and cPanel-prefixed
+database values when the target account differs, fill all blank secrets only on
+the server, and generate `APP_KEY` once for a fresh production installation.
+
 Use Horizon as the primary production worker. If shared cPanel hosting does not
 support a persistent worker, set `QUEUE_CONNECTION=database`, set
 `HAIRVISION_CPANEL_QUEUE_CRON_ENABLED=true`, keep both queue retry windows above

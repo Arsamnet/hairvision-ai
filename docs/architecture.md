@@ -883,6 +883,14 @@ deployment environments.
 When cPanel cannot keep Horizon or `queue:work` alive as a persistent process,
 use the bounded cron worker. Do not enable it while Horizon is running.
 
+`.env.cpanel.example` is the checked-in, secret-free production baseline for
+this deployment shape. Copy it to the repository-root `.env` on the server,
+replace its domain and cPanel-prefixed database placeholders when the target
+account differs, fill blank credentials only on the server, and generate a new
+`APP_KEY` only for a fresh installation. The local `.env` and
+`.env.example` remain development baselines. Real `.env.cpanel` files are
+ignored by Git.
+
 For a database-backed cPanel queue:
 
 ```env
