@@ -834,6 +834,20 @@ HAIRVISION_QUEUE_WORKER_TIMEOUT=1020
 
 Run Horizon through Supervisor, systemd, or the hosting panel process manager.
 
+### cPanel Public Webroot Deployment
+
+The checked-in `.cpanel.yml` follows cPanel Git deployment conventions. It
+copies `public/.` recursively and forcibly to `/home/hairvision/public_html/`,
+including hidden public files such as `.htaccess`, so matching deployed files
+are overwritten. It intentionally does not delete unrelated files that exist
+only in `public_html`.
+
+After the copy, deployment adjusts the copied `index.php` so its maintenance,
+Composer autoloader, and Laravel bootstrap paths resolve through
+`/home/hairvision/repositories/hairvision-ai/`. The repository version of
+`public/index.php` keeps Laravel's standard relative paths for local and other
+deployment environments.
+
 ### Shared cPanel Queue Fallback
 
 When cPanel cannot keep Horizon or `queue:work` alive as a persistent process,

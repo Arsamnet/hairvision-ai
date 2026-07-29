@@ -5,6 +5,12 @@
 Changes without an assigned release remain in this section and are moved into
 the next dated SemVer section when that release is prepared.
 
+### Deployment
+
+- Added a checked-in cPanel Git deployment configuration that overwrites the
+  matching contents of `public_html` from `public` and adjusts the deployed
+  Laravel front controller to load the application from the cPanel repository.
+
 ### Clinic management fixes
 
 - Added invoice view actions and row-click detail modals to the clinic detail

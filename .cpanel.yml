@@ -1,0 +1,6 @@
+---
+deployment:
+  tasks:
+    - export DEPLOYPATH=/home/hairvision/public_html/
+    - /bin/cp -Rf public/. "$DEPLOYPATH"
+    - /usr/bin/sed -i "s#__DIR__.'/../#__DIR__.'/../repositories/hairvision-ai/#g" "${DEPLOYPATH}index.php"
