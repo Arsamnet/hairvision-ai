@@ -16,6 +16,7 @@ use App\Services\Auth\PermissionService;
 use App\Services\Otp\LocalOtpSender;
 use App\Services\Otp\OtpSenderInterface;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Vite;
 use Illuminate\Support\ServiceProvider;
 
 /**
@@ -46,6 +47,8 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        $this->configureVersionedViteAssets();
+
         Gate::policy(Lead::class, LeadPolicy::class);
         Gate::policy(AiModelAccess::class, AiModelAccessPolicy::class);
         Gate::policy(SmsGateway::class, SmsGatewayPolicy::class);
@@ -54,6 +57,29 @@ class AppServiceProvider extends ServiceProvider
 
         Gate::define('permission', function ($user, string $permission, ?int $tenantId = null): bool {
             return app(PermissionService::class)->can($user, $permission, $tenantId);
+        });
+    }
+
+    /**
+     * Append the application version to every production Vite asset URL.
+     *
+     * @return void No value is returned.
+     *
+     * @since 2.0.0
+     */
+    private function configureVersionedViteAssets(): void
+    {
+        $appVersion = trim((string) config('hairvision.version'));
+
+        if ($appVersion === '') {
+            return;
+        }
+
+        Vite::createAssetPathsUsing(static function (string $path, ?bool $secure = null) use ($appVersion): string {
+            $url = asset($path, $secure);
+            $separator = str_contains($url, '?') ? '&' : '?';
+
+            return $url.$separator.'v='.rawurlencode($appVersion);
         });
     }
 }

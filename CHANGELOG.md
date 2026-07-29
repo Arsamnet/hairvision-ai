@@ -13,6 +13,14 @@ the next dated SemVer section when that release is prepared.
 - Changed tenant seeding to derive the platform host and seeded clinic
   subdomains from `APP_URL`, updating existing seeded domain mappings when the
   configured application URL changes.
+- Consolidated fresh-install monetary column ownership in the system schema and
+  changed the legacy widening migration to skip already-correct unsigned BIGINT
+  columns, repair only outdated definitions, and verify the result before
+  database seeding continues.
+- Added two-layer frontend cache busting: Vite retains content-hashed filenames
+  so unchanged fonts and images keep stable cache keys, while every
+  Laravel-resolved Vite asset URL includes the current `APP_VERSION` as a query
+  parameter.
 
 ### Clinic management fixes
 

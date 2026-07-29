@@ -10,6 +10,8 @@ use App\Models\Plan;
 use App\Models\User;
 use Database\Seeders\DatabaseSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Tests\TestCase;
 
 class NumericInputPersistenceTest extends TestCase
@@ -18,6 +20,19 @@ class NumericInputPersistenceTest extends TestCase
 
     public function test_large_grouped_monetary_values_are_persisted_across_billing_records(): void
     {
+        if (in_array(DB::getDriverName(), ['mysql', 'mariadb'], true)) {
+            foreach ([
+                'plans' => 'price',
+                'invoices' => 'amount',
+                'payments' => 'amount',
+            ] as $tableName => $columnName) {
+                $columnType = strtolower(Schema::getColumnType($tableName, $columnName, true));
+
+                $this->assertStringContainsString('bigint', $columnType);
+                $this->assertStringContainsString('unsigned', $columnType);
+            }
+        }
+
         $this->seed(DatabaseSeeder::class);
 
         $admin = User::query()->where('role', 'super_admin')->firstOrFail();

@@ -99,6 +99,7 @@ class HairVisionMvpTest extends TestCase
             ->assertOk()
             ->assertSee('rel="icon"', false)
             ->assertSee('/build/assets/favicon-', false)
+            ->assertSee('.png?v=2.0.2', false)
             ->assertDontSee('/build/img/favicon.png', false);
 
         $template = Template::create([
@@ -136,6 +137,38 @@ class HairVisionMvpTest extends TestCase
             ->assertSee('/build/assets/favicon-', false)
             ->assertDontSee('https://example.test/favicon.png', false)
             ->assertDontSee('/build/img/favicon.png', false);
+    }
+
+    public function test_built_assets_use_content_hash_names_and_versioned_urls(): void
+    {
+        $tenant = $this->createTenant('Clinic One', 'aria', 'aria.hairvision-ai.test');
+        $manifest = json_decode((string) file_get_contents(public_path('build/manifest.json')), true, flags: JSON_THROW_ON_ERROR);
+
+        foreach ($manifest as $chunk) {
+            $this->assertMatchesRegularExpression(
+                '/\/[^\/]+-[a-zA-Z0-9_-]+\.[a-z0-9]+$/',
+                (string) $chunk['file'],
+            );
+            $this->assertStringNotContainsString('-v2.0.2-', (string) $chunk['file']);
+        }
+
+        $content = $this->forHost('aria.hairvision-ai.test')
+            ->get('/')
+            ->assertOk()
+            ->content();
+
+        $this->assertMatchesRegularExpression(
+            '/href="[^"]*\/build\/assets\/app-[a-zA-Z0-9_-]+\.css\?v=2\.0\.2"/',
+            $content,
+        );
+        $this->assertMatchesRegularExpression(
+            '/src="[^"]*\/build\/assets\/app-[a-zA-Z0-9_-]+\.js\?v=2\.0\.2"/',
+            $content,
+        );
+        $this->assertMatchesRegularExpression(
+            '/href="[^"]*\/build\/assets\/favicon-[a-zA-Z0-9_-]+\.png\?v=2\.0\.2"/',
+            $content,
+        );
     }
 
     public function test_otp_request_stores_only_hash_and_is_rate_limited(): void

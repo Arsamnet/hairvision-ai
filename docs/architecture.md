@@ -423,6 +423,10 @@ Required invariants:
 - `leads` are unique by `tenant_id + phone_normalized`.
 - Currency amounts use unsigned BIGINT columns: `plans.price`,
   `invoices.amount`, and `payments.amount`.
+- Fresh databases receive those final monetary types directly from the
+  system-management creator migration. The later widening migration is only a
+  guarded compatibility repair for an older schema and verifies the resulting
+  column types before seeding can continue.
 - `otp_codes` never contain a plain `code` column.
 - `lead_notes` writes update CRM state transactionally.
 - private file paths are internal metadata and are never exposed directly.
@@ -495,6 +499,13 @@ and password fields.
 Dashboard UI is Persian RTL Blade with local assets only. Do not add React,
 Vue, Inertia, Livewire, Next.js, Font Awesome, CDN CSS/JS/fonts/icons, external
 SVG sprite sheets, or one-off dashboard icons.
+
+Production Vite builds use content-addressed filenames. JavaScript, stylesheets,
+fonts, images, and other build assets change their filename only when their own
+content hash changes, so unchanged fonts and images keep long-lived cache keys
+across releases. Laravel separately appends `?v={APP_VERSION}` to every URL
+resolved through Vite, allowing a release-version change to invalidate rendered
+entrypoint URLs without coupling the version number to immutable filenames.
 
 Reusable components:
 
