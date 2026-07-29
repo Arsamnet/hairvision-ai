@@ -10,7 +10,6 @@ use App\Services\Billing\ServiceEntitlementService;
 use App\Support\Pagination\PaginationParameters;
 use App\Support\Query\DateRangeFilter;
 use App\Support\Query\SearchFilter;
-use App\Support\Tenancy\HostClassifier;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -41,7 +40,7 @@ class BillingController extends Controller
         $user = $request->user();
         $canManage = $user->hasPermission('billing.manage');
         $tenant = $request->attributes->get('adminTenant');
-        $showActiveSubscriptionBox = $this->isClinicAdminHost($request);
+        $showActiveSubscriptionBox = ! $user->isSystemScoped();
         $activeSubscription = $showActiveSubscriptionBox
             ? $billing->activeSubscription($user, $tenant)
             : null;
@@ -250,19 +249,6 @@ class BillingController extends Controller
             || ($tenantId !== null && $invoiceTenantId === $tenantId);
 
         return ($isUserOwned || $isUnassignedTenantInvoice) && $isInCurrentTenant;
-    }
-
-    /**
-     * Determine whether clinic admin host.
-     *
-     * @param  Request  $request  Incoming HTTP request.
-     * @return bool Whether the requested condition is satisfied.
-     *
-     * @since 1.0.0
-     */
-    private function isClinicAdminHost(Request $request): bool
-    {
-        return ! HostClassifier::isPrimaryHost($request->getHost());
     }
 
     /**

@@ -1687,25 +1687,28 @@ class SystemManagementTest extends TestCase
             ->assertDontSee($authority, false);
     }
 
-    public function test_active_subscription_box_is_visible_only_on_clinic_admin_hosts(): void
+    public function test_active_subscription_box_is_visible_only_to_clinic_scoped_users(): void
     {
         $this->seed(DatabaseSeeder::class);
 
-        $user = User::query()->where('role', 'clinic_admin')->firstOrFail();
+        $systemUser = User::query()->where('role', 'super_admin')->firstOrFail();
+        $clinicUser = User::query()->where('role', 'clinic_admin')->firstOrFail();
 
-        $this->actingAs($user)
-            ->forHost('hairvision-ai.test')
-            ->get('/admin/finance/billing')
-            ->assertOk()
-            ->assertDontSee('data-active-subscription-card', false)
-            ->assertDontSee(__('payments.active_subscription'));
+        foreach (['hairvision-ai.test', 'arya.hairvision-ai.test'] as $host) {
+            $this->actingAs($systemUser)
+                ->forHost($host)
+                ->get('/admin/finance/billing')
+                ->assertOk()
+                ->assertDontSee('data-active-subscription-card', false)
+                ->assertDontSee(__('payments.active_subscription'));
 
-        $this->actingAs($user)
-            ->forHost('arya.hairvision-ai.test')
-            ->get('/admin/finance/billing')
-            ->assertOk()
-            ->assertSee('data-active-subscription-card', false)
-            ->assertSee(__('payments.active_subscription'));
+            $this->actingAs($clinicUser)
+                ->forHost($host)
+                ->get('/admin/finance/billing')
+                ->assertOk()
+                ->assertSee('data-active-subscription-card', false)
+                ->assertSee(__('payments.active_subscription'));
+        }
     }
 
     public function test_subscriptions_expire_by_time_not_service_usage(): void
@@ -2498,6 +2501,37 @@ class SystemManagementTest extends TestCase
                 'plan_id' => $upgrade->id,
             ])
             ->assertForbidden();
+    }
+
+    public function test_super_admin_can_approve_clinic_invoice_when_tenant_id_is_a_numeric_string(): void
+    {
+        $this->seed(DatabaseSeeder::class);
+
+        $superAdmin = User::query()->where('role', 'super_admin')->firstOrFail();
+        $clinic = Tenant::query()->where('slug', 'arya')->firstOrFail();
+        $invoice = Invoice::query()->create([
+            'tenant_id' => $clinic->id,
+            'number' => 'MI-NUMERIC-TENANT-ID',
+            'status' => 'pending',
+            'amount' => 1000000,
+            'currency' => 'IRR',
+        ]);
+        $attributes = $invoice->getAttributes();
+        $attributes['tenant_id'] = (string) $clinic->id;
+        $invoice->setRawAttributes($attributes, true);
+        Route::bind('invoice', fn (): Invoice => $invoice);
+
+        $this->actingAs($superAdmin)
+            ->forHost('hairvision-ai.test')
+            ->patch('/admin/settings/clinics/'.$clinic->id.'/invoices/'.$invoice->id.'/approve')
+            ->assertRedirect(route('admin.clinics.show', $clinic))
+            ->assertSessionHasNoErrors();
+
+        $this->assertDatabaseHas('invoices', [
+            'id' => $invoice->id,
+            'tenant_id' => $clinic->id,
+            'status' => 'paid',
+        ]);
     }
 
     public function test_user_can_purchase_pay_and_upgrade_active_plan_without_carrying_credit(): void

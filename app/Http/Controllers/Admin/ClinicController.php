@@ -397,7 +397,7 @@ class ClinicController extends Controller
      */
     private function authorizeClinicInvoice(Tenant $clinic, Invoice $invoice): void
     {
-        abort_unless($invoice->tenant_id === $clinic->id, 404);
+        abort_unless((int) $invoice->tenant_id === (int) $clinic->id, 404);
     }
 
     /**

@@ -11,6 +11,14 @@ the next dated SemVer section when that release is prepared.
   `APP_VERSION` query string render only as stylesheets/style preloads, while
   JavaScript entrypoints remain module scripts and script module preloads.
 
+### Dashboard billing
+
+- Limited the active-subscription summary on the invoices and payments page to
+  clinic-scoped users while keeping billing available without an active plan;
+  system-management users no longer receive that section on any host.
+- Fixed clinic invoice approval returning a false `404` when the database
+  exposes matching tenant foreign keys as numeric strings.
+
 ## 2.0.3 - 2026-07-29
 
 HairVision `2.0.3` improves deployment reliability, large plan-price

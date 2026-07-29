@@ -367,6 +367,12 @@ Payment verification is idempotent. `invoices.activated_at` prevents repeated
 activation from repeated callbacks. Gateway/provider failures are logged with
 safe context and shown to users only as localized generic messages.
 
+The dashboard invoice and payment routes remain available without an active
+subscription so an inactive clinic can review and pay its invoices. Their
+active-subscription summary is rendered only for clinic-scoped users; system-
+scoped management users never receive that summary, regardless of the request
+host or selected tenant context.
+
 ## SMS Gateways
 
 The version `1.0.0` seed state keeps the system `local` SMS gateway enabled and
