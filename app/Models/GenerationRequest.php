@@ -27,6 +27,8 @@ class GenerationRequest extends Model
         'credit_transaction_id',
         'status',
         'idempotency_key',
+        'resume_token_hash',
+        'resumable_until',
         'requested_at',
         'completed_at',
         'failed_at',
@@ -36,6 +38,7 @@ class GenerationRequest extends Model
 
     protected $casts = [
         'requested_at' => 'datetime',
+        'resumable_until' => 'datetime',
         'completed_at' => 'datetime',
         'failed_at' => 'datetime',
         'created_at' => 'datetime',

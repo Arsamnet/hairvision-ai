@@ -7,8 +7,16 @@
     <section class="rounded-lg bg-white p-5 shadow-sm ring-1 ring-zinc-200">
         <div class="flex flex-wrap items-start justify-between gap-3">
             <div>
-                <h2 class="text-lg font-bold">{{ $gateway->name }}</h2>
+                <div class="flex flex-wrap items-center gap-2">
+                    <h2 class="text-lg font-bold">{{ $gateway->name }}</h2>
+                    @if($gateway->is_protected)
+                        <x-admin.badge tone="teal">{{ __('sms.protected') }}</x-admin.badge>
+                    @endif
+                </div>
                 <p class="mt-1 text-sm text-zinc-500" dir="ltr">{{ $gateway->provider_code }}</p>
+                @if($gateway->is_protected)
+                    <p class="mt-2 text-sm text-zinc-500">{{ __('sms.protected_hint') }}</p>
+                @endif
             </div>
             <div class="flex flex-wrap items-center gap-2">
                 @can('update', $gateway)

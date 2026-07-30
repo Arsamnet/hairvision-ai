@@ -1,6 +1,6 @@
 # AI Agent Instructions
 
-Version: [`2.0.3`](../CHANGELOG.md#203)
+Version: [`2.1.0`](../CHANGELOG.md#210)
 
 This file is the compact operating prompt for AI agents. The primary guide is
 `AGENTS.md`; this file keeps the same rules inside `/docs`.
@@ -56,12 +56,26 @@ transplant, or dynamically added services like under-eye filler.
   active subscription, service entitlement, and remaining service credit.
 - OpenAI image edits use the code-owned `openai` adapter, multipart `image[]`,
   a server-side category-output prompt, and private base64 result decoding.
+- OpenAI DNS/TCP failures proven to occur before HTTP delivery use bounded,
+  environment-configured retry attempts with backoff. Each retry is a new
+  generation attempt; ambiguous response timeouts are never repeated
+  automatically.
+- Fresh seed data enables only category-specific OpenAI providers, access
+  records, executable models, clinic assignments, and plan mappings. Seeded
+  `sample_image` and `gapgpt` records remain available for explicit management
+  but are inactive and are never attached to a seeded plan.
 - Credit is consumed atomically only after successful provider execution.
-- Seeded system SMS gateways keep `local` enabled/default and `ippanel`
-  disabled/non-default until an admin explicitly enables IPPanel.
-- Redis Queue and Horizon are preferred outside tests. Shared cPanel hosting
-  may use the explicitly enabled, non-overlapping cron worker with Redis or the
-  database queue; do not run that fallback alongside Horizon.
+- The seed keeps the system `local` debug/test SMS gateway enabled/default and
+  protected from updates or deletion. IPPanel remains disabled/non-default,
+  and no tenant-specific SMS gateway is seeded for the demo clinic.
+- Shared cPanel hosting uses the database queue, scheduler watchdog, and
+  detached PHP workers as its baseline; a non-overlapping window worker is the
+  explicit fallback when detachment is unavailable. A fallback window is
+  shortened to the time remaining in its current cron minute so its overlap
+  lock is released before the next tick. Redis/Horizon is the
+  upgrade path only where a persistent process manager exists. Keep provider
+  concurrency independent from worker count, preserve
+  `provider timeout < worker timeout < retry_after`, and do not run both pools.
 - Do not introduce React, Vue, Inertia, Livewire, Next.js, CDN assets, or
   external dashboard icon packs unless explicitly requested.
 - Add/update tests for every behavior change and run the full test suite.
@@ -119,11 +133,20 @@ transplant, or dynamically added services like under-eye filler.
   gpt-image-2`, `n = 1`, `response_format = url`, and `size = 1024x1024`.
 - Keep OpenAI image edits multipart with file field `image[]`, a configurable
   API URL and model, the selected application-output prompt, `n = 1`, and
-  base64 result handling. Seeded defaults are `quality = low`, `size =
-  816x816`, `output_format = jpeg`, `background = opaque`, `moderation = auto`,
-  and `output_compression = 70`.
+  base64 result handling. Do not send `response_format`; GPT Image returns
+  base64 image data without that request field. Seeded defaults are `quality =
+  low`, `size = 816x816`, `output_format = jpeg`, `background = opaque`,
+  `moderation = auto`, `output_compression = 70`, response timeout `1000`, and
+  connection timeout `50` seconds.
+- The default OpenAI executable capacity is two concurrent requests and follows
+  `HAIRVISION_OPENAI_CONCURRENCY_LIMIT`; worker and global provider capacity
+  must remain at least that high before increasing it.
 - Keep the provider request size separate from private asset normalization:
   provider inputs and persisted results use the 800px/JPEG 85 product default.
+- Keep structured production provider-error logs complete enough to correlate
+  the generation, attempt, model, worker, timings, HTTP status/request id, cURL
+  code, retry decision, and redacted exception chain. Never include the API key,
+  prompt, image bytes, private path, raw payload/response, or stack trace.
 - Never seed, commit, log, display, or document a real GapGPT or OpenAI API key.
 - Keep user-facing errors localized and generic; log only safe operational
   context.

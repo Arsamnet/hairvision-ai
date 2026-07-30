@@ -16,13 +16,18 @@ class SmsGatewayPolicy
      * Execute the before operation.
      *
      * @param  User  $user  Authenticated user performing the operation.
+     * @param  string  $ability  The policy ability being evaluated.
      * @return bool|null Resolved operation result.
      *
      * @since 1.0.0
      */
-    public function before(User $user): ?bool
+    public function before(User $user, string $ability): ?bool
     {
-        return $user->isSuperAdmin() ? true : null;
+        if (! $user->isSuperAdmin()) {
+            return null;
+        }
+
+        return in_array($ability, ['update', 'delete'], true) ? null : true;
     }
 
     /**
@@ -77,8 +82,11 @@ class SmsGatewayPolicy
      */
     public function update(User $user, SmsGateway $gateway): bool
     {
-        return $user->hasPermission('sms_gateways.edit')
-            || ($gateway->owner_scope === 'tenant' && $user->canAccessTenant($gateway->tenant_id));
+        return ! $gateway->is_protected
+            && (
+                $user->hasPermission('sms_gateways.edit')
+                || ($gateway->owner_scope === 'tenant' && $user->canAccessTenant($gateway->tenant_id))
+            );
     }
 
     /**
@@ -92,6 +100,6 @@ class SmsGatewayPolicy
      */
     public function delete(User $user, SmsGateway $gateway): bool
     {
-        return $user->hasPermission('sms_gateways.delete');
+        return ! $gateway->is_protected && $user->hasPermission('sms_gateways.delete');
     }
 }

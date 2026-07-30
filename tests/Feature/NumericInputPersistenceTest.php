@@ -37,8 +37,8 @@ class NumericInputPersistenceTest extends TestCase
 
         $admin = User::query()->where('role', 'super_admin')->firstOrFail();
         $model = AiModelAccess::query()
+            ->where('model_key', 'openai')
             ->where('usage_category_key', 'hair_transplant')
-            ->where('is_demo', true)
             ->firstOrFail();
 
         $this->actingAs($admin)

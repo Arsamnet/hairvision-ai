@@ -24,11 +24,14 @@ Route::middleware(['api', ResolveTenantByHost::class])->prefix('v1')->group(func
 
     Route::get('/profile', [ProfileController::class, 'show']);
     Route::post('/profile/source-image', [ProfileController::class, 'storeSourceImage']);
+    Route::get('/profile/source-images/{sourceImage}/stream', [ProfileController::class, 'streamSourceImage']);
     Route::get('/profile/categories', [ProfileController::class, 'categories']);
     Route::get('/profile/generations', [ProfileController::class, 'generations']);
 
     Route::post('/generations/independent', [IndependentGenerationController::class, 'store']);
+    Route::get('/generations/resumable', [IndependentGenerationController::class, 'resumable']);
     Route::get('/generations/independent/{generation}', [IndependentGenerationController::class, 'show']);
+    Route::get('/generations/independent/{generation}/results', [IndependentGenerationController::class, 'results']);
     Route::post('/generations/independent/{generation}/regenerate', [IndependentGenerationController::class, 'regenerate']);
 
     Route::post('/generations', [GenerationController::class, 'store']);

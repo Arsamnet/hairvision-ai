@@ -11,6 +11,7 @@ use App\Models\GenerationRequest;
 use App\Models\LeadSourceImage;
 use App\Models\Tenant;
 use App\Services\Generation\IndependentGenerationService;
+use App\Services\Generation\GenerationResumeTokenService;
 use App\Services\LeadSessionService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -29,6 +30,7 @@ class IndependentGenerationController extends Controller
      * @param  StoreIndependentGenerationRequest  $request  Incoming HTTP request.
      * @param  LeadSessionService  $leadSessionService  The lead session service value.
      * @param  IndependentGenerationService  $generations  The generations value.
+     * @param  GenerationResumeTokenService  $resumeTokens  Session-bound generation credential manager.
      * @return JsonResponse JSON response payload.
      *
      * @since 2.0.0
@@ -36,7 +38,8 @@ class IndependentGenerationController extends Controller
     public function store(
         StoreIndependentGenerationRequest $request,
         LeadSessionService $leadSessionService,
-        IndependentGenerationService $generations
+        IndependentGenerationService $generations,
+        GenerationResumeTokenService $resumeTokens,
     ): JsonResponse {
         $tenant = $this->tenantFromRequest($request);
         $lead = $leadSessionService->verifiedLead($request, $tenant, __('auth.verify_phone_to_continue'));
@@ -63,10 +66,11 @@ class IndependentGenerationController extends Controller
             $output,
             $request->string('idempotency_key')->toString()
         );
+        $resumeTokens->remember($request, $generation);
 
         return (new GenerationRequestResource($generation->load(['sourceImage', 'category', 'output', 'currentAsset', 'attempts'])))
             ->response()
-            ->setStatusCode(Response::HTTP_CREATED);
+            ->setStatusCode(Response::HTTP_ACCEPTED);
     }
 
     /**
@@ -75,11 +79,17 @@ class IndependentGenerationController extends Controller
      * @param  Request  $request  Incoming HTTP request.
      * @param  string  $generation  The generation value.
      * @param  LeadSessionService  $leadSessionService  The lead session service value.
+     * @param  GenerationResumeTokenService  $resumeTokens  Session-bound generation credential manager.
      * @return GenerationRequestResource Resolved operation result.
      *
      * @since 2.0.0
      */
-    public function show(Request $request, string $generation, LeadSessionService $leadSessionService): GenerationRequestResource
+    public function show(
+        Request $request,
+        string $generation,
+        LeadSessionService $leadSessionService,
+        GenerationResumeTokenService $resumeTokens,
+    ): GenerationRequestResource
     {
         $tenant = $this->tenantFromRequest($request);
         $lead = $leadSessionService->verifiedLead($request, $tenant, __('auth.verify_phone_to_view_results'));
@@ -90,6 +100,8 @@ class IndependentGenerationController extends Controller
             ->where('lead_id', $lead->id)
             ->with(['sourceImage', 'category', 'output', 'currentAsset', 'attempts'])
             ->firstOrFail();
+        $resumeTokens->authorize($request, $model);
+        $resumeTokens->remember($request, $model);
 
         return new GenerationRequestResource($model);
     }
@@ -101,6 +113,7 @@ class IndependentGenerationController extends Controller
      * @param  string  $generation  The generation value.
      * @param  LeadSessionService  $leadSessionService  The lead session service value.
      * @param  IndependentGenerationService  $generations  The generations value.
+     * @param  GenerationResumeTokenService  $resumeTokens  Session-bound generation credential manager.
      * @return GenerationRequestResource Resolved operation result.
      *
      * @since 2.0.0
@@ -109,7 +122,8 @@ class IndependentGenerationController extends Controller
         Request $request,
         string $generation,
         LeadSessionService $leadSessionService,
-        IndependentGenerationService $generations
+        IndependentGenerationService $generations,
+        GenerationResumeTokenService $resumeTokens,
     ): GenerationRequestResource {
         $tenant = $this->tenantFromRequest($request);
         $lead = $leadSessionService->verifiedLead($request, $tenant, __('auth.verify_phone_to_continue'));
@@ -120,8 +134,82 @@ class IndependentGenerationController extends Controller
             ->where('lead_id', $lead->id)
             ->with(['sourceImage', 'category', 'output', 'currentAsset', 'attempts'])
             ->firstOrFail();
+        $resumeTokens->authorize($request, $model);
+        $regenerated = $generations->regenerate($model, $lead);
+        $resumeTokens->remember($request, $regenerated);
 
-        return new GenerationRequestResource($generations->regenerate($model, $lead));
+        return new GenerationRequestResource($regenerated);
+    }
+
+    /**
+     * Return generations retained by the current verified browser session.
+     *
+     * @param  Request  $request  Incoming HTTP request.
+     * @param  LeadSessionService  $leadSessionService  Verified lead resolver.
+     * @param  GenerationResumeTokenService  $resumeTokens  Resume credential manager.
+     * @return JsonResponse JSON response payload.
+     *
+     * @since 2.0.0
+     */
+    public function resumable(
+        Request $request,
+        LeadSessionService $leadSessionService,
+        GenerationResumeTokenService $resumeTokens,
+    ): JsonResponse {
+        $tenant = $this->tenantFromRequest($request);
+        $lead = $leadSessionService->verifiedLead($request, $tenant, __('auth.verify_phone_to_view_results'));
+        $sessionTokens = $resumeTokens->sessionTokens($request);
+
+        $generations = GenerationRequest::query()
+            ->where('tenant_id', $tenant->id)
+            ->where('lead_id', $lead->id)
+            ->whereIn('uuid', array_keys($sessionTokens))
+            ->where('resumable_until', '>', now())
+            ->with(['sourceImage', 'category', 'output', 'currentAsset', 'attempts'])
+            ->latest('id')
+            ->get()
+            ->filter(fn (GenerationRequest $generation): bool => $resumeTokens->tokenFor($request, $generation) !== null)
+            ->values();
+
+        return response()->json([
+            'data' => GenerationRequestResource::collection($generations),
+        ]);
+    }
+
+    /**
+     * Return an independently generated result as soon as it is available.
+     *
+     * @param  Request  $request  Incoming HTTP request.
+     * @param  string  $generation  Public generation UUID.
+     * @param  LeadSessionService  $leadSessionService  Verified lead resolver.
+     * @param  GenerationResumeTokenService  $resumeTokens  Resume credential manager.
+     * @return JsonResponse JSON response payload.
+     *
+     * @since 2.0.0
+     */
+    public function results(
+        Request $request,
+        string $generation,
+        LeadSessionService $leadSessionService,
+        GenerationResumeTokenService $resumeTokens,
+    ): JsonResponse {
+        $tenant = $this->tenantFromRequest($request);
+        $lead = $leadSessionService->verifiedLead($request, $tenant, __('auth.verify_phone_to_view_results'));
+        $model = GenerationRequest::query()
+            ->where('uuid', $generation)
+            ->where('tenant_id', $tenant->id)
+            ->where('lead_id', $lead->id)
+            ->with(['output', 'currentAsset'])
+            ->firstOrFail();
+        $resumeTokens->authorize($request, $model);
+
+        return response()->json([
+            'data' => $model->currentAsset ? [[
+                'output' => $model->output?->code,
+                'status' => $model->status,
+                'url' => '/api/v1/assets/'.$model->currentAsset->uuid.'/stream',
+            ]] : [],
+        ]);
     }
 
     /**

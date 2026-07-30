@@ -17,6 +17,10 @@ class GenerationJob extends Model
 {
     use HasFactory, HasUuid;
 
+    public const STATUSES = ['pending', 'queued', 'processing', 'completed', 'retrying', 'failed', 'cancelled'];
+
+    public const TERMINAL_STATUSES = ['completed', 'failed', 'cancelled'];
+
     protected $fillable = [
         'generation_group_id',
         'tenant_id',
@@ -28,18 +32,32 @@ class GenerationJob extends Model
         'model_name',
         'prompt',
         'status',
+        'queued_at',
+        'dispatched_at',
         'provider_job_id',
         'next_poll_at',
         'attempts',
         'max_attempts',
         'last_error',
+        'error_code',
         'started_at',
+        'provider_call_started_at',
+        'provider_call_finished_at',
+        'queue_wait_ms',
+        'provider_latency_ms',
+        'worker_id',
         'completed_at',
     ];
 
     protected $casts = [
         'next_poll_at' => 'datetime',
+        'queued_at' => 'datetime',
+        'dispatched_at' => 'datetime',
         'started_at' => 'datetime',
+        'provider_call_started_at' => 'datetime',
+        'provider_call_finished_at' => 'datetime',
+        'queue_wait_ms' => 'integer',
+        'provider_latency_ms' => 'integer',
         'completed_at' => 'datetime',
         'created_at' => 'datetime',
         'updated_at' => 'datetime',

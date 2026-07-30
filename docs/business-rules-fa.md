@@ -1,6 +1,6 @@
 # سند جامع قوانین محصول HairVision
 
-نسخه: [`2.0.3`](../CHANGELOG.md#203)
+نسخه: [`2.1.0`](../CHANGELOG.md#210)
 
 این سند مرجع فارسی قوانین حاکم بر HairVision است. هر تصمیم محصولی، فنی،
 امنیتی، مالی یا عملیاتی باید با این سند سازگار باشد. اگر قانون جدیدی برای
@@ -11,6 +11,27 @@
 دسته‌بندی‌شده و قابل توسعه برای سرویس‌های تولید تصویر تبدیل می‌کند. در این
 نسخه دسته‌بندی مدل، نوع مدل، نمونه اجرایی مدل، خروجی قابل درخواست، دسترسی
 کلینیک و صف اجرای مدل مفاهیم مستقل هستند.
+
+## تغییرات نسخه 2.1.0
+
+- سقف ۹۰۰ ثانیه‌ای مهلت پاسخ مدل حذف شده است. مدل OpenAI به صورت پیش‌فرض با
+  مهلت پاسخ ۱۰۰۰ ثانیه، مهلت اتصال ۵۰ ثانیه و فرمت پاسخ `b64_json` ساخته و
+  به‌روزرسانی می‌شود؛ مقادیر بالاتر مهلت پاسخ نیز در مدیریت مدل پذیرفته
+  می‌شوند و timeoutهای worker و queue باید متناسب با آن تنظیم شوند.
+- ظرفیت پیش‌فرض مدل OpenAI به دو درخواست همزمان افزایش یافته و از
+  `HAIRVISION_OPENAI_CONCURRENCY_LIMIT` خوانده می‌شود. windowهای fallback نیز
+  فقط تا بودجه باقی‌مانده همان دقیقه اجرا می‌شوند تا lock اجرای دقیقه بعد را
+  حذف نکند.
+- خطاهای DNS/TCP مدل OpenAI که پیش از تحویل HTTP به provider به‌طور قطعی رخ
+  داده‌اند، به‌صورت پیش‌فرض حداکثر دو بار با backoff و jitter و با attempt جدید
+  تکرار می‌شوند. timeout مبهم پاسخ یا پردازش همچنان retry خودکار ندارد و همه
+  خطاها و تصمیم‌های retry با context ساختاریافته و redacted در لاگ ثبت می‌شوند.
+- داده اولیه تمام پلن‌های پایه و سرویس افزوده را برای هر کاربرد فقط به مدل
+  متناظر `openai` متصل می‌کند. provider، دسترسی مدل، مدل اجرایی و assignment
+  کلینیک‌های سیدشده فقط برای OpenAI فعال‌اند؛ رکوردهای `sample_image` و
+  `gapgpt` برای مدیریت صریح باقی می‌مانند، اما غیرفعال و خارج از همه پلن‌های
+  سیدشده هستند و هیچ رکورد اتصالی برای آن‌ها در `clinic_ai_model_access` ساخته
+  نمی‌شود.
 
 ## تغییرات نسخه 2.0.3
 
@@ -226,6 +247,11 @@ tenant دیگر حتی با UUID معتبر، مجوز دسترسی ایجاد �
 - OTP داشبورد hash، expiring، single-use، attempt-limited و rate-limited است.
 - کد plain حتی در local debug نباید در صفحه verification دیده شود.
 - OTP عمومی و داشبورد باید از gateway سیستم فعال و پیش‌فرض ارسال شوند.
+- seed فقط سرویس سیستمی `local` با عنوان «سرویس پیامک دیباگ و تست» را فعال و
+  پیش‌فرض می‌کند. این رکورد system-owned محافظت‌شده است و حتی مدیر سیستم مجاز
+  به ویرایش یا حذف آن نیست.
+- برای کلینیک دمو هیچ درگاه پیامک tenant-owned ساخته نمی‌شود. IPPanel سیستمی
+  تا فعال‌سازی صریح مدیر غیرفعال و غیرپیش‌فرض باقی می‌ماند.
 
 ## کاربران، نقش‌ها و permissionها
 
@@ -837,8 +863,9 @@ lead، category، output، model و status تعریف شوند.
 - output config فعال برای output درخواست وجود دارد.
 - مدل archived، paused یا circuit-open نیست.
 
-هر مدل `concurrency_limit` دارد. مقدار پیش‌فرض GapGPT برابر 1 است، مگر مستندات
-provider و ظرفیت خریداری‌شده مقدار بیشتری را تضمین کند.
+هر مدل `concurrency_limit` دارد. مقدار پیش‌فرض GapGPT برابر 1 و مقدار پیش‌فرض
+OpenAI برابر 2 است، مگر مستندات provider و ظرفیت خریداری‌شده مقدار دیگری را
+ایجاب کند.
 
 الگوریتم assignment باید داخل transaction کوتاه و با lock انجام شود:
 
@@ -881,9 +908,10 @@ provider و ظرفیت خریداری‌شده مقدار بیشتری را تض
 - Horizon tags باید حداقل tenant، category، model و generation ID را بدون PII
   ثبت کنند.
 
-در fallback سی‌پنل، scheduler هر دقیقه یک یا چند worker window مستقل حدود ۵۸
-ثانیه‌ای اجرا می‌کند. تعداد processها باید با ظرفیت CPU/RAM هاست تنظیم شود؛ هر
-lane lock مستقل دارد و اجرای تکراری همان lane هم‌پوشانی نمی‌کند. فاصله بررسی job
+در fallback سی‌پنل، scheduler هر دقیقه یک یا چند worker window مستقل با سقف ۵۸
+ثانیه اجرا می‌کند. زمان مؤثر هر window به بودجه باقی‌مانده همان دقیقه محدود
+می‌شود تا پیش از tick بعدی lock آزاد شود. تعداد processها باید با ظرفیت CPU/RAM
+هاست تنظیم شود؛ هر lane lock مستقل دارد و اجرای تکراری همان lane هم‌پوشانی نمی‌کند. فاصله بررسی job
 جدید حداکثر یک ثانیه است و timeout worker باید از timeout خود job کمتر نباشد. مقدار
 `retry_after` هر connection نیز باید از timeout worker بزرگ‌تر باشد تا job پولی
 در زمان اجرای provider دوباره تحویل داده نشود.
@@ -891,8 +919,11 @@ lane lock مستقل دارد و اجرای تکراری همان lane هم‌پ
 پاسخ صریح rate limit مانند `429` فقط وقتی قابل retry خودکار است که provider
 به‌وضوح درخواست را نپذیرفته باشد. در این حالت attempt قبلی بسته، attempt جدید با
 `available_at` ساخته، مدل تا `Retry-After` در cooldown قرار داده و reservation
-اعتبار حفظ می‌شود. timeout یا قطع ارتباط پس از شروع تماس outcome مبهم است و
-نباید خودکار retry یا آزادسازی اعتبار شود.
+اعتبار حفظ می‌شود. خطاهای OpenAI با cURL `6` یا `7` و خطای cURL `28` با پیام
+صریح `Connection timed out` یا `Failed to connect ... Timeout was reached` نیز
+چون پیش از تحویل HTTP رخ داده‌اند، با attempt جدید و backoff محدود قابل retry
+هستند. timeout پردازش/پاسخ یا هر قطع ارتباطی که
+تحویل درخواست را مبهم کند، خودکار retry یا آزادسازی اعتبار نمی‌شود.
 
 ## idempotency و جلوگیری از درخواست تکراری provider
 
@@ -900,7 +931,8 @@ lane lock مستقل دارد و اجرای تکراری همان lane هم‌پ
 - قبل از تماس provider، `provider_call_started_at` و attempt state به صورت اتمیک
   ثبت می‌شوند.
 - پس از شروع تماس provider واقعی، retry خودکار queue یا HTTP که ممکن است هزینه
-  دوباره ایجاد کند ممنوع است.
+  دوباره ایجاد کند ممنوع است؛ استثنا فقط خطای transport طبقه‌بندی‌شده‌ای است که
+  ثابت کند اتصال HTTP شکل نگرفته و هر retry آن باید attempt جدید باشد.
 - timeout، `retry_after` و job timeout باید هماهنگ باشند.
 - failure قبل از شروع تماس provider می‌تواند به صورت امن redispatch شود.
 - failure مبهم پس از شروع تماس باید `requires_review` یا failure قابل بررسی شود؛
@@ -1007,14 +1039,15 @@ storage/app/private/tenants/{tenant_uuid}/leads/{lead_uuid}/results/{source_imag
 
 - `endpoint_url` با مقدار seed پیش‌فرض
   `https://api.openai.com/v1/images/edits`
-- `model` با مقدار پیش‌فرض `gpt-image-1.5`
+- `model` با مقدار پیش‌فرض `gpt-image-2`
 - `quality` با سه انتخاب `low`، `medium` و `high` و پیش‌فرض `low`
 - `size` قابل تنظیم با پیش‌فرض محصول `816x816`
 - `output_format` با پیش‌فرض `jpeg`
 - `background` با پیش‌فرض `opaque`
 - `moderation` با پیش‌فرض `auto`
 - `output_compression` با پیش‌فرض `70`
-- timeout اتصال و پاسخ provider
+- timeout پاسخ provider با پیش‌فرض ۱۰۰۰ ثانیه و بدون سقف اعتبارسنجی ثابت
+- timeout اتصال با پیش‌فرض ۵۰ ثانیه
 
 قوانین درخواست:
 
@@ -1025,6 +1058,8 @@ storage/app/private/tenants/{tenant_uuid}/leads/{lead_uuid}/results/{source_imag
 - `prompt` فقط snapshot پرامپت output انتخاب‌شده همان کاربرد است.
 - `n` همیشه `1` است و client عمومی نمی‌تواند آن یا هیچ پارامتر provider را
   تغییر دهد.
+- پارامتر `response_format` ارسال نمی‌شود؛ مدل GPT Image بدون این فیلد داده
+  تصویر را به صورت base64 در `data[0].b64_json` برمی‌گرداند.
 - پاسخ GPT Image از `data[0].b64_json` decode می‌شود و فقط bytes تصویر برای
   نرمال‌سازی و ذخیره خصوصی به لایه بعد تحویل داده می‌شود.
 - مقدار پیش‌فرض `816x816` بنا بر قرارداد محصول قابل تنظیم نگه داشته می‌شود.
@@ -1032,7 +1067,13 @@ storage/app/private/tenants/{tenant_uuid}/leads/{lead_uuid}/results/{source_imag
   و `1024x1536` را اعلام می‌کند؛ مدیر هنگام استفاده مستقیم از endpoint رسمی
   باید `size` را به یکی از مقادیر پشتیبانی‌شده تغییر دهد.
 - API key، prompt، bytes تصویر، مسیر خصوصی و raw response لاگ یا نمایش داده
-  نمی‌شوند و درخواست پولی retry خودکار ندارد.
+  نمی‌شوند. خطای قطعی DNS/TCP پیش از HTTP حداکثر طبق تنظیمات محیط با attempt
+  جدید retry می‌شود، ولی درخواست تحویل‌شده یا دارای outcome مبهم retry خودکار
+  ندارد.
+- خطاهای OpenAI در production با UUID درخواست/attempt، مدل، worker، زمان صف و
+  provider، endpoint host/path، timeoutها، HTTP status، request id، کد cURL،
+  مرحله شکست، تصمیم retry و زنجیره exception پاک‌سازی‌شده لاگ می‌شوند؛ stack
+  trace، credential، prompt، فایل/مسیر خصوصی و raw body همچنان ممنوع‌اند.
 
 ## circuit breaker و سلامت مدل
 
@@ -1110,6 +1151,13 @@ lead متعلق به tenant است و uniqueness شماره با `(tenant_id, ph
 نسخه نتیجه قبلی را از تاریخچه کلینیک حذف یا با رکورد نوبت جدید مخلوط کند. همین
 نمای گروه‌بندی‌شده برای کاربران مجاز کلینیک و مدیران سیستم استفاده می‌شود.
 
+همه تصاویر خصوصی موجود در پرونده، شامل تصویر اصلی فعلی، نسخه‌های ورودی قبلی،
+بارگذاری‌های legacy و تمام نسخه‌های خروجی ساخته‌شده، باید در یک گالری پیوسته
+قابل مرور باشند. ترتیب گالری بر اساس جدیدترین نوبت بارگذاری است و نتیجه‌های هر
+نوبت بلافاصله پس از تصویر ورودی همان نوبت قرار می‌گیرند. هر اسلاید عنوان و
+توضیح قابل مشاهده دارد و کنترل‌های قبلی/بعدی، صفحه‌کلید و حرکت لمسی را پشتیبانی
+می‌کند؛ دریافت تصویر همچنان فقط از route خصوصی و policy-backed انجام می‌شود.
+
 کلینیک فقط تاریخچه tenant خود را مشاهده می‌کند. مدل استفاده‌شده می‌تواند برای
 عملیات و پشتیبانی نمایش داده شود، اما prompt سیستمی، credential و raw payload
 برای کاربران کلینیک مخفی است.
@@ -1143,6 +1191,13 @@ category فعال نگاشت شود و هر پلن فقط یک مقدار اعت
 - هنگام تعریف یا ویرایش پلن پایه و سرویس افزوده، مدیر سیستم باید برای هر
   category دقیقاً یک مدل انتخاب کند. مدل انتخابی باید فعال، قابل اجرا، متعلق به
   همان category و به‌تنهایی پوشش‌دهنده همه outputهای فعال باشد.
+- در داده اولیه پروژه، این انتخاب برای همه پلن‌های پایه و سرویس افزوده منحصراً
+  مدل OpenAI همان category است؛ هیچ پلن سیدشده‌ای به `sample_image` یا `gapgpt`
+  متصل نمی‌شود.
+- سید اشتراک‌ها در هر اجرا snapshot مدل‌های OpenAI پلن را روی فاکتور تازه می‌کند
+  و همان شناسه‌ها را حتی برای اشتراک فعال موجود دوباره provision می‌کند؛ در
+  نتیجه assignment فعال هر کلینیک سیدشده دقیقاً با مدل‌های پلن فعال آن برابر
+  می‌ماند.
 - پس از پرداخت موفق، دقیقاً مدل‌های ثبت‌شده در snapshot فاکتور به کلینیک متصل
   می‌شوند. assignmentهای دستی دیگر حذف نمی‌شوند، اما مدل‌های پلن حتی اگر قبلاً
   روی کلینیک غیرفعال بوده‌اند فعال می‌شوند.
@@ -1386,6 +1441,9 @@ JSON نمایش داده شود.
 - هنگام بازگشت، profile و generation list از سرور hydrate می‌شوند.
 - اگر نتیجه قبلی موجود و regeneration در حال اجرا باشد، نتیجه قبلی همراه با
   indicator نمایش داده می‌شود.
+- در وضعیت جاری صفحه عمومی، فقط جدیدترین generation هر خروجی مبنای پیام موفقیت
+  یا خطاست؛ failure تاریخی همان خروجی نباید پس از ثبت retry/regeneration موفق،
+  پیام خطای کاربر را فعال یا باز نگه دارد. تاریخچه کامل در پنل مدیریت حفظ می‌شود.
 - upload تصویر جدید باید قبل از جایگزینی، اثر آن بر jobهای جاری و خروجی‌های
   فعلی را به صورت واضح به کاربر اعلام کند.
 - frontend نباید تعداد سه، نام stageها یا provider را hard code کند.
@@ -1510,6 +1568,18 @@ status، duration، safe error class و correlation ID باشد.
 - failure regenerate نتیجه موفق قبلی را حفظ می‌کند.
 - ترک session/page و بازیابی status در ورود بعدی
 - scoping کامل tenant و lead
+- پاسخ ساخت generation همیشه `202 Accepted` است و کار سنگین provider داخل HTTP
+  انجام نمی‌شود.
+- UUID به‌تنهایی مجوز مشاهده نیست؛ session تاییدشده lead و resume token معتبر
+  هر دو لازم‌اند و فقط hash توکن در دیتابیس ذخیره می‌شود.
+- polling فقط یک loop تطبیقی دارد، timeout کلی ندارد و پس از focus، online و
+  visible شدن صفحه فوراً sync می‌شود.
+- شکست یک output نباید outputهای خواهر را cancel کند و نتیجه موفق هر output باید
+  مستقل و فوری قابل مشاهده بماند.
+- هر تعداد درخواست در یک امکان و همه درخواست‌های کاربران مختلف state، attempt،
+  credit، خطا و asset مستقل دارند. هیچ lock یا failure propagation در سطح
+  category، tenant یا lead مجاز نیست؛ فقط سقف ظرفیت مشترک می‌تواند زمان انتظار
+  صف را تغییر دهد.
 
 ### انتخاب مدل و queue
 
@@ -1517,12 +1587,22 @@ status، duration، safe error class و correlation ID باشد.
 - انتخاب کم‌بارترین مدل وقتی همه مشغول‌اند
 - tie-break منصفانه
 - رعایت concurrency limit در درخواست هم‌زمان
+- تعداد worker از سقف سراسری provider مستقل است؛ هر provider call باید lease
+  اتمیک و expiring بگیرد و در نبود ظرفیت با delay کوتاه و jitter آزاد شود.
 - صف منطقی مستقل مدل
 - dispatch job بعدی پس از آزاد شدن slot
 - recovery reservation stale
 - pause مدل مانع assignment جدید و نه job جاری
 - مدل فاقد output config eligible نباشد.
 - circuit breaker و health state
+- روی cPanel مبنا Database Queue + MySQL + Scheduler + PHP CLI است. cron موجود
+  فقط `schedule:run` را هر دقیقه اجرا می‌کند و watchdog workerهای بلندمدت را
+  نگه می‌دارد؛ cronهای `queue:work --once` مجزا ممنوع‌اند.
+- اگر detached process مجاز نباشد، window worker غیرهم‌پوشان fallback رسمی است.
+- رابطه timeout باید همیشه
+  `provider timeout < worker timeout < queue retry_after` باشد.
+- reconcile فقط کار pre-provider را requeue می‌کند؛ outcome مبهم پس از شروع
+  provider برای review علامت می‌خورد و خودکار تکرار نمی‌شود.
 
 ### اعتبار
 
@@ -1552,7 +1632,8 @@ status، duration، safe error class و correlation ID باشد.
 - OpenAI multipart با `image[]` و پارامترهای تنظیم‌شده صحیح باشد و خروجی
   `b64_json` را decode کند.
 - prompt درست output منتخب استفاده شود.
-- no automatic retry پس از provider call started
+- retry محدود فقط برای DNS/TCP قطعی پیش از HTTP و عدم retry خودکار outcome مبهم
+  پس از provider call started
 - download URL provider validate و خصوصی ذخیره شود.
 - secret و raw response در log/response نباشد.
 

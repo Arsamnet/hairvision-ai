@@ -13,6 +13,7 @@ import { bootAiModelImageProcessing } from './ai-model-image-processing.js';
 import { bootLandingTemplateForm } from './landing-template-form.js';
 import { bootRichTextEditors } from './rich-text-editor.js';
 import { bootAdminFragmentNavigation } from './fragment-navigation.js';
+import { bootLeadImageGallery, closeLeadImageGallery } from './lead-image-gallery.js';
 
 const closeUserMenus = () => {
     document.querySelectorAll('[data-admin-user-menu][open]').forEach((menu) => {
@@ -47,6 +48,7 @@ export const bootAdmin = () => {
     bootAiModelImageProcessing();
     bootLandingTemplateForm();
     bootRichTextEditors();
+    bootLeadImageGallery();
 
     document.addEventListener('keydown', (event) => {
         if (event.key !== 'Escape') {
@@ -58,5 +60,6 @@ export const bootAdmin = () => {
         closeOpenModals();
         closeUserMenus();
         closeMobileMenu();
+        closeLeadImageGallery();
     });
 };

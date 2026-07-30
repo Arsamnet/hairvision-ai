@@ -4,7 +4,7 @@ This is the first file AI agents should read in the HairVision repository.
 
 Project: `HairVision`
 
-Version: [`2.0.3`](CHANGELOG.md#203)
+Version: [`2.1.0`](CHANGELOG.md#210)
 
 HairVision is a complete Laravel 13 multi-tenant SaaS for clinics offering
 AI-assisted image previews. Public visitors use a tenant host, verify a phone

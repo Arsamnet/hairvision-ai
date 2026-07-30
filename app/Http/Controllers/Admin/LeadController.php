@@ -9,6 +9,7 @@ use App\Models\Lead;
 use App\Services\Admin\LeadDashboardService;
 use App\Support\Pagination\PaginatedResponse;
 use App\Support\Pagination\PaginationParameters;
+use App\View\Admin\LeadImageGalleryPresenter;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -70,20 +71,29 @@ class LeadController extends Controller
      * @param  Request  $request  Incoming HTTP request.
      * @param  Lead  $lead  Lead in the current tenant scope.
      * @param  LeadDashboardService  $leadService  The lead service value.
+     * @param  LeadImageGalleryPresenter  $gallery  Lead image gallery presenter.
      * @return View Rendered response view.
      *
      * @since 1.0.0
      */
-    public function show(Request $request, Lead $lead, LeadDashboardService $leadService): View
+    public function show(
+        Request $request,
+        Lead $lead,
+        LeadDashboardService $leadService,
+        LeadImageGalleryPresenter $gallery,
+    ): View
     {
         Gate::authorize('view', $lead);
 
         abort_unless($this->isLeadVisible($request, $lead), 404);
 
+        $lead = $leadService->loadDetails($lead);
+
         return view('admin.leads.show', [
             'tenant' => $request->attributes->get('adminTenant'),
             'availableTenants' => $request->attributes->get('adminTenants'),
-            'lead' => $leadService->loadDetails($lead),
+            'lead' => $lead,
+            'leadGalleryItems' => $gallery->items($lead),
         ]);
     }
 

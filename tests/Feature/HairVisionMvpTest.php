@@ -22,6 +22,7 @@ use App\Models\TenantDomain;
 use App\Models\TenantThemeSetting;
 use App\Models\Upload;
 use App\Models\User;
+use App\Services\Generation\GenerationGroupStatusService;
 use App\Services\Sms\SmsGatewayService;
 use App\Support\NumberNormalizer;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -99,7 +100,7 @@ class HairVisionMvpTest extends TestCase
             ->assertOk()
             ->assertSee('rel="icon"', false)
             ->assertSee('/build/assets/favicon-', false)
-            ->assertSee('.png?v=2.0.3', false)
+            ->assertSee('.png?v=2.1.0', false)
             ->assertDontSee('/build/img/favicon.png', false);
 
         $template = Template::create([
@@ -149,7 +150,7 @@ class HairVisionMvpTest extends TestCase
                 '/\/[^\/]+-[a-zA-Z0-9_-]+\.[a-z0-9]+$/',
                 (string) $chunk['file'],
             );
-            $this->assertStringNotContainsString('-v2.0.3-', (string) $chunk['file']);
+            $this->assertStringNotContainsString('-v2.1.0-', (string) $chunk['file']);
         }
 
         $content = $this->forHost('aria.hairvision-ai.test')
@@ -163,7 +164,7 @@ class HairVisionMvpTest extends TestCase
         ];
 
         foreach ($cssFiles as $cssFile) {
-            $versionedPath = '/build/'.$cssFile.'?v=2.0.3';
+            $versionedPath = '/build/'.$cssFile.'?v=2.1.0';
             $quotedPath = preg_quote($versionedPath, '/');
 
             $this->assertSame(
@@ -180,7 +181,7 @@ class HairVisionMvpTest extends TestCase
             );
         }
 
-        $javascriptPath = '/build/'.$manifest['resources/js/app.js']['file'].'?v=2.0.3';
+        $javascriptPath = '/build/'.$manifest['resources/js/app.js']['file'].'?v=2.1.0';
 
         $this->assertSame(
             1,
@@ -190,7 +191,7 @@ class HairVisionMvpTest extends TestCase
             ),
         );
         $this->assertMatchesRegularExpression(
-            '/href="[^"]*\/build\/assets\/favicon-[a-zA-Z0-9_-]+\.png\?v=2\.0\.3"/',
+            '/href="[^"]*\/build\/assets\/favicon-[a-zA-Z0-9_-]+\.png\?v=2\.1\.0"/',
             $content,
         );
 
@@ -581,7 +582,7 @@ class HairVisionMvpTest extends TestCase
         $groupId = $this->withSession(['lead_id' => $lead->id])
             ->forHost('aria.hairvision-ai.test')
             ->postJson('/api/v1/generations', ['upload_id' => $uploadId])
-            ->assertOk()
+            ->assertStatus(202)
             ->assertJsonPath('generation_group.status', 'completed')
             ->assertJsonPath('stages.0.key', 'two_weeks')
             ->assertJsonPath('jobs.0.period', 'two_weeks')
@@ -636,7 +637,7 @@ class HairVisionMvpTest extends TestCase
         $repeatGroupId = $this->withSession(['lead_id' => $lead->id])
             ->forHost('aria.hairvision-ai.test')
             ->postJson('/api/v1/generations', ['upload_id' => $uploadId])
-            ->assertOk()
+            ->assertStatus(202)
             ->json('generation_group.id');
 
         $this->assertSame($groupId, $repeatGroupId);
@@ -716,7 +717,7 @@ class HairVisionMvpTest extends TestCase
                 'upload_id' => $uploadId,
                 'usage_category_key' => 'eyebrow_transplant',
             ])
-            ->assertOk()
+            ->assertStatus(202)
             ->assertJsonPath('generation_group.status', 'completed')
             ->assertJsonPath('stages.0.key', 'eyebrow_final_result')
             ->assertJsonPath('jobs.0.period', 'eyebrow_final_result')
@@ -814,7 +815,7 @@ class HairVisionMvpTest extends TestCase
         $groupId = $this->withSession(['lead_id' => $lead->id])
             ->forHost('aria.hairvision-ai.test')
             ->postJson('/api/v1/generations', ['upload_id' => $uploadId])
-            ->assertOk()
+            ->assertStatus(202)
             ->assertJsonPath('generation_group.status', 'completed')
             ->json('generation_group.id');
 
@@ -868,7 +869,7 @@ class HairVisionMvpTest extends TestCase
         $this->assertSame(3, $access->refresh()->credit_used);
     }
 
-    public function test_gapgpt_generation_dispatches_only_the_first_stage_initially(): void
+    public function test_gapgpt_generation_dispatches_all_independent_stages_initially(): void
     {
         $tenant = $this->createTenant('Clinic One', 'aria', 'aria.hairvision-ai.test');
         $this->activateTenantSubscription($tenant, 10);
@@ -927,22 +928,26 @@ class HairVisionMvpTest extends TestCase
         $groupId = $this->withSession(['lead_id' => $lead->id])
             ->forHost('aria.hairvision-ai.test')
             ->postJson('/api/v1/generations', ['upload_id' => $uploadId])
-            ->assertOk()
-            ->assertJsonPath('generation_group.status', 'processing')
-            ->assertJsonPath('jobs.0.status', 'processing')
-            ->assertJsonPath('jobs.1.status', 'pending')
-            ->assertJsonPath('jobs.2.status', 'pending')
+            ->assertStatus(202)
+            ->assertJsonPath('generation_group.status', 'queued')
+            ->assertJsonPath('jobs.0.status', 'queued')
+            ->assertJsonPath('jobs.1.status', 'queued')
+            ->assertJsonPath('jobs.2.status', 'queued')
             ->json('generation_group.id');
 
         $group = GenerationGroup::query()->where('uuid', $groupId)->firstOrFail();
 
-        $this->assertSame(1, $group->jobs()->where('status', 'processing')->count());
-        $this->assertSame(2, $group->jobs()->where('status', 'pending')->count());
-        Queue::assertPushed(ProcessGenerationJob::class, 1);
-        Queue::assertPushed(ProcessGenerationJob::class, fn (ProcessGenerationJob $job): bool => $job->generationJob->period === 'two_weeks');
+        $this->assertSame(3, $group->jobs()->where('status', 'queued')->count());
+        Queue::assertPushed(ProcessGenerationJob::class, 3);
+        foreach (['two_weeks', 'intermediate_regrowth', 'final_result'] as $period) {
+            Queue::assertPushed(
+                ProcessGenerationJob::class,
+                fn (ProcessGenerationJob $job): bool => $job->generationJob->period === $period,
+            );
+        }
     }
 
-    public function test_gapgpt_first_stage_failure_stops_remaining_stages_with_generic_errors(): void
+    public function test_gapgpt_stage_failure_does_not_cancel_remaining_stages(): void
     {
         $tenant = $this->createTenant('Clinic One', 'aria', 'aria.hairvision-ai.test');
         $this->activateTenantSubscription($tenant, 10);
@@ -1003,8 +1008,8 @@ class HairVisionMvpTest extends TestCase
         $groupId = $this->withSession(['lead_id' => $lead->id])
             ->forHost('aria.hairvision-ai.test')
             ->postJson('/api/v1/generations', ['upload_id' => $uploadId])
-            ->assertOk()
-            ->assertJsonPath('generation_group.status', 'processing')
+            ->assertStatus(202)
+            ->assertJsonPath('generation_group.status', 'queued')
             ->json('generation_group.id');
 
         Http::fake([
@@ -1024,10 +1029,10 @@ class HairVisionMvpTest extends TestCase
             ->forHost('aria.hairvision-ai.test')
             ->getJson('/api/v1/generations/'.$groupId.'/status')
             ->assertOk()
-            ->assertJsonPath('status', 'failed')
+            ->assertJsonPath('status', 'queued')
             ->assertJsonPath('jobs.0.status', 'failed')
-            ->assertJsonPath('jobs.1.status', 'cancelled')
-            ->assertJsonPath('jobs.2.status', 'cancelled')
+            ->assertJsonPath('jobs.1.status', 'queued')
+            ->assertJsonPath('jobs.2.status', 'queued')
             ->assertJsonPath('jobs.0.error', __('ai_models.errors.provider_failed'))
             ->assertJsonPath('jobs.1.error', null)
             ->assertJsonPath('jobs.2.error', null);
@@ -1035,7 +1040,7 @@ class HairVisionMvpTest extends TestCase
         Log::shouldHaveReceived('warning')
             ->withArgs(fn (string $message, array $context): bool => $message === 'Generation job failed.'
                 && ($context['period'] ?? null) === 'two_weeks'
-                && ($context['reason_code'] ?? null) === 'provider_http_error'
+                && ($context['reason_code'] ?? null) === 'provider_client_error'
                 && ($context['model_key'] ?? null) === 'gapgpt'
                 && ! str_contains(json_encode($context, JSON_THROW_ON_ERROR), 'gap-secret'))
             ->once();
@@ -1101,8 +1106,8 @@ class HairVisionMvpTest extends TestCase
         $groupId = $this->withSession(['lead_id' => $lead->id])
             ->forHost('aria.hairvision-ai.test')
             ->postJson('/api/v1/generations', ['upload_id' => $uploadId])
-            ->assertOk()
-            ->assertJsonPath('generation_group.status', 'processing')
+            ->assertStatus(202)
+            ->assertJsonPath('generation_group.status', 'queued')
             ->json('generation_group.id');
 
         Http::fake([
@@ -1126,7 +1131,7 @@ class HairVisionMvpTest extends TestCase
             ->values();
 
         $this->assertCount(1, $gapGptRequests);
-        $this->assertSame('failed', $group->status);
+        $this->assertSame('queued', $group->status);
         $this->assertSame('failed', $firstJob->status);
         $this->assertSame(1, $firstJob->attempts);
         $this->assertSame(__('ai_models.errors.provider_failed'), $firstJob->last_error);
@@ -1136,10 +1141,10 @@ class HairVisionMvpTest extends TestCase
             ->forHost('aria.hairvision-ai.test')
             ->getJson('/api/v1/generations/'.$groupId.'/status')
             ->assertOk()
-            ->assertJsonPath('status', 'failed')
+            ->assertJsonPath('status', 'queued')
             ->assertJsonPath('jobs.0.status', 'failed')
-            ->assertJsonPath('jobs.1.status', 'cancelled')
-            ->assertJsonPath('jobs.2.status', 'cancelled')
+            ->assertJsonPath('jobs.1.status', 'queued')
+            ->assertJsonPath('jobs.2.status', 'queued')
             ->assertJsonPath('jobs.0.error', __('ai_models.errors.provider_failed'))
             ->assertJsonPath('jobs.1.error', null)
             ->assertJsonPath('jobs.2.error', null);
@@ -1147,7 +1152,7 @@ class HairVisionMvpTest extends TestCase
         Log::shouldHaveReceived('warning')
             ->withArgs(fn (string $message, array $context): bool => $message === 'Generation job failed.'
                 && ($context['period'] ?? null) === 'two_weeks'
-                && ($context['reason_code'] ?? null) === 'provider_http_error'
+                && ($context['reason_code'] ?? null) === 'provider_server_error'
                 && ($context['model_key'] ?? null) === 'gapgpt'
                 && ! str_contains(json_encode($context, JSON_THROW_ON_ERROR), 'gap-secret'))
             ->once();
@@ -1218,20 +1223,20 @@ class HairVisionMvpTest extends TestCase
         $this->withSession(['lead_id' => $lead->id])
             ->forHost('aria.hairvision-ai.test')
             ->postJson('/api/v1/generations', ['upload_id' => $uploadId])
-            ->assertOk()
+            ->assertStatus(202)
             ->assertJsonPath('generation_group.status', 'failed')
             ->assertJsonPath('jobs.0.status', 'failed')
-            ->assertJsonPath('jobs.1.status', 'cancelled')
-            ->assertJsonPath('jobs.2.status', 'cancelled')
+            ->assertJsonPath('jobs.1.status', 'failed')
+            ->assertJsonPath('jobs.2.status', 'failed')
             ->assertJsonPath('jobs.0.error', __('ai_models.errors.provider_failed'))
-            ->assertJsonPath('jobs.1.error', null)
-            ->assertJsonPath('jobs.2.error', null);
+            ->assertJsonPath('jobs.1.error', __('ai_models.errors.provider_failed'))
+            ->assertJsonPath('jobs.2.error', __('ai_models.errors.provider_failed'));
 
         $gapGptRequests = Http::recorded()
             ->filter(fn (array $record): bool => $record[0]->url() === 'https://api.gapgpt.app/v1/images/edits')
             ->values();
 
-        $this->assertCount(1, $gapGptRequests);
+        $this->assertCount(3, $gapGptRequests);
         $this->assertSame(0, $access->refresh()->credit_used);
         $this->assertSame(0, CreditTransaction::query()->where('tenant_id', $tenant->id)->where('type', 'use')->count());
         $this->assertDatabaseHas('ai_model_usage_logs', [
@@ -1248,18 +1253,18 @@ class HairVisionMvpTest extends TestCase
                 && ($context['request_id'] ?? null) === 'gap-error-request'
                 && ($context['endpoint_host'] ?? null) === 'api.gapgpt.app'
                 && ! str_contains(json_encode($context, JSON_THROW_ON_ERROR), 'gap-secret'))
-            ->once();
+            ->times(3);
 
         Log::shouldHaveReceived('warning')
             ->withArgs(fn (string $message, array $context): bool => $message === 'Generation job failed.'
                 && ($context['period'] ?? null) === 'two_weeks'
-                && ($context['reason_code'] ?? null) === 'provider_http_error'
+                && ($context['reason_code'] ?? null) === 'provider_client_error'
                 && ($context['model_key'] ?? null) === 'gapgpt'
                 && ! str_contains(json_encode($context, JSON_THROW_ON_ERROR), 'gap-secret'))
             ->once();
     }
 
-    public function test_generation_dispatches_only_the_first_stage_initially(): void
+    public function test_generation_dispatches_all_independent_stages_initially(): void
     {
         $tenant = $this->createTenant('Clinic One', 'aria', 'aria.hairvision-ai.test');
         $this->activateTenantSubscription($tenant, 10);
@@ -1285,9 +1290,9 @@ class HairVisionMvpTest extends TestCase
         $groupId = $this->withSession(['lead_id' => $lead->id])
             ->forHost('aria.hairvision-ai.test')
             ->postJson('/api/v1/generations', ['upload_id' => $uploadId])
-            ->assertOk()
-            ->assertJsonPath('generation_group.status', 'processing')
-            ->assertJsonPath('jobs.0.status', 'processing')
+            ->assertStatus(202)
+            ->assertJsonPath('generation_group.status', 'queued')
+            ->assertJsonPath('jobs.0.status', 'queued')
             ->assertJsonPath('jobs.0.period', 'two_weeks')
             ->assertJsonPath('jobs.1.period', 'intermediate_regrowth')
             ->assertJsonPath('jobs.2.period', 'final_result')
@@ -1295,10 +1300,73 @@ class HairVisionMvpTest extends TestCase
 
         $group = GenerationGroup::query()->where('uuid', $groupId)->firstOrFail();
 
-        $this->assertSame(1, $group->jobs()->where('status', 'processing')->count());
-        $this->assertSame(2, $group->jobs()->where('status', 'pending')->count());
-        Queue::assertPushed(ProcessGenerationJob::class, 1);
-        Queue::assertPushed(ProcessGenerationJob::class, fn (ProcessGenerationJob $job): bool => $job->generationJob->period === 'two_weeks');
+        $this->assertSame(3, $group->jobs()->where('status', 'queued')->count());
+        Queue::assertPushed(ProcessGenerationJob::class, 3);
+        foreach (['two_weeks', 'intermediate_regrowth', 'final_result'] as $period) {
+            Queue::assertPushed(
+                ProcessGenerationJob::class,
+                fn (ProcessGenerationJob $job): bool => $job->generationJob->period === $period,
+            );
+        }
+    }
+
+    public function test_outputs_and_different_users_requests_have_independent_failure_state(): void
+    {
+        $tenant = $this->createTenant('Clinic One', 'aria', 'aria.hairvision-ai.test');
+        $this->activateTenantSubscription($tenant, 20);
+        Queue::fake();
+
+        $firstLead = Lead::create([
+            'tenant_id' => $tenant->id,
+            'phone' => '09125550001',
+            'phone_normalized' => '09125550001',
+            'phone_verified_at' => now(),
+            'status' => 'verified',
+        ]);
+        $secondLead = Lead::create([
+            'tenant_id' => $tenant->id,
+            'phone' => '09125550002',
+            'phone_normalized' => '09125550002',
+            'phone_verified_at' => now(),
+            'status' => 'verified',
+        ]);
+
+        $firstUpload = $this->withSession(['lead_id' => $firstLead->id])
+            ->forHost('aria.hairvision-ai.test')
+            ->post('/api/v1/uploads', ['image' => $this->fakeImageUpload(), 'consent' => '1'])
+            ->assertOk()
+            ->json('upload.id');
+        $secondUpload = $this->withSession(['lead_id' => $secondLead->id])
+            ->forHost('aria.hairvision-ai.test')
+            ->post('/api/v1/uploads', ['image' => $this->fakeImageUpload(), 'consent' => '1'])
+            ->assertOk()
+            ->json('upload.id');
+
+        $firstGroupId = $this->withSession(['lead_id' => $firstLead->id])
+            ->forHost('aria.hairvision-ai.test')
+            ->postJson('/api/v1/generations', ['upload_id' => $firstUpload])
+            ->assertStatus(202)
+            ->json('generation_group.id');
+        $secondGroupId = $this->withSession(['lead_id' => $secondLead->id])
+            ->forHost('aria.hairvision-ai.test')
+            ->postJson('/api/v1/generations', ['upload_id' => $secondUpload])
+            ->assertStatus(202)
+            ->json('generation_group.id');
+
+        $firstGroup = GenerationGroup::query()->where('uuid', $firstGroupId)->firstOrFail();
+        $secondGroup = GenerationGroup::query()->where('uuid', $secondGroupId)->firstOrFail();
+        $firstGroup->jobs()->orderBy('id')->firstOrFail()->forceFill([
+            'status' => 'failed',
+            'error_code' => 'provider_client_error',
+            'completed_at' => now(),
+        ])->save();
+        app(GenerationGroupStatusService::class)->refresh($firstGroup);
+
+        $this->assertSame('queued', $firstGroup->refresh()->status);
+        $this->assertSame(2, $firstGroup->jobs()->where('status', 'queued')->count());
+        $this->assertSame('queued', $secondGroup->refresh()->status);
+        $this->assertSame(3, $secondGroup->jobs()->where('status', 'queued')->count());
+        Queue::assertPushed(ProcessGenerationJob::class, 6);
     }
 
     public function test_generation_job_without_assigned_model_fails_without_provider_fallback(): void

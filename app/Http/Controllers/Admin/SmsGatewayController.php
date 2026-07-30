@@ -141,15 +141,16 @@ class SmsGatewayController extends Controller
      *
      * @param  Request  $request  Incoming HTTP request.
      * @param  SmsGateway  $smsGateway  The sms gateway value.
+     * @param  SmsGatewayManagementService  $manager  The manager value.
      * @return RedirectResponse HTTP redirect response.
      *
      * @since 1.0.0
      */
-    public function destroy(Request $request, SmsGateway $smsGateway): RedirectResponse
+    public function destroy(Request $request, SmsGateway $smsGateway, SmsGatewayManagementService $manager): RedirectResponse
     {
         Gate::authorize('delete', $smsGateway);
 
-        $smsGateway->delete();
+        $manager->deleteSystem($smsGateway);
 
         return redirect()->route('admin.system.sms-gateways.index')->with('status', __('sms.deleted'));
     }

@@ -13,7 +13,9 @@ use App\Services\AI\AiModelManager;
 use App\Services\AI\AiModelResolver;
 use App\Services\AI\ApiImagePreprocessor;
 use App\Services\AI\InputImageProcessingSettings;
+use App\Support\SafeThrowableContext;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
@@ -92,10 +94,13 @@ class RunAiModelAction
         $temporaryInput = null;
         $providerCreditReserved = false;
         $providerCallStarted = false;
+        $credentials = [];
 
         try {
             $providerCreditReserved = $this->reserveProviderCredit($access);
             $modelConfig = $this->resolver->model($access->model_key);
+            $storedCredentials = $access->credentials;
+            $credentials = is_array($storedCredentials) ? $storedCredentials : [];
 
             $provider = $this->resolver->providerFor($access);
 
@@ -111,7 +116,7 @@ class RunAiModelAction
                 access: $access,
                 usageCategoryKey: $usageCategoryKey,
                 modelConfig: $modelConfig,
-                credentials: $access->credentials ?? [],
+                credentials: $credentials,
                 settings: $access->settings ?? [],
                 prompt: is_string($payload['prompt'] ?? null) ? $payload['prompt'] : null,
                 payload: $payload,
@@ -123,6 +128,29 @@ class RunAiModelAction
         } catch (Throwable $exception) {
             $this->releaseProviderCredit($access, $providerCreditReserved);
             $errorCode = $providerCallStarted ? 'provider_exception' : 'provider_preflight_exception';
+            $redactValues = array_values(array_filter([
+                is_string($payload['prompt'] ?? null) ? $payload['prompt'] : null,
+                is_string($payload['upload_path'] ?? null) ? $payload['upload_path'] : null,
+                ...array_values(array_filter(
+                    $credentials,
+                    static fn (mixed $value): bool => is_string($value),
+                )),
+            ], static fn (mixed $value): bool => is_string($value) && $value !== ''));
+
+            Log::warning('AI model execution failed before a provider response was returned.', [
+                'request_reference' => $log->request_reference,
+                'tenant_id' => $clinic->id,
+                'lead_id' => $leadId,
+                'ai_model_access_id' => $access->id,
+                'model_key' => $access->model_key,
+                'usage_category' => $usageCategoryKey,
+                'generation_request_uuid' => $payload['generation_request_id'] ?? null,
+                'generation_attempt_uuid' => $payload['generation_attempt_id'] ?? null,
+                'generation_job_uuid' => $payload['generation_job_id'] ?? null,
+                'provider_call_started' => $providerCallStarted,
+                'reason_code' => $errorCode,
+                'exception' => SafeThrowableContext::make($exception, $redactValues),
+            ]);
             $log->update([
                 'status' => 'failed',
                 'error_code' => $errorCode,

@@ -6,6 +6,7 @@ use App\Jobs\ProcessGenerationAttempt;
 use App\Jobs\ProcessGenerationJob;
 use App\Models\GenerationAttempt;
 use App\Models\GenerationJob;
+use App\Services\Generation\QueueWindowBudget;
 use Illuminate\Bus\Queueable;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -27,8 +28,8 @@ class QueueRuntimeTest extends TestCase
         $attemptJob = new ProcessGenerationAttempt(new GenerationAttempt);
         $workerTimeout = (int) config('hairvision.queue_worker.timeout_seconds');
 
-        $this->assertSame(960, $generationJob->timeout);
-        $this->assertSame(960, $attemptJob->timeout);
+        $this->assertSame(1010, $generationJob->timeout);
+        $this->assertSame(1010, $attemptJob->timeout);
         $this->assertGreaterThanOrEqual($generationJob->timeout, $workerTimeout);
         $this->assertGreaterThan($workerTimeout, (int) config('queue.connections.redis.retry_after'));
         $this->assertGreaterThan($workerTimeout, (int) config('queue.connections.database.retry_after'));
@@ -75,10 +76,22 @@ class QueueRuntimeTest extends TestCase
             ->assertExitCode(Command::FAILURE);
     }
 
+    public function test_queue_window_budget_finishes_before_the_next_cron_minute(): void
+    {
+        $budget = app(QueueWindowBudget::class);
+
+        $this->assertSame(57, $budget->resolve(58, 0));
+        $this->assertSame(52, $budget->resolve(58, 5));
+        $this->assertSame(1, $budget->resolve(58, 57));
+        $this->assertSame(10, $budget->resolve(10, 5));
+    }
+
     public function test_cpanel_scheduler_compiles_queue_connection_as_a_positional_argument(): void
     {
         config([
             'hairvision.queue_worker.cpanel_cron_enabled' => true,
+            'hairvision.image_queue.worker_mode' => 'window',
+            'hairvision.image_queue.worker_count' => 3,
             'hairvision.queue_worker.cpanel_connection' => 'database',
             'hairvision.queue_worker.queues' => 'default',
             'hairvision.queue_worker.processes' => 3,

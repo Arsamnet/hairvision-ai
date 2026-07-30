@@ -1,6 +1,6 @@
 # API Reference
 
-Version: [`2.0.3`](../CHANGELOG.md#203)
+Version: [`2.1.0`](../CHANGELOG.md#210)
 
 All public product behavior goes through `/api/v1`, even when the UI is Blade.
 Blade may render the tenant shell and client-side interactions, but OTP, upload,
@@ -24,6 +24,16 @@ Accept: application/json
 Content-Type: application/json
 X-Requested-With: XMLHttpRequest
 ```
+
+Generation status/result requests also send the opaque resume credential
+returned at creation time:
+
+```http
+X-HairVision-Resume-Token: 64-character-session-token
+```
+
+This header supplements, and never replaces, the verified tenant/lead session.
+Only its SHA-256 digest is stored in the database.
 
 Upload:
 
@@ -216,6 +226,7 @@ same `(tenant_id, lead_id)` and makes the new image current.
 ```http
 GET /api/v1/profile/categories
 GET /api/v1/profile/generations
+GET /api/v1/profile/source-images/{sourceImage}/stream
 ```
 
 Categories are the tenant-visible AI applications that pass the same runtime
@@ -227,6 +238,8 @@ assignment removes the affected application from public category responses.
 Generation history is scoped to the current tenant and verified lead. Category
 outputs include public metadata such as code, title, description, order and
 credit cost; server-side prompts are never returned by public profile APIs.
+The source-image stream resolves tenant from the request host and requires the
+same verified lead session; it never exposes private storage paths.
 
 ## Create Generation
 
@@ -263,6 +276,22 @@ request with a queued attempt. The backend snapshots and uses the prompt stored
 on the selected category output. Repeating the same idempotency key in the same
 tenant/lead scope returns the same generation request.
 
+Creation returns `202 Accepted` immediately. Example:
+
+```json
+{
+  "data": {
+    "id": "generation-uuid",
+    "status": "queued",
+    "status_url": "/api/v1/generations/generation-uuid",
+    "results_url": "/api/v1/generations/independent/generation-uuid/results",
+    "resume_token": "64-character-session-token",
+    "asset_url": null,
+    "error": null
+  }
+}
+```
+
 Every successful generated image is normalized before permanent private
 storage to JPEG quality 85 with an exact 800-pixel longest side, without crop or
 aspect-ratio distortion. Stream responses therefore use `image/jpeg` regardless
@@ -272,16 +301,27 @@ Creation also reserves the output credit atomically. An attempt remains in the
 database FIFO as `queued` until its selected model has a free concurrency slot;
 only then is it transported to the database queue. Explicit provider `429`
 responses may produce a delayed follow-up attempt while the public generation
-request remains `queued`. Ambiguous post-call failures are not retried
-automatically.
+request remains `queued`. OpenAI DNS/TCP failures proven to occur before HTTP
+delivery may likewise produce up to two delayed attempts with configurable
+exponential backoff and jitter. Ambiguous response/processing timeouts and other
+post-delivery failures are not retried automatically.
 
 ```http
 GET /api/v1/generations/independent/{generation}
+GET /api/v1/generations/independent/{generation}/results
 POST /api/v1/generations/independent/{generation}/regenerate
 GET /api/v1/generations/{generation}
 POST /api/v1/generations/{generation}/regenerate
+GET /api/v1/generations/resumable
 GET /api/v1/assets/{asset}/stream
 ```
+
+Independent status, results, and regenerate require the verified lead session
+plus the matching resume token. A UUID alone is insufficient.
+`/generations/resumable` returns only records whose raw token is retained by the
+current server session and whose resumable window has not expired. The browser
+may mirror UUID/token pairs in `sessionStorage`; it must not use local storage
+or submit tenant/model/provider authority.
 
 The legacy `upload_id` payload remains supported for compatibility with the v1
 staged group flow.
@@ -318,19 +358,19 @@ public values are:
 - `hair_transplant`: creates three staged jobs.
 - `eyebrow_transplant`: creates one final-result job.
 
-Response:
+Response (`202 Accepted`):
 
 ```json
 {
   "success": true,
   "generation_group": {
     "id": "uuid",
-    "status": "processing"
+    "status": "queued"
   },
   "current_stage": {
     "key": "two_weeks",
     "label": "یک روز بعد از کاشت مو",
-    "status": "pending"
+    "status": "queued"
   },
   "stages": [
     {
@@ -358,7 +398,7 @@ Response:
       "period": "two_weeks",
       "key": "two_weeks",
       "label": "یک روز بعد از کاشت مو",
-      "status": "pending",
+      "status": "queued",
       "asset_url": null
     }
   ]
@@ -367,6 +407,12 @@ Response:
 
 Re-posting the same `upload_id` returns the existing group instead of creating
 duplicate jobs.
+
+All legacy outputs are queued independently after the creation transaction
+commits. Their display order remains configured, but execution is parallel up
+to worker and provider capacity. A failed output never cancels its siblings,
+and a ready asset remains available while other outputs are queued, processing,
+or failed.
 
 ## Generation Status
 
@@ -399,7 +445,7 @@ Response:
     },
     {
       "period": "final_result",
-      "status": "pending",
+      "status": "queued",
       "asset_url": null
     }
   ]
@@ -408,12 +454,20 @@ Response:
 
 Clients should reveal each job as soon as `asset_url` is present.
 
+Polling begins immediately after `202`. Use one loop per browser, adaptive
+backoff with jitter, slower checks while hidden, and immediate synchronization
+on focus, visibility restoration, and `online`. There is no overall polling
+timeout: transient network/API failures keep retrying, and only loss of the
+verified session requires user action. The request set is terminal only when
+every requested output is `completed`, `failed`, or `cancelled`.
+
 ## Results
 
 Requires a verified lead session.
 
 ```http
 GET /api/v1/generations/{generation_group_id}/results
+GET /api/v1/generations/independent/{generation}/results
 ```
 
 Response:
@@ -630,24 +684,39 @@ secret credential and is never returned:
 ```json
 {
   "endpoint": "https://api.openai.com/v1/images/edits",
-  "model": "gpt-image-1.5",
+  "model": "gpt-image-2",
   "quality": "low",
   "size": "816x816",
   "output_format": "jpeg",
   "background": "opaque",
   "moderation": "auto",
   "output_compression": 70,
-  "timeout_seconds": 900,
-  "concurrency_limit": 1
+  "timeout_seconds": 1000,
+  "connect_timeout_seconds": 50,
+  "concurrency_limit": 2
 }
 ```
 
+On a fresh seed, `openai` is the only active AI provider and model type in the
+database execution baseline. Every seeded base plan and service add-on selects
+the category-matching OpenAI access, and every active seeded-clinic assignment
+uses OpenAI. Seeded `sample_image` and `gapgpt` records remain inactive for
+explicit administrator-controlled use and receive no seeded clinic assignment;
+top-up plans have no model assignment.
+
 `quality` accepts `low`, `medium`, or `high`; `output_format` accepts `jpeg`,
-`png`, or `webp`; and output compression accepts `0..100`. Every OpenAI output
+`png`, or `webp`; and output compression accepts `0..100`. OpenAI requests do
+not send `response_format`; GPT Image returns base64 image data without that
+field. The response timeout has no fixed dashboard
+maximum; deployments that raise it must also raise worker and queue retry
+timeouts in the documented order. Every OpenAI output
 configuration has one required `prompt`, populated from the selected
 application output by the seeded legacy-to-v2 bridge. Provider calls send the
 private image as multipart `image[]`, fix `n` to `1`, and decode
 `data[0].b64_json`. Public APIs never accept or expose these settings.
+The default concurrency value follows `HAIRVISION_OPENAI_CONCURRENCY_LIMIT` and
+is `2`; increasing it also requires enough active workers and global provider
+capacity.
 
 The product seed keeps `816x816` as its configurable default. The current
 official OpenAI endpoint documents only `auto`, `1024x1024`, `1536x1024`, and

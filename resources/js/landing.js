@@ -9,6 +9,7 @@ export function bootLanding() {
         phone: 'hairvisionPhone',
         verified: 'hairvisionVerified',
         activeGenerationIds: 'hairvisionActiveGenerationIds',
+        resumeTokens: 'hairvisionGenerationResumeTokens',
     };
 
     const STATE = {
@@ -34,6 +35,9 @@ export function bootLanding() {
         pendingOutputIds: new Set(),
         sourceImageFromProfile: false,
         serverSessionVerified: false,
+        pollPromise: null,
+        pollTimer: null,
+        pollWake: null,
     };
 
     const DIGIT_MAP = {
@@ -63,6 +67,29 @@ export function bootLanding() {
 
     function wait(ms) {
         return new Promise((resolve) => setTimeout(resolve, ms));
+    }
+
+    function resumeTokens() {
+        try {
+            const value = JSON.parse(sessionStorage.getItem(STORAGE_KEYS.resumeTokens) || '{}');
+            return value && typeof value === 'object' && !Array.isArray(value) ? value : {};
+        } catch (error) {
+            return {};
+        }
+    }
+
+    function rememberResumeTokens(generations = STATE.generations) {
+        const tokens = resumeTokens();
+
+        (generations || []).forEach((generation) => {
+            if (generation?.id && generation?.resume_token) tokens[generation.id] = generation.resume_token;
+        });
+
+        sessionStorage.setItem(STORAGE_KEYS.resumeTokens, JSON.stringify(tokens));
+    }
+
+    function resumeTokenFor(generationId) {
+        return resumeTokens()[generationId] || '';
     }
 
     function selectedCategory() {
@@ -174,6 +201,7 @@ export function bootLanding() {
         profile: () => requestJson('/api/v1/profile'),
         profileCategories: () => requestJson('/api/v1/profile/categories'),
         profileGenerations: () => requestJson('/api/v1/profile/generations'),
+        resumableGenerations: () => requestJson('/api/v1/generations/resumable'),
         requestOtp: (phone) => requestJson('/api/v1/auth/otp/request', {
             method: 'POST',
             body: JSON.stringify({ phone }),
@@ -203,7 +231,11 @@ export function bootLanding() {
                 }),
             });
         },
-        getGeneration: (generationId) => requestJson(`/api/v1/generations/${generationId}`),
+        getGeneration: (generationId) => requestJson(`/api/v1/generations/${generationId}`, {
+            headers: {
+                'X-HairVision-Resume-Token': resumeTokenFor(generationId),
+            },
+        }),
     };
 
     const UI = {
@@ -576,6 +608,7 @@ export function bootLanding() {
     function saveActiveGenerations() {
         const ids = STATE.generations.map((generation) => generation.id).filter(Boolean);
         if (!ids.length) return clearActiveGeneration();
+        rememberResumeTokens();
         sessionStorage.setItem(STORAGE_KEYS.activeGenerationIds, JSON.stringify(ids));
     }
 
@@ -631,13 +664,32 @@ export function bootLanding() {
         return ['queued', 'dispatched', 'processing'].includes(generation?.status);
     }
 
+    function latestGenerationsPerOutput(generations) {
+        const seen = new Set();
+
+        return [...(generations || [])]
+            .filter(Boolean)
+            .reverse()
+            .filter((generation) => {
+                const outputKey = generation.output?.id || generation.output?.code;
+                const key = outputKey ? `output:${outputKey}` : `generation:${generation.id || ''}`;
+
+                if (seen.has(key)) return false;
+
+                seen.add(key);
+
+                return true;
+            })
+            .reverse();
+    }
+
     function mergeGenerations(current, incoming) {
         const map = new Map();
         [...(current || []), ...(incoming || [])].filter(Boolean).forEach((generation) => {
             map.set(generation.id, generation);
         });
 
-        return Array.from(map.values());
+        return latestGenerationsPerOutput(Array.from(map.values()));
     }
 
     async function refreshVerifiedCategories() {
@@ -648,18 +700,42 @@ export function bootLanding() {
 
     async function refreshActiveGenerations() {
         const refreshed = [];
+        const targets = STATE.generations.filter((generation) => generation.id);
+        const outcomes = await Promise.allSettled(targets.map(async (generation) => ({
+            generation,
+            result: await API.getGeneration(generation.id),
+        })));
+        let verificationFailure = null;
+        let firstTransientFailure = null;
 
-        for (const generation of STATE.generations) {
-            if (!generation.id) continue;
+        for (const outcome of outcomes) {
+            if (outcome.status === 'rejected') {
+                firstTransientFailure ||= { success: false, status: 0 };
+                continue;
+            }
 
-            const result = await API.getGeneration(generation.id);
-            if (result.success === false) return result;
+            const result = outcome.value.result;
+
+            if (result.success === false) {
+                if (result.requiresVerification) verificationFailure = result;
+                else firstTransientFailure ||= result;
+                continue;
+            }
+
             refreshed.push(result.data);
         }
 
         STATE.generations = mergeGenerations(STATE.generations, refreshed);
+        rememberResumeTokens(STATE.generations);
 
-        return { success: true, data: STATE.generations };
+        if (verificationFailure) return verificationFailure;
+        if (firstTransientFailure && !refreshed.length) return firstTransientFailure;
+
+        return {
+            success: true,
+            data: STATE.generations,
+            partialFailure: Boolean(firstTransientFailure),
+        };
     }
 
     function startStatusMessages(force = false) {
@@ -694,16 +770,20 @@ export function bootLanding() {
 
     function applyGenerationStatus(generations) {
         const items = Array.isArray(generations?.data) ? generations.data : (Array.isArray(generations) ? generations : STATE.generations);
-        STATE.generations = items.filter(Boolean);
+        STATE.generations = latestGenerationsPerOutput(items);
         STATE.hasRequestedAnyOutput = STATE.generations.length > 0 || STATE.pendingOutputIds.size > 0;
         renderOutputOptions();
         renderProductionTable();
         UI.showStep(4);
 
         const failed = STATE.generations.some((generation) => ['failed', 'cancelled'].includes(generation.status));
-        const completed = STATE.generations.length > 0 && STATE.generations.every((generation) => generation.status === 'completed');
+        const terminal = STATE.generations.length > 0
+            && STATE.generations.every((generation) => ['completed', 'failed', 'cancelled'].includes(generation.status));
+        const completed = terminal && !failed;
 
-        if (failed) {
+        if (!failed) UI.clearError('generationError');
+
+        if (terminal && failed) {
             clearActiveGeneration();
             stopStageMessages();
             STATE.generationComplete = false;
@@ -726,38 +806,67 @@ export function bootLanding() {
             return 'completed';
         }
 
+        if (failed) {
+            UI.showError('generationError', 'ساخت یک خروجی ناموفق بود؛ پردازش خروجی‌های دیگر همچنان ادامه دارد.');
+        }
+
         startStatusMessages();
 
         return 'processing';
     }
 
-    async function pollUntilComplete() {
+    function waitForNextPoll(ms) {
+        return new Promise((resolve) => {
+            const finish = () => {
+                if (STATE.pollTimer) window.clearTimeout(STATE.pollTimer);
+                STATE.pollTimer = null;
+                STATE.pollWake = null;
+                resolve();
+            };
+
+            STATE.pollWake = finish;
+            STATE.pollTimer = window.setTimeout(finish, Math.max(0, ms));
+        });
+    }
+
+    function wakePolling() {
+        if (typeof STATE.pollWake === 'function') STATE.pollWake();
+    }
+
+    async function runPollingLoop() {
         const startedAt = Date.now();
-        const intervalMs = Number(GENERATION.pollIntervalMs || 5000);
+        const initialIntervalMs = Number(GENERATION.pollInitialIntervalMs || GENERATION.pollIntervalMs || 1500);
+        const maximumIntervalMs = Math.max(initialIntervalMs, Number(GENERATION.pollMaxIntervalMs || 15000));
         const softTimeoutMs = Number(GENERATION.softTimeoutMs || 120000);
-        const legacyTimeoutMs = Number(GENERATION.pollTimeoutMs || 900000);
-        const maxWaitMs = Number(GENERATION.maxWaitMs ?? legacyTimeoutMs ?? 900000);
         let softMessageShown = false;
         let transientFailures = 0;
-        const waitIndefinitely = GENERATION.allowBackgroundCompletion === false || maxWaitMs <= 0;
+        let intervalMs = 0;
 
-        while (waitIndefinitely || Date.now() - startedAt < maxWaitMs) {
-            await wait(document.hidden ? Math.max(intervalMs, 15000) : intervalMs);
+        while (true) {
+            const hiddenDelay = document.hidden ? Math.max(intervalMs, 15000) : intervalMs;
+            await waitForNextPoll(hiddenDelay);
             let statusResult;
 
             try {
                 statusResult = await refreshActiveGenerations();
-                transientFailures = 0;
+                transientFailures = statusResult.partialFailure ? transientFailures + 1 : 0;
             } catch (error) {
                 transientFailures += 1;
                 UI.showStatus('ارتباط موقتاً قطع شده است؛ پردازش در سرور ادامه دارد و وضعیت دوباره بررسی می‌شود.');
-                await wait(Math.min(30000, intervalMs * transientFailures));
+                intervalMs = Math.min(maximumIntervalMs, Math.max(initialIntervalMs, initialIntervalMs * (transientFailures + 1)));
                 continue;
             }
 
             if (statusResult.success === false) {
-                handleApiFailure(statusResult);
-                return 'failed';
+                if (statusResult.requiresVerification) {
+                    handleApiFailure(statusResult);
+                    return 'failed';
+                }
+
+                transientFailures += 1;
+                UI.showStatus('همگام‌سازی وضعیت موقتاً ممکن نیست؛ پردازش سرور ادامه دارد.');
+                intervalMs = Math.min(maximumIntervalMs, Math.max(initialIntervalMs, initialIntervalMs * (transientFailures + 1)));
+                continue;
             }
 
             const state = applyGenerationStatus(statusResult);
@@ -768,13 +877,24 @@ export function bootLanding() {
                 softMessageShown = true;
                 UI.showStatus('ساخت پیش‌نمایش با مدل واقعی کمی زمان‌بر است. پردازش همچنان در سرور ادامه دارد.');
             }
+
+            const nextBase = intervalMs <= 0 ? initialIntervalMs : Math.min(maximumIntervalMs, Math.round(intervalMs * 1.5));
+            const jitter = Math.round(nextBase * (Math.random() * 0.3 - 0.15));
+            intervalMs = Math.max(250, Math.min(maximumIntervalMs, nextBase + jitter));
         }
+    }
 
-        stopStageMessages();
-        UI.showStatus(backgroundContinueMessage());
-        UI.showError('generationError', backgroundContinueMessage());
+    function pollUntilComplete() {
+        if (STATE.pollPromise) return STATE.pollPromise;
 
-        return 'background';
+        STATE.pollPromise = runPollingLoop().finally(() => {
+            if (STATE.pollTimer) window.clearTimeout(STATE.pollTimer);
+            STATE.pollTimer = null;
+            STATE.pollWake = null;
+            STATE.pollPromise = null;
+        });
+
+        return STATE.pollPromise;
     }
 
     function renderStagePanels(jobs) {
@@ -1252,6 +1372,7 @@ export function bootLanding() {
             STATE.pendingOutputIds.delete(output.id);
             STATE.generationComplete = false;
             STATE.generations = mergeGenerations(STATE.generations, [genResult.data]);
+            rememberResumeTokens([genResult.data]);
             saveActiveGenerations();
             applyGenerationStatus(STATE.generations);
 
@@ -1305,6 +1426,17 @@ export function bootLanding() {
         applyCategories(categoriesFromPayload(categoryResult));
         STATE.sourceImageId = profileResult.data?.source_image?.id || null;
         STATE.sourceImageFromProfile = Boolean(STATE.sourceImageId);
+        const sourceImageUrl = profileResult.data?.source_image?.url || null;
+
+        if (sourceImageUrl) {
+            STATE.originalPreviewUrl = sourceImageUrl;
+            const preview = document.getElementById('imagePreview');
+            const placeholder = document.getElementById('imagePlaceholder');
+            preview.src = sourceImageUrl;
+            preview.classList.remove('hidden');
+            placeholder.classList.add('hidden');
+            primeGallery();
+        }
 
         const currentGenerations = (generationResult.data || [])
             .filter((generation) => !STATE.sourceImageId || generation.source_image_id === STATE.sourceImageId);
@@ -1316,6 +1448,7 @@ export function bootLanding() {
         });
 
         STATE.generations = Array.from(latestByOutput.values());
+        rememberResumeTokens(STATE.generations);
 
         const latestGeneration = STATE.generations[0];
         if (latestGeneration?.category?.id && STATE.categories.some((category) => category.id === latestGeneration.category.id)) {
@@ -1534,6 +1667,25 @@ export function bootLanding() {
         if (event.key === 'Escape') closeImageModal();
         if (event.key === 'ArrowRight') showPreviousImage();
         if (event.key === 'ArrowLeft') showNextImage();
+    });
+
+    window.addEventListener('focus', () => {
+        if (STATE.generations.some(isNonTerminalGeneration)) {
+            wakePolling();
+            pollUntilComplete();
+        }
+    });
+    window.addEventListener('online', () => {
+        if (STATE.generations.some(isNonTerminalGeneration)) {
+            wakePolling();
+            pollUntilComplete();
+        }
+    });
+    document.addEventListener('visibilitychange', () => {
+        if (!document.hidden && STATE.generations.some(isNonTerminalGeneration)) {
+            wakePolling();
+            pollUntilComplete();
+        }
     });
 
     renderStagePanels([]);

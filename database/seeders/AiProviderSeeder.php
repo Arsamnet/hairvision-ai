@@ -38,9 +38,22 @@ class AiProviderSeeder extends Seeder
                 'type' => 'external',
                 'base_url' => config('ai-models.models.gapgpt.endpoint'),
                 'auth_type' => 'bearer',
-                'is_active' => true,
+                'is_active' => false,
                 'supports_async' => false,
                 'default_model' => config('ai-models.models.gapgpt.default_model'),
+            ]
+        );
+
+        AiProvider::query()->updateOrCreate(
+            ['code' => 'openai'],
+            [
+                'name' => __('ai_models.models.openai.name'),
+                'type' => 'external',
+                'base_url' => config('ai-models.models.openai.endpoint'),
+                'auth_type' => 'bearer',
+                'is_active' => true,
+                'supports_async' => false,
+                'default_model' => config('ai-models.models.openai.default_model'),
             ]
         );
     }

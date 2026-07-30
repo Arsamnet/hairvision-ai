@@ -65,7 +65,14 @@
                                     @endcan
                                 </x-admin.table.action-menu>
                             </td>
-                            <td class="px-4 py-3 font-bold">{{ $gateway->name }}</td>
+                            <td class="px-4 py-3 font-bold">
+                                <div class="flex flex-wrap items-center gap-2">
+                                    <span>{{ $gateway->name }}</span>
+                                    @if($gateway->is_protected)
+                                        <x-admin.badge tone="teal">{{ __('sms.protected') }}</x-admin.badge>
+                                    @endif
+                                </div>
+                            </td>
                             <td class="px-4 py-3" dir="ltr">{{ $gateway->provider_code }}</td>
                             <td class="px-4 py-3">{{ $gateway->owner_scope === 'tenant' ? $gateway->tenant?->name : __('system.owners.system') }}</td>
                             <td class="px-4 py-3"><x-admin.badge :tone="$gateway->status === 'enabled' ? 'emerald' : 'zinc'">{{ __('system.statuses.'.$gateway->status) }}</x-admin.badge></td>
@@ -87,7 +94,12 @@
                 <x-admin.mobile-list.card>
                     <div class="admin-mobile-list-card-header">
                         <div class="min-w-0">
-                            <p class="admin-mobile-list-card-title">{{ $gateway->name }}</p>
+                            <div class="flex flex-wrap items-center gap-2">
+                                <p class="admin-mobile-list-card-title">{{ $gateway->name }}</p>
+                                @if($gateway->is_protected)
+                                    <x-admin.badge tone="teal">{{ __('sms.protected') }}</x-admin.badge>
+                                @endif
+                            </div>
                             <p class="admin-mobile-list-card-subtitle" dir="ltr">{{ $gateway->provider_code }}</p>
                         </div>
                         <x-admin.table.action-menu>

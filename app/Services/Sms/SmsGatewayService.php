@@ -63,7 +63,7 @@ class SmsGatewayService
     private function systemDefaultFromConfig(): ?SmsGateway
     {
         $scope = 'sms.gateway.config_default';
-        $provider = config('hairvision.sms.default_provider', 'ippanel');
+        $provider = config('hairvision.sms.default_provider', 'local');
 
         if ($provider === 'local') {
             $gateway = new SmsGateway([
@@ -113,7 +113,7 @@ class SmsGatewayService
     public function systemIppanel(): ?SmsGateway
     {
         $scope = 'sms.gateway.system_ippanel';
-        $defaultProvider = config('hairvision.sms.default_provider', 'ippanel');
+        $defaultProvider = config('hairvision.sms.default_provider', 'local');
 
         $gateways = SmsGateway::query()
             ->system()

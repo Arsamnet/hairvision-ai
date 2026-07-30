@@ -2,10 +2,8 @@
 
 namespace Database\Seeders;
 
-use App\Models\AiModel;
 use App\Models\AiModelAccess;
 use App\Models\AiModelCategory;
-use App\Models\AiModelCategoryOutput;
 use App\Models\Plan;
 use App\Models\Tenant;
 use App\Models\User;
@@ -47,10 +45,10 @@ class AiModelAccessSeeder extends Seeder
                 'credit_limit' => null,
                 'credit_used' => 0,
                 'usage_count' => 0,
-                'is_active' => true,
+                'is_active' => false,
                 'is_demo' => true,
                 'is_protected' => false,
-                'priority' => 1,
+                'priority' => 100,
                 'created_by' => $superAdmin->id,
                 'updated_by' => $superAdmin->id,
             ]
@@ -75,10 +73,10 @@ class AiModelAccessSeeder extends Seeder
                 'credit_limit' => null,
                 'credit_used' => 0,
                 'usage_count' => 0,
-                'is_active' => true,
+                'is_active' => false,
                 'is_demo' => true,
                 'is_protected' => false,
-                'priority' => 1,
+                'priority' => 100,
                 'created_by' => $superAdmin->id,
                 'updated_by' => $superAdmin->id,
             ]
@@ -109,10 +107,10 @@ class AiModelAccessSeeder extends Seeder
                 'credit_limit' => null,
                 'credit_used' => 0,
                 'usage_count' => 0,
-                'is_active' => true,
+                'is_active' => false,
                 'is_demo' => false,
                 'is_protected' => false,
-                'priority' => 1,
+                'priority' => 100,
                 'created_by' => $superAdmin->id,
                 'updated_by' => $superAdmin->id,
             ]
@@ -142,10 +140,10 @@ class AiModelAccessSeeder extends Seeder
                 'credit_limit' => null,
                 'credit_used' => 0,
                 'usage_count' => 0,
-                'is_active' => true,
+                'is_active' => false,
                 'is_demo' => false,
                 'is_protected' => false,
-                'priority' => 1,
+                'priority' => 100,
                 'created_by' => $superAdmin->id,
                 'updated_by' => $superAdmin->id,
             ]
@@ -155,15 +153,16 @@ class AiModelAccessSeeder extends Seeder
         $openAiSettings = [
             ...InputImageProcessingSettings::defaults(),
             'endpoint_url' => $openAiModelConfig['endpoint'] ?? 'https://api.openai.com/v1/images/edits',
-            'model' => $openAiModelConfig['default_model'] ?? 'gpt-image-1.5',
+            'model' => $openAiModelConfig['default_model'] ?? 'gpt-image-2',
             'quality' => $openAiModelConfig['default_quality'] ?? 'low',
             'size' => $openAiModelConfig['default_size'] ?? '816x816',
             'output_format' => $openAiModelConfig['default_output_format'] ?? 'jpeg',
             'background' => $openAiModelConfig['default_background'] ?? 'opaque',
             'moderation' => $openAiModelConfig['default_moderation'] ?? 'auto',
             'output_compression' => $openAiModelConfig['default_output_compression'] ?? 70,
-            'timeout_seconds' => $openAiModelConfig['default_timeout'] ?? 900,
-            'connect_timeout_seconds' => $openAiModelConfig['default_connect_timeout'] ?? 30,
+            'timeout_seconds' => $openAiModelConfig['default_timeout'] ?? 1000,
+            'connect_timeout_seconds' => $openAiModelConfig['default_connect_timeout'] ?? 50,
+            'concurrency_limit' => max(1, (int) config('ai-models.types.openai.defaults.concurrency_limit', 2)),
         ];
         $hairOpenAiAccess = AiModelAccess::query()->updateOrCreate(
             [
@@ -184,7 +183,7 @@ class AiModelAccessSeeder extends Seeder
                 'is_active' => true,
                 'is_demo' => false,
                 'is_protected' => false,
-                'priority' => 2,
+                'priority' => 1,
                 'created_by' => $superAdmin->id,
                 'updated_by' => $superAdmin->id,
             ]
@@ -209,196 +208,64 @@ class AiModelAccessSeeder extends Seeder
                 'is_active' => true,
                 'is_demo' => false,
                 'is_protected' => false,
-                'priority' => 2,
+                'priority' => 1,
                 'created_by' => $superAdmin->id,
                 'updated_by' => $superAdmin->id,
             ]
         );
 
-        $this->seedExecutableSampleModel('hair_transplant', __('ai_models.seed.demo_access_name'), $demoAccess, $superAdmin);
-        $this->seedExecutableSampleModel('eyebrow_transplant', __('ai_models.seed.eyebrow_demo_access_name'), $eyebrowDemoAccess, $superAdmin);
-
         $executableModels = app(ExecutableAiModelSyncService::class);
+        $executableModels->sync($demoAccess, $superAdmin);
+        $executableModels->sync($eyebrowDemoAccess, $superAdmin);
         $executableModels->sync($hairGapGptAccess, $superAdmin);
         $executableModels->sync($eyebrowGapGptAccess, $superAdmin);
         $executableModels->sync($hairOpenAiAccess, $superAdmin);
         $executableModels->sync($eyebrowOpenAiAccess, $superAdmin);
 
         Tenant::query()
-            ->whereIn('slug', ['arya', 'noja'], 'and', false)
+            ->whereIn('slug', ['arya', 'noja', 'demo', 'silversands'], 'and', false)
             ->get()
-            ->each(function (Tenant $tenant) use ($demoAccess, $eyebrowDemoAccess, $hairGapGptAccess, $eyebrowGapGptAccess, $hairOpenAiAccess, $eyebrowOpenAiAccess, $superAdmin): void {
-                $tenant->aiModelAccesses()->syncWithoutDetaching([
-                    $demoAccess->id => [
-                        'is_active' => true,
-                        'assigned_by' => $superAdmin->id,
-                    ],
-                    $eyebrowDemoAccess->id => [
-                        'is_active' => true,
-                        'assigned_by' => $superAdmin->id,
-                    ],
-                    $hairGapGptAccess->id => [
-                        'is_active' => false,
-                        'assigned_by' => $superAdmin->id,
-                    ],
-                    $eyebrowGapGptAccess->id => [
-                        'is_active' => false,
-                        'assigned_by' => $superAdmin->id,
-                    ],
-                    $hairOpenAiAccess->id => [
-                        'is_active' => false,
-                        'assigned_by' => $superAdmin->id,
-                    ],
-                    $eyebrowOpenAiAccess->id => [
-                        'is_active' => false,
-                        'assigned_by' => $superAdmin->id,
-                    ],
-                ]);
-            });
+            ->each(fn (Tenant $tenant): int => $tenant->aiModelAccesses()->detach());
 
-        $demoTenant = Tenant::query()->where('slug', 'demo')->first();
-
-        if ($demoTenant) {
-            $demoTenant->aiModelAccesses()->syncWithoutDetaching([
-                $hairGapGptAccess->id => [
-                    'is_active' => true,
-                    'assigned_by' => $superAdmin->id,
-                ],
-                $eyebrowGapGptAccess->id => [
-                    'is_active' => true,
-                    'assigned_by' => $superAdmin->id,
-                ],
-                $hairOpenAiAccess->id => [
-                    'is_active' => false,
-                    'assigned_by' => $superAdmin->id,
-                ],
-                $eyebrowOpenAiAccess->id => [
-                    'is_active' => false,
-                    'assigned_by' => $superAdmin->id,
-                ],
-            ]);
-        }
-
-        $this->assignSeededPlanModels($demoAccess, $eyebrowDemoAccess, $hairOpenAiAccess);
+        $this->assignSeededPlanModels($hairOpenAiAccess, $eyebrowOpenAiAccess);
     }
 
     /**
      * Assign seeded plan models.
      *
-     * @param  AiModelAccess  $hairAccess  The hair access value.
-     * @param  AiModelAccess  $eyebrowAccess  The eyebrow access value.
      * @param  AiModelAccess  $openAiHairAccess  The OpenAI hair-transplant access value.
+     * @param  AiModelAccess  $openAiEyebrowAccess  The OpenAI eyebrow-transplant access value.
      * @return void No value is returned.
      *
      * @since 1.0.0
      */
     private function assignSeededPlanModels(
-        AiModelAccess $hairAccess,
-        AiModelAccess $eyebrowAccess,
         AiModelAccess $openAiHairAccess,
+        AiModelAccess $openAiEyebrowAccess,
     ): void {
         $accessIdsByService = [
-            'hair_transplant' => $hairAccess->id,
-            'eyebrow_transplant' => $eyebrowAccess->id,
-        ];
-        $accessIdsByPlan = [
-            'پلن دمو برای تست' => [$openAiHairAccess->id],
+            'hair_transplant' => $openAiHairAccess->id,
+            'eyebrow_transplant' => $openAiEyebrowAccess->id,
         ];
 
         Plan::query()
             ->with('serviceEntitlements')
             ->get()
-            ->each(function (Plan $plan) use ($accessIdsByPlan, $accessIdsByService): void {
+            ->each(function (Plan $plan) use ($accessIdsByService): void {
                 if ($plan->isCreditTopUp()) {
                     $plan->aiModelAccesses()->sync([]);
 
                     return;
                 }
 
-                $accessIds = $accessIdsByPlan[$plan->name]
-                    ?? collect($plan->serviceKeys())
-                        ->map(fn (string $serviceKey): ?int => $accessIdsByService[$serviceKey] ?? null)
-                        ->filter()
-                        ->values()
-                        ->all();
+                $accessIds = collect($plan->serviceKeys())
+                    ->map(fn (string $serviceKey): ?int => $accessIdsByService[$serviceKey] ?? null)
+                    ->filter()
+                    ->values()
+                    ->all();
 
                 $plan->aiModelAccesses()->sync($accessIds);
             });
-    }
-
-    /**
-     * Execute the seed executable sample model operation.
-     *
-     * @param  string  $categoryCode  The category code value.
-     * @param  string  $name  The name value.
-     * @param  AiModelAccess  $legacyAccess  The legacy access value.
-     * @param  User  $superAdmin  The super admin value.
-     * @return void No value is returned.
-     *
-     * @since 1.0.0
-     */
-    private function seedExecutableSampleModel(
-        string $categoryCode,
-        string $name,
-        AiModelAccess $legacyAccess,
-        User $superAdmin
-    ): void {
-        $category = AiModelCategory::query()
-            ->where('code', $categoryCode)
-            ->with(['outputs' => fn ($query) => $query->active()->orderBy('sort_order')])
-            ->first();
-
-        if (! $category || $category->outputs->isEmpty()) {
-            return;
-        }
-
-        $model = AiModel::query()->updateOrCreate(
-            [
-                'ai_model_category_id' => $category->id,
-                'type' => 'sample_image',
-                'name' => $name,
-            ],
-            [
-                'status' => 'active',
-                'priority' => $legacyAccess->priority,
-                'concurrency_limit' => (int) data_get(config('ai-models.types.sample_image'), 'defaults.concurrency_limit', 10),
-                'settings' => InputImageProcessingSettings::defaults(),
-                'credentials' => [],
-                'health_status' => 'healthy',
-                'legacy_ai_model_access_id' => $legacyAccess->id,
-                'created_by' => $superAdmin->id,
-                'updated_by' => $superAdmin->id,
-            ]
-        );
-
-        $category->outputs->each(function (AiModelCategoryOutput $output) use ($model): void {
-            $model->outputConfigs()->updateOrCreate(
-                [
-                    'ai_model_category_output_id' => $output->id,
-                ],
-                [
-                    'is_active' => true,
-                    'configuration' => [
-                        'sample_path' => $this->samplePathForOutput($output->code),
-                    ],
-                ]
-            );
-        });
-    }
-
-    /**
-     * Execute the sample path for output operation.
-     *
-     * @param  string  $outputCode  The output code value.
-     * @return string Resolved string value.
-     *
-     * @since 1.0.0
-     */
-    private function samplePathForOutput(string $outputCode): string
-    {
-        return config('hairvision.generation.stages.'.$outputCode.'.sample_image')
-            ?? config('hairvision.sample_images.'.$outputCode)
-            ?? 'sample-results/'.$outputCode.'.jpg';
     }
 
     /**

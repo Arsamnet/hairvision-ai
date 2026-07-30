@@ -69,7 +69,7 @@ class UpdateAiModelAccessRequest extends FormRequest
             'settings.background' => ['nullable', Rule::in(['opaque', 'transparent', 'auto'])],
             'settings.moderation' => ['nullable', Rule::in(['auto', 'low'])],
             'settings.output_compression' => ['nullable', 'integer', 'min:0', 'max:100'],
-            'settings.timeout_seconds' => ['nullable', 'integer', 'min:60', 'max:900'],
+            'settings.timeout_seconds' => ['nullable', 'integer', 'min:60'],
             'settings.connect_timeout_seconds' => ['nullable', 'integer', 'min:1', 'max:120'],
             'credit_limit' => ['nullable', 'integer', 'min:0', 'max:4294967295'],
             'priority' => ['nullable', 'integer', 'min:0', 'max:100000'],
@@ -146,6 +146,9 @@ class UpdateAiModelAccessRequest extends FormRequest
         return [
             'settings.'.InputImageProcessingSettings::MAX_DIMENSION => __('ai_models.input_image_max_dimension'),
             'settings.'.InputImageProcessingSettings::JPEG_QUALITY => __('ai_models.input_image_jpeg_quality'),
+            'settings.timeout_seconds' => __('ai_models.timeout_seconds'),
+            'settings.connect_timeout_seconds' => __('ai_models.connect_timeout_seconds'),
+            'settings.response_format' => __('ai_models.response_format'),
         ];
     }
 

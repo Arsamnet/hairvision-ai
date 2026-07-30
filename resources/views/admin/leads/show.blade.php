@@ -7,9 +7,23 @@
     @php
         $currentSourceImage = $lead->sourceImages->firstWhere('is_current', true);
         $primaryUpload = $lead->uploads->sortByDesc('created_at')->first();
+        $primaryUploadSourceImage = $primaryUpload
+            ? $lead->sourceImages->firstWhere('upload_id', $primaryUpload->id)
+            : null;
+        $primaryUploadGalleryKey = $primaryUploadSourceImage
+            ? 'source-'.$primaryUploadSourceImage->uuid
+            : ($primaryUpload ? 'upload-'.$primaryUpload->uuid : null);
         $notes = $lead->notes->sortByDesc('created_at');
+        $processingRoundCount = $lead->sourceImages->count() + $lead->generationGroups->count();
+        $generatedImageCount = $lead->sourceImages->sum(
+            fn ($sourceImage) => $sourceImage->generationRequests->sum(fn ($generation) => $generation->assets->count())
+        ) + $lead->generationGroups->sum(fn ($group) => $group->assets->count());
+        $hasGalleryImages = $lead->sourceImages->isNotEmpty()
+            || $lead->uploads->isNotEmpty()
+            || $generatedImageCount > 0;
     @endphp
 
+    <div data-lead-gallery>
     <div class="grid gap-5 xl:grid-cols-[1fr_24rem]">
         <div class="space-y-5">
             <section class="rounded-lg bg-white p-5 shadow-sm ring-1 ring-zinc-200">
@@ -49,22 +63,52 @@
             <section class="rounded-lg bg-white p-5 shadow-sm ring-1 ring-zinc-200">
                 <div class="flex items-center justify-between gap-3">
                     <h3 class="text-lg font-bold">{{ __('leads.uploads.title') }}</h3>
-                    <x-admin.icon name="sparkles" class="text-teal-700" />
+                    @if($hasGalleryImages)
+                        <x-admin.button type="button" variant="secondary" size="compact-sm" icon="gallery" data-lead-gallery-open>
+                            {{ __('leads.gallery.open') }}
+                        </x-admin.button>
+                    @else
+                        <x-admin.icon name="sparkles" class="text-teal-700" />
+                    @endif
                 </div>
 
                 @if($currentSourceImage)
                     <figure class="mt-4 overflow-hidden rounded-lg border border-zinc-100 bg-zinc-50">
-                        <img src="{{ route('admin.leads.source-images.show', [$lead, $currentSourceImage]) }}" alt="{{ __('leads.source_images.alt') }}" class="max-h-128 w-full object-contain">
-                        <figcaption class="flex flex-wrap items-center justify-between gap-2 border-t border-zinc-100 px-4 py-3 text-xs font-bold text-zinc-500">
-                            <span>{{ __('leads.uploads.uploaded_at', ['date' => \App\Support\JalaliDate::toJalaliDateTime($currentSourceImage->created_at)]) }}</span>
-                            <span>{{ __('leads.source_images.version', ['version' => $currentSourceImage->version]) }}</span>
+                        <x-admin.button
+                            type="button"
+                            variant="unstyled"
+                            size="none"
+                            class="lead-gallery-trigger"
+                            aria-label="{{ __('leads.gallery.open_image', ['title' => __('leads.gallery.current_source_title')]) }}"
+                            data-lead-gallery-trigger="source-{{ $currentSourceImage->uuid }}"
+                        >
+                            <img src="{{ route('admin.leads.source-images.show', [$lead, $currentSourceImage]) }}" alt="{{ __('leads.source_images.alt') }}" class="max-h-128 w-full object-contain">
+                            <span class="lead-gallery-trigger-badge"><x-admin.icon name="zoom-in" class="h-4 w-4" /></span>
+                        </x-admin.button>
+                        <figcaption class="flex flex-wrap items-start justify-between gap-3 border-t border-zinc-100 px-4 py-3 text-xs text-zinc-500">
+                            <span>
+                                <strong class="block text-zinc-700">{{ __('leads.gallery.current_source_title') }}</strong>
+                                <span class="mt-1 block">{{ __('leads.uploads.uploaded_at', ['date' => \App\Support\JalaliDate::toJalaliDateTime($currentSourceImage->created_at)]) }}</span>
+                            </span>
+                            <span class="font-bold">{{ __('leads.source_images.version', ['version' => $currentSourceImage->version]) }}</span>
                         </figcaption>
                     </figure>
                 @elseif($primaryUpload)
                     <figure class="mt-4 overflow-hidden rounded-lg border border-zinc-100 bg-zinc-50">
-                        <img src="{{ route('admin.leads.uploads.show', [$lead, $primaryUpload]) }}" alt="{{ __('leads.uploads.alt') }}" class="max-h-128 w-full object-contain">
-                        <figcaption class="border-t border-zinc-100 px-4 py-3 text-xs font-bold text-zinc-500">
-                            {{ __('leads.uploads.uploaded_at', ['date' => \App\Support\JalaliDate::toJalaliDateTime($primaryUpload->created_at)]) }}
+                        <x-admin.button
+                            type="button"
+                            variant="unstyled"
+                            size="none"
+                            class="lead-gallery-trigger"
+                            aria-label="{{ __('leads.gallery.open_image', ['title' => __('leads.gallery.legacy_source_title')]) }}"
+                            data-lead-gallery-trigger="{{ $primaryUploadGalleryKey }}"
+                        >
+                            <img src="{{ route('admin.leads.uploads.show', [$lead, $primaryUpload]) }}" alt="{{ __('leads.uploads.alt') }}" class="max-h-128 w-full object-contain">
+                            <span class="lead-gallery-trigger-badge"><x-admin.icon name="zoom-in" class="h-4 w-4" /></span>
+                        </x-admin.button>
+                        <figcaption class="border-t border-zinc-100 px-4 py-3 text-xs text-zinc-500">
+                            <strong class="block text-zinc-700">{{ __('leads.gallery.legacy_source_title') }}</strong>
+                            <span class="mt-1 block">{{ __('leads.uploads.uploaded_at', ['date' => \App\Support\JalaliDate::toJalaliDateTime($primaryUpload->created_at)]) }}</span>
                         </figcaption>
                     </figure>
                 @else
@@ -75,7 +119,18 @@
             </section>
 
             <section class="rounded-lg bg-white p-5 shadow-sm ring-1 ring-zinc-200">
-                <h3 class="text-lg font-bold">{{ __('leads.generations.title') }}</h3>
+                <header class="lead-processing-header">
+                    <div>
+                        <h3 class="text-lg font-bold">{{ __('leads.generations.title') }}</h3>
+                        <p class="mt-1 max-w-2xl text-xs leading-6 text-zinc-500">{{ __('leads.generations.description') }}</p>
+                    </div>
+                    @if($processingRoundCount > 0)
+                        <div class="flex flex-wrap items-center gap-2">
+                            <x-admin.badge tone="zinc">{{ __('leads.generations.rounds_count', ['count' => number_format($processingRoundCount)]) }}</x-admin.badge>
+                            <x-admin.badge tone="teal">{{ __('leads.generations.results_count', ['count' => number_format($generatedImageCount)]) }}</x-admin.badge>
+                        </div>
+                    @endif
+                </header>
                 @if($lead->sourceImages->isEmpty() && $lead->generationGroups->isEmpty())
                     <x-admin.empty-state icon="sparkles" class="py-5">{{ __('leads.generations.empty') }}</x-admin.empty-state>
                 @else
@@ -167,5 +222,8 @@
                 </div>
             </section>
         </aside>
+    </div>
+
+    @include('admin.leads.partials.image-gallery', ['leadGalleryItems' => $leadGalleryItems])
     </div>
 @endsection

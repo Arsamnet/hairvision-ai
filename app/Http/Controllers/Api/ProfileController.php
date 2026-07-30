@@ -9,10 +9,12 @@ use App\Http\Resources\GenerationRequestResource;
 use App\Models\GenerationRequest;
 use App\Models\Tenant;
 use App\Services\LeadSessionService;
+use App\Services\Generation\GenerationResumeTokenService;
 use App\Services\Profile\LeadProfileService;
 use App\Services\Visitor\PublicApplicationAvailabilityService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 use Symfony\Component\HttpFoundation\Response;
 
 /**
@@ -48,6 +50,7 @@ class ProfileController extends Controller
                     'id' => $profile->currentSourceImage->uuid,
                     'version' => $profile->currentSourceImage->version,
                     'status' => $profile->currentSourceImage->status,
+                    'url' => '/api/v1/profile/source-images/'.$profile->currentSourceImage->uuid.'/stream',
                 ] : null,
             ],
         ]);
@@ -111,11 +114,16 @@ class ProfileController extends Controller
      *
      * @param  Request  $request  Incoming HTTP request.
      * @param  LeadSessionService  $leadSessionService  The lead session service value.
+     * @param  GenerationResumeTokenService  $resumeTokens  Session-bound generation credential manager.
      * @return JsonResponse JSON response payload.
      *
      * @since 2.0.0
      */
-    public function generations(Request $request, LeadSessionService $leadSessionService): JsonResponse
+    public function generations(
+        Request $request,
+        LeadSessionService $leadSessionService,
+        GenerationResumeTokenService $resumeTokens,
+    ): JsonResponse
     {
         $tenant = $this->tenantFromRequest($request);
         $lead = $leadSessionService->verifiedLead($request, $tenant, __('auth.verify_phone_to_view_results'));
@@ -127,9 +135,45 @@ class ProfileController extends Controller
             ->latest('id')
             ->get();
 
+        foreach ($generations as $generation) {
+            $resumeTokens->remember($request, $generation);
+        }
+
         return response()->json([
             'data' => GenerationRequestResource::collection($generations),
         ]);
+    }
+
+    /**
+     * Stream a private source image owned by the current verified lead.
+     *
+     * @param  Request  $request  Incoming HTTP request.
+     * @param  string  $sourceImage  Public source-image UUID.
+     * @param  LeadSessionService  $leadSessionService  Verified lead resolver.
+     * @return \Illuminate\Http\Response Private image response.
+     *
+     * @since 2.0.0
+     */
+    public function streamSourceImage(
+        Request $request,
+        string $sourceImage,
+        LeadSessionService $leadSessionService,
+    ): \Illuminate\Http\Response {
+        $tenant = $this->tenantFromRequest($request);
+        $lead = $leadSessionService->verifiedLead($request, $tenant, __('auth.verify_phone_to_view_asset'));
+        $image = $lead->sourceImages()
+            ->where('uuid', $sourceImage)
+            ->where('tenant_id', $tenant->id)
+            ->firstOrFail();
+        $disk = Storage::disk($image->disk);
+
+        if (! $disk->exists($image->path)) {
+            abort(Response::HTTP_NOT_FOUND);
+        }
+
+        return response($disk->get($image->path), Response::HTTP_OK)
+            ->header('Content-Type', str_starts_with((string) $image->mime, 'image/') ? $image->mime : 'image/jpeg')
+            ->header('Cache-Control', 'private, max-age=300');
     }
 
     /**

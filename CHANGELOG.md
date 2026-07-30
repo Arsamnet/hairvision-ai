@@ -5,11 +5,46 @@
 Changes without an assigned release remain in this section and are moved into
 the next dated SemVer section when that release is prepared.
 
+## 2.1.0 - 2026-07-30
+
+HairVision `2.1.0` strengthens asynchronous image generation, OpenAI execution,
+shared-cPanel operations, SMS safety, and private lead-image workflows.
+
+### AI model settings
+
+- Removed the fixed 900-second response-timeout validation and provider clamp,
+  set existing and seeded OpenAI models to a 1000-second response timeout and a
+  50-second connection timeout, and kept queue job timeouts aligned with the
+  configured worker window.
+- Removed the unsupported OpenAI `response_format` setting from persisted and
+  seeded model settings, the registry, dashboard, and multipart requests;
+  existing OpenAI records are cleaned while GPT Image base64 decoding remains
+  unchanged.
+- Localized the model timeout validation attribute and stopped the edit page
+  from rendering the same validation message in both the layout and form.
+
+### OpenAI seed baseline
+
+- Changed every seeded base-plan and service-add-on model mapping to the
+  category-specific OpenAI access, with credit top-ups retaining no model
+  mapping.
+- Made OpenAI the only active seeded provider, model access, executable model,
+  and clinic assignment; retained seeded sample-image and GapGPT records in an
+  inactive/paused state without creating clinic assignment pivots for them.
+- Reprovisioned every seeded active subscription from its invoice-time OpenAI
+  model snapshot on each seed run, keeping the clinic's active assignments
+  exactly aligned with the models selected by its current plan.
+- Added regression coverage proving seeded plan mappings and active clinic
+  connections contain only OpenAI models and remain aligned after reseeding.
+
 ### Frontend assets
 
 - Fixed versioned Vite stylesheet detection so CSS URLs containing a dotted
   `APP_VERSION` query string render only as stylesheets/style preloads, while
   JavaScript entrypoints remain module scripts and script module preloads.
+- Fixed public generation status aggregation so an older failed request for an
+  output cannot display or retain an error after its newer request is processing
+  or completed successfully.
 
 ### Dashboard billing
 
@@ -19,6 +54,27 @@ the next dated SemVer section when that release is prepared.
 - Fixed clinic invoice approval returning a false `404` when the database
   exposes matching tenant foreign keys as numeric strings.
 
+### Dashboard CRM
+
+- Reworked lead processing history into responsive upload rounds with compact
+  input summaries, readable result cards, explicit empty states, and stable
+  card widths that do not collapse inside the lead-detail sidebar layout.
+- Added one accessible, keyboard- and swipe-navigable lead image gallery that
+  orders source uploads and their generated versions together, opens from every
+  displayed image, and shows a title and description for each private asset.
+
+### SMS gateway safety
+
+- Removed the tenant-specific IPPanel gateway from the demo-clinic seed so the
+  system debug/test SMS service is the only gateway enabled and default after
+  seeding.
+- Marked the system debug/test SMS gateway as protected, blocked its update,
+  deletion, and duplication even for super administrators, and exposed its
+  protected state in the dashboard.
+- Added an additive migration that protects the existing system-local gateway
+  and removes only the exact legacy demo-clinic seed row while preserving
+  customized clinic gateways.
+
 ### Deployment configuration
 
 - Completed the local environment baseline with the application domain,
@@ -27,8 +83,63 @@ the next dated SemVer section when that release is prepared.
   mail/storage settings without replacing existing local secrets.
 - Added a secret-free shared-cPanel production environment template with
   production logging, HTTPS-only cookies, database queue/cache/session drivers,
-  one non-overlapping cron worker lane, disabled debug shortcuts, and blank
+  bounded non-overlapping worker lanes, disabled debug shortcuts, and blank
   server-only credentials.
+
+### Image queue reliability
+
+- Added two bounded OpenAI connection retries with exponential backoff and
+  jitter for DNS/TCP failures proven to occur before HTTP delivery; each retry
+  creates a separate generation attempt while ambiguous response timeouts and
+  paid calls remain non-retryable.
+- Added production-safe structured logs for OpenAI connection exceptions, HTTP
+  failures, missing-image responses, provider preflight exceptions, retry
+  scheduling, and terminal generation failures, including correlation ids,
+  worker/attempt timing, HTTP/request identifiers, cURL diagnostics, and a
+  redacted exception chain without credentials, prompts, private paths, raw
+  payloads, or stack traces.
+- Stopped superseded image-worker processes as soon as their registered slot UUID
+  changes, preventing orphan workers from competing behind one registry row.
+- Raised the OpenAI executable-model default to two concurrent generations,
+  exposed that capacity as an environment-backed model setting, and increased
+  the shared-cPanel worker/provider baseline to two lanes.
+- Bounded every fallback worker window to the seconds remaining in its current
+  cron minute so a late-started lane releases its overlap lock before the next
+  scheduler tick instead of skipping a full minute.
+- Changed generation creation to return `202 Accepted`, dispatch identifier-only
+  jobs after commit, and execute legacy outputs independently so one failure no
+  longer cancels ready or processing sibling results.
+- Isolated every request across outputs, applications, leads, and tenants so
+  failure state never propagates between users; shared worker/model/provider
+  capacity can affect queue wait only.
+- Added the database-queue worker watchdog, heartbeat/PID registry, safe worker
+  recycling/restart, detached cPanel workers, explicit non-overlapping window
+  fallback, and a duplicate-safe local cron installer that preserves the single
+  Laravel Scheduler cron architecture.
+- Added a global expiring database-backed provider semaphore independent from
+  worker count, bounded Retry-After handling for definite rate limits, timeout
+  hierarchy validation, queue/provider timing metadata, and safe structured
+  failure codes without raw payload or credential logging.
+- Added generation reconciliation, conservative archived-asset cleanup, JSON
+  queue health reporting, an isolated fake-provider load test, and private load
+  reports for batches of 1, 5, 10, and 20 concurrent requests.
+- Added session-scoped generation resume tokens stored only as database hashes,
+  resumable/status/results endpoints, private current-source streaming, and one
+  adaptive browser polling loop that survives refresh, focus, visibility,
+  online, transient network errors, and partial output failures.
+- Added additive runtime tables/columns for worker processes, provider leases,
+  load samples, resume retention, job timing, worker IDs, safe errors, and stage
+  idempotency; documented cPanel deployment, scaling, health, restart, upgrade,
+  and rollback procedures.
+
+### Quality and release metadata
+
+- Added and expanded feature and unit coverage for queue architecture, provider
+  retry classification, OpenAI defaults, seed mappings, SMS gateway protection,
+  generation isolation and resumption, and the lead image gallery.
+- Rebuilt the content-addressed frontend assets and updated runtime defaults,
+  environment examples, canonical documentation, and version metadata to
+  `2.1.0`.
 
 ## 2.0.3 - 2026-07-29
 

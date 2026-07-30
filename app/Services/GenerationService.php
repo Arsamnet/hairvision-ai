@@ -12,6 +12,8 @@ use App\Services\AI\AiModelManager;
 use App\Services\Billing\ServiceEntitlementService;
 use App\Services\Generation\GenerationStageCatalog;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Throwable;
 
 /**
  * Creates generation groups and dispatches staged jobs.
@@ -52,48 +54,45 @@ class GenerationService
     ): GenerationGroup {
         $scope = 'generation.service.create_for_upload';
 
-        $stageKeys = $this->stages->keys($usageCategoryKey);
+        $group = DB::transaction(function () use ($upload, $usageCategoryKey): GenerationGroup {
+            $lockedUpload = Upload::query()->lockForUpdate()->findOrFail($upload->id);
+            $existing = $lockedUpload->generationGroup()->with('jobs')->first();
 
-        $existing = $upload->generationGroup()->with('jobs')->first();
+            if ($existing) {
+                return $existing;
+            }
 
-        if ($existing) {
-            $this->dispatchNextStage($existing, $request);
-
-            $existing->refresh();
-
-            return $existing;
-        }
-
-        $this->entitlements->assertCanUse($upload->tenant, $usageCategoryKey, count($stageKeys));
-
-        $modelAccess = $this->aiModels->resolveForClinic($upload->tenant, $usageCategoryKey);
-
-        $group = GenerationGroup::create([
-            'tenant_id' => $upload->tenant_id,
-            'lead_id' => $upload->lead_id,
-            'upload_id' => $upload->id,
-            'status' => 'pending',
-        ]);
-
-        $provider = $this->resolveProvider($modelAccess);
-
-        foreach ($stageKeys as $stageKey) {
-            $prompt = $this->stages->promptFor($usageCategoryKey, $stageKey);
-
-            $job = GenerationJob::create([
-                'generation_group_id' => $group->id,
-                'tenant_id' => $upload->tenant_id,
-                'lead_id' => $upload->lead_id,
-                'upload_id' => $upload->id,
-                'provider_id' => $provider->id,
-                'ai_model_access_id' => $modelAccess->id,
-                'period' => $stageKey,
-                'status' => 'pending',
-                'model_name' => $modelAccess->model_key,
-                'prompt' => $prompt,
+            $stageKeys = $this->stages->keys($usageCategoryKey);
+            $this->entitlements->assertCanUse($lockedUpload->tenant, $usageCategoryKey, count($stageKeys));
+            $modelAccess = $this->aiModels->resolveForClinic($lockedUpload->tenant, $usageCategoryKey);
+            $queuedAt = now();
+            $group = GenerationGroup::create([
+                'tenant_id' => $lockedUpload->tenant_id,
+                'lead_id' => $lockedUpload->lead_id,
+                'upload_id' => $lockedUpload->id,
+                'status' => 'queued',
+                'queued_at' => $queuedAt,
             ]);
+            $provider = $this->resolveProvider($modelAccess);
 
-        }
+            foreach ($stageKeys as $stageKey) {
+                GenerationJob::create([
+                    'generation_group_id' => $group->id,
+                    'tenant_id' => $lockedUpload->tenant_id,
+                    'lead_id' => $lockedUpload->lead_id,
+                    'upload_id' => $lockedUpload->id,
+                    'provider_id' => $provider->id,
+                    'ai_model_access_id' => $modelAccess->id,
+                    'period' => $stageKey,
+                    'status' => 'queued',
+                    'queued_at' => $queuedAt,
+                    'model_name' => $modelAccess->model_key,
+                    'prompt' => $this->stages->promptFor($usageCategoryKey, $stageKey),
+                ]);
+            }
+
+            return $group->load('jobs');
+        });
 
         $this->dispatchNextStage($group, $request);
 
@@ -117,39 +116,49 @@ class GenerationService
 
         $group->load('jobs.aiModelAccess');
 
-        if ($group->status === 'completed') {
+        if (in_array($group->status, ['completed', 'cancelled'], true)) {
             return;
         }
 
-        if ($group->jobs->contains('status', 'failed')) {
-            return;
-        }
+        $jobIds = DB::transaction(function () use ($group): array {
+            $locked = GenerationGroup::query()->lockForUpdate()->findOrFail($group->id);
+            $jobs = $locked->jobs()
+                ->whereIn('status', ['pending', 'queued', 'retrying'])
+                ->whereNull('dispatched_at')
+                ->orderBy('id')
+                ->lockForUpdate()
+                ->get();
 
-        if ($group->jobs->contains('status', 'processing')) {
-            $group->update(['status' => 'processing']);
-
-            return;
-        }
-
-        $pendingJobs = $group->jobs
-            ->where('status', 'pending')
-            ->sortBy(fn (GenerationJob $job): int => $this->stages->order($job->period));
-
-        $nextJob = $pendingJobs->first();
-
-        if (! $nextJob) {
-            if ($group->jobs->every(fn (GenerationJob $job): bool => $job->status === 'completed')) {
-                $group->update(['status' => 'completed']);
-
+            foreach ($jobs as $job) {
+                $job->forceFill([
+                    'status' => 'queued',
+                    'queued_at' => $job->queued_at ?? now(),
+                    'dispatched_at' => now(),
+                ])->save();
             }
 
-            return;
+            $locked->forceFill([
+                'status' => 'queued',
+                'queued_at' => $locked->queued_at ?? now(),
+            ])->save();
+
+            return $jobs->pluck('id')->all();
+        });
+
+        foreach ($jobIds as $jobId) {
+            $job = GenerationJob::query()->findOrFail($jobId);
+
+            try {
+                dispatch((new ProcessGenerationJob($job))
+                    ->onConnection((string) config('hairvision.image_queue.connection', config('queue.default')))
+                    ->onQueue((string) config('hairvision.image_queue.name', 'ai-generation')))
+                    ->afterCommit();
+            } catch (Throwable $exception) {
+                $job->forceFill(['dispatched_at' => null])->save();
+
+                throw $exception;
+            }
         }
-
-        $group->update(['status' => 'processing']);
-        $nextJob->update(['status' => 'processing']);
-
-        dispatch(new ProcessGenerationJob($nextJob->refresh()));
 
     }
 

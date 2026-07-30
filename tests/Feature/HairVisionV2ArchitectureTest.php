@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Actions\Ai\RunAiModelAction;
 use App\Data\Ai\AiModelResponseData;
+use App\Jobs\DispatchAvailableModelCapacity;
 use App\Jobs\ProcessGenerationAttempt;
 use App\Models\AiModel;
 use App\Models\AiModelAccess;
@@ -268,21 +269,41 @@ class HairVisionV2ArchitectureTest extends TestCase
             'idempotency_key' => '11111111-1111-4111-8111-111111111111',
         ];
 
-        $first = $this->withSession(['lead_id' => $lead->id])
+        $firstResponse = $this->withSession(['lead_id' => $lead->id])
             ->forHost('aria.hairvision-ai.test')
             ->postJson('/api/v1/generations', $payload)
-            ->assertCreated()
+            ->assertStatus(202)
             ->assertJsonPath('data.output.code', 'final_result')
-            ->assertJsonPath('data.status', 'queued')
-            ->json('data.id');
+            ->assertJsonPath('data.status', 'queued');
+        $first = $firstResponse->json('data.id');
+        $resumeToken = $firstResponse->json('data.resume_token');
+
+        $this->assertIsString($resumeToken);
+        $this->assertSame(64, strlen($resumeToken));
 
         $second = $this->withSession(['lead_id' => $lead->id])
             ->forHost('aria.hairvision-ai.test')
             ->postJson('/api/v1/generations', $payload)
-            ->assertCreated()
+            ->assertStatus(202)
             ->json('data.id');
 
         $this->assertSame($first, $second);
+        $this->withSession(['lead_id' => $lead->id])
+            ->withHeader('X-HairVision-Resume-Token', str_repeat('x', 64))
+            ->forHost('aria.hairvision-ai.test')
+            ->getJson('/api/v1/generations/'.$first)
+            ->assertNotFound();
+        $this->withSession(['lead_id' => $lead->id])
+            ->withHeader('X-HairVision-Resume-Token', $resumeToken)
+            ->forHost('aria.hairvision-ai.test')
+            ->getJson('/api/v1/generations/'.$first)
+            ->assertOk()
+            ->assertJsonPath('data.resume_token', $resumeToken);
+        $this->withSession(['lead_id' => $lead->id])
+            ->forHost('aria.hairvision-ai.test')
+            ->getJson('/api/v1/generations/resumable')
+            ->assertOk()
+            ->assertJsonPath('data.0.id', $first);
         $this->assertDatabaseCount('generation_requests', 1);
         $this->assertDatabaseCount('generation_attempts', 1);
         $this->assertDatabaseHas('generation_attempts', [
@@ -319,7 +340,7 @@ class HairVisionV2ArchitectureTest extends TestCase
                 'output_id' => $output->uuid,
                 'idempotency_key' => '22222222-2222-4222-8222-222222222222',
             ])
-            ->assertCreated()
+            ->assertStatus(202)
             ->assertJsonPath('data.status', 'queued')
             ->json('data.id');
 
@@ -420,7 +441,7 @@ class HairVisionV2ArchitectureTest extends TestCase
                     'output_id' => $output->uuid,
                     'idempotency_key' => $key,
                 ])
-                ->assertCreated();
+                ->assertStatus(202);
         }
 
         $attempts = GenerationAttempt::query()->orderBy('id')->get();
@@ -462,7 +483,7 @@ class HairVisionV2ArchitectureTest extends TestCase
                 'output_id' => $output->uuid,
                 'idempotency_key' => '33333333-3333-4333-8333-333333333339',
             ])
-            ->assertCreated();
+            ->assertStatus(202);
 
         $attempt = GenerationAttempt::query()->firstOrFail();
         $attempt->forceFill(['dispatched_at' => now()->subMinutes(10)])->save();
@@ -502,7 +523,7 @@ class HairVisionV2ArchitectureTest extends TestCase
             ->postJson('/api/v1/generations', $payload + [
                 'idempotency_key' => '44444444-4444-4444-8444-444444444441',
             ])
-            ->assertCreated();
+            ->assertStatus(202);
 
         $this->assertDatabaseHas('credit_transactions', [
             'type' => 'reservation',
@@ -546,7 +567,7 @@ class HairVisionV2ArchitectureTest extends TestCase
                 'output_id' => $output->uuid,
                 'idempotency_key' => '55555555-5555-4555-8555-555555555555',
             ])
-            ->assertCreated();
+            ->assertStatus(202);
 
         $attempt = GenerationAttempt::query()->firstOrFail();
         $provider = Mockery::mock(RunAiModelAction::class);
@@ -578,6 +599,73 @@ class HairVisionV2ArchitectureTest extends TestCase
         ]);
         $this->assertTrue(AiModel::query()->firstOrFail()->cooldown_until->isFuture());
         Queue::assertPushed(ProcessGenerationAttempt::class, 1);
+        Queue::assertPushed(DispatchAvailableModelCapacity::class, 1);
+    }
+
+    public function test_definite_openai_connection_failure_keeps_credit_and_schedules_bounded_retry(): void
+    {
+        Queue::fake();
+        config([
+            'hairvision.generation.openai_connection_retries' => 2,
+            'hairvision.generation.openai_connection_retry_delay_seconds' => 2,
+            'hairvision.generation.openai_connection_retry_max_delay_seconds' => 20,
+            'hairvision.generation.openai_connection_retry_jitter_seconds' => 0,
+        ]);
+
+        [$tenant, $lead] = $this->tenantAndVerifiedLead('aria.hairvision-ai.test');
+        [$category, $output] = $this->categoryOutputAndActiveModel('hair_transplant', 'final_result', $tenant);
+        $this->grantEntitlement($tenant, $category->code, 2);
+        $source = $this->withSession(['lead_id' => $lead->id])
+            ->forHost('aria.hairvision-ai.test')
+            ->postJson('/api/v1/profile/source-image', [
+                'image' => UploadedFile::fake()->image('source.jpg', 10, 10),
+                'consent' => true,
+            ])
+            ->assertCreated()
+            ->json('data');
+
+        $this->withSession(['lead_id' => $lead->id])
+            ->forHost('aria.hairvision-ai.test')
+            ->postJson('/api/v1/generations', [
+                'source_image_id' => $source['id'],
+                'category_id' => $category->uuid,
+                'output_id' => $output->uuid,
+                'idempotency_key' => '56565656-5656-4565-8565-565656565656',
+            ])
+            ->assertStatus(202);
+
+        $attempt = GenerationAttempt::query()->firstOrFail();
+        $provider = Mockery::mock(RunAiModelAction::class);
+        $provider->shouldReceive('execute')->once()->andReturn(new AiModelResponseData(
+            successful: false,
+            status: 'failed',
+            metadata: ['provider' => 'openai', 'curl_error_code' => 28],
+            errorCode: 'provider_connection_failed',
+            safeErrorMessage: __('ai_models.errors.provider_failed'),
+            creditConsumed: 0,
+            retryable: true,
+            retryAfterSeconds: 2,
+        ));
+
+        (new ProcessGenerationAttempt($attempt))->handle(
+            $provider,
+            app(CreditLedgerService::class),
+            app(ModelQueueCoordinator::class),
+        );
+
+        $this->assertSame('failed', $attempt->refresh()->status);
+        $this->assertSame('provider_connection_failed', $attempt->safe_failure_class);
+        $retry = GenerationAttempt::query()->whereKeyNot($attempt->id)->firstOrFail();
+        $this->assertSame('queued', $retry->status);
+        $this->assertSame(2, $retry->attempt_number);
+        $this->assertTrue($retry->available_at->isFuture());
+        $this->assertSame('queued', GenerationRequest::query()->firstOrFail()->status);
+        $this->assertDatabaseHas('credit_transactions', [
+            'id' => $retry->credit_transaction_id,
+            'reservation_status' => 'reserved',
+        ]);
+        $this->assertNull(AiModel::query()->firstOrFail()->cooldown_until);
+        Queue::assertPushed(DispatchAvailableModelCapacity::class, 1);
     }
 
     public function test_replacing_source_cancels_queued_attempt_and_releases_reserved_credit(): void
@@ -604,7 +692,7 @@ class HairVisionV2ArchitectureTest extends TestCase
                 'output_id' => $output->uuid,
                 'idempotency_key' => '66666666-6666-4666-8666-666666666666',
             ])
-            ->assertCreated();
+            ->assertStatus(202);
 
         $this->withSession(['lead_id' => $lead->id])
             ->forHost('aria.hairvision-ai.test')

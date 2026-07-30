@@ -2,6 +2,7 @@
 
 @section('title', __('ai_models.edit'))
 @section('page_title', __('ai_models.edit'))
+@section('hide_global_validation_errors', true)
 
 @section('content')
     @php

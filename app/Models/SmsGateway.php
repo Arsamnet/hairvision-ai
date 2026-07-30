@@ -26,6 +26,7 @@ class SmsGateway extends Model
         'owner_scope',
         'status',
         'is_default',
+        'is_protected',
         'encrypted_credentials',
         'settings_json',
     ];
@@ -36,6 +37,7 @@ class SmsGateway extends Model
 
     protected $casts = [
         'is_default' => 'boolean',
+        'is_protected' => 'boolean',
         'encrypted_credentials' => 'encrypted:array',
         'settings_json' => 'array',
         'created_at' => 'datetime',

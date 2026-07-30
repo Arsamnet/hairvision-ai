@@ -1,6 +1,6 @@
 # Engineering Architecture
 
-Version: [`2.0.3`](../CHANGELOG.md#203)
+Version: [`2.1.0`](../CHANGELOG.md#210)
 
 This document is the canonical engineering reference for HairVision. It
 consolidates architecture, data model, setup, coding standards, frontend rules,
@@ -32,6 +32,12 @@ Configured model types remain code-owned in `config/ai-models.php`. The
 database never creates provider types; it creates executable instances or legacy
 access records that reference a configured type such as `sample_image` or
 `gapgpt` or `openai`.
+
+The fresh-install seed uses OpenAI exclusively for execution. Only the OpenAI
+provider, category-specific access records, executable models, seeded-clinic
+assignments, and base/add-on plan mappings are active. Seeded `sample_image` and
+`gapgpt` records remain present but paused/inactive and are not attached to any
+seeded plan. Credit top-ups continue to carry no model mapping.
 
 The dashboard exposes category CRUD under system management. Creating an active
 category immediately makes it available in plan service-credit inputs and AI
@@ -92,7 +98,7 @@ Browser
   -> fetch('/api/v1/...')
   -> API controller
   -> service/action
-  -> Redis queue job
+  -> Laravel database/Redis queue job
   -> AI provider adapter
   -> private storage
   -> JSON/stream response
@@ -133,7 +139,8 @@ message.
 - Laravel 13
 - Blade, Tailwind CSS, Vite
 - Laravel Sanctum
-- Redis, Predis, Laravel Horizon
+- MySQL database queue for shared cPanel; Redis/Predis/Horizon when a persistent
+  process manager is available
 - MySQL/MariaDB or SQLite for local tests
 - `morilog/jalali`
 - local Vazirmatn font files
@@ -181,11 +188,12 @@ Generation creates three period jobs:
 - `intermediate_regrowth`: six months after the hair transplant
 - `final_result`: one year after the hair transplant
 
-The staged flow dispatches the first pending job, then dispatches the next
-stage only after the previous stage succeeds. This preserves the public result
-order and ensures a failed stage stops later stages before they call a paid
-provider. Each stage remains a separate job for failures, assets, logs, and
-credit accounting.
+The legacy staged flow creates and dispatches every eligible output as an
+independent job after the creation transaction commits. Result presentation
+keeps the configured output order, but execution order is not coupled: a failed
+output does not cancel queued or processing siblings, and successful assets are
+shown as soon as each becomes available. Each output keeps independent failure,
+asset, timing, provider-reference, and credit-accounting state.
 
 ## AI Provider Layer
 
@@ -274,7 +282,7 @@ POST <configured API URL>
 Authorization: Bearer <encrypted access credential>
 Accept: application/json
 image[]=<private source file>
-model=<configured model; seeded default gpt-image-1.5>
+model=<configured model; seeded default gpt-image-2>
 prompt=<selected category-output prompt snapshot>
 quality=<low|medium|high; default low>
 size=<configured output size; product default 816x816>
@@ -285,18 +293,23 @@ n=1
 output_compression=<0..100; default 70>
 ```
 
-The adapter decodes `data[0].b64_json` and returns only image bytes plus safe
-metadata to the shared JPEG normalizer. It never returns a provider URL to the
-visitor. The product keeps `816x816` as the configurable seed default requested
+The adapter does not send `response_format`; GPT Image returns base64 image data
+without that request field. It decodes `data[0].b64_json` and returns only image
+bytes plus safe metadata to the shared JPEG normalizer. It never returns a
+provider URL to the visitor. The product keeps `816x816` as the configurable seed default requested
 for compatible endpoints; direct `api.openai.com` installations must select a
 size currently accepted by the upstream API (`auto`, `1024x1024`, `1536x1024`,
 or `1024x1536`).
 
 GapGPT and OpenAI calls are long-running paid requests. Do not use automatic
-HTTP or queue retries for the provider call itself. Keep the HTTP timeout,
+HTTP or queue retries for a delivered or ambiguous provider call. OpenAI
+transport failures that prove HTTP delivery never occurred—DNS resolution,
+TCP refusal, or an explicit connect-stage timeout (including libcurl's
+`Failed to connect ... Timeout was reached` wording)—may create a bounded delayed
+generation attempt with exponential backoff and jitter. Keep the HTTP timeout,
 queued job timeout, Horizon worker timeout, and Redis `retry_after` aligned so
-the worker waits for the provider response instead of issuing a duplicate
-request.
+the worker waits for every delivered provider response instead of issuing a
+duplicate request.
 
 Independent generation uses `ModelQueueCoordinator` as a database-backed FIFO
 and capacity gate. Model selection, attempt creation, and clinic-credit
@@ -306,6 +319,81 @@ Workers atomically claim transported attempts, so duplicate queue delivery canno
 start a second provider call. A definite `429` response creates a delayed attempt
 and model cooldown; ambiguous failures retain their credit reservation for
 review. This path does not require Redis when the database queue is selected.
+
+## Image Queue Runtime
+
+The cPanel-compatible baseline is Laravel Database Queue on MySQL plus the
+existing one-minute Laravel Scheduler cron. HTTP creation performs only short
+database transactions and returns `202 Accepted`; image bytes and provider
+responses are never serialized into queue payloads. Both legacy and independent
+jobs dispatch after commit and carry model identifiers only.
+
+`hairvision:workers:ensure` is the scheduler watchdog. In `detached` mode it
+owns a fixed set of numbered slots in `image_worker_processes`, verifies both a
+recent heartbeat and PID command ownership, preserves healthy processes, and
+replaces only missing/dead/stale processes. Workers recycle after configured
+time, job, or memory limits and may be restarted safely with
+`hairvision:workers:restart`. When cPanel forbids detached PHP processes, set
+`IMAGE_WORKER_MODE=window`; the same scheduler creates non-overlapping
+background lanes with a configured ceiling of 58 seconds. Each lane is bounded
+to the time remaining in its current cron minute so a late scheduler start
+cannot retain the overlap lock into the next tick and skip a full minute.
+
+Worker count and provider capacity are separate controls. Every provider call
+must first acquire an expiring row from the global `image_provider_leases`
+semaphore. A full semaphore releases the transported job for a short jittered
+delay instead of occupying a provider slot. Expired leases recover capacity
+after crashes. Start with three workers and three provider slots only when the
+provider and cPanel account both permit that concurrency.
+
+There is no per-category, per-output, per-lead, or per-tenant processing mutex.
+Every generation request and output owns independent status, attempt, credit,
+error, and asset records. Fail/cancel/retry decisions may affect only that
+request (apart from the explicit same-source replacement rule); they must never
+propagate to another output or another user's request. Requests share only the
+bounded worker/model/provider capacity, so saturation changes queue wait—not
+another request's correctness or terminal state.
+
+The timeout contract is strict:
+
+```text
+provider request timeout (1000s) < job timeout (1010s) < worker timeout (1020s) < queue retry_after (1200s)
+```
+
+The dashboard does not impose a fixed maximum on the model response timeout.
+If an administrator selects a value above the deployment default, operations
+must increase the worker timeout and queue `retry_after` in the same order; job
+timeouts are derived ten seconds below the configured worker timeout.
+
+An explicit, definite rejection such as `429` is retried using bounded
+Retry-After/backoff and a delayed coordinator wake-up. OpenAI cURL errors `6`
+and `7`, plus cURL `28` only when its message is explicitly `Connection timed
+out`, create a separate delayed attempt because no HTTP delivery occurred. An
+ambiguous response/processing timeout after `provider_call_started_at` is not
+repeated automatically. Provider 4xx, 5xx, timeout, invalid-image, queue, and
+review outcomes use safe error codes. Production logs correlate generation,
+attempt, model, worker, queue wait, provider latency, endpoint host/path,
+timeout settings, HTTP status/request id, cURL code, retry decision, and a
+bounded redacted exception chain; they never contain secrets, prompts, private
+paths, raw payloads/responses, or stack traces.
+
+`hairvision:generations:reconcile` safely requeues work that never entered a
+provider call, accepts a valid already-written asset, and flags ambiguous
+post-call records for review. `hairvision:generations:cleanup` removes only old,
+archived, non-current generated assets that have no active attempt; `--dry-run`
+previews the selection. `hairvision:queue-health --json` reports queue depth,
+oldest wait, worker/lease state, timing averages, failed/stuck records, private
+storage, cache locks, process primitives, and the timeout contract.
+
+The browser stores only generation UUID/resume-token pairs in `sessionStorage`.
+The raw token is also scoped to the verified server session while only its
+SHA-256 digest is persisted. Polling starts immediately after `202`, uses one
+adaptive loop with jitter, has no global terminal timeout, slows while hidden,
+and wakes immediately on focus, visibility, or online events. A generation is
+terminal only when every requested output is terminal; one failure cannot hide
+already-ready sibling assets. Status calls for multiple active requests run
+concurrently with `allSettled`, so one user's/output's transient API failure does
+not prevent successful siblings from updating in the same polling cycle.
 
 Every model execution log stores the owning `lead_id` when execution originates
 from a visitor generation. Usage reporting is shared by the clinic credit report,
@@ -375,10 +463,17 @@ host or selected tenant context.
 
 ## SMS Gateways
 
-The version `1.0.0` seed state keeps the system `local` SMS gateway enabled and
-default. The seeded system `ippanel` gateway exists with masked credentials for
-configuration continuity, but remains disabled and non-default until an
-authorized admin explicitly enables it.
+The current seed state keeps the system `local` debug/test SMS gateway enabled,
+default, and marked `is_protected`. Policy and management-service checks deny
+updates and deletion even for a super administrator, and the dashboard exposes
+that protected state without edit/delete actions. A second system-local gateway
+cannot be created while this protected definition exists.
+
+The seeded system `ippanel` gateway remains disabled and non-default until an
+authorized admin explicitly enables it. No tenant-owned SMS gateway is seeded
+for the demo clinic. The additive SMS protection migration removes only the
+exact legacy demo-clinic row named `سیستم پیامک کلینیک دمو`; customized or
+renamed clinic gateway records are preserved.
 
 Runtime OTP delivery resolves the active default system SMS gateway first. IPPanel
 may still be enabled for real delivery after credentials and operational policy
@@ -465,6 +560,14 @@ source is also rendered separately as the lead's primary image. Legacy
 `generation_groups` follow the same presentation contract by pairing each group
 with its original `upload`, jobs, and assets. Clinic and system users share this
 view after the normal policy and tenant-scope checks.
+
+The lead page also builds one presentation-only image sequence from those
+already authorized relationships. Upload rounds are ordered newest first, with
+each source followed by its generated versions; legacy uploads follow the same
+rule. Visible thumbnails open the matching item in an accessible dashboard
+gallery with captions, keyboard controls, and touch swiping. Gallery URLs remain
+the existing tenant- and lead-scoped private stream routes and never expose
+storage paths.
 
 ## Jalali Dates and Numbers
 
@@ -823,17 +926,21 @@ Demo users after seeding:
 - Demo clinic admin (مهسا فرهمند): `09004666673`
 - Demo clinic admin (کامران فضلی): `09127072327`
 
-The seeded demo clinic uses the combined hair-and-eyebrow starter plan. Its
-`hair_transplant` and `eyebrow_transplant` applications are both assigned to
-active category-specific GapGPT model access records. Category-specific OpenAI
-records are also seeded with non-production credentials and requested defaults,
-but their clinic assignments are inactive until a system administrator enables
-them.
+The seeded clinics use category-specific OpenAI model access records for every
+application included in their plans. All seeded base-plan and add-on mappings
+select OpenAI, and only OpenAI clinic assignments are active. The local sample
+and GapGPT records remain seeded for explicit administrator use but are globally
+inactive, paused at the executable-model layer, have no seeded clinic-assignment
+pivot, and are absent from seeded plan mappings. Seeded provider credentials
+remain non-production placeholders. `SubscriptionSeeder` re-applies the
+invoice-time model snapshot even when a seeded subscription already exists, so
+reseeded active clinic assignments exactly match the OpenAI models selected by
+the current seeded plan.
 
 Baseline configuration:
 
 ```env
-APP_VERSION=2.0.3
+APP_VERSION=2.1.0
 APP_LOCALE=fa
 APP_FAKER_LOCALE=fa_IR
 CACHE_STORE=redis
@@ -849,20 +956,36 @@ Nginx/Apache vhost
   -> Laravel public/index.php
   -> Laravel app
   -> MySQL/MariaDB
-  -> Redis
-  -> Horizon worker process
+  -> Laravel database queue + Scheduler watchdog
+  -> detached PHP CLI workers (or bounded cPanel windows)
   -> storage/app/private
 ```
 
-Production queue-heavy work uses:
+The shared-cPanel production baseline uses:
 
 ```env
-QUEUE_CONNECTION=redis
-REDIS_QUEUE_RETRY_AFTER=1200
-HAIRVISION_QUEUE_WORKER_TIMEOUT=1020
+QUEUE_CONNECTION=database
+DB_QUEUE_RETRY_AFTER=1200
+HAIRVISION_CPANEL_QUEUE_CRON_ENABLED=true
+IMAGE_QUEUE_CONNECTION=database
+IMAGE_QUEUE_NAME=ai-generation
+IMAGE_WORKER_MODE=detached
+IMAGE_WORKER_COUNT=2
+IMAGE_WORKER_TIMEOUT=1020
+IMAGE_PROVIDER_MAX_CONCURRENCY=2
+IMAGE_PROVIDER_CONNECT_TIMEOUT=50
+IMAGE_PROVIDER_REQUEST_TIMEOUT=1000
+HAIRVISION_OPENAI_CONCURRENCY_LIMIT=2
+HAIRVISION_OPENAI_CONNECTION_RETRIES=2
+HAIRVISION_OPENAI_CONNECTION_RETRY_DELAY_SECONDS=2
+HAIRVISION_OPENAI_CONNECTION_RETRY_MAX_DELAY_SECONDS=20
+HAIRVISION_OPENAI_CONNECTION_RETRY_JITTER_SECONDS=2
 ```
 
-Run Horizon through Supervisor, systemd, or the hosting panel process manager.
+Redis/Horizon remains a compatible upgrade path. Use it only when Supervisor,
+systemd, or the hosting panel can keep Horizon alive; switch the queue/cache
+drivers, preserve the timeout hierarchy and provider semaphore, disable the
+cPanel worker fallback, and terminate the database worker pool before cutover.
 
 ### cPanel Public Webroot Deployment
 
@@ -880,8 +1003,10 @@ deployment environments.
 
 ### Shared cPanel Queue Fallback
 
-When cPanel cannot keep Horizon or `queue:work` alive as a persistent process,
-use the bounded cron worker. Do not enable it while Horizon is running.
+Keep the existing scheduler cron. It runs the worker watchdog, model queue
+coordinator, generation reconciler, cleanup schedule, and health snapshot. Do
+not add one `queue:work --once` cron line per minute and do not run this worker
+pool alongside Horizon.
 
 `.env.cpanel.example` is the checked-in, secret-free production baseline for
 this deployment shape. Copy it to the repository-root `.env` on the server,
@@ -896,39 +1021,92 @@ For a database-backed cPanel queue:
 ```env
 QUEUE_CONNECTION=database
 DB_QUEUE_RETRY_AFTER=1200
-HAIRVISION_QUEUE_WORKER_TIMEOUT=1020
 HAIRVISION_CPANEL_QUEUE_CRON_ENABLED=true
-HAIRVISION_CPANEL_QUEUE_CONNECTION=database
-HAIRVISION_CPANEL_QUEUE_NAMES=ai-generation,default
-HAIRVISION_CPANEL_QUEUE_PROCESSES=3
-HAIRVISION_CPANEL_QUEUE_WINDOW_SECONDS=58
-HAIRVISION_CPANEL_QUEUE_SLEEP_SECONDS=1
-HAIRVISION_CPANEL_QUEUE_OVERLAP_MINUTES=30
+IMAGE_QUEUE_CONNECTION=database
+IMAGE_QUEUE_NAME=ai-generation
+IMAGE_WORKER_MODE=detached
+IMAGE_WORKER_COUNT=2
+IMAGE_WORKER_TIMEOUT=1020
+IMAGE_WORKER_TRIES=3
+IMAGE_WORKER_MAX_JOBS=250
+IMAGE_WORKER_MAX_TIME=3600
+IMAGE_WORKER_MEMORY=256
+IMAGE_WORKER_STALE_SECONDS=1080
+IMAGE_PROVIDER_MAX_CONCURRENCY=2
+IMAGE_PROVIDER_CONNECT_TIMEOUT=50
+IMAGE_PROVIDER_REQUEST_TIMEOUT=1000
+HAIRVISION_OPENAI_CONCURRENCY_LIMIT=2
+HAIRVISION_OPENAI_CONNECTION_RETRIES=2
+HAIRVISION_OPENAI_CONNECTION_RETRY_DELAY_SECONDS=2
+HAIRVISION_OPENAI_CONNECTION_RETRY_MAX_DELAY_SECONDS=20
+HAIRVISION_OPENAI_CONNECTION_RETRY_JITTER_SECONDS=2
+IMAGE_PROVIDER_CAPACITY_DELAY_MIN_SECONDS=3
+IMAGE_PROVIDER_CAPACITY_DELAY_MAX_SECONDS=8
 ```
 
 After caching the deployment configuration, add one cPanel Cron Job that runs
 Laravel's scheduler every minute:
 
 ```cron
-* * * * * /usr/local/bin/php /home/CPANEL_USER/path/to/artisan schedule:run >> /home/CPANEL_USER/path/to/storage/logs/cron.log 2>&1
+* * * * * /usr/local/bin/php /home/hairvision/repositories/hairvision-ai/artisan schedule:run >> /home/hairvision/repositories/hairvision-ai/storage/logs/cron.log 2>&1
 ```
 
-Replace the PHP binary and project paths with the values shown by cPanel. Each
-configured lane keeps one worker ready for 58 seconds and checks the queue every
-second, so newly dispatched image jobs do not wait for the next full cron minute.
-Start with one process and increase gradually after checking cPanel CPU/RAM
-limits. Each lane has an independent overlap lock that remains valid longer than
-a paid image request. The `jobs` / `failed_jobs` migrations must be present when
-using the database queue; CLI PHP should provide `pcntl` so worker and job
-timeouts are enforced reliably.
+The cron path above is the current production path and must remain unchanged.
+The watchdog attempts detached workers first. If `proc_open`, shell detachment,
+or long-lived PHP CLI is unavailable, change only `IMAGE_WORKER_MODE=window`;
+the scheduler then runs non-overlapping lanes up to 58 seconds while shortening
+late starts to end inside the current cron minute.
+The `jobs` / `failed_jobs` migrations must exist. `pcntl` is preferred for
+graceful signal handling, while heartbeat expiry and PID ownership checks remain
+the crash-recovery authority.
 
-For an equivalent local macOS session, run
-`./scripts/cpanel-queue-local` from the VS Code terminal. It starts Laravel
-`schedule:work` with the database queue, generation coordinator, dedicated
-`ai-generation,default` queue order, and three worker lanes without changing
-the developer's `.env`. It clears the local config cache first so process-only
-overrides cannot be shadowed. The `--once` mode mirrors one cPanel
-`schedule:run` invocation and `--list` prints the events that would run.
+Deployment/restart sequence:
+
+```bash
+cd /home/hairvision/repositories/hairvision-ai
+/usr/local/bin/php artisan migrate --force
+/usr/local/bin/php artisan optimize:clear
+/usr/local/bin/php artisan config:cache
+/usr/local/bin/php artisan hairvision:workers:restart
+/usr/local/bin/php artisan hairvision:workers:ensure
+/usr/local/bin/php artisan hairvision:queue-health --json
+```
+
+Rollback code only after stopping/restarting the worker pool. The additive
+runtime migration may remain during a code rollback; do not run `migrate:rollback`
+while new jobs or workers exist. If schema rollback is explicitly required,
+drain the queue, stop workers, back up MySQL and private storage, roll back the
+single migration, deploy the compatible code, and restore workers.
+
+Local macOS/Linux uses the same scheduler/watchdog architecture:
+
+```bash
+./scripts/hairvision-cron install
+./scripts/hairvision-cron status
+php artisan hairvision:queue-health --json
+```
+
+The installer discovers the real project directory and `php` binary, prevents
+duplicate crontab entries, enables detached mode for that cron process, and logs
+to `storage/logs/cron-local.log`. Use `./scripts/hairvision-cron uninstall` to
+remove only its marked entry. `./scripts/cpanel-queue-local` remains an
+interactive foreground/window diagnostic helper.
+
+Operational checks and the opt-in fake-provider load test:
+
+```bash
+php artisan hairvision:generations:reconcile
+php artisan hairvision:generations:cleanup --dry-run
+php artisan hairvision:generation-load-test --batches=1,5,10,20 --min-delay-ms=20000 --max-delay-ms=30000
+```
+
+Scale `IMAGE_WORKER_COUNT` for queue throughput and
+`IMAGE_PROVIDER_MAX_CONCURRENCY` only for permitted provider parallelism. With
+mean provider latency `L` seconds and provider capacity `C`, the provider-bound
+ceiling is approximately `C / L` generations per second; additional workers
+reduce transport wait but cannot exceed the semaphore. Compare average/P95
+queue wait, oldest queued age, error rate, memory and process count before and
+after each one-step increase.
 
 ## Performance
 
@@ -942,7 +1120,9 @@ overrides cannot be shadowed. The `--once` mode mirrors one cPanel
 - Read code-owned status options from `StateCatalog`; do not recreate editable
   database copies of the state catalog.
 - Keep management reports aggregate-based.
-- Keep generation outside HTTP with Redis/Horizon outside tests.
+- Keep generation outside HTTP; use the database queue/watchdog baseline on
+  shared cPanel and Redis/Horizon only where persistent process supervision is
+  available.
 
 ## Testing
 

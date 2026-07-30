@@ -13,6 +13,7 @@ use App\Models\LeadSourceImage;
 use App\Models\Tenant;
 use App\Models\Upload;
 use App\Services\Generation\GenerationStageCatalog;
+use App\Services\Generation\GenerationResumeTokenService;
 use App\Services\Generation\IndependentGenerationService;
 use App\Services\GenerationService;
 use App\Services\LeadSessionService;
@@ -35,6 +36,7 @@ class GenerationController extends Controller
      * @param  LeadSessionService  $leadSessionService  The lead session service value.
      * @param  GenerationStageCatalog  $stages  The stages value.
      * @param  IndependentGenerationService  $independentGenerations  The independent generations value.
+     * @param  GenerationResumeTokenService  $resumeTokens  Session-bound generation credential manager.
      * @return JsonResponse JSON response payload.
      *
      * @since 1.0.0
@@ -44,7 +46,8 @@ class GenerationController extends Controller
         GenerationService $generationService,
         LeadSessionService $leadSessionService,
         GenerationStageCatalog $stages,
-        IndependentGenerationService $independentGenerations
+        IndependentGenerationService $independentGenerations,
+        GenerationResumeTokenService $resumeTokens,
     ): JsonResponse {
         $scope = 'generation.store';
 
@@ -78,10 +81,11 @@ class GenerationController extends Controller
                 $output,
                 $idempotencyKey
             );
+            $resumeTokens->remember($request, $generation);
 
             return (new GenerationRequestResource($generation->load(['sourceImage', 'category', 'output', 'currentAsset', 'attempts'])))
                 ->response()
-                ->setStatusCode(Response::HTTP_CREATED);
+                ->setStatusCode(Response::HTTP_ACCEPTED);
         }
 
         $upload = Upload::query()
@@ -106,7 +110,7 @@ class GenerationController extends Controller
             'jobs' => $this->jobPayload($group, $stages),
         ];
 
-        return response()->json($response);
+        return response()->json($response, Response::HTTP_ACCEPTED);
     }
 
     /**
@@ -182,16 +186,14 @@ class GenerationController extends Controller
         $results = [];
 
         foreach ($stages->sortByStageOrder($group->jobs) as $job) {
-            if ($job->status !== 'completed' || ! $job->asset) {
-                break;
+            if ($job->status === 'completed' && $job->asset) {
+                $results[] = [
+                    'period' => $job->period,
+                    'label' => $stages->label($job->period),
+                    'caption' => $stages->caption($job->period),
+                    'url' => '/api/v1/assets/'.$job->asset->uuid,
+                ];
             }
-
-            $results[] = [
-                'period' => $job->period,
-                'label' => $stages->label($job->period),
-                'caption' => $stages->caption($job->period),
-                'url' => '/api/v1/assets/'.$job->asset->uuid,
-            ];
         }
 
         return response()->json([
@@ -212,11 +214,10 @@ class GenerationController extends Controller
      */
     private function jobPayload(GenerationGroup $group, GenerationStageCatalog $stages): array
     {
-        $previousStagesCompleted = true;
         $payload = [];
 
         foreach ($stages->sortByStageOrder($group->jobs) as $job) {
-            $assetUrl = $previousStagesCompleted && $job->status === 'completed' && $job->asset
+            $assetUrl = $job->status === 'completed' && $job->asset
                 ? '/api/v1/assets/'.$job->asset->uuid
                 : null;
 
@@ -230,10 +231,6 @@ class GenerationController extends Controller
                 'error' => $job->status === 'failed' ? $job->last_error : null,
                 'asset_url' => $assetUrl,
             ];
-
-            if ($job->status !== 'completed') {
-                $previousStagesCompleted = false;
-            }
         }
 
         return $payload;
@@ -278,7 +275,7 @@ class GenerationController extends Controller
     private function currentStage(GenerationGroup $group, GenerationStageCatalog $stages): ?array
     {
         $job = collect($stages->sortByStageOrder($group->jobs))
-            ->first(fn (GenerationJob $job): bool => in_array($job->status, ['processing', 'pending', 'failed'], true));
+            ->first(fn (GenerationJob $job): bool => in_array($job->status, ['processing', 'pending', 'queued', 'retrying', 'failed'], true));
 
         if (! $job instanceof GenerationJob) {
             return null;

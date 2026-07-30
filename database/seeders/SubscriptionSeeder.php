@@ -11,6 +11,7 @@ use App\Models\Subscription;
 use App\Models\SubscriptionServiceEntitlement;
 use App\Models\Tenant;
 use App\Models\User;
+use App\Services\AI\ClinicAiModelProvisioningService;
 use App\Services\Billing\SubscriptionActivationService;
 use App\Support\JalaliDate;
 use Illuminate\Database\Seeder;
@@ -160,6 +161,13 @@ class SubscriptionSeeder extends Seeder
             'status' => 'active',
             'usage_limit' => array_sum($starterPlan->serviceCredits()),
         ])->save();
+
+        app(ClinicAiModelProvisioningService::class)->provisionPlan(
+            $tenant,
+            $starterPlan,
+            $user,
+            $invoice->refresh()->aiModelAccessIdsSnapshot(),
+        );
 
         $this->syncSeededSubscriptionEntitlements(
             $tenant,

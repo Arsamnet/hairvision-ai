@@ -2,7 +2,6 @@
 
 namespace Database\Seeders;
 
-use App\Models\SmsGateway;
 use App\Models\Tenant;
 use App\Models\TenantDomain;
 use Illuminate\Database\Seeder;
@@ -15,8 +14,6 @@ use UnexpectedValueException;
  */
 class TenantSeeder extends Seeder
 {
-    private const DEFAULT_IPPANEL_AUTHORIZATION_TOKEN = 'YTIxMzVhYmMtZGRkYS00OWJhLWE2ZTItNjUzYjhkYTg5M2U0OGRiZjZjMzZiNjBkNjgxYmUwZTAwM2IwZDc1MzczMTU=';
-
     /**
      * Execute the tenant seeder operation.
      *
@@ -68,7 +65,6 @@ class TenantSeeder extends Seeder
         $this->upsertDomain($silverSandsTenant, 'silversands.'.$appHost, 'tenant_subdomain');
         $this->upsertDomain($aryaTenant, $appHost, 'platform_subdomain');
 
-        $this->upsertDemoIppanelGateway($demoTenant);
     }
 
     /**
@@ -117,44 +113,5 @@ class TenantSeeder extends Seeder
             'status' => 'active',
             'ssl_status' => 'unknown',
         ])->save();
-    }
-
-    /**
-     * Execute the upsert demo ippanel gateway operation.
-     *
-     * @param  Tenant  $tenant  Tenant in the current operation scope.
-     * @return void No value is returned.
-     *
-     * @since 1.0.0
-     */
-    private function upsertDemoIppanelGateway(Tenant $tenant): void
-    {
-        $fromNumber = config('hairvision.sms.ippanel.from_number');
-
-        SmsGateway::query()->updateOrCreate(
-            [
-                'tenant_id' => $tenant->id,
-                'owner_scope' => 'tenant',
-                'provider_code' => 'ippanel',
-            ],
-            [
-                'user_id' => null,
-                'name' => 'سیستم پیامک کلینیک دمو',
-                'status' => 'enabled',
-                'is_default' => true,
-                'encrypted_credentials' => [
-                    'api_key' => config('hairvision.sms.ippanel.authorization_token')
-                        ?: self::DEFAULT_IPPANEL_AUTHORIZATION_TOKEN,
-                ],
-                'settings_json' => array_filter([
-                    'purpose' => 'clinic_messages',
-                    'from_number' => $fromNumber,
-                    'sender' => $fromNumber,
-                    'otp_pattern_code' => config('hairvision.sms.ippanel.otp_pattern_code'),
-                    'otp_pattern_variable' => config('hairvision.sms.ippanel.otp_pattern_variable'),
-                    'endpoint_url' => config('hairvision.sms.ippanel.endpoint_url'),
-                ]),
-            ]
-        );
     }
 }

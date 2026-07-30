@@ -5,8 +5,11 @@ namespace App\Services\AI\Providers;
 use App\Contracts\Ai\AiModelProviderInterface;
 use App\Data\Ai\AiModelRequestData;
 use App\Data\Ai\AiModelResponseData;
+use App\Support\SafeThrowableContext;
+use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Throwable;
@@ -51,11 +54,58 @@ class OpenAiImageEditProvider implements AiModelProviderInterface
                 $path,
                 $prompt,
             );
-        } catch (Throwable) {
-            return $this->failed('provider_exception', __('ai_models.errors.provider_failed'), $stageKey);
+        } catch (ConnectionException $exception) {
+            $diagnostics = SafeThrowableContext::make($exception, [$apiKey, $prompt, $path]);
+            $retryable = $this->isRetryablePreRequestConnectionFailure($diagnostics);
+            $failureStage = $this->connectionFailureStage($diagnostics);
+
+            Log::warning('OpenAI image edit connection failed.', $this->logContext($request, $stageKey, $prompt) + [
+                'failure_stage' => $failureStage,
+                'retryable' => $retryable,
+                'retry_limit' => max(0, (int) config('hairvision.generation.openai_connection_retries', 2)),
+                'retry_delay_seconds' => max(1, (int) config('hairvision.generation.openai_connection_retry_delay_seconds', 2)),
+                'exception' => $diagnostics,
+            ]);
+
+            return $this->failed(
+                $retryable ? 'provider_connection_failed' : 'provider_exception',
+                __('ai_models.errors.provider_failed'),
+                $stageKey,
+                [
+                    'failure_stage' => $failureStage,
+                    'curl_error_code' => $diagnostics['curl_error_code'] ?? null,
+                    'exception_class' => $exception::class,
+                ],
+                retryable: $retryable,
+                retryAfterSeconds: $retryable
+                    ? max(1, (int) config('hairvision.generation.openai_connection_retry_delay_seconds', 2))
+                    : null,
+            );
+        } catch (Throwable $exception) {
+            Log::error('OpenAI image edit request raised an unexpected exception.', $this->logContext($request, $stageKey, $prompt) + [
+                'retryable' => false,
+                'exception' => SafeThrowableContext::make($exception, [$apiKey, $prompt, $path]),
+            ]);
+
+            return $this->failed(
+                'provider_exception',
+                __('ai_models.errors.provider_failed'),
+                $stageKey,
+                [
+                    'exception_class' => $exception::class,
+                ],
+            );
         }
 
         if (! $response->successful()) {
+            Log::warning('OpenAI image edit request failed with HTTP error.', $this->logContext($request, $stageKey, $prompt) + [
+                'http_status' => $response->status(),
+                'request_id' => $this->requestId($response),
+                'response_body_length' => strlen($response->body()),
+                'retry_after_seconds' => $response->status() === 429 ? $this->retryAfterSeconds($response) : null,
+                'provider_error' => $this->safeProviderError($response, [$apiKey, $prompt, $path]),
+            ]);
+
             if ($response->status() === 429) {
                 return $this->failed(
                     'provider_rate_limited',
@@ -71,7 +121,7 @@ class OpenAiImageEditProvider implements AiModelProviderInterface
             }
 
             return $this->failed(
-                'provider_http_error',
+                $response->clientError() ? 'provider_client_error' : 'provider_server_error',
                 __('ai_models.errors.provider_failed'),
                 $stageKey,
                 [
@@ -84,6 +134,14 @@ class OpenAiImageEditProvider implements AiModelProviderInterface
         $binary = $this->decodeImage($response);
 
         if ($binary === null) {
+            Log::warning('OpenAI image edit response did not contain a valid image.', $this->logContext($request, $stageKey, $prompt) + [
+                'http_status' => $response->status(),
+                'request_id' => $this->requestId($response),
+                'response_body_length' => strlen($response->body()),
+                'data_item_count' => is_array($response->json('data')) ? count($response->json('data')) : 0,
+                'output_format' => $response->json('output_format'),
+            ]);
+
             return $this->failed(
                 'missing_generated_image',
                 __('ai_models.errors.missing_generated_image'),
@@ -136,18 +194,9 @@ class OpenAiImageEditProvider implements AiModelProviderInterface
         string $path,
         string $prompt,
     ): Response {
-        $endpoint = (string) ($request->settings['endpoint_url']
-            ?? $request->settings['endpoint']
-            ?? $request->modelConfig['endpoint']
-            ?? 'https://api.openai.com/v1/images/edits');
-        $timeout = min(900, max(60, $this->positiveInt(
-            $request->settings['timeout_seconds'] ?? $request->modelConfig['default_timeout'] ?? 900,
-            900,
-        )));
-        $connectTimeout = min(120, max(1, $this->positiveInt(
-            $request->settings['connect_timeout_seconds'] ?? $request->modelConfig['default_connect_timeout'] ?? 30,
-            30,
-        )));
+        $endpoint = $this->endpoint($request);
+        $timeout = $this->requestTimeout($request);
+        $connectTimeout = $this->connectTimeout($request);
 
         return Http::withToken($apiKey)
             ->acceptJson()
@@ -209,7 +258,7 @@ class OpenAiImageEditProvider implements AiModelProviderInterface
      */
     private function modelName(AiModelRequestData $request): string
     {
-        return $this->stringSetting($request, 'model', 'default_model', 'gpt-image-1.5');
+        return $this->stringSetting($request, 'model', 'default_model', 'gpt-image-2');
     }
 
     /**
@@ -377,6 +426,167 @@ class OpenAiImageEditProvider implements AiModelProviderInterface
         $integer = filter_var($value, FILTER_VALIDATE_INT);
 
         return $integer !== false && $integer > 0 ? $integer : $default;
+    }
+
+    /**
+     * Resolve the configured provider endpoint.
+     *
+     * @param  AiModelRequestData  $request  Normalized model request.
+     * @return string Provider endpoint.
+     *
+     * @since 2.0.2
+     */
+    private function endpoint(AiModelRequestData $request): string
+    {
+        return (string) ($request->settings['endpoint_url']
+            ?? $request->settings['endpoint']
+            ?? $request->modelConfig['endpoint']
+            ?? 'https://api.openai.com/v1/images/edits');
+    }
+
+    /**
+     * Resolve the total provider response timeout.
+     *
+     * @param  AiModelRequestData  $request  Normalized model request.
+     * @return int Timeout in seconds.
+     *
+     * @since 2.0.2
+     */
+    private function requestTimeout(AiModelRequestData $request): int
+    {
+        $fallback = max(1, (int) config('hairvision.image_queue.provider_request_timeout', 1000));
+
+        return max(60, $this->positiveInt(
+            $request->settings['timeout_seconds'] ?? $request->modelConfig['default_timeout'] ?? 1000,
+            $fallback,
+        ));
+    }
+
+    /**
+     * Resolve the provider connection timeout.
+     *
+     * @param  AiModelRequestData  $request  Normalized model request.
+     * @return int Timeout in seconds.
+     *
+     * @since 2.0.2
+     */
+    private function connectTimeout(AiModelRequestData $request): int
+    {
+        $fallback = max(1, (int) config('hairvision.image_queue.provider_connect_timeout', 50));
+
+        return max(1, $this->positiveInt(
+            $request->settings['connect_timeout_seconds'] ?? $request->modelConfig['default_connect_timeout'] ?? 50,
+            $fallback,
+        ));
+    }
+
+    /**
+     * Build safe request correlation and timeout context for provider errors.
+     *
+     * @param  AiModelRequestData  $request  Normalized model request.
+     * @param  string  $stageKey  Category-output key.
+     * @param  string  $prompt  Provider prompt, used only to report its length.
+     * @return array<string, mixed> Safe provider log context.
+     *
+     * @since 2.0.2
+     */
+    private function logContext(AiModelRequestData $request, string $stageKey, string $prompt): array
+    {
+        $endpoint = $this->endpoint($request);
+
+        return [
+            'provider' => 'openai',
+            'tenant_id' => $request->clinic->id,
+            'ai_model_access_id' => $request->access->id,
+            'generation_request_uuid' => data_get($request->payload, 'generation_request_id'),
+            'generation_attempt_uuid' => data_get($request->payload, 'generation_attempt_id'),
+            'generation_job_uuid' => data_get($request->payload, 'generation_job_id'),
+            'usage_category' => $request->usageCategoryKey,
+            'stage_key' => $stageKey,
+            'model' => $this->modelName($request),
+            'endpoint_scheme' => parse_url($endpoint, PHP_URL_SCHEME),
+            'endpoint_host' => parse_url($endpoint, PHP_URL_HOST),
+            'endpoint_path' => parse_url($endpoint, PHP_URL_PATH),
+            'request_timeout_seconds' => $this->requestTimeout($request),
+            'connect_timeout_seconds' => $this->connectTimeout($request),
+            'prompt_length' => mb_strlen($prompt),
+        ];
+    }
+
+    /**
+     * Keep only redacted error fields from a failed provider response.
+     *
+     * @param  Response  $response  Failed provider response.
+     * @param  array<int, string|null>  $redactValues  Request-specific values to remove.
+     * @return array<string, mixed> Safe provider error summary.
+     *
+     * @since 2.0.2
+     */
+    private function safeProviderError(Response $response, array $redactValues): array
+    {
+        $message = $response->json('error.message');
+        $safeMessage = is_string($message)
+            ? SafeThrowableContext::redactMessage($message, $redactValues)
+            : null;
+
+        return array_filter([
+            'type' => $response->json('error.type'),
+            'code' => $response->json('error.code'),
+            'param' => $response->json('error.param'),
+            'message_length' => is_string($message) ? mb_strlen($message) : null,
+            'message_sha256' => is_string($safeMessage) ? hash('sha256', $safeMessage) : null,
+        ], static fn (mixed $value): bool => $value !== null && $value !== '');
+    }
+
+    /**
+     * Determine whether cURL proved that no HTTP request reached the provider.
+     *
+     * @param  array<string, mixed>  $diagnostics  Sanitized exception diagnostics.
+     * @return bool Whether automatic retry is safe.
+     *
+     * @since 2.0.2
+     */
+    private function isRetryablePreRequestConnectionFailure(array $diagnostics): bool
+    {
+        $curlErrorCode = $diagnostics['curl_error_code'] ?? null;
+
+        if (in_array($curlErrorCode, [6, 7], true)) {
+            return true;
+        }
+
+        if ($curlErrorCode !== 28) {
+            return false;
+        }
+
+        foreach ($diagnostics['chain'] ?? [] as $failure) {
+            $message = strtolower((string) ($failure['message'] ?? ''));
+            $explicitConnectTimeout = str_contains($message, 'connection timed out')
+                || (str_contains($message, 'failed to connect') && str_contains($message, 'timeout was reached'));
+
+            if ($explicitConnectTimeout
+                && ! str_contains($message, 'operation timed out')) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Classify the failed pre-request transport stage.
+     *
+     * @param  array<string, mixed>  $diagnostics  Sanitized exception diagnostics.
+     * @return string Safe connection-stage label.
+     *
+     * @since 2.0.2
+     */
+    private function connectionFailureStage(array $diagnostics): string
+    {
+        return match ($diagnostics['curl_error_code'] ?? null) {
+            6 => 'dns',
+            7, 28 => 'connect',
+            default => 'unknown',
+        };
     }
 
     /**

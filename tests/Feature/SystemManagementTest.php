@@ -32,6 +32,7 @@ use App\Models\Upload;
 use App\Models\User;
 use App\Services\Admin\SmsGatewayManagementService;
 use App\Services\AI\ClinicAiModelProvisioningService;
+use App\Services\AI\ExecutableAiModelSyncService;
 use App\Services\Auth\PermissionService;
 use App\Services\Billing\BillingService;
 use App\Services\Payment\PaymentGatewayService;
@@ -87,8 +88,10 @@ class SystemManagementTest extends TestCase
             'provider_code' => 'local',
             'status' => 'enabled',
             'is_default' => true,
+            'is_protected' => true,
         ]);
         $this->assertTrue($localGateway->is_default);
+        $this->assertTrue($localGateway->is_protected);
         $this->assertSame('enabled', $localGateway->status);
         $this->assertDatabaseHas('sms_gateways', [
             'owner_scope' => 'system',
@@ -259,8 +262,17 @@ class SystemManagementTest extends TestCase
             'hair_transplant' => 'مدل GapGPT کاشت مو',
         ], $demoGapGptAccesses->pluck('name', 'usage_category_key')->all());
         $demoGapGptAccesses->each(function (AiModelAccess $access) use ($demoTenant): void {
-            $this->assertTrue($access->is_active);
+            $this->assertFalse($access->is_active);
             $this->assertNotEmpty($access->credentials['api_key'] ?? null);
+            $this->assertFalse($demoTenant->aiModelAccesses()->whereKey($access->id)->exists());
+        });
+
+        $demoOpenAiAccesses = AiModelAccess::query()
+            ->where('model_key', 'openai')
+            ->orderBy('usage_category_key')
+            ->get();
+        $demoOpenAiAccesses->each(function (AiModelAccess $access) use ($demoTenant): void {
+            $this->assertTrue($access->is_active);
             $this->assertTrue($demoTenant->aiModelAccesses()->whereKey($access->id)->wherePivot('is_active', true)->exists());
         });
 
@@ -275,13 +287,10 @@ class SystemManagementTest extends TestCase
         $this->assertSame(['eyebrow_transplant', 'hair_transplant'], $demoCategories);
         $this->assertDatabaseCount('tenant_ai_settings', 0);
 
-        $demoSmsGateway = SmsGateway::query()
+        $this->assertSame(0, SmsGateway::query()
             ->where('tenant_id', $demoTenant->id)
             ->where('owner_scope', 'tenant')
-            ->where('provider_code', 'ippanel')
-            ->firstOrFail();
-        $this->assertSame('enabled', $demoSmsGateway->status);
-        $this->assertTrue($demoSmsGateway->is_default);
+            ->count());
 
         $this->assertDatabaseMissing('system_settings', ['group' => 'catalog']);
 
@@ -1930,8 +1939,8 @@ class SystemManagementTest extends TestCase
         $superAdmin = User::query()->where('role', 'super_admin')->firstOrFail();
         $normalUser = User::query()->where('role', 'clinic_admin')->firstOrFail();
         $planModel = AiModelAccess::query()
+            ->where('model_key', 'openai')
             ->where('usage_category_key', 'hair_transplant')
-            ->where('is_demo', true)
             ->firstOrFail();
 
         $this->actingAs($superAdmin)
@@ -1956,10 +1965,12 @@ class SystemManagementTest extends TestCase
         ]);
 
         $higherPriorityModel = AiModelAccess::query()
+            ->where('model_key', 'gapgpt')
             ->where('usage_category_key', 'hair_transplant')
-            ->where('id', '!=', $planModel->id)
             ->firstOrFail();
-        $higherPriorityModel->update(['priority' => 5]);
+        $higherPriorityModel->update(['is_active' => true, 'priority' => 1]);
+        $planModel->update(['priority' => 10]);
+        app(ExecutableAiModelSyncService::class)->sync($higherPriorityModel, $superAdmin);
         $planModel->update(['priority' => 20]);
 
         $plansResponse = $this->actingAs($superAdmin)
@@ -2016,8 +2027,8 @@ class SystemManagementTest extends TestCase
         );
 
         $eyebrowModel = AiModelAccess::query()
+            ->where('model_key', 'openai')
             ->where('usage_category_key', 'eyebrow_transplant')
-            ->where('is_demo', true)
             ->firstOrFail();
 
         $this->actingAs($superAdmin)
@@ -2116,6 +2127,12 @@ class SystemManagementTest extends TestCase
         $this->seed(DatabaseSeeder::class);
 
         $superAdmin = User::query()->where('role', 'super_admin')->firstOrFail();
+        $secondHairModel = AiModelAccess::query()
+            ->where('model_key', 'gapgpt')
+            ->where('usage_category_key', 'hair_transplant')
+            ->firstOrFail();
+        $secondHairModel->update(['is_active' => true]);
+        app(ExecutableAiModelSyncService::class)->sync($secondHairModel, $superAdmin);
         $models = app(ClinicAiModelProvisioningService::class)
             ->assignableAccesses(['hair_transplant'])
             ->values();
@@ -2829,6 +2846,11 @@ class SystemManagementTest extends TestCase
             ->assertSee(route('admin.leads.assets.show', [$lead, $asset]))
             ->assertSee('data-processing-upload="'.$upload->uuid.'"', false)
             ->assertSee('data-generation-result-upload="'.$upload->uuid.'"', false)
+            ->assertSee('data-lead-gallery-trigger="upload-'.$upload->uuid.'"', false)
+            ->assertSee('data-gallery-key="upload-'.$upload->uuid.'"', false)
+            ->assertSee('data-gallery-key="asset-'.$asset->uuid.'"', false)
+            ->assertSee('data-lead-gallery-modal', false)
+            ->assertSee(__('leads.gallery.legacy_source_title'))
             ->assertSee(__('leads.uploads.title'));
 
         $this->actingAs($userA)
@@ -2944,6 +2966,10 @@ class SystemManagementTest extends TestCase
             ->assertSee($assetRoute)
             ->assertSee($category->name)
             ->assertSee($output->name)
+            ->assertSee('data-lead-gallery-trigger="source-'.$source->uuid.'"', false)
+            ->assertSee('data-gallery-key="source-'.$source->uuid.'"', false)
+            ->assertSee('data-gallery-key="asset-'.$asset->uuid.'"', false)
+            ->assertSee(__('leads.gallery.current_source_title'))
             ->assertSee(__('ai.generation.statuses.completed'));
 
         $this->actingAs($clinicAdmin)
@@ -3001,6 +3027,7 @@ class SystemManagementTest extends TestCase
             'ai_model_category_id' => $category->id,
             'code' => 'final_result',
             'name' => 'نتیجه تاریخچه',
+            'description' => 'توضیح قابل مشاهده نتیجه تاریخچه',
             'prompt' => 'محرمانه',
             'credit_cost' => 1,
             'is_active' => true,
@@ -3130,6 +3157,14 @@ class SystemManagementTest extends TestCase
             ->assertSee(route('admin.leads.assets.show', [$lead, $firstAsset]))
             ->assertSee(route('admin.leads.assets.show', [$lead, $archivedAsset]))
             ->assertSee(route('admin.leads.assets.show', [$lead, $currentAsset]))
+            ->assertSee('data-gallery-key="source-'.$latestSource->uuid.'"', false)
+            ->assertSee('data-gallery-key="source-'.$firstSource->uuid.'"', false)
+            ->assertSee('data-gallery-key="asset-'.$firstAsset->uuid.'"', false)
+            ->assertSee('data-gallery-key="asset-'.$archivedAsset->uuid.'"', false)
+            ->assertSee('data-gallery-key="asset-'.$currentAsset->uuid.'"', false)
+            ->assertSee(__('leads.generations.description'))
+            ->assertSee(__('leads.gallery.title'))
+            ->assertSee($output->description)
             ->assertSee(__('leads.source_images.current'))
             ->assertSee(__('leads.source_images.archived'))
             ->assertSee(__('leads.generations.current_result'))
@@ -3139,6 +3174,18 @@ class SystemManagementTest extends TestCase
         $this->assertLessThan(
             strpos($html, 'data-processing-source-image="'.$firstSource->uuid.'"'),
             strpos($html, 'data-processing-source-image="'.$latestSource->uuid.'"'),
+        );
+        $this->assertLessThan(
+            strpos($html, 'data-gallery-key="asset-'.$currentAsset->uuid.'"'),
+            strpos($html, 'data-gallery-key="source-'.$latestSource->uuid.'"'),
+        );
+        $this->assertLessThan(
+            strpos($html, 'data-gallery-key="source-'.$firstSource->uuid.'"'),
+            strpos($html, 'data-gallery-key="asset-'.$currentAsset->uuid.'"'),
+        );
+        $this->assertLessThan(
+            strpos($html, 'data-gallery-key="asset-'.$firstAsset->uuid.'"'),
+            strpos($html, 'data-gallery-key="source-'.$firstSource->uuid.'"'),
         );
         $this->assertLessThan(
             strpos($html, route('admin.leads.source-images.show', [$lead, $firstSource])),
@@ -3364,8 +3411,10 @@ class SystemManagementTest extends TestCase
         $mobileMenu = resource_path('js/admin/mobile-menu.js');
         $responsiveControls = resource_path('js/admin/responsive-controls.js');
         $theme = resource_path('js/admin/theme.js');
+        $leadImageGallery = resource_path('js/admin/lead-image-gallery.js');
+        $leadProcessingStyles = resource_path('css/components/lead-processing.css');
 
-        foreach ([$entrypoint, $adminIndex, $actionMenus, $modals, $confirmationModal, $jalaliDatepickers, $mobileMenu, $responsiveControls, $theme] as $path) {
+        foreach ([$entrypoint, $adminIndex, $actionMenus, $modals, $confirmationModal, $jalaliDatepickers, $mobileMenu, $responsiveControls, $theme, $leadImageGallery, $leadProcessingStyles] as $path) {
             $this->assertFileExists($path);
         }
 
@@ -3374,6 +3423,7 @@ class SystemManagementTest extends TestCase
         $this->assertStringContainsString("import { bootAdminTheme } from './theme.js';", file_get_contents($adminIndex));
         $this->assertStringContainsString("import { bootMobileMenu, closeMobileMenu } from './mobile-menu.js';", file_get_contents($adminIndex));
         $this->assertStringContainsString("import { bootResponsiveControls } from './responsive-controls.js';", file_get_contents($adminIndex));
+        $this->assertStringContainsString("import { bootLeadImageGallery, closeLeadImageGallery } from './lead-image-gallery.js';", file_get_contents($adminIndex));
         $this->assertStringContainsString('export const closeActionMenus', file_get_contents($actionMenus));
         $this->assertStringContainsString('export const closeModal', file_get_contents($modals));
         $this->assertStringContainsString('preserveScrollPosition', file_get_contents($modals));
@@ -3387,6 +3437,11 @@ class SystemManagementTest extends TestCase
         $this->assertStringContainsString('export const bootMobileMenu', file_get_contents($mobileMenu));
         $this->assertStringContainsString('export const bootResponsiveControls', file_get_contents($responsiveControls));
         $this->assertStringContainsString('localStorage.setItem', file_get_contents($theme));
+        $this->assertStringContainsString('export const bootLeadImageGallery', file_get_contents($leadImageGallery));
+        $this->assertStringContainsString("event.key === 'ArrowRight'", file_get_contents($leadImageGallery));
+        $this->assertStringContainsString("event.key === 'ArrowLeft'", file_get_contents($leadImageGallery));
+        $this->assertStringContainsString("modal.addEventListener('touchstart'", file_get_contents($leadImageGallery));
+        $this->assertStringContainsString('grid-template-columns: repeat(auto-fill', file_get_contents($leadProcessingStyles));
     }
 
     public function test_shared_table_filter_sort_and_pagination_components_render_consistently(): void

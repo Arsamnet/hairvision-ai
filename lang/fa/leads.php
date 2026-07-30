@@ -80,6 +80,7 @@ return [
 
     'generations' => [
         'title' => 'پردازش‌ها',
+        'description' => 'هر نوبت بارگذاری را همراه با تصویر ورودی، وضعیت درخواست‌ها و همه نسخه‌های نتیجه مرور کنید.',
         'empty' => 'هنوز پردازشی برای این لید ثبت نشده است.',
         'group' => 'گروه :uuid',
         'independent' => 'پردازش مستقل',
@@ -96,6 +97,26 @@ return [
         'result_version' => 'نسخه نتیجه :version',
         'current_result' => 'نتیجه فعلی',
         'archived_result' => 'نسخه قبلی نتیجه',
+        'not_requested' => 'برای این خروجی هنوز درخواستی ثبت نشده است.',
+        'rounds_count' => ':count نوبت بارگذاری',
+        'results_count' => ':count تصویر ساخته‌شده',
+    ],
+
+    'gallery' => [
+        'title' => 'گالری تصاویر لید',
+        'open' => 'مشاهده گالری',
+        'open_image' => 'نمایش :title در گالری',
+        'close' => 'بستن گالری',
+        'previous' => 'تصویر قبلی',
+        'next' => 'تصویر بعدی',
+        'download' => 'دانلود تصویر',
+        'current_source_title' => 'تصویر اصلی فعلی لید',
+        'source_title' => 'تصویر ورودی نوبت :version',
+        'source_description' => 'بارگذاری‌شده در :date و مبنای پردازش‌های این نوبت',
+        'legacy_source_title' => 'تصویر بارگذاری‌شده لید',
+        'legacy_source_description' => 'بارگذاری‌شده در :date برای پردازش قدیمی',
+        'generated_description' => ':category؛ :version، :state',
+        'legacy_generated_description' => 'خروجی پردازش قدیمی؛ :state',
     ],
 
     'periods' => [

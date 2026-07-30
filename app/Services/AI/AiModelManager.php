@@ -461,7 +461,10 @@ class AiModelManager
             'name' => $data['name'],
             'description' => $data['description'] ?? null,
             'credentials' => array_filter($credentials, fn (mixed $value): bool => filled($value)),
-            'settings' => $this->filteredSettings((array) ($data['settings'] ?? $access?->settings ?? [])),
+            'settings' => $this->filteredSettings(
+                (array) ($data['settings'] ?? $access?->settings ?? []),
+                (string) $data['model_key'],
+            ),
             'prompt' => null,
             'credit_limit' => filled($data['credit_limit'] ?? null) ? (int) $data['credit_limit'] : null,
             'is_active' => (bool) ($data['is_active'] ?? false),
@@ -475,13 +478,18 @@ class AiModelManager
      * Remove empty settings recursively.
      *
      * @param  array<string, mixed>  $settings
+     * @param  string|null  $modelKey  Model type for provider-specific cleanup.
      * @return array<string, mixed>
      *
      * @since 1.0.0
      */
-    private function filteredSettings(array $settings): array
+    private function filteredSettings(array $settings, ?string $modelKey = null): array
     {
         unset($settings['stage_prompts']);
+
+        if ($modelKey === 'openai') {
+            unset($settings['response_format']);
+        }
 
         $settings = collect($settings)
             ->map(fn (mixed $value): mixed => is_array($value) ? $this->filteredSettings($value) : $value)

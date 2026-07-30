@@ -1,0 +1,61 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+project_directory="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+php_binary="$(command -v php || true)"
+action="${1:-status}"
+marker="HairVision scheduler: ${project_directory}"
+
+if [[ -z "$php_binary" || ! -x "$php_binary" ]]; then
+    echo "PHP CLI was not found through command -v php." >&2
+    exit 1
+fi
+
+if ! command -v crontab >/dev/null 2>&1; then
+    echo "crontab is unavailable on this macOS/Linux host." >&2
+    exit 1
+fi
+
+existing_crontab="$(crontab -l 2>/dev/null || true)"
+cron_line="* * * * * HAIRVISION_CPANEL_QUEUE_CRON_ENABLED=true IMAGE_WORKER_MODE=detached IMAGE_WORKER_COUNT=3 IMAGE_PROVIDER_MAX_CONCURRENCY=3 HAIRVISION_OPENAI_CONCURRENCY_LIMIT=2 '${php_binary}' '${project_directory}/artisan' schedule:run >> '${project_directory}/storage/logs/cron-local.log' 2>&1 # ${marker}"
+
+case "$action" in
+    install)
+        if grep -Fq "$marker" <<< "$existing_crontab"; then
+            echo "HairVision local cron is already installed for ${project_directory}."
+            exit 0
+        fi
+
+        temporary_file="$(mktemp)"
+        trap 'rm -f "$temporary_file"' EXIT
+        printf '%s\n' "$existing_crontab" "$cron_line" | sed '/^[[:space:]]*$/d' > "$temporary_file"
+        "$php_binary" "${project_directory}/artisan" config:clear --no-interaction
+        crontab "$temporary_file"
+        echo "Installed: ${cron_line}"
+        ;;
+    uninstall)
+        if ! grep -Fq "$marker" <<< "$existing_crontab"; then
+            echo "No HairVision local cron entry exists for ${project_directory}."
+            exit 0
+        fi
+
+        temporary_file="$(mktemp)"
+        trap 'rm -f "$temporary_file"' EXIT
+        grep -Fv "$marker" <<< "$existing_crontab" > "$temporary_file" || true
+        crontab "$temporary_file"
+        echo "Removed the HairVision local cron entry for ${project_directory}."
+        ;;
+    status)
+        if grep -F "$marker" <<< "$existing_crontab"; then
+            exit 0
+        fi
+
+        echo "HairVision local cron is not installed for ${project_directory}."
+        exit 1
+        ;;
+    *)
+        echo "Usage: ./scripts/hairvision-cron [install|uninstall|status]" >&2
+        exit 2
+        ;;
+esac

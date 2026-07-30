@@ -1,7 +1,7 @@
 <?php
 
 return [
-    'version' => env('APP_VERSION', '2.0.3'),
+    'version' => env('APP_VERSION', '2.1.0'),
 
     'primary_domain' => env('HAIRVISION_PRIMARY_DOMAIN', 'hairvision-ai.test'),
 
@@ -42,6 +42,28 @@ return [
         'preparing_image' => env('HAIRVISION_PREPARING_IMAGE_MESSAGE', 'در حال آماده سازی تصویر و ساخت نتایج نمونه هستیم. لطفا چند لحظه صبر کنید.'),
     ],
 
+    'image_queue' => [
+        'connection' => env('IMAGE_QUEUE_CONNECTION', env('QUEUE_CONNECTION', 'database')),
+        'name' => env('IMAGE_QUEUE_NAME', 'ai-generation'),
+        'worker_mode' => env('IMAGE_WORKER_MODE', 'detached'),
+        'worker_count' => max(1, (int) env('IMAGE_WORKER_COUNT', 1)),
+        'worker_timeout' => max(1, (int) env('IMAGE_WORKER_TIMEOUT', 1020)),
+        'worker_tries' => max(1, (int) env('IMAGE_WORKER_TRIES', 3)),
+        'worker_max_jobs' => max(1, (int) env('IMAGE_WORKER_MAX_JOBS', 250)),
+        'worker_max_time' => max(60, (int) env('IMAGE_WORKER_MAX_TIME', 3600)),
+        'worker_memory' => max(64, (int) env('IMAGE_WORKER_MEMORY', 256)),
+        'worker_stale_seconds' => max(120, (int) env('IMAGE_WORKER_STALE_SECONDS', 1080)),
+        'provider_max_concurrency' => max(1, (int) env('IMAGE_PROVIDER_MAX_CONCURRENCY', 3)),
+        'provider_connect_timeout' => max(1, (int) env('IMAGE_PROVIDER_CONNECT_TIMEOUT', 50)),
+        'provider_request_timeout' => max(1, (int) env('IMAGE_PROVIDER_REQUEST_TIMEOUT', 1000)),
+        'provider_capacity_delay_min_seconds' => max(1, (int) env('IMAGE_PROVIDER_CAPACITY_DELAY_MIN_SECONDS', 3)),
+        'provider_capacity_delay_max_seconds' => max(1, (int) env('IMAGE_PROVIDER_CAPACITY_DELAY_MAX_SECONDS', 8)),
+        'result_retention_hours' => max(1, (int) env('IMAGE_RESULT_RETENTION_HOURS', 720)),
+        'active_session_retention_minutes' => max(1, (int) env('IMAGE_ACTIVE_SESSION_RETENTION_MINUTES', 120)),
+        'poll_initial_interval_ms' => max(250, (int) env('IMAGE_POLL_INITIAL_INTERVAL_MS', 1500)),
+        'poll_max_interval_ms' => max(1000, (int) env('IMAGE_POLL_MAX_INTERVAL_MS', 15000)),
+    ],
+
     'queue_worker' => [
         'cpanel_cron_enabled' => filter_var(
             env('HAIRVISION_CPANEL_QUEUE_CRON_ENABLED', false),
@@ -49,52 +71,41 @@ return [
         ),
         'cpanel_connection' => env('HAIRVISION_CPANEL_QUEUE_CONNECTION', env('QUEUE_CONNECTION', 'database')),
         'queues' => env('HAIRVISION_CPANEL_QUEUE_NAMES', 'ai-generation,default'),
-        'processes' => max(1, (int) env('HAIRVISION_CPANEL_QUEUE_PROCESSES', 1)),
+        'processes' => max(1, (int) env('HAIRVISION_CPANEL_QUEUE_PROCESSES', env('IMAGE_WORKER_COUNT', 1))),
         'window_seconds' => (int) env('HAIRVISION_CPANEL_QUEUE_WINDOW_SECONDS', 58),
         'sleep_seconds' => (int) env('HAIRVISION_CPANEL_QUEUE_SLEEP_SECONDS', 1),
-        'timeout_seconds' => (int) env('HAIRVISION_QUEUE_WORKER_TIMEOUT', 1020),
+        'timeout_seconds' => (int) env('HAIRVISION_QUEUE_WORKER_TIMEOUT', env('IMAGE_WORKER_TIMEOUT', 1020)),
         'overlap_expiration_minutes' => (int) env('HAIRVISION_CPANEL_QUEUE_OVERLAP_MINUTES', 30),
     ],
 
     'generation' => [
-        'queue_connection' => env('HAIRVISION_GENERATION_QUEUE_CONNECTION', env('QUEUE_CONNECTION', 'database')),
-        'queue_name' => env('HAIRVISION_GENERATION_QUEUE_NAME', 'ai-generation'),
+        'queue_connection' => env('HAIRVISION_GENERATION_QUEUE_CONNECTION', env('IMAGE_QUEUE_CONNECTION', env('QUEUE_CONNECTION', 'database'))),
+        'queue_name' => env('HAIRVISION_GENERATION_QUEUE_NAME', env('IMAGE_QUEUE_NAME', 'ai-generation')),
         'reservation_stale_seconds' => (int) env('HAIRVISION_GENERATION_RESERVATION_STALE_SECONDS', 300),
         'processing_review_seconds' => (int) env('HAIRVISION_GENERATION_PROCESSING_REVIEW_SECONDS', 1800),
         'provider_rate_limit_retries' => (int) env('HAIRVISION_PROVIDER_RATE_LIMIT_RETRIES', 3),
         'provider_rate_limit_delay_seconds' => (int) env('HAIRVISION_PROVIDER_RATE_LIMIT_DELAY_SECONDS', 30),
         'provider_rate_limit_max_delay_seconds' => (int) env('HAIRVISION_PROVIDER_RATE_LIMIT_MAX_DELAY_SECONDS', 300),
+        'openai_connection_retries' => (int) env('HAIRVISION_OPENAI_CONNECTION_RETRIES', 2),
+        'openai_connection_retry_delay_seconds' => (int) env('HAIRVISION_OPENAI_CONNECTION_RETRY_DELAY_SECONDS', 2),
+        'openai_connection_retry_max_delay_seconds' => (int) env('HAIRVISION_OPENAI_CONNECTION_RETRY_MAX_DELAY_SECONDS', 20),
+        'openai_connection_retry_jitter_seconds' => (int) env('HAIRVISION_OPENAI_CONNECTION_RETRY_JITTER_SECONDS', 2),
         'provider_failure_threshold' => (int) env('HAIRVISION_PROVIDER_FAILURE_THRESHOLD', 5),
         'provider_failure_cooldown_seconds' => (int) env('HAIRVISION_PROVIDER_FAILURE_COOLDOWN_SECONDS', 300),
         'message_interval_ms' => (int) env('HAIRVISION_GENERATION_MESSAGE_INTERVAL_MS', 10000),
-        'poll_interval_ms' => (int) env('HAIRVISION_GENERATION_POLL_INTERVAL_MS', 10000),
+        'poll_interval_ms' => (int) env('HAIRVISION_GENERATION_POLL_INTERVAL_MS', env('IMAGE_POLL_INITIAL_INTERVAL_MS', 1500)),
 
         /*
         |--------------------------------------------------------------------------
         | Generation Polling UX
         |--------------------------------------------------------------------------
         |
-        | soft_timeout_ms only changes the frontend message.
-        | max_wait_ms is the maximum time the frontend should keep polling
-        | in the current page session before telling the user that background
-        | processing is still continuing.
-        |
-        | poll_timeout_ms is kept as a legacy alias so older Blade/JS code
-        | that still reads it will not break.
+        | soft_timeout_ms only changes the frontend message. Polling has no
+        | global terminal timeout and continues while work is non-terminal.
         |
         */
 
         'soft_timeout_ms' => (int) env('HAIRVISION_GENERATION_SOFT_TIMEOUT_MS', 120000),
-        'max_wait_ms' => (int) env('HAIRVISION_GENERATION_MAX_WAIT_MS', 900000),
-        'allow_background_completion' => filter_var(
-            env('HAIRVISION_GENERATION_ALLOW_BACKGROUND_COMPLETION', false),
-            FILTER_VALIDATE_BOOLEAN
-        ),
-
-        'poll_timeout_ms' => (int) env(
-            'HAIRVISION_GENERATION_POLL_TIMEOUT_MS',
-            env('HAIRVISION_GENERATION_MAX_WAIT_MS', 900000)
-        ),
 
         'services' => [
             'hair_transplant' => [
@@ -180,7 +191,7 @@ return [
     ],
 
     'sms' => [
-        'default_provider' => env('HAIRVISION_DEFAULT_SMS_PROVIDER', 'ippanel'),
+        'default_provider' => env('HAIRVISION_DEFAULT_SMS_PROVIDER', 'local'),
         'ippanel' => [
             'authorization_token' => env('HAIRVISION_IPPANEL_AUTHORIZATION_TOKEN'),
             'from_number' => env('HAIRVISION_IPPANEL_FROM_NUMBER', '+983000505'),

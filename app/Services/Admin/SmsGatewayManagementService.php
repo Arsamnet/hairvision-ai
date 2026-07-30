@@ -12,6 +12,7 @@ use App\Support\StateCatalog;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
+use Illuminate\Validation\ValidationException;
 
 /**
  * Builds SMS gateway queries and safe credential mutations.
@@ -171,6 +172,8 @@ class SmsGatewayManagementService
      */
     public function createSystem(array $data, SmsGatewayService $gateways): SmsGateway
     {
+        $this->ensureProtectedSystemGatewayIsUnique($data);
+
         if (($data['owner_scope'] ?? null) === 'tenant') {
             $tenant = Tenant::query()->findOrFail((int) $data['tenant_id']);
 
@@ -198,6 +201,9 @@ class SmsGatewayManagementService
      */
     public function updateSystem(SmsGateway $gateway, array $data, SmsGatewayService $gateways): SmsGateway
     {
+        $this->ensureMutable($gateway);
+        $this->ensureProtectedSystemGatewayIsUnique($data, $gateway);
+
         if (($data['owner_scope'] ?? null) === 'tenant') {
             $tenant = Tenant::query()->findOrFail((int) $data['tenant_id']);
             $existing = $this->clinicSettings($tenant);
@@ -214,6 +220,23 @@ class SmsGatewayManagementService
         }
 
         return $gateway->refresh();
+    }
+
+    /**
+     * Delete a mutable SMS gateway.
+     *
+     * @param  SmsGateway  $gateway  The gateway value.
+     * @return void No value is returned.
+     *
+     * @throws ValidationException
+     *
+     * @since 2.0.0
+     */
+    public function deleteSystem(SmsGateway $gateway): void
+    {
+        $this->ensureMutable($gateway);
+
+        $gateway->delete();
     }
 
     /**
@@ -305,6 +328,60 @@ class SmsGatewayManagementService
         }
 
         return $attributes;
+    }
+
+    /**
+     * Reject mutations of system-owned protected gateways.
+     *
+     * @param  SmsGateway  $gateway  The gateway value.
+     * @return void No value is returned.
+     *
+     * @throws ValidationException
+     *
+     * @since 2.0.0
+     */
+    private function ensureMutable(SmsGateway $gateway): void
+    {
+        if (! $gateway->is_protected) {
+            return;
+        }
+
+        throw ValidationException::withMessages([
+            'sms_gateway' => __('sms.protected_mutation_denied'),
+        ]);
+    }
+
+    /**
+     * Keep the one seeded system-local gateway as the sole debug/test definition.
+     *
+     * @param  array<string, mixed>  $data  Validated gateway values.
+     * @param  SmsGateway|null  $gateway  Existing gateway being updated.
+     * @return void No value is returned.
+     *
+     * @throws ValidationException
+     *
+     * @since 2.0.0
+     */
+    private function ensureProtectedSystemGatewayIsUnique(array $data, ?SmsGateway $gateway = null): void
+    {
+        if (($data['owner_scope'] ?? null) !== 'system' || ($data['provider_code'] ?? null) !== 'local') {
+            return;
+        }
+
+        $exists = SmsGateway::query()
+            ->system()
+            ->where('provider_code', 'local')
+            ->where('is_protected', true)
+            ->when($gateway, fn (Builder $query) => $query->whereKeyNot($gateway->id))
+            ->exists();
+
+        if (! $exists) {
+            return;
+        }
+
+        throw ValidationException::withMessages([
+            'provider_code' => __('sms.protected_duplicate_denied'),
+        ]);
     }
 
     /**

@@ -17,14 +17,22 @@ class GenerationGroup extends Model
 {
     use HasFactory, HasUuid;
 
+    public const STATUSES = ['pending', 'queued', 'processing', 'completed', 'retrying', 'failed', 'cancelled'];
+
     protected $fillable = [
         'tenant_id',
         'lead_id',
         'upload_id',
         'status',
+        'queued_at',
+        'started_at',
+        'completed_at',
     ];
 
     protected $casts = [
+        'queued_at' => 'datetime',
+        'started_at' => 'datetime',
+        'completed_at' => 'datetime',
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
     ];

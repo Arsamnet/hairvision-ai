@@ -30,6 +30,7 @@ class SmsGatewaySeeder extends Seeder
                 'name' => __('messages.local_sms_gateway'),
                 'status' => 'enabled',
                 'is_default' => true,
+                'is_protected' => true,
                 'encrypted_credentials' => [],
                 'settings_json' => ['purpose' => 'system_messages'],
             ]

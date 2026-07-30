@@ -144,7 +144,14 @@
                         'moderation' => ['auto', 'low'],
                         default => [],
                     };
-                    $settingValue = old('settings.'.$field, data_get($access?->settings ?? [], $field));
+                    $defaultSettingValue = match ($field) {
+                        'endpoint_url' => data_get($models, $selectedModel.'.endpoint'),
+                        default => data_get($models, $selectedModel.'.default_'.$field),
+                    };
+                    $settingValue = old(
+                        'settings.'.$field,
+                        data_get($access?->settings ?? [], $field, $defaultSettingValue),
+                    );
                 @endphp
                 @if($selectOptions !== [])
                     <label class="grid gap-1 text-sm font-bold">

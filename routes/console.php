@@ -1,9 +1,11 @@
 <?php
 
 use App\Services\Generation\ModelQueueCoordinator;
+use App\Services\Generation\QueueWindowBudget;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Schedule;
+use Illuminate\Support\Str;
 use Symfony\Component\Console\Command\Command;
 
 Artisan::command('inspire', function () {
@@ -18,7 +20,7 @@ Artisan::command('hairvision:queue-window
     {--timeout=1020 : Worker timeout in seconds}
     {--worker=1 : Stable worker lane identifier}', function (): int {
     $connection = (string) ($this->argument('connection') ?: config('queue.default'));
-    $duration = max(1, (int) $this->option('duration'));
+    $duration = app(QueueWindowBudget::class)->resolve((int) $this->option('duration'));
     $interval = max(1, (int) $this->option('interval'));
     $timeout = max(1, (int) $this->option('timeout'));
     $retryAfter = (int) config("queue.connections.$connection.retry_after", 0);
@@ -35,14 +37,17 @@ Artisan::command('hairvision:queue-window
         return Command::FAILURE;
     }
 
-    $exitCode = Artisan::call('queue:work', [
-        'connection' => $connection,
+    config([
+        'hairvision.image_queue.worker_timeout' => $timeout,
+    ]);
+
+    $exitCode = Artisan::call('hairvision:worker:run', [
+        'slot' => max(1, (int) $this->option('worker')),
+        '--worker-id' => (string) Str::uuid(),
+        '--mode' => 'window',
+        '--connection' => $connection,
         '--queue' => (string) $this->option('queue'),
-        '--sleep' => $interval,
         '--max-time' => $duration,
-        '--timeout' => $timeout,
-        '--tries' => 1,
-        '--no-interaction' => true,
     ]);
 
     $this->output->write(Artisan::output());
@@ -61,6 +66,11 @@ Artisan::command('hairvision:queue-window
 */
 
 if (config('hairvision.queue_worker.cpanel_cron_enabled')) {
+    Schedule::command('hairvision:workers:ensure')
+        ->everyMinute()
+        ->name('hairvision-image-workers-watchdog')
+        ->withoutOverlapping(1);
+
     Schedule::call(function (): void {
         $queue = app(ModelQueueCoordinator::class);
         $queue->recoverStaleReservations();
@@ -70,7 +80,24 @@ if (config('hairvision.queue_worker.cpanel_cron_enabled')) {
         ->name('hairvision-generation-queue-coordinator')
         ->withoutOverlapping(5);
 
-    $processes = max(1, (int) config('hairvision.queue_worker.processes', 1));
+    Schedule::command('hairvision:generations:reconcile')
+        ->everyMinute()
+        ->name('hairvision-generation-reconcile')
+        ->withoutOverlapping(5);
+
+    Schedule::command('hairvision:generations:cleanup')
+        ->dailyAt('03:30')
+        ->name('hairvision-generation-cleanup')
+        ->withoutOverlapping(120);
+
+    Schedule::command('hairvision:queue-health --json')
+        ->everyFiveMinutes()
+        ->name('hairvision-image-queue-health')
+        ->withoutOverlapping(5);
+
+    $processes = config('hairvision.image_queue.worker_mode') === 'window'
+        ? max(1, (int) config('hairvision.queue_worker.processes', 1))
+        : 0;
 
     for ($worker = 1; $worker <= $processes; $worker++) {
         Schedule::command('hairvision:queue-window', [

@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources;
 
+use App\Services\Generation\GenerationResumeTokenService;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -22,6 +23,8 @@ class GenerationRequestResource extends JsonResource
      */
     public function toArray(Request $request): array
     {
+        $resumeToken = app(GenerationResumeTokenService::class)->tokenFor($request, $this->resource);
+
         return [
             'id' => $this->uuid,
             'source_image_id' => $this->sourceImage?->uuid,
@@ -37,6 +40,9 @@ class GenerationRequestResource extends JsonResource
                 'credit_cost' => $this->output?->credit_cost,
             ],
             'status' => $this->status,
+            'status_url' => '/api/v1/generations/'.$this->uuid,
+            'results_url' => '/api/v1/generations/independent/'.$this->uuid.'/results',
+            'resume_token' => $resumeToken,
             'asset_url' => $this->currentAsset ? '/api/v1/assets/'.$this->currentAsset->uuid.'/stream' : null,
             'error' => $this->safe_error_message,
             'attempts' => $this->whenLoaded('attempts', fn () => $this->attempts->map(fn ($attempt): array => [

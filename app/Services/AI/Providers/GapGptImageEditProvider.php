@@ -83,7 +83,7 @@ class GapGptImageEditProvider implements AiModelProviderInterface
             }
 
             return $this->failed(
-                'provider_http_error',
+                $response->clientError() ? 'provider_client_error' : 'provider_server_error',
                 __('ai_models.errors.provider_failed'),
                 $stageKey,
                 [
@@ -151,8 +151,10 @@ class GapGptImageEditProvider implements AiModelProviderInterface
         $settings = $request->settings;
         $modelConfig = $request->modelConfig;
         $endpoint = (string) ($settings['endpoint_url'] ?? $modelConfig['endpoint']);
-        $timeout = min(900, max(60, $this->positiveInt($settings['timeout_seconds'] ?? $modelConfig['default_timeout'] ?? 900, 900)));
-        $connectTimeout = max(30, $this->positiveInt($settings['connect_timeout_seconds'] ?? $modelConfig['default_connect_timeout'] ?? 30, 30));
+        $requestTimeout = max(1, (int) config('hairvision.image_queue.provider_request_timeout', 900));
+        $globalConnectTimeout = max(1, (int) config('hairvision.image_queue.provider_connect_timeout', 30));
+        $timeout = max(60, $this->positiveInt($settings['timeout_seconds'] ?? $modelConfig['default_timeout'] ?? 900, $requestTimeout));
+        $connectTimeout = max(1, $this->positiveInt($settings['connect_timeout_seconds'] ?? $modelConfig['default_connect_timeout'] ?? 30, $globalConnectTimeout));
 
         $contents = Storage::disk($disk)->get($path);
 
@@ -217,7 +219,9 @@ class GapGptImageEditProvider implements AiModelProviderInterface
             return null;
         }
 
-        $sourceHost = $this->urlHost($url);
+        if (! $this->isSafeProviderUrl($url)) {
+            return null;
+        }
 
         try {
             $download = Http::timeout(45)->get($url);
@@ -225,15 +229,23 @@ class GapGptImageEditProvider implements AiModelProviderInterface
             return null;
         }
 
-        if (! $download->successful() || $download->body() === '') {
+        $body = $download->body();
+
+        if (! $download->successful() || $body === '' || strlen($body) > 20 * 1024 * 1024) {
             return null;
         }
 
         $mime = $download->header('Content-Type') ?: $this->mimeFromResponse($response, $request);
-        $safeMime = str_starts_with($mime, 'image/') ? $mime : 'image/jpeg';
+        $details = @getimagesizefromstring($body);
+
+        if (! is_array($details) || ! isset($details['mime']) || ! str_starts_with((string) $details['mime'], 'image/')) {
+            return null;
+        }
+
+        $safeMime = str_starts_with($mime, 'image/') ? $mime : (string) $details['mime'];
 
         return [
-            'binary_content' => $download->body(),
+            'binary_content' => $body,
             'mime' => $safeMime,
             'extension' => $this->extensionForMime($safeMime),
             'source' => 'provider_url',
@@ -438,6 +450,34 @@ class GapGptImageEditProvider implements AiModelProviderInterface
         $host = parse_url($url, PHP_URL_HOST);
 
         return is_string($host) && $host !== '' ? $host : null;
+    }
+
+    /**
+     * Reject local, private-address, and non-HTTPS provider result URLs.
+     *
+     * @param  string  $url  Provider-supplied temporary URL.
+     * @return bool Whether the URL is safe enough for a bounded download.
+     *
+     * @since 2.0.0
+     */
+    private function isSafeProviderUrl(string $url): bool
+    {
+        $scheme = strtolower((string) parse_url($url, PHP_URL_SCHEME));
+        $host = strtolower((string) parse_url($url, PHP_URL_HOST));
+
+        if ($scheme !== 'https' || $host === '' || $host === 'localhost' || str_ends_with($host, '.local')) {
+            return false;
+        }
+
+        if (filter_var($host, FILTER_VALIDATE_IP)) {
+            return filter_var(
+                $host,
+                FILTER_VALIDATE_IP,
+                FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE,
+            ) !== false;
+        }
+
+        return true;
     }
 
     /**

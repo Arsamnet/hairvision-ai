@@ -82,4 +82,16 @@ class GeneratedAsset extends Model
     {
         return $this->belongsTo(GenerationRequest::class);
     }
+
+    /**
+     * V2 execution attempt that produced this asset, when applicable.
+     *
+     * @return BelongsTo<GenerationAttempt, $this>
+     *
+     * @since 2.0.0
+     */
+    public function generationAttempt(): BelongsTo
+    {
+        return $this->belongsTo(GenerationAttempt::class);
+    }
 }

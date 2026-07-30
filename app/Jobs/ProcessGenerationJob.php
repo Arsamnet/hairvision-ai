@@ -5,14 +5,18 @@ namespace App\Jobs;
 use App\Actions\Ai\RunAiModelAction;
 use App\Data\Ai\AiModelResponseData;
 use App\Models\GeneratedAsset;
-use App\Models\GenerationGroup;
 use App\Models\GenerationJob;
 use App\Models\Upload;
 use App\Services\AI\JpegImageNormalizer;
 use App\Services\Billing\CreditLedgerService;
 use App\Services\Generation\FinalGenerationSmsService;
+use App\Services\Generation\GeneratedAssetIntegrityService;
+use App\Services\Generation\GenerationGroupStatusService;
 use App\Services\Generation\GenerationStageCatalog;
-use App\Services\GenerationService;
+use App\Services\Generation\ProviderConcurrencyLimiter;
+use App\Services\Generation\ProviderRetryPolicy;
+use App\Support\SafeThrowableContext;
+use App\Support\WorkerIdentity;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -41,12 +45,12 @@ class ProcessGenerationJob implements ShouldQueue
     /**
      * Keep external image provider calls from being killed too early.
      */
-    public int $timeout = 960;
+    public int $timeout;
 
     /**
      * Never repeat paid provider requests automatically.
      */
-    public int $tries = 1;
+    public int $tries = 0;
 
     /**
      * Create a new process generation job instance.
@@ -55,46 +59,93 @@ class ProcessGenerationJob implements ShouldQueue
      *
      * @since 1.0.0
      */
-    public function __construct(public GenerationJob $generationJob) {}
+    public function __construct(public GenerationJob $generationJob)
+    {
+        $this->timeout = max(1, (int) config('hairvision.image_queue.worker_timeout', 1020) - 10);
+        $this->afterCommit();
+    }
 
     /**
      * Execute provider processing and persist the generated asset.
      *
+     * @param  ProviderConcurrencyLimiter|null  $providerCapacity  Global provider capacity gate.
+     * @param  GenerationGroupStatusService|null  $groupStatuses  Independent sibling status derivation.
+     * @param  GeneratedAssetIntegrityService|null  $assetIntegrity  Existing private asset validator.
      * @return void No value is returned.
      *
      * @since 1.0.0
      */
-    public function handle(): void
-    {
+    public function handle(
+        ?ProviderConcurrencyLimiter $providerCapacity = null,
+        ?GenerationGroupStatusService $groupStatuses = null,
+        ?GeneratedAssetIntegrityService $assetIntegrity = null,
+    ): void {
         $scope = 'generation.job.process';
+        $providerCapacity ??= app(ProviderConcurrencyLimiter::class);
+        $groupStatuses ??= app(GenerationGroupStatusService::class);
+        $assetIntegrity ??= app(GeneratedAssetIntegrityService::class);
+        $providerLease = null;
 
         try {
             $this->generationJob->refresh();
 
-            if ($this->generationJob->status === 'completed' || $this->generationJob->asset()->exists()) {
+            $existingAsset = $this->generationJob->asset()->first();
+
+            if ($this->generationJob->status === 'completed'
+                || ($existingAsset && $assetIntegrity->isValid($existingAsset))) {
                 $this->generationJob->update([
                     'status' => 'completed',
                     'completed_at' => $this->generationJob->completed_at ?? now(),
                     'last_error' => null,
+                    'error_code' => null,
                 ]);
 
-                $this->completeGroupOrDispatchNext();
+                $this->completeGroup($groupStatuses);
 
                 return;
             }
 
-            if ($this->shouldStopBecauseGroupFailed()) {
+            if (in_array($this->generationJob->status, ['failed', 'cancelled'], true)) {
+                return;
+            }
+
+            $workerId = WorkerIdentity::current();
+            $providerLease = $providerCapacity->acquire(
+                'generation_job',
+                (int) $this->generationJob->id,
+                $workerId,
+            );
+
+            if (! $providerLease) {
+                $delay = $providerCapacity->retryDelaySeconds();
+                $this->generationJob->refresh();
+
+                if (in_array($this->generationJob->status, ['pending', 'queued', 'retrying'], true)) {
+                    $this->generationJob->forceFill([
+                        'status' => 'queued',
+                        'next_poll_at' => now()->addSeconds($delay),
+                    ])->save();
+                }
+
+                $groupStatuses->refresh($this->generationJob->group);
+                $this->release($delay);
+
                 return;
             }
 
             $attempt = ((int) $this->generationJob->attempts) + 1;
+            $queuedAt = $this->generationJob->queued_at ?? $this->generationJob->created_at;
 
             $this->generationJob->update([
                 'status' => 'processing',
                 'started_at' => now(),
                 'attempts' => $attempt,
                 'last_error' => null,
+                'error_code' => null,
+                'worker_id' => $workerId,
+                'queue_wait_ms' => $queuedAt ? max(0, $queuedAt->diffInMilliseconds(now())) : null,
             ]);
+            $groupStatuses->refresh($this->generationJob->group);
 
             $upload = $this->generationJob->upload;
             if (! $upload instanceof Upload) {
@@ -110,6 +161,8 @@ class ProcessGenerationJob implements ShouldQueue
             $this->safelyMarkFailedFromException($exception);
 
             throw $exception;
+        } finally {
+            $providerCapacity->release($providerLease);
         }
     }
 
@@ -139,6 +192,11 @@ class ProcessGenerationJob implements ShouldQueue
     private function processWithAiModelAction(string $scope, Upload $upload): void
     {
         try {
+            $providerStartedAt = now();
+            $this->generationJob->forceFill([
+                'provider_call_started_at' => $providerStartedAt,
+            ])->save();
+
             $response = app(RunAiModelAction::class)->execute(
                 clinic: $this->generationJob->tenant,
                 usageCategoryKey: $this->generationJob->aiModelAccess->usage_category_key,
@@ -154,7 +212,17 @@ class ProcessGenerationJob implements ShouldQueue
                 lead: $upload->lead,
             );
 
+            $this->generationJob->forceFill([
+                'provider_job_id' => $response->providerReference,
+                'provider_call_finished_at' => now(),
+                'provider_latency_ms' => max(0, $providerStartedAt->diffInMilliseconds(now())),
+            ])->save();
+
             if (! $response->successful) {
+                if ($response->retryable && $this->retryAfterDefiniteFailure($response)) {
+                    return;
+                }
+
                 $this->markFailed($response->errorCode ?: 'provider_failed');
 
                 return;
@@ -162,12 +230,6 @@ class ProcessGenerationJob implements ShouldQueue
 
             if (! $this->aiResponseHasImage($response)) {
                 $this->markFailed('missing_generated_image');
-
-                return;
-            }
-
-            if ($this->shouldStopBecauseGroupFailed()) {
-                $this->markFailed('group_already_failed');
 
                 return;
             }
@@ -210,50 +272,31 @@ class ProcessGenerationJob implements ShouldQueue
             'status' => 'completed',
             'completed_at' => now(),
             'last_error' => null,
+            'error_code' => null,
         ]);
 
-        $this->completeGroupOrDispatchNext();
+        $this->completeGroup(app(GenerationGroupStatusService::class));
     }
 
     /**
      * Complete the group or dispatch the next stage.
      *
+     * @param  GenerationGroupStatusService  $groupStatuses  Independent sibling status derivation.
      * @return void No value is returned.
      *
      * @since 1.0.0
      */
-    private function completeGroupOrDispatchNext(): void
+    private function completeGroup(GenerationGroupStatusService $groupStatuses): void
     {
         $scope = 'generation.job.process';
 
         $group = $this->generationJob->group()->with('jobs')->firstOrFail();
         $wasCompleted = $group->status === 'completed';
+        $group = $groupStatuses->refresh($group);
 
-        $completedCount = $group->jobs
-            ->filter(fn (GenerationJob $job): bool => $job->status === 'completed')
-            ->count();
-
-        if ($group->jobs->contains(fn (GenerationJob $job): bool => $job->status === 'failed')) {
-            $this->failGroupAfterJobFailure($group);
-
-            return;
+        if (! $wasCompleted && $group->status === 'completed') {
+            app(FinalGenerationSmsService::class)->sendCompleted($group);
         }
-
-        if ($group->jobs->every(fn (GenerationJob $job): bool => $job->status === 'completed')) {
-            $group->update(['status' => 'completed']);
-
-            if (! $wasCompleted) {
-                app(FinalGenerationSmsService::class)->sendCompleted($group->refresh());
-
-            }
-
-            return;
-        }
-
-        $group->update(['status' => 'processing']);
-
-        app(GenerationService::class)->dispatchNextStage($group);
-
     }
 
     /**
@@ -275,6 +318,9 @@ class ProcessGenerationJob implements ShouldQueue
         $this->generationJob->update([
             'status' => 'failed',
             'last_error' => $message,
+            'error_code' => $reasonCode,
+            'provider_call_finished_at' => $this->generationJob->provider_call_finished_at ?? now(),
+            'completed_at' => now(),
         ]);
 
         $this->logJobFailure($reasonCode, $exception);
@@ -282,65 +328,9 @@ class ProcessGenerationJob implements ShouldQueue
         $group = $this->generationJob->group()->with('jobs')->first();
 
         if ($group) {
-            $this->failGroupAfterJobFailure($group);
+            app(GenerationGroupStatusService::class)->refresh($group);
         }
 
-    }
-
-    /**
-     * Stop remaining stages after any generation stage fails.
-     *
-     * @param  GenerationGroup  $group  The group value.
-     * @return void No value is returned.
-     *
-     * @since 1.0.0
-     */
-    private function failGroupAfterJobFailure(GenerationGroup $group): void
-    {
-        $message = $this->publicFailureMessage();
-
-        $group->jobs()
-            ->whereKeyNot($this->generationJob->id)
-            ->whereIn('status', ['pending', 'processing'])
-            ->update([
-                'status' => 'cancelled',
-                'last_error' => null,
-                'updated_at' => now(),
-            ]);
-
-        $group->update(['status' => 'failed']);
-    }
-
-    /**
-     * Stop this queued stage before provider execution when another stage already failed.
-     *
-     * @return bool Whether the requested condition is satisfied.
-     *
-     * @since 1.0.0
-     */
-    private function shouldStopBecauseGroupFailed(): bool
-    {
-        $group = $this->generationJob->group()->with('jobs')->first();
-
-        if (! $group instanceof GenerationGroup) {
-            return false;
-        }
-
-        $failed = $group->status === 'failed'
-            || $group->jobs->contains(fn (GenerationJob $job): bool => $job->status === 'failed');
-
-        if (! $failed) {
-            return false;
-        }
-
-        if ($this->generationJob->status !== 'failed') {
-            $this->generationJob->update([
-                'status' => 'cancelled',
-                'last_error' => null,
-            ]);
-        }
-
-        return true;
     }
 
     /**
@@ -360,10 +350,8 @@ class ProcessGenerationJob implements ShouldQueue
                 'generation_job_id' => $this->generationJob->id ?? null,
                 'generation_job_uuid' => $this->generationJob->uuid ?? null,
                 'generation_group_id' => $this->generationJob->generation_group_id ?? null,
-                'original_exception' => $exception::class,
-                'original_message' => $exception->getMessage(),
-                'failure_exception' => $failureException::class,
-                'failure_message' => $failureException->getMessage(),
+                'original_exception' => SafeThrowableContext::make($exception),
+                'failure_exception' => SafeThrowableContext::make($failureException),
             ]);
         }
     }
@@ -405,8 +393,13 @@ class ProcessGenerationJob implements ShouldQueue
             'period' => $this->generationJob->period,
             'model_key' => $this->generationJob->aiModelAccess?->model_key ?? $this->generationJob->model_name,
             'ai_model_access_id' => $this->generationJob->ai_model_access_id,
+            'worker_id' => $this->generationJob->worker_id ?? WorkerIdentity::current(),
+            'provider_request_id' => $this->generationJob->provider_job_id,
+            'attempt' => $this->generationJob->attempts,
+            'queue_wait_ms' => $this->generationJob->queue_wait_ms,
+            'provider_latency_ms' => $this->generationJob->provider_latency_ms,
             'reason_code' => $reasonCode,
-            'exception' => $exception ? $exception::class : null,
+            'exception' => $exception ? SafeThrowableContext::make($exception) : null,
         ]);
     }
 
@@ -457,6 +450,60 @@ class ProcessGenerationJob implements ShouldQueue
     {
         return is_string($response->output['binary_content'] ?? null)
             && ($response->output['binary_content'] ?? '') !== '';
+    }
+
+    /**
+     * Requeue only a definite provider rejection or pre-request connection failure.
+     *
+     * @param  AiModelResponseData  $response  Provider response with retry metadata.
+     * @return bool Whether a bounded retry was scheduled.
+     *
+     * @since 2.0.0
+     */
+    private function retryAfterDefiniteFailure(AiModelResponseData $response): bool
+    {
+        if ((int) $this->generationJob->attempts >= max(1, (int) $this->generationJob->max_attempts)) {
+            return false;
+        }
+
+        $previousRetries = max(0, (int) $this->generationJob->attempts - 1);
+        $decision = app(ProviderRetryPolicy::class)->decision($response, $previousRetries);
+
+        if (! is_array($decision)) {
+            return false;
+        }
+
+        $this->generationJob->forceFill([
+            'status' => 'retrying',
+            'next_poll_at' => now()->addSeconds($decision['delay_seconds']),
+            'error_code' => $decision['reason'],
+            'last_error' => null,
+        ])->save();
+        app(GenerationGroupStatusService::class)->refresh($this->generationJob->group);
+        $this->release($decision['delay_seconds']);
+
+        Log::warning('Generation job provider retry scheduled.', [
+            'generation_job_id' => $this->generationJob->id,
+            'generation_job_uuid' => $this->generationJob->uuid,
+            'generation_group_id' => $this->generationJob->generation_group_id,
+            'tenant_id' => $this->generationJob->tenant_id,
+            'lead_id' => $this->generationJob->lead_id,
+            'model_key' => $this->generationJob->aiModelAccess?->model_key,
+            'provider' => $response->metadata['provider'] ?? null,
+            'provider_request_id' => $response->metadata['request_id'] ?? null,
+            'failure_stage' => $response->metadata['failure_stage'] ?? null,
+            'curl_error_code' => $response->metadata['curl_error_code'] ?? null,
+            'worker_id' => $this->generationJob->worker_id ?? WorkerIdentity::current(),
+            'attempt' => $this->generationJob->attempts,
+            'queue_wait_ms' => $this->generationJob->queue_wait_ms,
+            'provider_latency_ms' => $this->generationJob->provider_latency_ms,
+            'reason_code' => $decision['reason'],
+            'retry_number' => $decision['retry_number'],
+            'max_retries' => $decision['max_retries'],
+            'delay_seconds' => $decision['delay_seconds'],
+        ]);
+
+        return true;
     }
 
     /**

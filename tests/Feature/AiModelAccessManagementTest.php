@@ -54,7 +54,7 @@ class AiModelAccessManagementTest extends TestCase
         ]);
     }
 
-    public function test_config_seeded_demo_model_and_permissions_are_available(): void
+    public function test_seeded_model_baseline_uses_openai_and_disables_other_models(): void
     {
         $this->seed(DatabaseSeeder::class);
 
@@ -65,6 +65,10 @@ class AiModelAccessManagementTest extends TestCase
             ->where('model_key', 'gapgpt')
             ->where('usage_category_key', 'hair_transplant')
             ->where('name', 'مدل GapGPT کاشت مو')
+            ->firstOrFail();
+        $openAi = AiModelAccess::query()
+            ->where('model_key', 'openai')
+            ->where('usage_category_key', 'hair_transplant')
             ->firstOrFail();
         $rawGapGptCredentials = DB::table('ai_model_accesses')->where('id', $gapGpt->id)->value('credentials');
         $outputPrompts = AiModelCategoryOutput::query()
@@ -87,8 +91,9 @@ class AiModelAccessManagementTest extends TestCase
         $this->assertTrue((bool) config('ai-models.models.gapgpt.requires_credentials'));
         $this->assertTrue((bool) config('ai-models.models.openai.requires_credentials'));
         $this->assertFalse($demo->is_protected);
-        $this->assertTrue($demo->is_active);
-        $this->assertTrue($gapGpt->is_active);
+        $this->assertFalse($demo->is_active);
+        $this->assertFalse($gapGpt->is_active);
+        $this->assertTrue($openAi->is_active);
         $this->assertNotEmpty($gapGpt->credentials['api_key'] ?? null);
         $this->assertIsString($rawGapGptCredentials);
         $this->assertNull($gapGpt->prompt);
@@ -144,7 +149,7 @@ class AiModelAccessManagementTest extends TestCase
 
         $this->assertSame(3, AiModel::query()
             ->where('type', 'sample_image')
-            ->where('status', 'active')
+            ->where('status', 'paused')
             ->whereHas('category', fn ($query) => $query->where('code', 'hair_transplant'))
             ->whereHas('outputConfigs', fn ($query) => $query->where('is_active', true))
             ->firstOrFail()
@@ -153,13 +158,15 @@ class AiModelAccessManagementTest extends TestCase
             ->count());
         $this->assertTrue(AiModel::query()
             ->where('type', 'sample_image')
-            ->where('status', 'active')
+            ->where('status', 'paused')
             ->whereHas('category', fn ($query) => $query->where('code', 'eyebrow_transplant'))
             ->whereHas('outputConfigs.output', fn ($query) => $query->where('code', 'eyebrow_final_result'))
             ->exists());
-        $this->assertSame(2, AiModel::query()->where('type', 'gapgpt')->where('status', 'active')->count());
+        $this->assertSame(0, AiModel::query()->where('type', 'gapgpt')->where('status', 'active')->count());
+        $this->assertSame(2, AiModel::query()->where('type', 'gapgpt')->where('status', 'paused')->count());
         $this->assertTrue(AiModel::query()
             ->where('type', 'gapgpt')
+            ->where('status', 'paused')
             ->whereHas('category', fn ($query) => $query->where('code', 'eyebrow_transplant'))
             ->whereHas('outputConfigs.output', fn ($query) => $query->where('code', 'eyebrow_final_result'))
             ->exists());
@@ -174,13 +181,13 @@ class AiModelAccessManagementTest extends TestCase
         $this->assertContains('hair_transplant', $bootstrapCategories);
         $this->assertContains('eyebrow_transplant', $bootstrapCategories);
         $this->assertTrue($superAdmin->hasPermission('ai_models.manage_credit'));
-        $this->assertTrue($tenant->aiModelAccesses()->whereKey($demo->id)->wherePivot('is_active', true)->exists());
-        $this->assertTrue($tenant->aiModelAccesses()
+        $this->assertFalse($tenant->aiModelAccesses()->whereKey($demo->id)->exists());
+        $this->assertFalse($tenant->aiModelAccesses()
             ->where('usage_category_key', 'eyebrow_transplant')
             ->where('model_key', 'sample_image')
-            ->wherePivot('is_active', true)
             ->exists());
-        $this->assertTrue($tenant->aiModelAccesses()->whereKey($gapGpt->id)->wherePivot('is_active', false)->exists());
+        $this->assertFalse($tenant->aiModelAccesses()->whereKey($gapGpt->id)->exists());
+        $this->assertTrue($tenant->aiModelAccesses()->whereKey($openAi->id)->wherePivot('is_active', true)->exists());
     }
 
     public function test_ai_model_access_seeder_refreshes_output_metadata_and_executable_prompt(): void
@@ -205,7 +212,7 @@ class AiModelAccessManagementTest extends TestCase
         $this->assertSame('نمای طبیعی روز اول با گرافت‌های تازه، قرمزی ملایم و ریزدلمه‌های قابل‌انتظار', $output->description);
         $this->assertSame(config('hairvision.generation.stages.two_weeks.prompt'), $output->prompt);
         $this->assertTrue(AiModel::query()
-            ->where('type', 'gapgpt')
+            ->where('type', 'openai')
             ->whereHas('category', fn ($query) => $query->where('code', 'hair_transplant'))
             ->whereHas('outputConfigs', fn ($query) => $query
                 ->where('ai_model_category_output_id', $output->id)
@@ -213,7 +220,7 @@ class AiModelAccessManagementTest extends TestCase
             ->exists());
     }
 
-    public function test_seeded_gapgpt_accesses_use_category_specific_names_and_dashboard_settings(): void
+    public function test_seeded_gapgpt_accesses_remain_configured_but_inactive(): void
     {
         $this->seed(DatabaseSeeder::class);
 
@@ -231,12 +238,12 @@ class AiModelAccessManagementTest extends TestCase
         $gapGptAccesses->each(function (AiModelAccess $gapGpt) use ($tenant): void {
             $rawCredentials = DB::table('ai_model_accesses')->where('id', $gapGpt->id)->value('credentials');
 
-            $this->assertTrue($gapGpt->is_active);
+            $this->assertFalse($gapGpt->is_active);
             $this->assertNotEmpty($gapGpt->credentials['api_key'] ?? null);
             $this->assertSame('https://api.gapgpt.app/v1/images/edits', data_get($gapGpt->settings, 'endpoint_url'));
             $this->assertSame('gpt-image-2', data_get($gapGpt->settings, 'model'));
             $this->assertIsString($rawCredentials);
-            $this->assertTrue($tenant->aiModelAccesses()->whereKey($gapGpt->id)->wherePivot('is_active', false)->exists());
+            $this->assertFalse($tenant->aiModelAccesses()->whereKey($gapGpt->id)->exists());
         });
     }
 
@@ -246,7 +253,7 @@ class AiModelAccessManagementTest extends TestCase
 
         $tenant = Tenant::query()->where('slug', 'arya')->firstOrFail();
         $eyebrowAccess = AiModelAccess::query()
-            ->where('model_key', 'sample_image')
+            ->where('model_key', 'openai')
             ->where('usage_category_key', 'eyebrow_transplant')
             ->firstOrFail();
 
@@ -382,7 +389,7 @@ class AiModelAccessManagementTest extends TestCase
         $clinicUser = User::query()->where('role', 'clinic_admin')->firstOrFail();
         $tenant = Tenant::query()->where('slug', 'arya')->firstOrFail();
         $eyebrowAccess = AiModelAccess::query()
-            ->where('model_key', 'sample_image')
+            ->where('model_key', 'openai')
             ->where('usage_category_key', 'eyebrow_transplant')
             ->firstOrFail();
 
@@ -722,7 +729,7 @@ class AiModelAccessManagementTest extends TestCase
 
         $groupId = $this->forHost('arya.hairvision-ai.test')
             ->postJson('/api/v1/generations', ['upload_id' => $uploadId])
-            ->assertOk()
+            ->assertStatus(202)
             ->assertJsonPath('generation_group.status', 'completed')
             ->json('generation_group.id');
 
