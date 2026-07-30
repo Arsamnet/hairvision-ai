@@ -229,6 +229,13 @@ class ImageQueueArchitectureTest extends TestCase
         $this->assertStringContainsString("if (!failed) UI.clearError('generationError');", $script);
         $this->assertStringContainsString("STATE.generations.every((generation) => ['completed', 'failed', 'cancelled'].includes(generation.status))", $script);
         $this->assertStringContainsString('sessionStorage.setItem(STORAGE_KEYS.resumeTokens', $script);
+        $this->assertStringContainsString('const submissionScope = `${sourceImageId}:${categoryId}:${outputId}`;', $script);
+        $this->assertStringContainsString('const idempotencyKey = STATE.generationSubmissionKeys.get(submissionScope) || newIdempotencyKey();', $script);
+        $this->assertStringContainsString('await API.createGeneration(sourceImageId, categoryId, outputId, idempotencyKey)', $script);
+        $this->assertStringContainsString('result.success !== false || Number(result.status) < 500', $script);
+        $this->assertStringContainsString('async function recoverAmbiguousGenerationSubmission(', $script);
+        $this->assertStringContainsString('const latestMatch = (result.data || []).find', $script);
+        $this->assertStringNotContainsString("UI.showError('generationError', 'خطایی رخ داد. لطفاً دوباره تلاش کنید.');", $script);
         $this->assertStringNotContainsString('maxWaitMs', $script);
     }
 

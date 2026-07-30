@@ -394,6 +394,11 @@ terminal only when every requested output is terminal; one failure cannot hide
 already-ready sibling assets. Status calls for multiple active requests run
 concurrently with `allSettled`, so one user's/output's transient API failure does
 not prevent successful siblings from updating in the same polling cycle.
+An ambiguous browser-side creation failure, including a server `5xx` after
+persistence, is retried once with the same idempotency key and then reconciled
+against the lead's persisted generations.
+The public UI reports a temporary synchronization state instead of a terminal
+generation failure when neither response can be observed.
 
 Every model execution log stores the owning `lead_id` when execution originates
 from a visitor generation. Usage reporting is shared by the clinic credit report,

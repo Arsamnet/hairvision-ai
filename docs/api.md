@@ -276,6 +276,13 @@ request with a queued attempt. The backend snapshots and uses the prompt stored
 on the selected category output. Repeating the same idempotency key in the same
 tenant/lead scope returns the same generation request.
 
+If the browser does not receive a creation response, or receives an ambiguous
+server `5xx`, it repeats the request only with the original idempotency key and
+then reconciles the newest matching generation through
+`GET /api/v1/profile/generations`. It must not create a new key for an ambiguous
+submission, because the original request may already have reserved credit and
+entered the queue.
+
 Creation returns `202 Accepted` immediately. Example:
 
 ```json

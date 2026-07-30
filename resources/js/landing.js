@@ -38,6 +38,7 @@ export function bootLanding() {
         pollPromise: null,
         pollTimer: null,
         pollWake: null,
+        generationSubmissionKeys: new Map(),
     };
 
     const DIGIT_MAP = {
@@ -220,14 +221,17 @@ export function bootLanding() {
                 body: formData,
             });
         },
-        createGeneration(sourceImageId, categoryId, outputId) {
+        createGeneration(sourceImageId, categoryId, outputId, idempotencyKey) {
             return requestJson('/api/v1/generations', {
                 method: 'POST',
+                headers: {
+                    'Idempotency-Key': idempotencyKey,
+                },
                 body: JSON.stringify({
                     source_image_id: sourceImageId,
                     category_id: categoryId,
                     output_id: outputId,
-                    idempotency_key: newIdempotencyKey(),
+                    idempotency_key: idempotencyKey,
                 }),
             });
         },
@@ -690,6 +694,98 @@ export function bootLanding() {
         });
 
         return latestGenerationsPerOutput(Array.from(map.values()));
+    }
+
+    function generationMatchesSubmission(generation, sourceImageId, categoryId, outputId) {
+        return generation?.source_image_id === sourceImageId
+            && generation?.category?.id === categoryId
+            && generation?.output?.id === outputId;
+    }
+
+    async function recoverAmbiguousGenerationSubmission(sourceImageId, categoryId, outputId, knownGenerationIds) {
+        for (const delayMs of [0, 750, 1500]) {
+            if (delayMs > 0) await wait(delayMs);
+
+            try {
+                const result = await API.profileGenerations();
+
+                if (result.success === false) {
+                    if (result.requiresVerification) return result;
+                    continue;
+                }
+
+                const latestMatch = (result.data || []).find((generation) => (
+                    generationMatchesSubmission(generation, sourceImageId, categoryId, outputId)
+                ));
+
+                if (latestMatch?.id && !knownGenerationIds.has(latestMatch.id)) {
+                    return {
+                        data: latestMatch,
+                        status: result.status,
+                        recovered: true,
+                    };
+                }
+            } catch (error) {
+                // A read-only reconciliation attempt can be repeated after a transient network failure.
+            }
+        }
+
+        return null;
+    }
+
+    async function createGenerationWithRecovery(sourceImageId, categoryId, outputId) {
+        const knownGenerationIds = new Set(STATE.generations.map((generation) => generation.id).filter(Boolean));
+        const submissionScope = `${sourceImageId}:${categoryId}:${outputId}`;
+        const idempotencyKey = STATE.generationSubmissionKeys.get(submissionScope) || newIdempotencyKey();
+        STATE.generationSubmissionKeys.set(submissionScope, idempotencyKey);
+        let retryResult = null;
+        let lastError = null;
+
+        try {
+            const result = await API.createGeneration(sourceImageId, categoryId, outputId, idempotencyKey);
+
+            if (result.success !== false || Number(result.status) < 500) {
+                STATE.generationSubmissionKeys.delete(submissionScope);
+
+                return result;
+            }
+
+            retryResult = result;
+            lastError = new Error('Generation creation returned an ambiguous server response.');
+            UI.showStatus('پاسخ ثبت درخواست قطعی نبود؛ وضعیت واقعی درخواست در حال بررسی است.');
+        } catch (error) {
+            lastError = error;
+            UI.showStatus('پاسخ ثبت درخواست دریافت نشد؛ وضعیت واقعی درخواست در حال بررسی است.');
+        }
+
+        await wait(750);
+
+        try {
+            retryResult = await API.createGeneration(sourceImageId, categoryId, outputId, idempotencyKey);
+
+            if (retryResult.success !== false || Number(retryResult.status) < 500) {
+                STATE.generationSubmissionKeys.delete(submissionScope);
+
+                return retryResult;
+            }
+        } catch (error) {
+            lastError = error;
+        }
+
+        const recovered = await recoverAmbiguousGenerationSubmission(
+            sourceImageId,
+            categoryId,
+            outputId,
+            knownGenerationIds,
+        );
+
+        if (recovered) {
+            STATE.generationSubmissionKeys.delete(submissionScope);
+
+            return recovered;
+        }
+
+        throw lastError || new Error('Generation submission could not be confirmed.');
     }
 
     async function refreshVerifiedCategories() {
@@ -1357,7 +1453,7 @@ export function bootLanding() {
         startStatusMessages(true);
 
         try {
-            const genResult = await API.createGeneration(STATE.sourceImageId, category.id, output.id);
+            const genResult = await createGenerationWithRecovery(STATE.sourceImageId, category.id, output.id);
             if (genResult.success === false) {
                 STATE.pendingOutputIds.delete(output.id);
                 renderOutputOptions();
@@ -1390,7 +1486,8 @@ export function bootLanding() {
                 button.disabled = false;
                 button.textContent = 'تایید و ساخت خروجی انتخاب‌شده';
             }
-            UI.showError('generationError', 'خطایی رخ داد. لطفاً دوباره تلاش کنید.');
+            UI.clearError('generationError');
+            UI.showStatus('ارتباط موقتاً قطع شد و ثبت درخواست هنوز قابل تأیید نیست. برای بررسی امن، دوباره همین خروجی را انتخاب کنید.');
         }
     }
 

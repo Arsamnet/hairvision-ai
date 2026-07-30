@@ -5,6 +5,14 @@
 Changes without an assigned release remain in this section and are moved into
 the next dated SemVer section when that release is prepared.
 
+### Frontend reliability
+
+- Prevented a lost generation-creation response from showing a false terminal
+  error when the request was already accepted: the browser now retries once
+  with the same idempotency key, reconciles persisted lead generations, and
+  falls back to a temporary synchronization message without creating duplicate
+  attempts or credit reservations.
+
 ## 2.1.0 - 2026-07-30
 
 HairVision `2.1.0` strengthens asynchronous image generation, OpenAI execution,
