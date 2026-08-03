@@ -59,6 +59,7 @@ class RunAiModelAction
      *
      * @since 1.0.0
      * @since 2.0.0 Behavior updated for the version 2.0.0 release.
+     * @since 2.1.1 Records successful model-credit usage even for unlimited provider access.
      */
     public function execute(
         Tenant $clinic,
@@ -213,7 +214,7 @@ class RunAiModelAction
 
                 $log->update([
                     'status' => $response->status,
-                    'credit_consumed' => $lockedAccess->hasUnlimitedCredit() ? 0 : $creditConsumed,
+                    'credit_consumed' => $creditConsumed,
                     'response_reference' => $response->providerReference,
                     'metadata_json' => $response->metadata,
                     'completed_at' => now(),

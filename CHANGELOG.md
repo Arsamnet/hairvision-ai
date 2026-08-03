@@ -5,6 +5,43 @@
 Changes without an assigned release remain in this section and are moved into
 the next dated SemVer section when that release is prepared.
 
+## 2.1.1 - 2026-08-03
+
+HairVision `2.1.1` corrects clinic reporting metrics and improves lead and
+model-consumption visibility.
+
+### Reporting
+
+- Defined the final conversion rate consistently as unique landing visitors
+  converted to unique linked leads. Verified leads are the strongest visitor
+  identity; anonymous visits use the existing hashed IP/user-agent pair with a
+  per-visit fallback when no fingerprint is available.
+- Added unique visitor and total lead counts beside the performance funnel,
+  changed monthly and CSV final-conversion values to the same definition, and
+  aligned the seven-day clinic dashboard plus system clinic comparison report.
+
+### Lead management
+
+- Added an accessible hover/focus tooltip to each lead name in the desktop lead
+  table, with a dotted underline and the latest tenant-scoped CRM note or a
+  clear empty-note fallback.
+
+### Model usage reporting
+
+- Fixed successful model usage logs to retain the actual execution-credit units
+  even when the provider access has an unlimited credit limit, so the
+  «مصرف‌شده» column now displays the consumed amount.
+- Backfilled historical successful zero-credit usage logs to the normalized
+  one-credit minimum while leaving failed executions unchanged.
+
+### Quality and release metadata
+
+- Added regression coverage for unique-visitor-to-lead final conversion,
+  dashboard/report rendering, tenant-isolated lead-note tooltips, and unlimited
+  model usage credit logs.
+- Updated runtime defaults, environment examples, frontend package metadata,
+  canonical documentation, and release provenance markers to `2.1.1`.
+
 ## 2.1.0 - 2026-08-03
 
 HairVision `2.1.0` strengthens asynchronous image generation, OpenAI execution,

@@ -1,4 +1,5 @@
 {{-- @since 2.1.0 Links system clinic comparisons to detailed performance reports. --}}
+{{-- @since 2.1.1 Aligns clinic comparison final conversion with unique visitors converted to leads. --}}
 @extends('admin.layout')
 
 @section('title', __('reports.management_title'))
@@ -31,9 +32,10 @@
                     <tr>
                         <th class="px-4 py-3">{{ __('reports.clinic') }}</th>
                         <th class="px-4 py-3">{{ __('reports.funnel.landing_view') }}</th>
-                        <th class="px-4 py-3">{{ __('reports.metrics.leads') }}</th>
+                        <th class="px-4 py-3">{{ __('reports.unique_visitors') }}</th>
+                        <th class="px-4 py-3">{{ __('reports.total_leads') }}</th>
                         <th class="px-4 py-3">{{ __('reports.funnel.generation_requested') }}</th>
-                        <th class="px-4 py-3">{{ __('reports.conversion') }}</th>
+                        <th class="px-4 py-3">{{ __('reports.overall_conversion_rate') }}</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-zinc-100">
@@ -45,12 +47,13 @@
                                 </a>
                             </td>
                             <td class="px-4 py-3">{{ number_format($clinicRow['visits']) }}</td>
+                            <td class="px-4 py-3">{{ number_format($clinicRow['unique_visitors']) }}</td>
                             <td class="px-4 py-3">{{ number_format($clinicRow['leads']) }}</td>
-                            <td class="px-4 py-3">{{ number_format($clinicRow['conversions']) }}</td>
+                            <td class="px-4 py-3">{{ number_format($clinicRow['generation_requests']) }}</td>
                             <td class="px-4 py-3 font-bold text-teal-700">{{ number_format($clinicRow['conversion_rate'], 1) }}٪</td>
                         </tr>
                     @empty
-                        <tr><td colspan="5" class="px-4 py-8 text-center text-sm text-zinc-500">{{ __('reports.clinics_empty') }}</td></tr>
+                        <tr><td colspan="6" class="px-4 py-8 text-center text-sm text-zinc-500">{{ __('reports.clinics_empty') }}</td></tr>
                     @endforelse
                 </tbody>
             </table>

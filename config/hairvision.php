@@ -1,12 +1,13 @@
 <?php
 
 /**
- * Defines HairVision runtime defaults updated for the 2.1.0 release.
+ * Defines HairVision runtime defaults updated through the 2.1.1 release.
  *
  * @since 2.1.0
+ * @since 2.1.1 Updates the runtime release default.
  */
 return [
-    'version' => env('APP_VERSION', '2.1.0'),
+    'version' => env('APP_VERSION', '2.1.1'),
 
     'sessions' => [
         'lead_cookie' => env('HAIRVISION_LEAD_SESSION_COOKIE', 'hairvision_lead_session'),

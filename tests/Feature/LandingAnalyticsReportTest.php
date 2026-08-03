@@ -28,6 +28,7 @@ use Tests\TestCase;
  * Verifies tenant landing analytics, SEO rendering, and clinic report boundaries.
  *
  * @since 2.1.0
+ * @since 2.1.1 Covers unique-visitor-to-lead final conversion reporting.
  */
 class LandingAnalyticsReportTest extends TestCase
 {
@@ -257,9 +258,26 @@ class LandingAnalyticsReportTest extends TestCase
             'name' => 'کاشت مو',
             'status' => 'active',
         ]);
+        $lead = Lead::create([
+            'tenant_id' => $tenant->id,
+            'phone' => '09121111111',
+            'phone_normalized' => '09121111111',
+            'phone_verified_at' => now()->subDays(2),
+            'status' => 'new',
+        ]);
+        $otherLead = Lead::create([
+            'tenant_id' => $otherTenant->id,
+            'phone' => '09122222222',
+            'phone_normalized' => '09122222222',
+            'phone_verified_at' => now()->subDay(),
+            'status' => 'new',
+        ]);
         $firstVisit = $this->createVisit($tenant, now()->subDays(2));
-        $this->createVisit($tenant, now()->subDay());
+        $firstVisit->update(['lead_id' => $lead->id]);
+        $secondVisit = $this->createVisit($tenant, now()->subDay());
+        $secondVisit->update(['lead_id' => $lead->id]);
         $otherVisit = $this->createVisit($otherTenant, now()->subDay());
+        $otherVisit->update(['lead_id' => $otherLead->id]);
 
         $this->createEvent($firstVisit, LandingEventCatalog::APPLICATION_CLICKED, $category);
         $this->createEvent($firstVisit, LandingEventCatalog::APPLICATION_CLICKED, $category);
@@ -274,24 +292,30 @@ class LandingAnalyticsReportTest extends TestCase
         );
 
         $this->assertSame(2, $report['totals']['landing_views']);
+        $this->assertSame(1, $report['totals']['unique_visitors']);
+        $this->assertSame(1, $report['totals']['total_leads']);
         $this->assertSame(2, $report['totals']['application_clicks']);
         $this->assertSame(1, $report['totals']['application_visitors']);
         $this->assertSame(1, $report['totals']['phone_submitted']);
         $this->assertSame(1, $report['totals']['generation_requested']);
-        $this->assertSame(50.0, $report['totals']['overall_conversion_rate']);
+        $this->assertSame(100.0, $report['totals']['overall_conversion_rate']);
         $this->assertSame(2, $report['applications'][0]['clicks']);
         $this->assertSame(1, $report['applications'][0]['unique_visitors']);
         $this->assertSame(100.0, $report['applications'][0]['conversion_rate']);
         $this->assertSame(2, collect($report['monthly'])->sum('landing_views'));
         $expectedJalaliMonth = substr((string) JalaliDate::toJalaliDate($firstVisit->visited_at), 0, 7);
         $this->assertSame(2, collect($report['monthly'])->firstWhere('month', $expectedJalaliMonth)['landing_views']);
+        $this->assertSame(1, collect($report['monthly'])->firstWhere('month', $expectedJalaliMonth)['unique_visitors']);
+        $this->assertSame(1, collect($report['monthly'])->firstWhere('month', $expectedJalaliMonth)['total_leads']);
         $this->assertNotContains($firstVisit->visited_at->format('Y/m'), collect($report['monthly'])->pluck('month'));
 
         $recent = app(ClinicPerformanceReportService::class)->recentDailySummary($tenant);
         $this->assertCount(7, $recent['daily']);
         $this->assertSame(2, $recent['totals']['landing_views']);
+        $this->assertSame(1, $recent['totals']['unique_visitors']);
+        $this->assertSame(1, $recent['totals']['leads']);
         $this->assertSame(1, $recent['totals']['generation_requested']);
-        $this->assertSame(50.0, $recent['totals']['conversion_rate']);
+        $this->assertSame(100.0, $recent['totals']['conversion_rate']);
         $this->assertMatchesRegularExpression('/^(0[1-9]|1[0-2])\/(0[1-9]|[12]\d|3[01])$/', $recent['daily'][0]['label']);
 
         $systemReport = app(ClinicPerformanceReportService::class)->systemReport(
@@ -299,6 +323,8 @@ class LandingAnalyticsReportTest extends TestCase
             CarbonImmutable::now()->endOfDay(),
         );
         $this->assertSame(3, $systemReport['totals']['landing_views']);
+        $this->assertSame(2, $systemReport['totals']['unique_visitors']);
+        $this->assertSame(2, $systemReport['totals']['total_leads']);
         $this->assertSame(2, $systemReport['totals']['generation_requested']);
     }
 
@@ -386,7 +412,10 @@ class LandingAnalyticsReportTest extends TestCase
             ->get('/admin/reports/performance')
             ->assertOk()
             ->assertSee(__('reports.funnel_title'))
-            ->assertSee(__('reports.application_clicks_title'));
+            ->assertSee(__('reports.application_clicks_title'))
+            ->assertSee(__('reports.unique_visitors'))
+            ->assertSee(__('reports.total_leads'))
+            ->assertSee(__('reports.overall_conversion_rate'));
 
         $this->actingAs($clinicUser)
             ->withSession(['admin_active_tenant_id' => $tenant->id])
@@ -401,6 +430,8 @@ class LandingAnalyticsReportTest extends TestCase
             ->get('/admin/dashboard')
             ->assertOk()
             ->assertSee(__('dashboard.performance.title'))
+            ->assertSee(__('dashboard.performance.unique_visitors'))
+            ->assertSee(__('dashboard.performance.conversion_rate'))
             ->assertSee(__('dashboard.performance.view_report'))
             ->assertSee('href="'.route('admin.reports').'"', false)
             ->assertDontSee(__('dashboard.plan.status_title'));

@@ -1,6 +1,6 @@
 # API Reference
 
-Version: [`2.1.0`](../CHANGELOG.md#210)
+Version: [`2.1.1`](../CHANGELOG.md#211)
 
 All public product behavior goes through `/api/v1`, even when the UI is Blade.
 Blade may render the tenant shell and client-side interactions, but OTP, upload,
@@ -723,9 +723,14 @@ The first two routes require `reports.user.view` and accept optional normalized
 Jalali `date_from` and `date_until` query values. Clinic callers also require an
 active clinic context; their HTML report and UTF-8 CSV are tenant-scoped and use
 landing-visit acquisition cohorts for monthly funnel and application conversion
-metrics. All monthly labels use Jalali `YYYY/MM`, including CSV rows. The clinic
-dashboard reuses the same cohort service for a trailing seven-calendar-day
-summary and compact daily chart; its full-report link is permission-aware. The
+metrics. Summary, monthly, CSV, dashboard, and management final conversion all
+use unique linked leads divided by unique landing visitors. Linked `lead_id` is
+the strongest identity; anonymous visits use the stored hashed IP/user-agent
+pair and fall back to the visit id when both hashes are unavailable. Generation
+requests remain an independent funnel stage. All monthly labels use Jalali
+`YYYY/MM`, including CSV rows. The clinic dashboard reuses the same cohort
+service for a trailing seven-calendar-day summary and compact daily chart; its
+full-report link is permission-aware. The
 management route requires `reports.management.view` plus system scope and is
 the only view that returns a cross-clinic comparison table.
 

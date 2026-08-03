@@ -4,6 +4,7 @@
  * Provides Persian dashboard copy revised for the 2.1.0 release.
  *
  * @since 2.1.0
+ * @since 2.1.1 Aligns final-conversion copy with unique visitors converted to leads.
  */
 return [
     'admin_title' => 'پنل مدیریت HairVision',
@@ -48,8 +49,9 @@ return [
 
     'performance' => [
         'title' => 'عملکرد ۷ روز اخیر',
-        'description' => 'خلاصه مسیر کاربران از ورود به لندینگ تا درخواست تولید تصویر',
+        'description' => 'خلاصه مسیر کاربران یکتا از ورود به لندینگ تا تبدیل‌شدن به لید',
         'landing_views' => 'بازدید لندینگ',
+        'unique_visitors' => 'کاربر یکتا',
         'verified_leads' => 'لید تأییدشده',
         'generations' => 'درخواست تولید',
         'conversion_rate' => 'نرخ تبدیل نهایی',

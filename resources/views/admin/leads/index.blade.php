@@ -1,4 +1,5 @@
 {{-- @since 2.1.0 Adds age ranges, unified statuses, and lead deletion actions. --}}
+{{-- @since 2.1.1 Shows the latest lead note in an accessible name tooltip. --}}
 @extends('admin.layout')
 
 @section('title', __('leads.title'))
@@ -49,7 +50,7 @@
             ]"
         />
 
-        <div data-admin-table-container class="mt-5 hidden overflow-x-auto overflow-y-hidden rounded-lg border border-zinc-100 lg:block">
+        <div data-admin-table-container class="mt-5 hidden overflow-visible rounded-lg border border-zinc-100 lg:block">
             <table class="w-full min-w-148 text-right text-sm">
                 <thead class="bg-zinc-50 text-xs text-zinc-500">
                     <tr>
@@ -77,7 +78,27 @@
                                     @endcan
                                 </x-admin.table.action-menu>
                             </td>
-                            <td class="px-4 py-3 font-bold">{{ $lead->full_name ?: __('leads.no_name') }}</td>
+                            <td class="px-4 py-3 font-bold">
+                                @php
+                                    $latestNote = trim((string) $lead->latestNote?->note);
+                                    $noteTooltipId = 'lead-note-tooltip-'.$lead->uuid;
+                                @endphp
+                                <span
+                                    class="group relative inline-flex max-w-xs cursor-help border-b border-dotted border-zinc-500 outline-none focus-visible:border-teal-600 focus-visible:ring-2 focus-visible:ring-teal-200"
+                                    tabindex="0"
+                                    aria-describedby="{{ $noteTooltipId }}"
+                                >
+                                    <span class="truncate">{{ $lead->full_name ?: __('leads.no_name') }}</span>
+                                    <span
+                                        id="{{ $noteTooltipId }}"
+                                        role="tooltip"
+                                        class="pointer-events-none invisible absolute right-0 bottom-full z-30 mb-2 w-max max-w-80 rounded-lg bg-zinc-950 px-3 py-2 text-xs font-normal leading-6 text-white opacity-0 shadow-lg transition group-hover:visible group-hover:opacity-100 group-focus:visible group-focus:opacity-100"
+                                    >
+                                        {{ $latestNote !== '' ? $latestNote : __('leads.no_note') }}
+                                        <span class="absolute right-4 top-full h-0 w-0 border-x-4 border-t-4 border-x-transparent border-t-zinc-950" aria-hidden="true"></span>
+                                    </span>
+                                </span>
+                            </td>
                             <td class="px-4 py-3 text-zinc-600">{{ $lead->phone_normalized }}</td>
                             <td class="px-4 py-3 text-zinc-600">{{ $lead->age ?? __('messages.none') }}</td>
                             <td class="px-4 py-3">

@@ -153,6 +153,7 @@ class DashboardController extends Controller
      * @return StreamedResponse Streamed CSV download.
      *
      * @since 2.1.0
+     * @since 2.1.1 Exports unique visitors, linked leads, and their final conversion rate.
      */
     public function exportPerformance(
         PerformanceReportRequest $request,
@@ -184,6 +185,8 @@ class DashboardController extends Controller
             fputcsv($stream, [
                 __('reports.range'),
                 __('reports.funnel.landing_view'),
+                __('reports.unique_visitors'),
+                __('reports.total_leads'),
                 __('reports.total_application_clicks'),
                 __('reports.application_visitors'),
                 __('reports.funnel.photo_selected'),
@@ -197,6 +200,8 @@ class DashboardController extends Controller
             fputcsv($stream, [
                 $range['date_from'].' - '.$range['date_until'],
                 $report['totals']['landing_views'],
+                $report['totals']['unique_visitors'],
+                $report['totals']['total_leads'],
                 $report['totals']['application_clicks'],
                 $report['totals']['application_visitors'],
                 $report['totals']['photo_selected'],
@@ -213,6 +218,8 @@ class DashboardController extends Controller
             fputcsv($stream, [
                 __('reports.month'),
                 __('reports.funnel.landing_view'),
+                __('reports.unique_visitors'),
+                __('reports.total_leads'),
                 __('reports.total_application_clicks'),
                 __('reports.application_visitors'),
                 __('reports.funnel.photo_selected'),
@@ -228,6 +235,8 @@ class DashboardController extends Controller
                 fputcsv($stream, [
                     $row['month'],
                     $row['landing_views'],
+                    $row['unique_visitors'],
+                    $row['total_leads'],
                     $row['application_clicks'],
                     $row['application_clicked'],
                     $row['photo_selected'],

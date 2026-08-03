@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\Lead;
+use App\Models\LeadNote;
 use App\Models\OtpCode;
 use App\Models\Plan;
 use App\Models\SmsGateway;
@@ -27,6 +28,7 @@ use Tests\TestCase;
  *
  * @since 1.0.0
  * @since 2.1.0 Coverage expanded for unified lead status and demographics.
+ * @since 2.1.1 Covers latest-note tooltips in tenant-scoped lead lists.
  */
 class AdminDashboardTest extends TestCase
 {
@@ -438,6 +440,23 @@ class AdminDashboardTest extends TestCase
         $this->activateSubscription($user);
         $leadA = $this->createLead($tenantA, '09120000001', 'Tenant A Lead');
         $leadB = $this->createLead($tenantB, '09120000002', 'Tenant B Lead');
+        LeadNote::create([
+            'tenant_id' => $tenantA->id,
+            'lead_id' => $leadA->id,
+            'user_id' => $user->id,
+            'note' => 'یادداشت قدیمی لید آریا',
+        ]);
+        LeadNote::create([
+            'tenant_id' => $tenantA->id,
+            'lead_id' => $leadA->id,
+            'user_id' => $user->id,
+            'note' => 'آخرین یادداشت لید آریا',
+        ]);
+        LeadNote::create([
+            'tenant_id' => $tenantB->id,
+            'lead_id' => $leadB->id,
+            'note' => 'یادداشت محرمانه کلینیک دیگر',
+        ]);
 
         $this->actingAs($user)
             ->withSession(['admin_active_tenant_id' => $tenantA->id])
@@ -445,7 +464,12 @@ class AdminDashboardTest extends TestCase
             ->get('/admin/crm/leads')
             ->assertOk()
             ->assertSee($leadA->full_name)
-            ->assertDontSee($leadB->full_name);
+            ->assertSee('آخرین یادداشت لید آریا')
+            ->assertDontSee('یادداشت قدیمی لید آریا')
+            ->assertSee('role="tooltip"', false)
+            ->assertSee('border-dotted', false)
+            ->assertDontSee($leadB->full_name)
+            ->assertDontSee('یادداشت محرمانه کلینیک دیگر');
 
         $this->actingAs($user)
             ->withSession(['admin_active_tenant_id' => $tenantA->id])

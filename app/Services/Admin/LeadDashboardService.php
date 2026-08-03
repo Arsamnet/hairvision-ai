@@ -71,10 +71,11 @@ class LeadDashboardService
      *
      * @since 1.0.0
      * @since 2.1.0 Behavior updated for the 2.1.0 release.
+     * @since 2.1.1 Eager-loads the latest CRM note for tenant-safe list tooltips.
      */
     public function filteredQuery(Request $request, User $user, ?Tenant $tenant, PaginationParameters $pagination): Builder
     {
-        $query = $this->baseQuery($user, $tenant)->with(['assignedUser']);
+        $query = $this->baseQuery($user, $tenant)->with(['assignedUser', 'latestNote']);
         SearchFilter::apply($query, $pagination->search, ['full_name', 'phone_normalized', 'city', 'source']);
         $ageFrom = $this->ageBound($request, 'age_from');
         $ageUntil = $this->ageBound($request, 'age_until');
