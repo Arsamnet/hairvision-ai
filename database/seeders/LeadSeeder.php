@@ -12,6 +12,7 @@ use Illuminate\Database\Seeder;
  * Provides lead seeder behavior.
  *
  * @since 1.0.0
+ * @since 2.1.0 Behavior updated for the 2.1.0 release.
  */
 class LeadSeeder extends Seeder
 {
@@ -21,6 +22,7 @@ class LeadSeeder extends Seeder
      * @return void No value is returned.
      *
      * @since 1.0.0
+     * @since 2.1.0 Behavior updated for the 2.1.0 release.
      */
     public function run(): void
     {
@@ -33,11 +35,12 @@ class LeadSeeder extends Seeder
                 ['tenant_id' => $tenant->id, 'phone_normalized' => $leadData['phone']],
                 [
                     'full_name' => $leadData['full_name'],
+                    'age' => $leadData['age'],
+                    'city' => $leadData['city'],
                     'phone' => $leadData['phone'],
                     'source' => $leadData['source'],
                     'phone_verified_at' => now(),
                     'status' => $leadData['status'],
-                    'crm_stage' => $leadData['crm_stage'],
                     'crm_last_note_at' => $leadData['created_at']->copy()->addMinutes(30),
                     'assigned_user_id' => $leadData['assigned_user_id'],
                 ]
@@ -57,7 +60,7 @@ class LeadSeeder extends Seeder
                 [
                     'user_id' => $leadData['assigned_user_id'] ?? $admin->id,
                     'type' => $leadData['note_type'],
-                    'status' => $leadData['crm_stage'],
+                    'status' => $leadData['status'],
                     'communication_channel' => $leadData['communication_channel'],
                     'next_follow_up_at' => $leadData['next_follow_up_at'] ?? null,
                     'completed_at' => $leadData['completed_at'] ?? null,
@@ -79,6 +82,7 @@ class LeadSeeder extends Seeder
      * @return array<int, array<string, mixed>>
      *
      * @since 1.0.0
+     * @since 2.1.0 Behavior updated for the 2.1.0 release.
      */
     private function demoLeads(User $admin, User $editor): array
     {
@@ -86,9 +90,10 @@ class LeadSeeder extends Seeder
             [
                 'full_name' => 'مراجع آزمایشی',
                 'phone' => '09217359491',
+                'age' => 34,
+                'city' => 'تهران',
                 'source' => 'landing_page',
-                'status' => 'verified',
-                'crm_stage' => 'needs_follow_up',
+                'status' => 'needs_follow_up',
                 'assigned_user_id' => $admin->id,
                 'created_at' => now()->subDays(1),
                 'note' => 'این لید برای پیگیری مدیر کلینیک آماده شده است.',
@@ -99,9 +104,10 @@ class LeadSeeder extends Seeder
             [
                 'full_name' => 'نیما رضایی',
                 'phone' => '09125550101',
+                'age' => 29,
+                'city' => 'کرج',
                 'source' => 'instagram',
                 'status' => 'new',
-                'crm_stage' => 'new_lead',
                 'assigned_user_id' => $editor->id,
                 'created_at' => now()->subHours(4),
                 'note' => 'درخواست مشاوره اولیه از کمپین شبکه اجتماعی ثبت شد.',
@@ -111,9 +117,10 @@ class LeadSeeder extends Seeder
             [
                 'full_name' => 'سارا محمدی',
                 'phone' => '09125550102',
+                'age' => 38,
+                'city' => 'تهران',
                 'source' => 'clinic_referral',
-                'status' => 'contacted',
-                'crm_stage' => 'consultation_booked',
+                'status' => 'needs_follow_up',
                 'assigned_user_id' => $admin->id,
                 'created_at' => now()->subDays(3),
                 'note' => 'زمان مشاوره حضوری برای هفته آینده هماهنگ شد.',
@@ -124,9 +131,10 @@ class LeadSeeder extends Seeder
             [
                 'full_name' => 'کامران احمدی',
                 'phone' => '09125550103',
+                'age' => 42,
+                'city' => 'قم',
                 'source' => 'google_search',
-                'status' => 'qualified',
-                'crm_stage' => 'converted',
+                'status' => 'successful',
                 'assigned_user_id' => $editor->id,
                 'created_at' => now()->subDays(8),
                 'note' => 'پس از مشاهده نمونه نتایج، برای شروع فرآیند درمان اعلام آمادگی کرد.',
@@ -137,9 +145,10 @@ class LeadSeeder extends Seeder
             [
                 'full_name' => 'مهسا کریمی',
                 'phone' => '09125550104',
+                'age' => 31,
+                'city' => 'قزوین',
                 'source' => 'phone_call',
-                'status' => 'archived',
-                'crm_stage' => 'lost',
+                'status' => 'canceled',
                 'assigned_user_id' => null,
                 'created_at' => now()->subDays(14),
                 'note' => 'فعلا تمایلی به ادامه مشاوره ندارد و برای پیگیری آینده آرشیو شد.',
@@ -150,9 +159,10 @@ class LeadSeeder extends Seeder
             [
                 'full_name' => 'آرش نادری',
                 'phone' => '09125550105',
+                'age' => 36,
+                'city' => 'تهران',
                 'source' => 'website_form',
-                'status' => 'contacted',
-                'crm_stage' => 'contacted',
+                'status' => 'needs_follow_up',
                 'assigned_user_id' => $editor->id,
                 'created_at' => now()->subDays(2),
                 'note' => 'تماس اولیه انجام شد و اطلاعات پایه برای مشاوره ارسال شد.',
@@ -162,9 +172,10 @@ class LeadSeeder extends Seeder
             [
                 'full_name' => 'الهام صادقی',
                 'phone' => '09125550106',
+                'age' => 27,
+                'city' => 'رشت',
                 'source' => 'instagram',
-                'status' => 'verified',
-                'crm_stage' => 'no_answer',
+                'status' => 'no_answer',
                 'assigned_user_id' => $admin->id,
                 'created_at' => now()->subDays(5),
                 'note' => 'برای پیگیری تماس گرفته شد اما پاسخ نداد.',
@@ -175,9 +186,10 @@ class LeadSeeder extends Seeder
             [
                 'full_name' => 'پویا شریفی',
                 'phone' => '09125550107',
+                'age' => 45,
+                'city' => 'تهران',
                 'source' => 'direct',
-                'status' => 'archived',
-                'crm_stage' => 'canceled',
+                'status' => 'canceled',
                 'assigned_user_id' => $admin->id,
                 'created_at' => now()->subDays(10),
                 'note' => 'درخواست مشاوره توسط مراجعه‌کننده لغو شد.',

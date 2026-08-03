@@ -1,3 +1,4 @@
+{{-- @since 2.1.0 Displays application-specific visitor photo guidance. --}}
 @extends('admin.layout')
 
 @section('title', __('ai_models.categories.view_title', ['name' => $category->name]))
@@ -61,6 +62,15 @@
             <div class="mt-4 rounded-lg bg-zinc-50 p-3">
                 <p class="text-xs font-bold text-zinc-500">{{ __('system.description') }}</p>
                 <p class="mt-1 text-sm leading-7 text-zinc-800">{{ $category->description ?: __('messages.none') }}</p>
+            </div>
+
+            <div class="mt-4 rounded-lg bg-zinc-50 p-3">
+                <p class="text-xs font-bold text-zinc-500">{{ __('ai_models.categories.upload_guide_preview') }}</p>
+                @if($category->upload_guide_html !== '')
+                    <div class="admin-rich-text-content mt-2 text-sm leading-7 text-zinc-800">{!! $category->upload_guide_html !!}</div>
+                @else
+                    <p class="mt-1 text-sm leading-7 text-zinc-800">{{ __('messages.none') }}</p>
+                @endif
             </div>
         </x-admin.card>
 

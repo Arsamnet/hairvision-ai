@@ -8,6 +8,7 @@ use Tests\TestCase;
  * Verifies the canonical HairVision release metadata.
  *
  * @since 2.0.0
+ * @since 2.1.0 Coverage includes JavaScript package metadata and source markers.
  */
 class VersionMetadataTest extends TestCase
 {
@@ -17,6 +18,7 @@ class VersionMetadataTest extends TestCase
      * @return void No value is returned.
      *
      * @since 2.0.0
+     * @since 2.1.0 Verifies package and lockfile release metadata.
      */
     public function test_project_version_defaults_to_2_1_0(): void
     {
@@ -33,6 +35,13 @@ class VersionMetadataTest extends TestCase
             '<env name="APP_VERSION" value="2.1.0"/>',
             (string) file_get_contents(base_path('phpunit.xml'))
         );
+
+        $package = json_decode((string) file_get_contents(base_path('package.json')), true, flags: JSON_THROW_ON_ERROR);
+        $packageLock = json_decode((string) file_get_contents(base_path('package-lock.json')), true, flags: JSON_THROW_ON_ERROR);
+
+        $this->assertSame('2.1.0', $package['version']);
+        $this->assertSame('2.1.0', $packageLock['version']);
+        $this->assertSame('2.1.0', $packageLock['packages']['']['version']);
     }
 
     /**
@@ -52,7 +61,7 @@ class VersionMetadataTest extends TestCase
         $this->assertStringContainsString('## 2.0.1', $releaseNotes);
         $this->assertStringContainsString('## 2.0.2', $releaseNotes);
         $this->assertStringContainsString('## 2.0.3', $releaseNotes);
-        $this->assertStringContainsString('## 2.1.0', $releaseNotes);
+        $this->assertStringContainsString('## 2.1.0 - 2026-08-03', $releaseNotes);
         $this->assertStringContainsString('## Unreleased', $releaseNotes);
 
         foreach ([
@@ -70,6 +79,35 @@ class VersionMetadataTest extends TestCase
                 '2.1.0',
                 $contents,
                 $documentation
+            );
+        }
+    }
+
+    /**
+     * Ensure the closest-owner release-marker contract is documented and represented.
+     *
+     * @return void No value is returned.
+     *
+     * @since 2.1.0
+     */
+    public function test_release_scoped_sources_carry_version_markers(): void
+    {
+        $agentGuide = (string) file_get_contents(base_path('AGENTS.md'));
+
+        $this->assertStringContainsString('closest', $agentGuide);
+        $this->assertStringContainsString('stable owner', $agentGuide);
+
+        foreach ([
+            'routes/api.php',
+            'config/state-catalog.php',
+            'resources/js/landing.js',
+            'resources/css/landing-icons.css',
+            'resources/views/landing.blade.php',
+        ] as $source) {
+            $this->assertStringContainsString(
+                '2.1.0',
+                (string) file_get_contents(base_path($source)),
+                $source
             );
         }
     }

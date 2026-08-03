@@ -35,7 +35,9 @@ transplant, or dynamically added services like under-eye filler.
   footer.
 - No testing/setup/deployment/debugging copy in visitor templates.
 - No arbitrary external frontend resources. Tenant logos/theme images may be
-  loaded only from the primary HairVision domain.
+  loaded only from the primary HairVision domain derived from `APP_URL`. Secure
+  external analytics tags are allowed only in the dedicated, validated
+  system-managed template tracker fields.
 - Tenant is resolved from host only; never trust visitor-submitted tenant ids,
   slugs, or domains.
 - Tenant-owned records include `tenant_id`; visitor-owned resources also scope
@@ -65,9 +67,15 @@ transplant, or dynamically added services like under-eye filler.
   `sample_image` and `gapgpt` records remain available for explicit management
   but are inactive and are never attached to a seeded plan.
 - Credit is consumed atomically only after successful provider execution.
-- The seed keeps the system `local` debug/test SMS gateway enabled/default and
-  protected from updates or deletion. IPPanel remains disabled/non-default,
-  and no tenant-specific SMS gateway is seeded for the demo clinic.
+- The seed keeps one protected system `local` debug/test SMS gateway definition.
+  Its runtime-effective status is enabled only when the environment is not
+  `production`, `APP_DEBUG=true`, and `HAIRVISION_DEBUG_SMS_ENABLED=true`.
+  Otherwise it is displayed as disabled and excluded from every selection and
+  adapter fallback. Its default-selection action follows the same effective
+  status and is disabled and server-rejected otherwise; real-provider default
+  actions remain available. Dashboard users cannot create, activate, edit, or
+  assign a local gateway. IPPanel remains disabled/non-default, and no
+  tenant-specific SMS gateway is seeded for the demo clinic.
 - Shared cPanel hosting uses the database queue, scheduler watchdog, and
   detached PHP workers as its baseline; a non-overlapping window worker is the
   explicit fallback when detachment is unavailable. A fallback window is
@@ -80,8 +88,10 @@ transplant, or dynamically added services like under-eye filler.
   external dashboard icon packs unless explicitly requested.
 - Add/update tests for every behavior change and run the full test suite.
 - System landing templates are trusted HTML fragments managed only by authorized
-  platform users. Template CSS and JavaScript are inline; external template
-  assets, scripts, stylesheets, and fonts remain prohibited.
+  platform users. Template-fragment CSS and JavaScript are inline; external
+  template assets, scripts, stylesheets, and fonts remain prohibited. The
+  separate tracker fields are the only exception and must contain no credential,
+  phone, image, token, or other private visitor data.
 - The clinic dashboard guide is system-owned relational content stored in
   `guide_pages`, `guide_sections`, `guide_steps`, and `guide_faqs`. Every
   authenticated clinic role can read it, including without an active plan;
@@ -96,6 +106,11 @@ transplant, or dynamically added services like under-eye filler.
   semantic allowlisted HTML, and sanitize pasted/source HTML. The one named
   textarea is also the visible no-JavaScript fallback and is the sole submitted
   source of truth.
+- Each AI application owns optional public `upload_guide_html`. System admins
+  edit it with the same WYSIWYG/source surface, `SimpleRichTextSanitizer`
+  sanitizes it before storage and every render, and the selected application's
+  safe guide appears beside the visitor uploader (right-hand one-third on
+  desktop and above the uploader on smaller screens).
 - Dashboard fragment links must scroll only `[data-admin-scroll-container]`.
   Keep the admin body fixed to the viewport, suppress native initial-fragment
   scrolling, reset root scroll offsets, and honor reduced-motion preferences.
@@ -171,3 +186,12 @@ Every change without an assigned version belongs under `Unreleased` in the root
 section and updates runtime, environment-example, documentation-header, and
 version-test metadata together. Historical release sections are not rewritten
 for later work.
+
+Every release-owned source edit also carries that SemVer at its closest stable
+owner. New PHP declarations use their release as `@since`; changed declarations
+keep their original introduction tag and add a descriptive release `@since`.
+For PHP data/routes, Blade, JavaScript, and CSS, put a language-appropriate block
+comment immediately before the changed logical section. One marker may cover a
+cohesive section. Generated, binary, deleted, and strict commentless artifacts
+are represented by their marked source owner, release metadata, and changelog;
+do not make them invalid merely to insert a comment.

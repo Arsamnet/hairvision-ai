@@ -9,6 +9,7 @@ use Illuminate\Http\Resources\Json\JsonResource;
  * Safe API representation of an AI model category.
  *
  * @since 2.0.0
+ * @since 2.1.0 Behavior updated for the 2.1.0 release.
  */
 class AiModelCategoryResource extends JsonResource
 {
@@ -19,6 +20,7 @@ class AiModelCategoryResource extends JsonResource
      * @return array<string, mixed>
      *
      * @since 2.0.0
+     * @since 2.1.0 Behavior updated for the 2.1.0 release.
      */
     public function toArray(Request $request): array
     {
@@ -27,6 +29,7 @@ class AiModelCategoryResource extends JsonResource
             'code' => $this->code,
             'name' => $this->name,
             'description' => $this->description,
+            'upload_guide_html' => $this->upload_guide_html,
             'status' => $this->status,
             'sort_order' => $this->sort_order,
             'icon' => $this->icon,

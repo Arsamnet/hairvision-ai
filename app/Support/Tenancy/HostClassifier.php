@@ -8,6 +8,7 @@ use App\Models\TenantDomain;
  * Classifies incoming hosts before tenant-scoped public flows run.
  *
  * @since 1.0.0
+ * @since 2.1.0 Behavior updated for the 2.1.0 release.
  */
 class HostClassifier
 {
@@ -31,12 +32,15 @@ class HostClassifier
      * @return bool Whether the requested condition is satisfied.
      *
      * @since 1.0.0
+     * @since 2.1.0 Behavior updated for the 2.1.0 release.
      */
     public static function isPrimaryHost(string $host): bool
     {
-        $primaryDomain = strtolower((string) config('hairvision.primary_domain'));
+        $primaryDomain = parse_url((string) config('app.url'), PHP_URL_HOST);
 
-        return $primaryDomain !== '' && self::normalize($host) === $primaryDomain;
+        return is_string($primaryDomain)
+            && $primaryDomain !== ''
+            && self::normalize($host) === self::normalize($primaryDomain);
     }
 
     /**

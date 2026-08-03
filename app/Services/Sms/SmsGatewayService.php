@@ -6,16 +6,29 @@ use App\Models\SmsGateway;
 use App\Services\Sms\Adapters\IppanelSmsGatewayAdapter;
 use App\Services\Sms\Adapters\LocalSmsGatewayAdapter;
 use App\Services\Sms\Contracts\SmsGatewayAdapter;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Validation\ValidationException;
 
 /**
  * Resolves system SMS gateways and dispatches messages.
  *
  * @since 1.0.0
+ * @since 2.1.0 Behavior updated for the 2.1.0 release.
  */
 class SmsGatewayService
 {
     private ?string $debugSms = null;
+
+    /**
+     * Create the SMS gateway resolver.
+     *
+     * @param  DebugSmsGatewayAvailability  $debugGateway  Runtime debug gateway boundary.
+     *
+     * @since 2.1.0
+     */
+    public function __construct(
+        private readonly DebugSmsGatewayAvailability $debugGateway,
+    ) {}
 
     /**
      * Return the default system SMS gateway for platform messages.
@@ -23,14 +36,13 @@ class SmsGatewayService
      * @return SmsGateway|null Resolved operation result.
      *
      * @since 1.0.0
+     * @since 2.1.0 Behavior updated for the 2.1.0 release.
      */
     public function systemDefault(): ?SmsGateway
     {
         $scope = 'sms.gateway.system_default';
 
-        $gateway = SmsGateway::query()
-            ->system()
-            ->enabled()
+        $gateway = $this->usableSystemGatewayQuery()
             ->where('is_default', true)
             ->first();
 
@@ -38,9 +50,7 @@ class SmsGatewayService
             return $gateway;
         }
 
-        $gateway = SmsGateway::query()
-            ->system()
-            ->enabled()
+        $gateway = $this->usableSystemGatewayQuery()
             ->orderBy('id', 'asc')
             ->first();
 
@@ -59,6 +69,7 @@ class SmsGatewayService
      * @return SmsGateway|null Resolved operation result.
      *
      * @since 1.0.0
+     * @since 2.1.0 Behavior updated for the 2.1.0 release.
      */
     private function systemDefaultFromConfig(): ?SmsGateway
     {
@@ -66,6 +77,10 @@ class SmsGatewayService
         $provider = config('hairvision.sms.default_provider', 'local');
 
         if ($provider === 'local') {
+            if (! $this->debugGateway->isEnabled()) {
+                return null;
+            }
+
             $gateway = new SmsGateway([
                 'name' => 'Local SMS Gateway (configured)',
                 'provider_code' => 'local',
@@ -104,16 +119,40 @@ class SmsGatewayService
     }
 
     /**
+     * Build the system gateway query with environment-effective debug availability.
+     *
+     * @return Builder<SmsGateway> Configured gateway query.
+     *
+     * @since 2.1.0
+     */
+    private function usableSystemGatewayQuery(): Builder
+    {
+        $query = SmsGateway::query()->system();
+
+        if ($this->debugGateway->isEnabled()) {
+            return $query->where(function (Builder $query): void {
+                $query
+                    ->where('status', 'enabled')
+                    ->orWhere('provider_code', DebugSmsGatewayAvailability::PROVIDER_CODE);
+            });
+        }
+
+        return $query
+            ->enabled()
+            ->where('provider_code', '!=', DebugSmsGatewayAvailability::PROVIDER_CODE);
+    }
+
+    /**
      * Return the enabled system IPPanel gateway used for all OTP messages.
      *
      * @return SmsGateway|null Resolved operation result.
      *
      * @since 1.0.0
+     * @since 2.1.0 Behavior updated for the 2.1.0 release.
      */
     public function systemIppanel(): ?SmsGateway
     {
         $scope = 'sms.gateway.system_ippanel';
-        $defaultProvider = config('hairvision.sms.default_provider', 'local');
 
         $gateways = SmsGateway::query()
             ->system()
@@ -133,8 +172,16 @@ class SmsGatewayService
             return $gateway;
         }
 
-        if ($defaultProvider === 'local') {
-            return $this->systemDefaultFromConfig();
+        if ($this->debugGateway->isEnabled()) {
+            $gateway = $this->usableSystemGatewayQuery()
+                ->where('provider_code', DebugSmsGatewayAvailability::PROVIDER_CODE)
+                ->orderByDesc('is_default')
+                ->orderBy('id')
+                ->first();
+
+            if ($gateway instanceof SmsGateway) {
+                return $gateway;
+            }
         }
 
         $gateway = $this->systemDefaultFromConfig();
@@ -216,10 +263,12 @@ class SmsGatewayService
      * @return SmsGateway Resolved operation result.
      *
      * @since 1.0.0
+     * @since 2.1.0 Behavior updated for the 2.1.0 release.
      */
     public function markDefault(SmsGateway $gateway): SmsGateway
     {
         $this->resetDebugSteps();
+        $this->debugGateway->ensureCanBeSelectedAsDefault($gateway);
 
         $scope = 'sms.gateway.mark_default';
 

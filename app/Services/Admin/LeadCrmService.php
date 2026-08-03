@@ -11,6 +11,7 @@ use Illuminate\Support\Facades\DB;
  * Handles CRM follow-up mutations for tenant-owned leads.
  *
  * @since 1.0.0
+ * @since 2.1.0 Behavior updated for the 2.1.0 release.
  */
 class LeadCrmService
 {
@@ -23,6 +24,7 @@ class LeadCrmService
      * @return LeadNote Resolved operation result.
      *
      * @since 1.0.0
+     * @since 2.1.0 Behavior updated for the 2.1.0 release.
      */
     public function createFollowUp(Lead $lead, User $user, array $data): LeadNote
     {
@@ -40,7 +42,7 @@ class LeadCrmService
             ]);
 
             $lead->forceFill([
-                'crm_stage' => $data['status'],
+                'status' => $data['status'],
                 'crm_last_note_at' => now(),
             ])->save();
 
@@ -57,6 +59,7 @@ class LeadCrmService
      * @return LeadNote Resolved operation result.
      *
      * @since 1.0.0
+     * @since 2.1.0 Behavior updated for the 2.1.0 release.
      */
     public function updateFollowUp(Lead $lead, LeadNote $note, array $data): LeadNote
     {
@@ -76,7 +79,7 @@ class LeadCrmService
 
             if (isset($data['status'])) {
                 $lead->forceFill([
-                    'crm_stage' => $data['status'],
+                    'status' => $data['status'],
                     'crm_last_note_at' => now(),
                 ])->save();
             }

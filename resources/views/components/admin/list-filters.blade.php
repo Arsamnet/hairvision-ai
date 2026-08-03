@@ -1,3 +1,4 @@
+{{-- @since 2.1.0 Supports release-specific Jalali quick ranges and numeric lead filters. --}}
 @props([
     'filterAction',
     'resolvedPresetKey',
@@ -118,12 +119,13 @@
                 @php
                     $name = $filter['name'];
                     $type = $filter['type'] ?? 'text';
-                    $inputType = $type === 'number' ? 'number' : 'text';
+                    $inputType = 'text';
                     $label = $filter['label'] ?? $name;
                     $placeholder = $filter['placeholder'] ?? $label;
                     $value = request($name);
                     $options = $filter['options'] ?? [];
                     $isDateInput = in_array($type, ['date', 'datetime'], true);
+                    $isNumberInput = $type === 'number';
                 @endphp
 
                 @if($type === 'select')
@@ -147,7 +149,8 @@
                             name="{{ $name }}"
                             value="{{ $value }}"
                             placeholder="{{ $placeholder }}"
-                            @if(($filter['dir'] ?? null) === 'ltr' || $isDateInput) dir="ltr" @endif
+                            @if(($filter['dir'] ?? null) === 'ltr' || $isDateInput || $isNumberInput) dir="ltr" @endif
+                            @if($isNumberInput) inputmode="numeric" pattern="[0-9۰-۹٠-٩]*" maxlength="{{ $filter['maxlength'] ?? 3 }}" data-digit-input @endif
                             @if($type === 'date') inputmode="numeric" data-jalali-date @endif
                             @if($type === 'datetime') inputmode="numeric" data-jalali-datetime @endif
                             class="h-11 w-full rounded-lg border border-zinc-200 bg-white py-0 pl-3 {{ $isDateInput ? 'pr-10' : 'pr-3' }} text-sm outline-none transition focus:border-teal-500"
@@ -182,12 +185,13 @@
                         @php
                             $name = $filter['name'] ?? null;
                             $type = $filter['type'] ?? 'text';
-                            $inputType = $type === 'number' ? 'number' : 'text';
+                            $inputType = 'text';
                             $label = $filter['label'] ?? $name;
                             $placeholder = $filter['placeholder'] ?? $label;
                             $value = $name ? request($name) : null;
                             $options = $filter['options'] ?? [];
                             $isDateInput = in_array($type, ['date', 'datetime'], true);
+                            $isNumberInput = $type === 'number';
                         @endphp
                         @continue(! $name)
 
@@ -210,7 +214,8 @@
                                         name="{{ $name }}"
                                         value="{{ $value }}"
                                         placeholder="{{ $placeholder }}"
-                                        @if(($filter['dir'] ?? null) === 'ltr' || $isDateInput) dir="ltr" @endif
+                                        @if(($filter['dir'] ?? null) === 'ltr' || $isDateInput || $isNumberInput) dir="ltr" @endif
+                                        @if($isNumberInput) inputmode="numeric" pattern="[0-9۰-۹٠-٩]*" maxlength="{{ $filter['maxlength'] ?? 3 }}" data-digit-input @endif
                                         @if($type === 'date') inputmode="numeric" data-jalali-date @endif
                                         @if($type === 'datetime') inputmode="numeric" data-jalali-datetime @endif
                                         class="h-11 w-full rounded-lg border border-zinc-200 py-0 pl-3 {{ $isDateInput ? 'pr-10' : 'pr-3' }} text-sm outline-none transition focus:border-teal-500"

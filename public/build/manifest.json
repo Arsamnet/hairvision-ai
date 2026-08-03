@@ -1,6 +1,24 @@
 {
+  "node_modules/@flaticon/flaticon-uicons/css/uicons-solid-rounded-IYSBBSWN.woff2": {
+    "file": "assets/uicons-solid-rounded-IYSBBSWN-CdPka4yL.woff2",
+    "src": "node_modules/@flaticon/flaticon-uicons/css/uicons-solid-rounded-IYSBBSWN.woff2"
+  },
+  "node_modules/@flaticon/flaticon-uicons/css/uicons-solid-rounded-N5CQNTC6.eot": {
+    "file": "assets/uicons-solid-rounded-N5CQNTC6-D6eJ0FUi.eot",
+    "src": "node_modules/@flaticon/flaticon-uicons/css/uicons-solid-rounded-N5CQNTC6.eot"
+  },
+  "node_modules/@flaticon/flaticon-uicons/css/uicons-solid-rounded-UWVI4CEC.woff": {
+    "file": "assets/uicons-solid-rounded-UWVI4CEC-BquqBmA0.woff",
+    "src": "node_modules/@flaticon/flaticon-uicons/css/uicons-solid-rounded-UWVI4CEC.woff"
+  },
+  "node_modules/heic-to/dist/csp/heic-to.js": {
+    "file": "assets/heic-to-CGGuGQrK.js",
+    "name": "heic-to",
+    "src": "node_modules/heic-to/dist/csp/heic-to.js",
+    "isDynamicEntry": true
+  },
   "resources/css/app.css": {
-    "file": "assets/app-BUn8C8jP.css",
+    "file": "assets/app-DBWOegwn.css",
     "name": "app",
     "names": [
       "app.css"
@@ -13,6 +31,20 @@
       "assets/Vazirmatn-FD-Regular-DHqa3JTn.woff2",
       "assets/Vazirmatn-FD-Bold-B_t2WhO7.woff2",
       "assets/uicons-regular-rounded-0sU45oCT.woff2"
+    ]
+  },
+  "resources/css/landing-icons.css": {
+    "file": "assets/landing-icons-CrrtGzMV.css",
+    "name": "landing-icons",
+    "names": [
+      "landing-icons.css"
+    ],
+    "src": "resources/css/landing-icons.css",
+    "isEntry": true,
+    "assets": [
+      "assets/uicons-solid-rounded-IYSBBSWN-CdPka4yL.woff2",
+      "assets/uicons-solid-rounded-UWVI4CEC-BquqBmA0.woff",
+      "assets/uicons-solid-rounded-N5CQNTC6-D6eJ0FUi.eot"
     ]
   },
   "resources/fonts/uicons/uicons-regular-rounded.woff2": {
@@ -40,10 +72,13 @@
     "src": "resources/img/favicon.png"
   },
   "resources/js/app.js": {
-    "file": "assets/app-5urxs6Ky.js",
+    "file": "assets/app-gTbWkRH5.js",
     "name": "app",
     "src": "resources/js/app.js",
     "isEntry": true,
+    "dynamicImports": [
+      "node_modules/heic-to/dist/csp/heic-to.js"
+    ],
     "css": [
       "assets/app-DFWjP-ld.css"
     ]

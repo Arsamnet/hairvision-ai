@@ -18,7 +18,9 @@
         </include>
     </source>
     <php>
+        <!-- Version 2.1.0 runtime and safe debug-SMS test settings. -->
         <env name="APP_ENV" value="testing"/>
+        <env name="APP_DEBUG" value="true"/>
         <env name="APP_VERSION" value="2.1.0"/>
         <env name="APP_MAINTENANCE_DRIVER" value="file"/>
         <env name="BCRYPT_ROUNDS" value="4"/>
@@ -29,6 +31,7 @@
         <env name="DB_URL" value=""/>
         <env name="IMAGE_QUEUE_CONNECTION" value="sync"/>
         <env name="IMAGE_WORKER_MODE" value="inline"/>
+        <env name="HAIRVISION_DEBUG_SMS_ENABLED" value="true"/>
         <env name="MAIL_MAILER" value="array"/>
         <env name="QUEUE_CONNECTION" value="sync"/>
         <env name="SESSION_DRIVER" value="array"/>

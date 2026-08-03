@@ -5,6 +5,209 @@
 Changes without an assigned release remain in this section and are moved into
 the next dated SemVer section when that release is prepared.
 
+## 2.1.0 - 2026-08-03
+
+HairVision `2.1.0` strengthens asynchronous image generation, OpenAI execution,
+shared-cPanel operations, SMS safety, private lead-image workflows, clinic
+landing management, first-party analytics, reporting, and visitor usability.
+
+### Lead management
+
+- Unified the duplicate lead status and CRM-stage fields into one five-value
+  status (`new`, `needs_follow_up`, `no_answer`, `successful`, `canceled`),
+  migrated existing lead/note data, updated follow-ups, dashboards and reports
+  to the single source, and rendered canceled states in red.
+- Added optional numeric age and text city to lead creation, editing and detail
+  views, including supported-digit normalization and validation, and displayed
+  age in both desktop and mobile lead lists with inclusive «سن از/سن تا» range
+  filters.
+- Duplicate lead creation from the dashboard now returns a Persian field-level
+  warning, preserves the submitted form values for correction, and leaves the
+  existing tenant lead unchanged; the service also handles concurrent duplicate
+  submissions without surfacing a database integrity error.
+- Added permission-backed lead deletion to both clinic and system-management
+  dashboards, including list/detail actions, tenant isolation, support for
+  authorized system-scoped roles, and the `leads.delete` grant for clinic
+  administrators.
+- Lead deletion now removes tenant-owned CRM, upload, profile, generation, and
+  private image records/files while retaining detached system reporting history;
+  deletion is rejected while legacy or independent generation work is active,
+  and stale transports for deleted terminal records are discarded safely.
+- Compacted lead processing history into responsive four-column desktop rows
+  with the visitor upload first, generated images ordered after it, smaller
+  thumbnails, and title/date-only captions while preserving the full gallery.
+
+### Clinic dashboard guide
+
+- Updated the seeded clinic guide and FAQ for the complete `2.1.0` workflow:
+  unified lead status, age/city and age filters, duplicate detection, permanent
+  permission-backed lead deletion, grouped image history, application-specific
+  photo guidance, HEIC/HEIF conversion, reusable current images, independent
+  outputs, landing back-link settings, seven-day dashboard metrics, Jalali
+  performance ranges, funnel interpretation, CSV export, application
+  availability troubleshooting, and safe synchronization/support guidance.
+- Added regression coverage proving that the new clinic-facing topics are
+  present in the relational default guide and FAQ and render on both help pages.
+
+### Landing analytics, SEO, and performance reports
+
+- Added tenant-scoped first-party landing funnel analytics from server-recorded
+  visits through application clicks, file selection, phone submission, OTP
+  verification, private source-image upload, generation request, and result
+  viewing, with hashed visit tokens, idempotent PII-free events, and verified
+  lead linkage; stored referrers are reduced to their origin so query strings
+  cannot carry personal data into analytics storage.
+- Added clinic performance reporting with arbitrary Jalali date ranges,
+  acquisition-cohort conversion rates, per-application clicks and conversions,
+  monthly chart/table, CRM stages, and UTF-8 CSV export; Gregorian database
+  dates are explicitly parsed before conversion so every monthly label in both
+  the dashboard and CSV is emitted as a Jalali year/month.
+- Added Jalali quick-report buttons for the current month and previous month
+  beside the existing twelve-month shortcut, preserving the selected clinic in
+  system-scoped reports.
+- Replaced the clinic dashboard's oversized plan-status introduction with a
+  seven-day landing-performance summary, compact visit/generation chart,
+  conversion metrics, and a permission-aware link to the full report while
+  retaining plan details and renewal controls in the adjacent panel.
+- Added idempotent, presentation-ready demo-clinic data covering twelve months
+  and every day in the recent dashboard window, including tenant-scoped leads,
+  CRM notes, landing visits, every funnel event, and both seeded applications.
+- Removed the cross-clinic list from clinic performance reports and made it
+  available only in the system-scoped management report.
+- Made the detailed performance report useful in the system-wide dashboard
+  without an active tenant: it now defaults to an aggregate of every clinic,
+  offers an active-clinic filter inside the page, preserves that scope in CSV
+  exports, and links management comparison rows to their clinic detail report.
+- Added managed template SEO metadata, tenant canonical/Open Graph/Twitter and
+  `MedicalClinic` structured data, plus separately validated head/body tracker
+  fields for tools such as Google Analytics and Tag Manager. First-party events
+  are also published to a stable PII-free `dataLayer`/DOM contract.
+
+### Managed landing-template assignment
+
+- Moved explicit landing-template selection out of template management and into
+  the clinic edit form; newly created or unassigned clinics resolve the active
+  default template, while edit-time choices are limited to active templates and
+  are persisted atomically with clinic/domain changes without removing legacy
+  theme fields.
+- Reduced template management to list, create, and edit routes/actions by
+  removing the separate clinic-assignment screen and template default/delete
+  actions, and added regression coverage for clinic creation, template changes,
+  inactive-template rejection, tenant-host rendering, and bootstrap metadata.
+
+### Visitor photo guidance
+
+- Added a sanitized rich-text/HTML photo guide to every AI application, exposed
+  through the safe public category resource and editable by system admins with
+  the reusable visual/source editor.
+- Added a responsive step-two guidance panel that follows the application
+  selected in step one, occupies roughly the right-hand third of the desktop
+  upload section, moves above the uploader on smaller screens, and applies a
+  generic safe fallback when no custom guide exists.
+- Added distinct seeded hair- and eyebrow-transplant photo guidance, additive
+  backfill for existing applications without guidance, and reseed behavior that
+  preserves administrator edits.
+
+### Visitor landing usability
+
+- Added a dedicated responsive Noja Kasht landing template seeded and centrally
+  assigned only to the Noja clinic, with source-matched inline header/footer
+  styling and self-contained copies of the official website imagery.
+- Synchronized the Noja template seed byte-for-byte with the refined header and
+  footer content managed in the primary database, including its spacing,
+  navigation, action, icon, separator, and stored line-ending adjustments.
+- Right-aligned the Noja footer logo with the descriptive copy beneath it across
+  responsive layouts.
+- Consolidated the built-in classic and Noja landing-template definitions in
+  `TemplateSeeder`, removed the obsolete `app/Support/LandingTemplates` source
+  files, and kept runtime fallback independent from database seeding.
+- Loaded the complete locally bundled UIcons solid-rounded catalog only on
+  clinic landings, including a compatible `fi-sr-phone` class for trusted
+  managed template fragments without CDN requests.
+- Unified back, primary, secondary, upload, OTP, result-download, and modal
+  actions under one button system; replaced the dark confirmation CTA with a
+  violet-to-teal treatment and restrained animated AI-spectrum border, removed
+  lift/scale hover movement and heavy shadows, and preserved reduced-motion,
+  focus, disabled, and 44-pixel touch states.
+- Rebuilt the mobile journey header as a compact, semantic four-step progress
+  indicator and reduced nested spacing so the active task appears substantially
+  earlier without horizontal overflow at 320 CSS pixels.
+- Removed the app content wrapper's padding, border, background, rounding,
+  shadow, and blur so it remains a layout-only section at every breakpoint.
+- Removed the residual bottom margin from the initial application-selection
+  section without changing the spacing between its internal controls.
+- Unified photo guidance, file selection, preview, consent, privacy context,
+  errors, and actions into one balanced upload surface; desktop keeps the guide
+  in the right-hand third while mobile uses an accessible expandable guide.
+- Enhanced the native image input with desktop drag-and-drop, client-side type
+  and 5 MB size feedback, an uncropped selected-image preview, file-name status,
+  explicit view/change actions, larger touch targets, visible focus, and
+  reduced-motion behavior.
+- Added iPhone-friendly HEIC/HEIF selection with a lazily loaded, locally bundled
+  browser converter that produces an uploadable JPEG before phone verification;
+  original files and converted JPEGs over 5 MB are rejected before upload with
+  a clear Persian warning, while the server retains the same mandatory limit.
+- Moved each generated-result status label and download action into a
+  bottom-pinned card footer so controls remain aligned below images and copy.
+- Compacted the mobile output selector into three title-only controls per row
+  and stopped step polling, API reconciliation, and programmatic focus from
+  repeatedly moving the visitor's current scroll position.
+- Added an «upload new image» action to the result step that restarts application
+  and photo selection, retires the old browser polling view without cancelling
+  server work, and reuses the current backend-verified browser session instead
+  of requesting a second OTP while requiring verification again for a new
+  browser session.
+- Preserved the current private profile image while changing applications so a
+  verified visitor can intentionally reuse it instead of being forced to choose
+  the same file again.
+- Made `APP_URL` the single source for the primary HairVision URL and host,
+  removing the redundant primary-domain key from every environment file and
+  using the canonical URL for platform-host detection and brand links.
+- Added a light, code-owned copyright strip between the clinic landing content
+  and every editable template footer, with a Persian rights statement and a
+  «powered by» label plus HairVision logo linked to `APP_URL`; exact unchanged
+  built-in footer branding is migrated out without overwriting custom template
+  content.
+
+### AI application card images
+
+- Added explicit cancellation for newly selected card images and safe removal
+  of the current image while editing an AI application; replacing, removing, or
+  deleting an application now cleans up only administrator-uploaded card files.
+- Replaced the legacy seeded SVG card artwork with optimized, photorealistic JPG
+  close-ups for hair and eyebrow transplant applications, including restrained
+  AI scan accents and an additive migration that preserves custom admin images.
+
+### Clinic landing personalization
+
+- Added a tenant-scoped «تنظیمات کلینیک» page where clinic administrators can
+  customize the public «بازگشت به سایت کلینیک» link text, HTTP(S) URL, and
+  same-page/new-tab target without changing the centrally managed template;
+  settings are organized as independently persisted sections with bottom save
+  actions so future sections cannot overwrite unrelated values.
+- Added an allowlisted managed-template variable contract for link title, URL,
+  and target, a safe escaped renderer, strict HTML-context validation, and a
+  copyable variable guide in the system template create/edit form.
+- Applied clinic-owned overrides at the template-defined location, retained the
+  legacy shell fallback for templates without variables, secured new-tab links,
+  preserved custom values during reseeding, and added authorization,
+  validation, escaping, isolation, and rendering coverage. The URL guidance
+  isolates `http://` and `https://` with left-to-right direction for correct RTL
+  presentation.
+
+### SMS gateway safety
+
+- Restricted the debug/test SMS gateway to non-production runtimes with debug
+  mode and an explicit environment flag, rendered its effective dashboard
+  status as disabled whenever any condition fails, and removed every database,
+  config, and direct-adapter fallback to it when unavailable.
+- Removed the local provider from system and clinic management inputs and added
+  server-side enforcement so activation and use are controlled only by `.env`.
+- Added a permission-backed default-gateway action to the SMS gateway list;
+  real providers remain selectable, while the debug/test action is enabled only
+  when its three runtime safety conditions are satisfied and is otherwise
+  rendered disabled and rejected server-side.
+
 ### Frontend reliability
 
 - Prevented a lost generation-creation response from showing a false terminal
@@ -12,11 +215,6 @@ the next dated SemVer section when that release is prepared.
   with the same idempotency key, reconciles persisted lead generations, and
   falls back to a temporary synchronization message without creating duplicate
   attempts or credit reservations.
-
-## 2.1.0 - 2026-07-30
-
-HairVision `2.1.0` strengthens asynchronous image generation, OpenAI execution,
-shared-cPanel operations, SMS safety, and private lead-image workflows.
 
 ### AI model settings
 
@@ -142,6 +340,10 @@ shared-cPanel operations, SMS safety, and private lead-image workflows.
 
 ### Quality and release metadata
 
+- Assigned the complete uncommitted source state to `2.1.0`, added release
+  markers to new and revised PHP declarations and changed frontend/data
+  sections, and documented the same closest-owner block-comment rule for every
+  future release while preserving generated and commentless formats.
 - Added and expanded feature and unit coverage for queue architecture, provider
   retry classification, OpenAI defaults, seed mappings, SMS gateway protection,
   generation isolation and resumption, and the lead image gallery.

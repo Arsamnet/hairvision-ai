@@ -1,6 +1,7 @@
+{{-- @since 2.1.0 Removes environment-managed local gateways from editable providers. --}}
 @php
     $formKey = $formKey ?? ($gateway ? 'edit_system_sms_gateway' : 'create_system_sms_gateway');
-    $providerOptions = $providerOptions ?? ['local' => __('sms.providers.local'), 'ippanel' => __('sms.providers.ippanel')];
+    $providerOptions = $providerOptions ?? ['ippanel' => __('sms.providers.ippanel')];
     $selectedOwnerScope = old('owner_scope', $gateway?->owner_scope ?? 'system');
 @endphp
 

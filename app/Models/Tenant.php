@@ -13,6 +13,7 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
  * HairVision clinic tenant resolved from request hosts.
  *
  * @since 1.0.0
+ * @since 2.1.0 Behavior updated for the 2.1.0 release.
  */
 class Tenant extends Model
 {
@@ -207,6 +208,18 @@ class Tenant extends Model
     public function landingPageVisits(): HasMany
     {
         return $this->hasMany(TenantLandingPageVisit::class);
+    }
+
+    /**
+     * First-party landing funnel events owned by this tenant.
+     *
+     * @return HasMany<TenantLandingEvent, $this>
+     *
+     * @since 2.1.0
+     */
+    public function landingEvents(): HasMany
+    {
+        return $this->hasMany(TenantLandingEvent::class);
     }
 
     /**

@@ -1,3 +1,4 @@
+{{-- @since 2.1.0 Moves active landing-template assignment into clinic editing. --}}
 @php
     $clinic = $clinic ?? null;
     $primaryDomain = $primaryDomain ?? null;
@@ -25,6 +26,21 @@
         @endforeach
     </select>
 </label>
+
+@if($clinic)
+    <label class="grid gap-1 text-sm font-bold">
+        <span>{{ __('clinics.fields.landing_template') }}</span>
+        <select name="template_id" required class="h-11 rounded-lg border border-zinc-200 px-3 text-sm outline-none focus:border-teal-500">
+            <option value="">{{ __('clinics.select_landing_template') }}</option>
+            @foreach($landingTemplates as $landingTemplate)
+                <option value="{{ $landingTemplate->id }}" @selected((int) old('template_id', $clinic->theme?->template_id) === $landingTemplate->id)>
+                    {{ $landingTemplate->name }}{{ $landingTemplate->is_default ? ' — '.__('landing_templates.fields.default') : '' }}
+                </option>
+            @endforeach
+        </select>
+        <span class="text-xs font-normal leading-6 text-zinc-600">{{ $clinic->theme ? __('clinics.landing_template_hint') : __('clinics.default_landing_template_hint') }}</span>
+    </label>
+@endif
 
 <label class="grid gap-1 text-sm font-bold">
     <span>{{ __('clinics.fields.domain') }}</span>

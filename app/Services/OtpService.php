@@ -103,6 +103,7 @@ class OtpService
      * @return Lead Resolved operation result.
      *
      * @since 1.0.0
+     * @since 2.1.0 Lead lifecycle initialization now uses the unified status field.
      */
     public function verifyCode(string $phone, string $code, int $tenantId, ?Request $request = null): Lead
     {
@@ -151,7 +152,6 @@ class OtpService
                 'phone' => $phoneNormalized,
                 'phone_normalized' => $phoneNormalized,
                 'phone_verified_at' => Carbon::now(),
-                'status' => 'verified',
             ]
         );
 

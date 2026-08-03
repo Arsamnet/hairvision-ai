@@ -1,0 +1,7 @@
+/* @since 2.1.0 Bundles the landing-only solid-rounded icon catalog locally. */
+@import '@flaticon/flaticon-uicons/css/solid/rounded.css';
+
+/* Keep the canonical landing-template phone class compatible with UIcons 3.3.1. */
+.fi-sr-phone::before {
+    content: "\fa45";
+}

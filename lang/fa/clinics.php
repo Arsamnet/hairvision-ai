@@ -1,5 +1,10 @@
 <?php
 
+/**
+ * Provides Persian clinic-management copy revised for the 2.1.0 release.
+ *
+ * @since 2.1.0
+ */
 return [
     'title' => 'کلینیک‌ها',
     'manage' => 'مدیریت کلینیک‌ها',
@@ -37,6 +42,9 @@ return [
     'edit_sms_gateway' => 'ویرایش درگاه پیامک',
     'no_sms_gateway' => 'درگاه پیامک اختصاصی برای این کلینیک ثبت نشده است.',
     'manage_models' => 'مدل‌های کلینیک',
+    'select_landing_template' => 'انتخاب قالب فعال',
+    'landing_template_hint' => 'قالب انتخاب‌شده پس از ذخیره، محتوای لندینگ دامنه این کلینیک را تعیین می‌کند.',
+    'default_landing_template_hint' => 'این کلینیک تخصیص صریح ندارد و تا زمان انتخاب یک قالب، با قالب پیش‌فرض فعال نمایش داده می‌شود.',
     'fields' => [
         'name' => 'نام کلینیک',
         'slug' => 'شناسه کلینیک',
@@ -44,6 +52,7 @@ return [
         'domain' => 'دامنه',
         'domain_type' => 'نوع دامنه',
         'domain_status' => 'وضعیت دامنه',
+        'landing_template' => 'قالب لندینگ',
         'created_at' => 'زمان ثبت',
     ],
     'statuses' => [
@@ -68,6 +77,7 @@ return [
     'validation' => [
         'user_not_in_clinic' => 'کاربر انتخاب‌شده عضو فعال این کلینیک نیست.',
         'plan_not_active' => 'پلن انتخاب‌شده فعال نیست.',
+        'template_not_active' => 'قالب انتخاب‌شده فعال نیست یا دیگر وجود ندارد.',
     ],
     'empty' => 'کلینیکی برای نمایش وجود ندارد.',
 ];

@@ -1,3 +1,6 @@
+/**
+ * @since 2.1.0 Boots the AI application card-image controls.
+ */
 import { bootActionMenus, closeActionMenus } from './action-menus.js';
 import { bootAdminModals, closeOpenModals } from './modals.js';
 import { bootConfirmationModal, closeConfirmationModal } from './confirmation-modal.js';
@@ -14,6 +17,7 @@ import { bootLandingTemplateForm } from './landing-template-form.js';
 import { bootRichTextEditors } from './rich-text-editor.js';
 import { bootAdminFragmentNavigation } from './fragment-navigation.js';
 import { bootLeadImageGallery, closeLeadImageGallery } from './lead-image-gallery.js';
+import { bootCardImageInputs } from './card-image-inputs.js';
 
 const closeUserMenus = () => {
     document.querySelectorAll('[data-admin-user-menu][open]').forEach((menu) => {
@@ -49,6 +53,7 @@ export const bootAdmin = () => {
     bootLandingTemplateForm();
     bootRichTextEditors();
     bootLeadImageGallery();
+    bootCardImageInputs();
 
     document.addEventListener('keydown', (event) => {
         if (event.key !== 'Escape') {

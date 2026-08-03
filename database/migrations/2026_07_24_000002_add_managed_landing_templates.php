@@ -1,6 +1,5 @@
 <?php
 
-use App\Support\LandingTemplateDefaults;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
@@ -102,11 +101,12 @@ return new class extends Migration
      * @return void No value is returned.
      *
      * @since 2.0.0
+     * @since 2.1.0 Behavior updated for the 2.1.0 release.
      */
     private function configureExistingDefaultTemplate(): void
     {
         $templateId = DB::table('templates')
-            ->where('code', LandingTemplateDefaults::CODE)
+            ->where('code', 'classic')
             ->value('id')
             ?? DB::table('templates')->where('is_active', true)->orderBy('id')->value('id');
 
@@ -115,9 +115,9 @@ return new class extends Migration
         }
 
         DB::table('templates')->update(['is_default' => false]);
-        DB::table('templates')->where('id', $templateId)->update(array_merge(
-            LandingTemplateDefaults::content(),
-            ['is_active' => true, 'is_default' => true]
-        ));
+        DB::table('templates')->where('id', $templateId)->update([
+            'is_active' => true,
+            'is_default' => true,
+        ]);
     }
 };

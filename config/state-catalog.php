@@ -1,5 +1,10 @@
 <?php
 
+/**
+ * Defines the code-owned state catalogs revised for the 2.1.0 release.
+ *
+ * @since 2.1.0
+ */
 return [
     'tenants' => [
         'statuses' => [
@@ -47,20 +52,10 @@ return [
     'leads' => [
         'statuses' => [
             'new' => 'leads.statuses.new',
-            'verified' => 'leads.statuses.verified',
-            'contacted' => 'leads.statuses.contacted',
-            'qualified' => 'leads.statuses.qualified',
-            'archived' => 'leads.statuses.archived',
-        ],
-        'crm_stages' => [
-            'new_lead' => 'leads.crm_stages.new_lead',
-            'contacted' => 'leads.crm_stages.contacted',
-            'no_answer' => 'leads.crm_stages.no_answer',
-            'needs_follow_up' => 'leads.crm_stages.needs_follow_up',
-            'consultation_booked' => 'leads.crm_stages.consultation_booked',
-            'converted' => 'leads.crm_stages.converted',
-            'lost' => 'leads.crm_stages.lost',
-            'canceled' => 'leads.crm_stages.canceled',
+            'needs_follow_up' => 'leads.statuses.needs_follow_up',
+            'no_answer' => 'leads.statuses.no_answer',
+            'successful' => 'leads.statuses.successful',
+            'canceled' => 'leads.statuses.canceled',
         ],
     ],
 

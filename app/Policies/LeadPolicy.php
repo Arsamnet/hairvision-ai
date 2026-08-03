@@ -9,6 +9,7 @@ use App\Models\User;
  * Authorizes dashboard access to tenant-owned leads.
  *
  * @since 1.0.0
+ * @since 2.1.0 Behavior updated for the 2.1.0 release.
  */
 class LeadPolicy
 {
@@ -32,11 +33,12 @@ class LeadPolicy
      * @return bool Whether the requested condition is satisfied.
      *
      * @since 1.0.0
+     * @since 2.1.0 Behavior updated for the 2.1.0 release.
      */
     public function viewAny(User $user): bool
     {
         return $user->hasPermission('leads.list')
-            && ($user->isSuperAdmin() || $user->tenants()->wherePivot('status', 'active')->exists());
+            && ($user->isSystemScoped() || $user->tenants()->wherePivot('status', 'active')->exists());
     }
 
     /**
@@ -47,11 +49,12 @@ class LeadPolicy
      * @return bool Whether the requested condition is satisfied.
      *
      * @since 1.0.0
+     * @since 2.1.0 Behavior updated for the 2.1.0 release.
      */
     public function view(User $user, Lead $lead): bool
     {
         return $user->hasPermission('leads.view', $lead->tenant_id)
-            && $user->canAccessTenant($lead->tenant_id);
+            && ($user->isSystemScoped() || $user->canAccessTenant($lead->tenant_id));
     }
 
     /**
@@ -131,10 +134,11 @@ class LeadPolicy
      * @return bool Whether the requested condition is satisfied.
      *
      * @since 1.0.0
+     * @since 2.1.0 Behavior updated for the 2.1.0 release.
      */
     public function delete(User $user, Lead $lead): bool
     {
         return $user->hasPermission('leads.delete', $lead->tenant_id)
-            && $user->canAccessTenant($lead->tenant_id);
+            && ($user->isSystemScoped() || $user->canAccessTenant($lead->tenant_id));
     }
 }

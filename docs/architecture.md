@@ -17,7 +17,8 @@ records.
 
 Core concepts:
 
-- `ai_model_categories`: system-owned usage categories, no `tenant_id`.
+- `ai_model_categories`: system-owned usage categories, no `tenant_id`, with
+  sanitized per-application visitor photo-upload guidance.
 - `ai_model_category_outputs`: requestable outputs for a category, including
   the server-side prompt used for that output.
 - `ai_models`: executable v2 model instances backed by a configured type.
@@ -57,6 +58,19 @@ Category view includes the category summary, usage references, and the standard
 outputs table. Output creation and editing happen in modals on the same view,
 with output row actions, clear parent-category context, placeholders, and prompt
 fields for each output. Output prompts are not exposed to public visitor APIs.
+Category create/edit forms reuse the visual/source rich-text editor for
+`upload_guide_html`. The model sanitizes this field through
+`SimpleRichTextSanitizer` at both write and read boundaries, so neither the
+dashboard nor public APIs can render executable markup. Seeded hair and eyebrow
+applications receive distinct starter guidance without reseeding over later
+administrator edits. Card images use local public assets or validated dashboard
+uploads. The create/edit UI can cancel a pending upload, and edit can explicitly
+remove the persisted image so the category icon becomes the fallback. Replacing,
+removing, or deleting a category cleans up only paths managed under
+`/storage/category-cards/`; system theme images are immutable through this flow.
+The seeded hair and eyebrow applications use separate square photorealistic JPG
+close-ups, and the additive upgrade changes only the legacy default SVG paths so
+custom or intentionally removed images remain untouched.
 
 Plans assign one or more category codes through a clear multi-select UI but
 carry one total credit amount.
@@ -66,18 +80,53 @@ balance rather than from a service-specific bucket.
 
 ## Managed Landing Templates
 
-Landing templates are system-owned records. A system administrator edits their
-header, optional body, and footer as HTML fragments, selects one active default,
-and assigns active templates to clinics from the system dashboard. A clinic has
-one `tenant_theme_settings` row; its `template_id` is the assignment and
+Landing templates are system-owned records. A system administrator creates and
+edits their header, optional body, and footer as HTML fragments. Template
+management exposes list, create, and edit operations only. A clinic may have one
+`tenant_theme_settings` row; its `template_id` is an explicit assignment and
 `use_template_content` records whether centralized content has replaced its
 legacy per-tenant markup.
 
 `LandingTemplateResolver` is the single read boundary used by the public Blade
 shell and `/api/v1/bootstrap`. It falls back to the active default when an
-assignment is missing or inactive. New-clinic creation and default assignment
-run in one database transaction. Existing tenant markup remains authoritative
-until an administrator explicitly assigns a managed template.
+assignment is missing or inactive. Existing tenant markup remains authoritative
+until an administrator explicitly selects a managed template for the clinic.
+
+Explicit template selection belongs to the clinic edit form and lists only
+active templates. Clinic creation does not accept `template_id` or create an
+assignment, so the resolver uses the active default. `UpdateClinicRequest`
+enforces the active-template constraint. `ClinicManagementService` persists
+tenant/domain updates and calls
+`LandingTemplateManagementService::assignToTenant()` inside the same database
+transaction, setting `use_template_content=true` without deleting any legacy
+fields. The template dashboard has no clinic-assignment, default-selection, or
+delete route/action; its responsibilities are limited to adding and editing
+trusted template code. Built-in classic and Noja template payloads are owned by
+`TemplateSeeder`; runtime fallback contains only a minimal emergency shell and
+does not import seeder data.
+
+The public back link is a narrow tenant-owned override even after central
+template activation. `tenant_theme_settings` stores its title, HTTP(S) URL, and
+allowlisted target (`_self` or `_blank`). The clinic-only
+`/admin/settings/clinic` form resolves identity from `adminTenant`, requires
+`clinic_settings.manage`, and never accepts tenant identity in its payload. The
+page is a section container rather than one global form: each settings section
+has its own validation boundary, endpoint, bottom save action, and flash result.
+The back-link section persists through `PUT
+/admin/settings/clinic/landing-link`, so future sections can be added without
+submitting or overwriting unrelated values.
+
+Managed fragments can place the link with the canonical
+`{{ clinic.back_link.title }}`, `{{ clinic.back_link.url }}`, and
+`{{ clinic.back_link.target }}` tokens. `LandingTemplateVariableRenderer`
+injects only HTML-escaped tenant values after `LandingTemplateResolver` has
+resolved the effective template and clinic overrides. Validation requires all
+three tokens inside one anchor, restricts URL and target to quoted `href` and
+`target` attributes, requires `rel="noopener noreferrer"`, and rejects unknown,
+partial, script/style, or out-of-context use. The system template editor shows
+the token catalog and a copyable secure example. Templates without variables
+retain the legacy shell link; complete token use suppresses that fallback so
+the link is rendered exactly once at the template-defined location.
 
 Template HTML is trusted administrator-authored code. Validation accepts inline
 `<style>` and `<script>` but rejects full documents, externally sourced scripts
@@ -87,6 +136,35 @@ presentation and must never accept tenant or template identity from visitor
 input. The dashboard code fields use a dedicated theme-aware editor surface
 with explicit foreground, background, caret, selection, border, and focus
 contrast in both light and dark modes.
+
+SEO and analytics integrations are deliberately separate from the managed HTML
+fragments. Each template stores an optional title, description, primary share
+image, an allowlisted robots directive, and dedicated tracker fragments for the
+document head and opening body. The landing shell always emits the tenant-host
+canonical URL, Open Graph/Twitter metadata, and escaped `MedicalClinic` JSON-LD;
+tenant-aware defaults apply when template copy is empty. `TrackingCodeFragment`
+allows only secure analytics-oriented `script`, `noscript`, `iframe`, and image
+pixel markup, while rejecting page/form markup, `srcdoc`, and unsafe schemes.
+This is the sole external-script exception; ordinary template fragments retain
+the local-asset-only rule.
+
+`APP_URL` is the single configuration source for the primary HairVision URL and
+host. `HostClassifier`, landing-asset allowlists, tenant seeding, and the public
+HairVision identity link derive their values from it; there is no separate
+primary-domain environment variable.
+
+The public Blade shell renders a light, code-owned copyright strip between the
+landing content and the editable template `footer_html`. Its Persian rights
+statement and HairVision logo link are not stored on `templates` or
+`tenant_theme_settings`, so template management cannot edit that system identity
+section. The logo link uses the complete configured `APP_URL`. An additive data
+migration removes only exact unchanged built-in logo markup from earlier classic
+and seeded legacy footer values, preserving administrator customizations.
+
+Clinic landing shells also load the locally bundled UIcons solid-rounded font
+and class catalog as a landing-only Vite entry. Trusted managed fragments may
+therefore use classes such as `fi fi-sr-phone` without a CDN or another external
+frontend request; the compatibility class resolves to the bundled phone glyph.
 
 ## Runtime Shape
 
@@ -181,6 +259,112 @@ lead session in the same browser.
 Required public routes live under `/api/v1` and are documented in
 [`api.md`](api.md). The Blade landing page must call those routes for bootstrap,
 OTP, upload, generation, status, results, and assets.
+
+### First-party landing analytics
+
+The initial Blade request records `tenant_landing_page_visits` server-side and
+injects a per-visit random token whose SHA-256 digest is the only persisted
+form. The browser submits allowlisted, PII-free milestones to
+`POST /api/v1/landing/events`. `ResolveTenantByHost` remains authoritative;
+`LandingAnalyticsService` accepts a token only inside that tenant, resolves
+category/output UUIDs server-side, and makes `(tenant_id, event_id)` idempotent.
+After OTP, the service links that visit and its earlier anonymous events to the
+verified session lead in the same tenant.
+
+The browser also pushes the same stable `hairvision_*` event names to
+`window.dataLayer` and emits `hairvision:analytics`, allowing an optional
+template tracker to consume the contract without making third-party analytics
+the source of truth. Phone numbers, images, prompts, and credentials are never
+part of an analytics-event payload.
+Optional HTTP referrers are reduced to scheme and host before storage so query
+strings and fragments cannot introduce personal data into analytics records.
+
+`ClinicPerformanceReportService` joins events to their originating visits and
+filters by visit time, producing acquisition-cohort metrics. It counts distinct
+visits per funnel stage, total and unique application clicks, downstream
+application conversion, Jalali monthly groups, CRM stages, and bounded
+conversion rates. Clinic users can filter a Jalali date range and export the
+monthly result as UTF-8 CSV. The service also supplies deterministic Jalali
+quick ranges for the current month (first day through today) and the complete
+previous month; their links preserve any authorized system clinic scope beside
+the existing trailing-twelve-month shortcut. Gregorian `DATE(...)` results are parsed as date
+objects before Jalali conversion so chart, table, and CSV labels consistently
+use sortable Jalali `YYYY/MM` keys. The same service builds a tenant-scoped
+seven-day daily summary for the clinic dashboard, including visit, verified
+lead, generation, and bounded conversion metrics; the compact chart links to
+the full report only when the user has report permission. The cross-clinic
+table is absent from that view and lives only in the system-scoped management
+report.
+
+`DemoClinicDataSeeder` runs after the normal lead seed and creates deterministic
+demo-tenant leads, CRM notes, visits, and all allowlisted funnel events across a
+twelve-month trend plus the complete recent seven-day window. Stable hashes and
+UUIDv5 event identifiers keep reseeding idempotent. It intentionally does not
+create source-image or generated-asset rows without corresponding private files.
+
+For a system-scoped user, `/admin/reports/performance` does not depend on the
+session tenant context. With no `clinic_id` filter it calls the explicitly
+authorized `systemReport()` aggregation across all tenants; a tenant id selects
+the ordinary tenant-scoped report path. The HTML and CSV use the same
+validated scope. `/admin/reports/management` remains the only cross-clinic
+comparison table and links each row to that clinic's detailed funnel.
+
+The selected category resource includes sanitized `upload_guide_html`. Step two
+renders it in a responsive guidance panel: the logical right-hand column uses
+approximately one third of the desktop width, while smaller screens place it
+above the upload controls. The browser reapplies the same small formatting/link
+allowlist before inserting API HTML and uses a generic safe fallback when the
+field is empty; application-specific copy remains database-owned rather than
+hard-coded in the frontend.
+
+The visitor journey uses a compact four-part progress indicator with textual and
+semantic current/completed states. The upload step is one composed task surface
+instead of three independent height-mismatched cards: guidance stays open in the
+desktop right-hand third and becomes an accessible disclosure above the uploader
+on small screens. The enhanced native file input keeps keyboard/touch selection,
+adds desktop drag-and-drop, announces field-local restrictions and errors, and
+shows an uncropped thumbnail, file name, and explicit view/change actions after
+selection. JPEG, PNG, and WebP files remain unchanged in the browser. HEIC/HEIF
+files use the locally bundled `heic-to` CSP build through a dynamic import and
+are converted to JPEG before the verified upload request. The original file is
+checked against the 5 MiB limit before the converter chunk is loaded, and the
+converted JPEG is checked again before any upload. Conversion failures and both
+size failures keep the visitor on the upload step with a Persian field-local
+message; no external conversion service or CDN is used. Consent and privacy
+context remain beside the primary action. Controls
+target at least a 44-pixel mobile hit area, the layout reflows at 320 CSS pixels,
+and decorative motion is removed for `prefers-reduced-motion`.
+
+Landing actions share one CSS button contract across the app shell, managed
+default header, upload controls, OTP flow, results, and image modal. Primary
+actions use a high-contrast violet-to-teal fill with a restrained animated
+spectrum border; secondary actions use the same geometry with an outlined
+surface. Hover feedback changes color, border, and a compact focus-like glow
+without translating or scaling controls, and motion preferences stop the
+decorative border animation and transitions. Result cards use a full-height
+column layout: media and copy remain in the body while the status label and
+download action live in a bottom-pinned footer, keeping controls aligned across
+cards with different caption lengths.
+
+On viewports below 640 CSS pixels, the output selector uses a compact
+three-column grid. Each output control keeps a 44-pixel-class touch target and
+shows only its title; status remains in the control's accessible name, while
+full descriptive metadata remains in the desktop selector and result area
+without consuming mobile card height.
+Step rendering is idempotent: polling and API reconciliation do not hide and
+reveal the already-active step, run an automatic window scroll, or move focus in
+a way that changes the visitor's viewport. Background status updates therefore
+patch the visible state while preserving the user's current page position.
+The result step exposes a new-image action that clears only the browser's
+current source/result presentation and returns to application selection. Its
+poll loop is invalidated without cancelling persisted server work. A visitor
+whose current server session is still verified uploads the replacement source
+directly and skips the OTP step; an expired or new session falls back to the
+normal server-authoritative verification response. This UX reuse additionally
+requires the tab-scoped `sessionStorage` verification marker: reloads in the
+same browser session retain it, while a newly created browser session does not.
+The marker can only narrow the UI path and never replaces backend session
+authorization.
 
 Generation creates three period jobs:
 
@@ -468,11 +652,29 @@ host or selected tenant context.
 
 ## SMS Gateways
 
-The current seed state keeps the system `local` debug/test SMS gateway enabled,
-default, and marked `is_protected`. Policy and management-service checks deny
-updates and deletion even for a super administrator, and the dashboard exposes
-that protected state without edit/delete actions. A second system-local gateway
-cannot be created while this protected definition exists.
+The current seed state keeps one system `local` debug/test SMS gateway record
+default and marked `is_protected`. Its operational availability is not sourced
+from the mutable database status. `DebugSmsGatewayAvailability` enables it only
+when the application environment is not `production`, application debug mode is
+on, and `HAIRVISION_DEBUG_SMS_ENABLED=true` was explicitly loaded from `.env`.
+In every other runtime, management views render its effective status as
+disabled, status filters use that effective value, resolver queries exclude it,
+config fallback cannot recreate it, and the local adapter rejects direct calls.
+This remains true when all real gateways are disabled.
+
+The list-level default-selection action uses a dedicated policy ability instead
+of the protected record's update ability. Real providers remain selectable as
+default independently of the debug runtime gate. The local action is enabled
+only when its effective status is enabled; otherwise the menu renders a
+non-submitting disabled control, the policy rejects forged HTTP requests, and
+the domain service rejects direct calls before changing peer defaults.
+
+Policy and management-service checks deny updates and deletion of the protected
+record even for a super administrator. Local provider options are absent from
+system and clinic management forms and server-side validation rejects local
+gateway creation or assignment, so dashboard state cannot activate the debug
+adapter. Changing the environment flag requires the normal Laravel config-cache
+refresh for the deployment.
 
 The seeded system `ippanel` gateway remains disabled and non-default until an
 authorized admin explicitly enables it. No tenant-owned SMS gateway is seeded
@@ -480,9 +682,10 @@ for the demo clinic. The additive SMS protection migration removes only the
 exact legacy demo-clinic row named `سیستم پیامک کلینیک دمو`; customized or
 renamed clinic gateway records are preserved.
 
-Runtime OTP delivery resolves the active default system SMS gateway first. IPPanel
-may still be enabled for real delivery after credentials and operational policy
-are confirmed.
+Runtime OTP delivery resolves an enabled IPPanel gateway first and may use the
+debug gateway only through the three-condition environment gate above. IPPanel
+may be enabled for real delivery after credentials and operational policy are
+confirmed.
 
 IPPanel delivery performs at least three bounded attempts when the HTTP request
 times out, throws, or receives a rejected/unsuccessful provider response. A
@@ -499,19 +702,22 @@ Every tenant-owned table includes `tenant_id`. Visitor-owned tables include
 
 Core tables:
 
-- `tenants`, `tenant_domains`, `tenant_landing_page_visits`
+- `tenants`, `tenant_domains`, `tenant_landing_page_visits`,
+  `tenant_landing_events`
 - `leads`, `otp_codes`, `lead_notes`
 - `users`, `platform_users`, `clinic_users`, `tenant_user`
 - `uploads`
 - `ai_providers`, `tenant_ai_settings`, `ai_model_accesses`,
   `clinic_ai_model_access`, `ai_model_usage_logs`
-- `ai_model_categories`, `ai_model_category_outputs`, `ai_models`,
-  `ai_model_output_configs`
+- `ai_model_categories` (including sanitized `upload_guide_html`),
+  `ai_model_category_outputs`, `ai_models`, `ai_model_output_configs`
 - `lead_profiles`, `lead_source_images`
 - `generation_requests`, `generation_attempts`
 - `generation_groups`, `generation_jobs`, `generated_assets`
-- `templates` (system-owned landing code, lifecycle, default and revision),
-  `tenant_theme_settings` (one template assignment per tenant)
+- `templates` (system-owned landing code, lifecycle, default, revision, SEO,
+  and dedicated validated tracker fragments),
+  `tenant_theme_settings` (one template assignment plus clinic-managed back-link
+  title, URL, and target per tenant)
 - `audit_logs`
 - `roles`, `permissions`, `permission_role`
 - `system_settings`
@@ -527,6 +733,12 @@ Required invariants:
 
 - `tenant_domains.domain` maps active hosts to active tenants.
 - `leads` are unique by `tenant_id + phone_normalized`.
+- `leads.status` is the only lead lifecycle field and accepts `new`,
+  `needs_follow_up`, `no_answer`, `successful`, or `canceled`; the former
+  `crm_stage` column is migrated into it and removed.
+- `leads.age` is a nullable unsigned integer validated in the dashboard as
+  `0..150`, and `leads.city` is nullable text. Public OTP creation leaves both
+  fields empty until clinic staff complete them.
 - Currency amounts use unsigned BIGINT columns: `plans.price`,
   `invoices.amount`, and `payments.amount`.
 - `Plan` stores `price` as a numeric string at the Eloquent write boundary so
@@ -559,9 +771,12 @@ assignment created by an authorized system administrator.
 Lead detail history is source-image-centric. Dashboard queries load each
 tenant/lead-scoped `lead_source_images` record with its generation requests and
 all generated asset versions, ordered newest source version first. The view
-renders the source image and its results in one bounded history item; regenerated
-assets remain under the same request with current/archive labels. The current
-source is also rendered separately as the lead's primary image. Legacy
+renders each upload round as a compact responsive media grid with four columns
+on desktop. The source image is always the first tile, followed by generated
+assets in category/output/version order; visible tile captions contain only the
+short title and Jalali date-time, while pending tiles retain their operational
+status. Regenerated assets remain under the same request and the current source
+is also rendered separately as the lead's primary image. Legacy
 `generation_groups` follow the same presentation contract by pairing each group
 with its original `upload`, jobs, and assets. Clinic and system users share this
 view after the normal policy and tenant-scope checks.
@@ -573,6 +788,32 @@ rule. Visible thumbnails open the matching item in an accessible dashboard
 gallery with captions, keyboard controls, and touch swiping. Gallery URLs remain
 the existing tenant- and lead-scoped private stream routes and never expose
 storage paths.
+
+Lead create/edit forms, list filters, follow-up mutations, dashboard counters,
+and performance reports all use the same code-owned `leads.statuses` catalog.
+The lead list includes sortable age output on desktop and age in responsive
+cards. A shared status badge gives `canceled` the danger/rose treatment in lead
+lists, detail summaries, recent-lead tables, follow-up history, and status
+reports. Age accepts supported digit scripts through the shared numeric
+normalization boundary; city remains ordinary escaped text. The list's
+`age_from` and `age_until` query filters apply inclusive `>=` and `<=`
+conditions after normalizing supported digits and intentionally exclude null
+ages from a bounded result.
+
+Lead deletion is coordinated by `LeadDeletionService`. The controller first
+authorizes `LeadPolicy::delete`; clinic-scoped users must have `leads.delete`
+inside the owning tenant, while an authorized system-scoped role may operate
+without selecting a tenant. The service locks and re-resolves the lead, rejects
+deletion when a v1 generation job or v2 request/attempt is non-terminal,
+captures private file references, and deletes the lead inside a short database
+transaction. Foreign-key cascades remove tenant-owned CRM, upload, profile,
+source-image, generation, attempt, and asset metadata. Nullable references in
+analytics, usage, credit, and audit history are retained without lead identity.
+After commit, the service removes recorded private assets and the UUID-bounded
+lead directories; paths are never logged or returned to the dashboard. Both
+legacy and independent queue jobs opt into Laravel's missing-model deletion so
+a stale transport for an already deleted terminal record is discarded instead
+of becoming a failed queue job.
 
 ## Jalali Dates and Numbers
 
@@ -710,10 +951,16 @@ breadcrumbs. Canonical dashboard web paths mirror that hierarchy:
 /admin/settings/ai-applications
 /admin/settings/ai-models
 /admin/settings/sms-gateways
+/admin/settings/clinic
 /admin/settings/general
 /admin/settings/guide
 /admin/settings/faqs
 ```
+
+`/admin/reports/performance` is tenant-scoped and contains the landing-to-result
+funnel, per-application clicks/conversions, Jalali monthly chart/table, date
+filter, CRM stages, and CSV export. `/admin/reports/management` is system-scoped
+and is the only report that contains a cross-clinic performance table.
 
 Stable route names and permission codes remain backward-compatible internal
 identifiers. Legacy section-root URLs permanently redirect to their canonical
@@ -888,9 +1135,17 @@ HAIRVISION_DEBUG_STEP_SLOW_QUERY_MS=0
 PHPDoc should be useful, not ornamental. Add it for all project-owned named
 classes, interfaces, traits, enums, functions, and methods. Include purpose,
 input/output types, important data shapes, side effects, exceptions, and the
-actual introduction version (`@since 1.0.0` or `@since 2.0.0`). Prefer native
-types where Laravel conventions allow, and enforce the contract with
-`composer phpdoc:audit`.
+exact SemVer introduction version. A later behavioral revision retains that
+introduction tag and adds a descriptive `@since X.Y.Z` to the affected
+declaration. Prefer native types where Laravel conventions allow, and enforce
+the contract with `composer phpdoc:audit`.
+
+Release provenance also applies outside named PHP declarations. PHP data and
+route files, Blade, JavaScript, and CSS place a language-appropriate block
+comment immediately before each changed logical section; one marker may cover a
+cohesive section. Generated bundles, locks, binary assets, deleted sources, and
+strict commentless formats are traced through their marked source owner,
+release metadata, and `CHANGELOG.md` instead of being made invalid by comments.
 
 ## Local Setup
 
@@ -1163,4 +1418,6 @@ A release section must account for behavior changes, fixes, migrations, tests,
 documentation, and relevant uncommitted work included in the final source
 state. The release is ready only after migrations are evaluated, the full PHP
 test suite and PHPDoc audit pass, and the frontend build passes whenever public
-or dashboard assets changed.
+or dashboard assets changed. Release preparation also adds that SemVer marker
+at the beginning of every changed logical source section while preserving older
+declaration-introduction tags.

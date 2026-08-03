@@ -33,6 +33,7 @@ use Throwable;
  * Processes one generation stage.
  *
  * @since 1.0.0
+ * @since 2.1.0 Behavior updated for the 2.1.0 release.
  */
 class ProcessGenerationJob implements ShouldQueue
 {
@@ -51,6 +52,11 @@ class ProcessGenerationJob implements ShouldQueue
      * Never repeat paid provider requests automatically.
      */
     public int $tries = 0;
+
+    /**
+     * Discard stale transports after an authorized lead deletion.
+     */
+    public bool $deleteWhenMissingModels = true;
 
     /**
      * Create a new process generation job instance.

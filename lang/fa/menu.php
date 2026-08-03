@@ -1,5 +1,10 @@
 <?php
 
+/**
+ * Provides Persian navigation copy revised for the 2.1.0 release.
+ *
+ * @since 2.1.0
+ */
 return [
     'groups' => [
         'dashboard' => 'داشبورد',
@@ -34,6 +39,7 @@ return [
         'user_reports' => 'گزارش عملکرد',
         'credit_usage_report' => 'گزارش مصرف اعتبار',
         'management_reports' => 'گزارش‌های مدیریتی',
+        'clinic_settings' => 'تنظیمات کلینیک',
         'system_settings' => 'تنظیمات سیستم',
         'guide' => 'راهنمای کاربری',
         'faq' => 'پرسش‌های متداول',

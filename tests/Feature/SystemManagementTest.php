@@ -26,6 +26,7 @@ use App\Models\SmsGateway;
 use App\Models\Subscription;
 use App\Models\SubscriptionServiceEntitlement;
 use App\Models\SystemSetting;
+use App\Models\Template;
 use App\Models\Tenant;
 use App\Models\TenantDomain;
 use App\Models\Upload;
@@ -55,6 +56,12 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
 use Tests\TestCase;
 
+/**
+ * Verifies system-management, billing, CRM, and dashboard contracts.
+ *
+ * @since 1.0.0
+ * @since 2.1.0 Coverage expanded for reports, lead state, and SMS safety.
+ */
 class SystemManagementTest extends TestCase
 {
     use RefreshDatabase;
@@ -301,7 +308,7 @@ class SystemManagementTest extends TestCase
 
         $this->assertFalse(app(SystemSettingService::class)->all()->has('catalog.states.leads.crm_stages'));
         $this->assertDatabaseMissing('system_settings', ['key' => 'catalog.states.leads.crm_stages']);
-        $this->assertSame(__('leads.crm_stages'), StateCatalog::options('leads.crm_stages'));
+        $this->assertSame(__('leads.statuses'), StateCatalog::options('leads.statuses'));
         $this->assertSame(__('plans.types'), StateCatalog::options('plans.types'));
     }
 
@@ -1087,7 +1094,7 @@ class SystemManagementTest extends TestCase
             ->forHost('hairvision-ai.test')
             ->post('/admin/settings/sms-gateways', [
                 'name' => 'درگاه کلینیک نوژا',
-                'provider_code' => 'local',
+                'provider_code' => 'ippanel',
                 'owner_scope' => 'tenant',
                 'tenant_id' => $otherTenant->id,
                 'status' => 'enabled',
@@ -1099,7 +1106,7 @@ class SystemManagementTest extends TestCase
         $this->assertDatabaseHas('sms_gateways', [
             'tenant_id' => $otherTenant->id,
             'owner_scope' => 'tenant',
-            'provider_code' => 'local',
+            'provider_code' => 'ippanel',
             'status' => 'enabled',
             'is_default' => true,
         ]);
@@ -2220,6 +2227,7 @@ class SystemManagementTest extends TestCase
 
         $superAdmin = User::query()->where('role', 'super_admin')->firstOrFail();
         $normalUser = User::query()->where('role', 'clinic_admin')->firstOrFail();
+        $landingTemplate = Template::query()->where('is_active', true)->orderByDesc('is_default')->firstOrFail();
         $this->activateSubscription($normalUser);
 
         $this->assertTrue($superAdmin->hasPermission('tenants.list'));
@@ -2232,6 +2240,8 @@ class SystemManagementTest extends TestCase
             ->get('/admin/settings/clinics')
             ->assertOk()
             ->assertSee(__('clinics.create'))
+            ->assertDontSee(__('clinics.fields.landing_template'))
+            ->assertDontSee($landingTemplate->name)
             ->assertSee(__('menu.items.clinics'));
 
         $this->actingAs($superAdmin)
@@ -2253,12 +2263,16 @@ class SystemManagementTest extends TestCase
             'domain' => 'test-clinic.hairvision-ai.test',
             'status' => 'active',
         ]);
+        $this->assertNull($clinic->theme()->first());
 
         $this->actingAs($superAdmin)
             ->forHost('hairvision-ai.test')
             ->get('/admin/settings/clinics/'.$clinic->id.'/edit')
             ->assertOk()
             ->assertSee('test-clinic.hairvision-ai.test')
+            ->assertSee(__('clinics.fields.landing_template'))
+            ->assertSee($landingTemplate->name)
+            ->assertDontSee('value="'.$landingTemplate->id.'" selected', false)
             ->assertDontSee(__('clinics.manage_models'));
 
         $this->actingAs($superAdmin)
@@ -2280,6 +2294,7 @@ class SystemManagementTest extends TestCase
                 'domain' => 'updated-clinic.hairvision-ai.test',
                 'domain_type' => 'tenant_subdomain',
                 'domain_status' => 'inactive',
+                'template_id' => $landingTemplate->id,
             ])
             ->assertRedirect(route('admin.clinics.edit', $clinic));
 
@@ -2468,7 +2483,7 @@ class SystemManagementTest extends TestCase
             ->forHost('hairvision-ai.test')
             ->post('/admin/settings/clinics/'.$clinic->id.'/sms-gateway', [
                 '_form' => 'clinic_sms_gateway',
-                'provider_code' => 'local',
+                'provider_code' => 'ippanel',
                 'api_key' => 'clinic-secret-key',
                 'from_number' => '10002000',
                 'is_active' => '1',
@@ -2479,7 +2494,7 @@ class SystemManagementTest extends TestCase
         $this->assertDatabaseHas('sms_gateways', [
             'tenant_id' => $clinic->id,
             'owner_scope' => 'tenant',
-            'provider_code' => 'local',
+            'provider_code' => 'ippanel',
             'status' => 'enabled',
             'is_default' => true,
         ]);
@@ -2734,7 +2749,7 @@ class SystemManagementTest extends TestCase
             ->withSession(['admin_active_tenant_id' => $tenantA->id])
             ->forHost('hairvision-ai.test')
             ->post('/admin/crm/leads/'.$leadA->id.'/follow-ups', [
-                'status' => 'contacted',
+                'status' => 'needs_follow_up',
                 'communication_channel' => 'phone',
                 'note' => 'تماس اولیه انجام شد و نیاز به پیگیری دارد.',
                 'next_follow_up_at' => $nextFollowUpAt,
@@ -2745,10 +2760,10 @@ class SystemManagementTest extends TestCase
             'tenant_id' => $tenantA->id,
             'lead_id' => $leadA->id,
             'user_id' => $userA->id,
-            'status' => 'contacted',
+            'status' => 'needs_follow_up',
             'communication_channel' => 'phone',
         ]);
-        $this->assertSame('contacted', $leadA->refresh()->crm_stage);
+        $this->assertSame('needs_follow_up', $leadA->refresh()->status);
         $this->assertDatabaseHas('lead_notes', [
             'tenant_id' => $tenantA->id,
             'lead_id' => $leadA->id,
@@ -2845,6 +2860,9 @@ class SystemManagementTest extends TestCase
             ->assertSee(route('admin.leads.uploads.show', [$lead, $upload]))
             ->assertSee(route('admin.leads.assets.show', [$lead, $asset]))
             ->assertSee('data-processing-upload="'.$upload->uuid.'"', false)
+            ->assertSee('data-processing-media-grid', false)
+            ->assertSee('data-processing-source-tile="upload-'.$upload->uuid.'"', false)
+            ->assertSee('data-processing-result-tile="asset-'.$asset->uuid.'"', false)
             ->assertSee('data-generation-result-upload="'.$upload->uuid.'"', false)
             ->assertSee('data-lead-gallery-trigger="upload-'.$upload->uuid.'"', false)
             ->assertSee('data-gallery-key="upload-'.$upload->uuid.'"', false)
@@ -2966,11 +2984,13 @@ class SystemManagementTest extends TestCase
             ->assertSee($assetRoute)
             ->assertSee($category->name)
             ->assertSee($output->name)
+            ->assertSee('data-processing-source-tile="source-'.$source->uuid.'"', false)
+            ->assertSee('data-processing-result-tile="asset-'.$asset->uuid.'"', false)
             ->assertSee('data-lead-gallery-trigger="source-'.$source->uuid.'"', false)
             ->assertSee('data-gallery-key="source-'.$source->uuid.'"', false)
             ->assertSee('data-gallery-key="asset-'.$asset->uuid.'"', false)
             ->assertSee(__('leads.gallery.current_source_title'))
-            ->assertSee(__('ai.generation.statuses.completed'));
+            ->assertSee(JalaliDate::toJalaliDateTime($asset->created_at));
 
         $this->actingAs($clinicAdmin)
             ->withSession(['admin_active_tenant_id' => $tenantA->id])
@@ -3162,9 +3182,12 @@ class SystemManagementTest extends TestCase
             ->assertSee('data-gallery-key="asset-'.$firstAsset->uuid.'"', false)
             ->assertSee('data-gallery-key="asset-'.$archivedAsset->uuid.'"', false)
             ->assertSee('data-gallery-key="asset-'.$currentAsset->uuid.'"', false)
-            ->assertSee(__('leads.generations.description'))
+            ->assertSee('data-processing-media-grid', false)
+            ->assertSee('data-processing-source-tile="source-'.$latestSource->uuid.'"', false)
+            ->assertSee('data-processing-result-tile="asset-'.$archivedAsset->uuid.'"', false)
+            ->assertSee('data-processing-result-tile="asset-'.$currentAsset->uuid.'"', false)
+            ->assertDontSee(__('leads.generations.description'))
             ->assertSee(__('leads.gallery.title'))
-            ->assertSee($output->description)
             ->assertSee(__('leads.source_images.current'))
             ->assertSee(__('leads.source_images.archived'))
             ->assertSee(__('leads.generations.current_result'))
@@ -3174,6 +3197,14 @@ class SystemManagementTest extends TestCase
         $this->assertLessThan(
             strpos($html, 'data-processing-source-image="'.$firstSource->uuid.'"'),
             strpos($html, 'data-processing-source-image="'.$latestSource->uuid.'"'),
+        );
+        $this->assertLessThan(
+            strpos($html, 'data-processing-result-tile="asset-'.$archivedAsset->uuid.'"'),
+            strpos($html, 'data-processing-source-tile="source-'.$latestSource->uuid.'"'),
+        );
+        $this->assertLessThan(
+            strpos($html, 'data-processing-result-tile="asset-'.$currentAsset->uuid.'"'),
+            strpos($html, 'data-processing-result-tile="asset-'.$archivedAsset->uuid.'"'),
         );
         $this->assertLessThan(
             strpos($html, 'data-gallery-key="asset-'.$currentAsset->uuid.'"'),
@@ -3381,7 +3412,8 @@ class SystemManagementTest extends TestCase
         $this->assertSame(__('menu.items.ai_model_categories'), __('ai_models.categories.title'));
         $this->assertSame(__('menu.items.ai_models'), __('ai_models.title'));
         $this->assertSame(__('menu.items.system_sms_gateways'), __('system.sms_gateways_title'));
-        $this->assertSame('نیاز به پیگیری', __('leads.crm_stages.needs_follow_up'));
+        $this->assertSame('نیاز به پیگیری', __('leads.statuses.needs_follow_up'));
+        $this->assertSame('لغو شده', __('leads.statuses.canceled'));
         $this->assertSame('تماس تلفنی', __('crm.channels.phone'));
         $this->assertSame('نمای کلی سیستم', __('system.dashboard_title'));
         $this->assertSame('سوپر ادمین', __('system.roles.super_admin'));
@@ -3413,8 +3445,9 @@ class SystemManagementTest extends TestCase
         $theme = resource_path('js/admin/theme.js');
         $leadImageGallery = resource_path('js/admin/lead-image-gallery.js');
         $leadProcessingStyles = resource_path('css/components/lead-processing.css');
+        $leadProcessingView = resource_path('views/admin/leads/partials/processing-history.blade.php');
 
-        foreach ([$entrypoint, $adminIndex, $actionMenus, $modals, $confirmationModal, $jalaliDatepickers, $mobileMenu, $responsiveControls, $theme, $leadImageGallery, $leadProcessingStyles] as $path) {
+        foreach ([$entrypoint, $adminIndex, $actionMenus, $modals, $confirmationModal, $jalaliDatepickers, $mobileMenu, $responsiveControls, $theme, $leadImageGallery, $leadProcessingStyles, $leadProcessingView] as $path) {
             $this->assertFileExists($path);
         }
 
@@ -3441,7 +3474,10 @@ class SystemManagementTest extends TestCase
         $this->assertStringContainsString("event.key === 'ArrowRight'", file_get_contents($leadImageGallery));
         $this->assertStringContainsString("event.key === 'ArrowLeft'", file_get_contents($leadImageGallery));
         $this->assertStringContainsString("modal.addEventListener('touchstart'", file_get_contents($leadImageGallery));
-        $this->assertStringContainsString('grid-template-columns: repeat(auto-fill', file_get_contents($leadProcessingStyles));
+        $this->assertStringContainsString('grid-template-columns: repeat(4, minmax(0, 1fr));', file_get_contents($leadProcessingStyles));
+        $this->assertStringContainsString('data-processing-source-tile', file_get_contents($leadProcessingView));
+        $this->assertStringContainsString('data-processing-result-tile', file_get_contents($leadProcessingView));
+        $this->assertStringNotContainsString('$generation->output?->description', file_get_contents($leadProcessingView));
     }
 
     public function test_shared_table_filter_sort_and_pagination_components_render_consistently(): void
@@ -3599,8 +3635,7 @@ class SystemManagementTest extends TestCase
             'phone_normalized' => $phone,
             'source' => 'landing_page',
             'phone_verified_at' => now(),
-            'status' => 'verified',
-            'crm_stage' => 'new_lead',
+            'status' => 'new',
         ]);
     }
 

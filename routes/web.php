@@ -1,5 +1,11 @@
 <?php
 
+/**
+ * Registers dashboard and landing routes revised for the 2.1.0 release.
+ *
+ * @since 2.1.0
+ */
+
 use App\Http\Controllers\Admin\AdminGuideController;
 use App\Http\Controllers\Admin\AiModelAccessController;
 use App\Http\Controllers\Admin\AiModelCategoryController;
@@ -8,6 +14,7 @@ use App\Http\Controllers\Admin\BillingController;
 use App\Http\Controllers\Admin\ClinicAiModelAccessController;
 use App\Http\Controllers\Admin\ClinicController;
 use App\Http\Controllers\Admin\ClinicNotificationController;
+use App\Http\Controllers\Admin\ClinicSettingController;
 use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Admin\LandingTemplateController;
 use App\Http\Controllers\Admin\LeadController;
@@ -62,11 +69,12 @@ Route::get('/', function (
     $tenant = $domain->tenant;
     app()->instance('currentTenant', $tenant);
     $request->attributes->set('currentTenant', $tenant);
-    $visitService->record($request, $tenant);
+    $visit = $visitService->record($request, $tenant);
 
     return view('landing', [
         'tenant' => $tenant,
         'landingTheme' => $landingTemplates->resolve($tenant),
+        'landingAnalyticsToken' => (string) $visit->getAttribute('event_token'),
     ]);
 });
 
@@ -98,6 +106,7 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
             Route::patch('/leads/{lead}/follow-ups/{leadNote}', [LeadFollowUpController::class, 'update'])->name('leads.follow-ups.update');
             Route::get('/leads/{lead}/edit', [LeadController::class, 'edit'])->name('leads.edit');
             Route::put('/leads/{lead}', [LeadController::class, 'update'])->name('leads.update');
+            Route::delete('/leads/{lead}', [LeadController::class, 'destroy'])->name('leads.destroy');
         });
 
         Route::prefix('security')->group(function (): void {
@@ -136,12 +145,16 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
         });
 
         Route::prefix('reports')->group(function (): void {
+            Route::get('/performance/export', [DashboardController::class, 'exportPerformance'])->middleware('permission:reports.user.view')->name('reports.export');
             Route::get('/performance', [DashboardController::class, 'reports'])->middleware('permission:reports.user.view')->name('reports');
             Route::get('/credit-usage', [DashboardController::class, 'creditUsageReport'])->middleware('permission:reports.user.view')->name('reports.credit-usage');
             Route::get('/management', ManagementReportController::class)->middleware('permission:reports.management.view')->name('system.reports.index');
         });
 
         Route::prefix('settings')->group(function (): void {
+            Route::get('/clinic', [ClinicSettingController::class, 'edit'])->middleware('permission:clinic_settings.manage')->name('clinic.settings.edit');
+            Route::put('/clinic/landing-link', [ClinicSettingController::class, 'updateLandingLink'])->middleware('permission:clinic_settings.manage')->name('clinic.settings.landing-link.update');
+
             Route::get('/clinics/{clinic}/ai-models', [ClinicAiModelAccessController::class, 'index'])->middleware('permission:ai_models.assign_to_clinic')->name('clinics.ai-models.index');
             Route::post('/clinics/{clinic}/ai-models', [ClinicAiModelAccessController::class, 'store'])->middleware('permission:ai_models.assign_to_clinic')->name('clinics.ai-models.store');
             Route::patch('/clinics/{clinic}/ai-models/{aiModelAccess}', [ClinicAiModelAccessController::class, 'update'])->middleware('permission:ai_models.assign_to_clinic')->name('clinics.ai-models.update');
@@ -162,12 +175,8 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
             Route::get('/templates', [LandingTemplateController::class, 'index'])->middleware('permission:landing_templates.view')->name('system.landing-templates.index');
             Route::get('/templates/create', [LandingTemplateController::class, 'create'])->middleware('permission:landing_templates.create')->name('system.landing-templates.create');
             Route::post('/templates', [LandingTemplateController::class, 'store'])->middleware('permission:landing_templates.create')->name('system.landing-templates.store');
-            Route::get('/templates/clinics', [LandingTemplateController::class, 'clinics'])->middleware('permission:landing_templates.assign')->name('system.landing-templates.clinics');
-            Route::put('/templates/clinics/{clinic}', [LandingTemplateController::class, 'assign'])->middleware('permission:landing_templates.assign')->name('system.landing-templates.clinics.assign');
             Route::get('/templates/{landingTemplate}/edit', [LandingTemplateController::class, 'edit'])->middleware('permission:landing_templates.update')->name('system.landing-templates.edit');
             Route::put('/templates/{landingTemplate}', [LandingTemplateController::class, 'update'])->middleware('permission:landing_templates.update')->name('system.landing-templates.update');
-            Route::patch('/templates/{landingTemplate}/default', [LandingTemplateController::class, 'makeDefault'])->middleware('permission:landing_templates.update')->name('system.landing-templates.default');
-            Route::delete('/templates/{landingTemplate}', [LandingTemplateController::class, 'destroy'])->middleware('permission:landing_templates.delete')->name('system.landing-templates.destroy');
 
             Route::get('/notifications', [SystemClinicNotificationController::class, 'index'])->middleware('permission:notifications.manage')->name('system.notifications.index');
             Route::post('/notifications', [SystemClinicNotificationController::class, 'store'])->middleware('permission:notifications.manage')->name('system.notifications.store');
@@ -198,6 +207,7 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
             Route::get('/sms-gateways/{smsGateway}', [SmsGatewayController::class, 'show'])->middleware('permission:sms_gateways.view')->name('system.sms-gateways.show');
             Route::get('/sms-gateways/{smsGateway}/edit', [SmsGatewayController::class, 'edit'])->middleware('permission:sms_gateways.edit')->name('system.sms-gateways.edit');
             Route::put('/sms-gateways/{smsGateway}', [SmsGatewayController::class, 'update'])->middleware('permission:sms_gateways.edit')->name('system.sms-gateways.update');
+            Route::patch('/sms-gateways/{smsGateway}/default', [SmsGatewayController::class, 'markDefault'])->middleware('permission:sms_gateways.edit')->name('system.sms-gateways.default');
             Route::delete('/sms-gateways/{smsGateway}', [SmsGatewayController::class, 'destroy'])->middleware('permission:sms_gateways.delete')->name('system.sms-gateways.destroy');
 
             Route::get('/general', [SystemSettingController::class, 'edit'])->middleware('permission:settings.manage')->name('system.settings.edit');

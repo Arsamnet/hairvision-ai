@@ -1,9 +1,13 @@
+/**
+ * @since 2.1.0 Adds the revised upload journey, analytics events, HEIC conversion, and resilient generation state.
+ */
 export function bootLanding() {
     const app = document.getElementById('landingApp');
 
     if (!app) return;
 
     const GENERATION = window.HAIRVISION_GENERATION_CONFIG || {};
+    const ANALYTICS = GENERATION.analytics || {};
 
     const STORAGE_KEYS = {
         phone: 'hairvisionPhone',
@@ -34,10 +38,15 @@ export function bootLanding() {
         hasRequestedAnyOutput: false,
         pendingOutputIds: new Set(),
         sourceImageFromProfile: false,
+        originalPreviewIsObjectUrl: false,
+        selectedSourceFile: null,
+        imagePreparationInFlight: false,
+        imageSelectionVersion: 0,
         serverSessionVerified: false,
         pollPromise: null,
         pollTimer: null,
         pollWake: null,
+        pollSequence: 0,
         generationSubmissionKeys: new Map(),
     };
 
@@ -47,6 +56,17 @@ export function bootLanding() {
     };
     const PERSIAN_DIGITS = ['۰', '۱', '۲', '۳', '۴', '۵', '۶', '۷', '۸', '۹'];
     const SUPPORTED_DIGIT_PATTERN = /^[0-9۰-۹٠-٩]+$/u;
+    const MAX_IMAGE_SIZE_BYTES = 5 * 1024 * 1024;
+    const SUPPORTED_IMAGE_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
+    const SUPPORTED_IMAGE_EXTENSIONS = new Set(['jpg', 'jpeg', 'png', 'webp']);
+    const HEIC_IMAGE_TYPES = new Set([
+        'image/heic',
+        'image/heif',
+        'image/heic-sequence',
+        'image/heif-sequence',
+    ]);
+    const HEIC_IMAGE_EXTENSIONS = new Set(['heic', 'heif']);
+    const HEIC_JPEG_QUALITIES = [0.9, 0.82, 0.74];
 
     function normalizeDigits(value) {
         return Array.from(value || '')
@@ -64,6 +84,33 @@ export function bootLanding() {
         element.textContent = value ?? '';
 
         return element.innerHTML;
+    }
+
+    function sanitizeRichTextHtml(html) {
+        const allowedTags = new Set(['A', 'BLOCKQUOTE', 'BR', 'B', 'EM', 'I', 'LI', 'OL', 'P', 'STRONG', 'U', 'UL']);
+        const template = document.createElement('template');
+        template.innerHTML = String(html || '');
+        template.content.querySelectorAll('script, style, iframe, object, embed, template').forEach((element) => element.remove());
+
+        Array.from(template.content.querySelectorAll('*')).forEach((element) => {
+            if (!allowedTags.has(element.tagName)) {
+                element.replaceWith(...element.childNodes);
+                return;
+            }
+
+            const href = element.tagName === 'A' ? element.getAttribute('href')?.trim() || '' : '';
+            Array.from(element.attributes).forEach((attribute) => element.removeAttribute(attribute.name));
+
+            if (element.tagName === 'A' && /^(?:https?:|mailto:|tel:|#|\/(?!\/))/i.test(href)) {
+                element.setAttribute('href', href);
+                if (/^https?:/i.test(href)) {
+                    element.setAttribute('rel', 'noopener noreferrer');
+                    element.setAttribute('target', '_blank');
+                }
+            }
+        });
+
+        return template.innerHTML.trim();
     }
 
     function wait(ms) {
@@ -197,6 +244,41 @@ export function bootLanding() {
         return { ...payload, status: response.status };
     }
 
+    function trackLandingEvent(eventType, category = selectedCategory(), output = null) {
+        const publicEvent = {
+            event: `hairvision_${eventType}`,
+            hairvision_event: eventType,
+            application_code: category?.code || null,
+            output_code: output?.code || null,
+        };
+
+        window.dataLayer = window.dataLayer || [];
+        window.dataLayer.push(publicEvent);
+        window.dispatchEvent(new CustomEvent('hairvision:analytics', { detail: publicEvent }));
+
+        if (typeof ANALYTICS.visitToken !== 'string' || ANALYTICS.visitToken.length !== 64) return;
+
+        const payload = {
+            visit_token: ANALYTICS.visitToken,
+            event_id: newIdempotencyKey(),
+            event_type: eventType,
+            category_id: category?.id || null,
+            output_id: output?.id || null,
+        };
+
+        fetch(ANALYTICS.endpoint || '/api/v1/landing/events', {
+            method: 'POST',
+            credentials: 'same-origin',
+            keepalive: true,
+            headers: {
+                Accept: 'application/json',
+                'Content-Type': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest',
+            },
+            body: JSON.stringify(payload),
+        }).catch(() => {});
+    }
+
     const API = {
         bootstrap: () => requestJson('/api/v1/bootstrap'),
         profile: () => requestJson('/api/v1/profile'),
@@ -244,52 +326,59 @@ export function bootLanding() {
 
     const UI = {
         showStep(stepNum) {
-            document.querySelectorAll('#landingApp .flow-step').forEach((el) => {
-                el.classList.add('hidden');
-                el.classList.remove('hv-enter');
-            });
-
             const nextStep = document.getElementById(`step${stepNum}`);
-            nextStep.classList.remove('hidden');
-            nextStep.classList.add('hv-enter');
+            if (!nextStep) return;
+
+            if (nextStep.classList.contains('hidden')) {
+                document.querySelectorAll('#landingApp .flow-step').forEach((el) => {
+                    el.classList.add('hidden');
+                    el.classList.remove('hv-enter');
+                });
+
+                nextStep.classList.remove('hidden');
+                nextStep.classList.add('hv-enter');
+            }
+
             this.updateStepper(stepNum);
         },
         updateStepper(stepNum) {
             const progress = document.getElementById('stepProgress');
+            const progressTrack = document.getElementById('stepProgressTrack');
+            const progressLabel = document.getElementById('stepProgressLabel');
 
             if (progress) {
                 progress.style.width = `${Math.max(25, stepNum * 25)}%`;
             }
+            if (progressTrack) progressTrack.setAttribute('aria-valuenow', String(stepNum));
+            if (progressLabel) progressLabel.textContent = `مرحله ${toPersianDigits(stepNum)} از ۴`;
 
             document.querySelectorAll('[data-step-indicator]').forEach((el) => {
                 const index = Number(el.dataset.stepIndicator);
                 const active = index === stepNum;
                 const done = index < stepNum;
                 const marker = el.querySelector('.step-marker');
+                const caption = el.querySelector('.step-caption');
 
-                el.className = active
-                    ? 'step-indicator hv-step hv-step-active rounded-2xl px-3 py-3 text-right text-sm transition'
-                    : done
-                        ? 'step-indicator hv-step hv-step-done rounded-2xl px-3 py-3 text-right text-sm transition'
-                        : 'step-indicator hv-step hv-step-upcoming rounded-2xl px-3 py-3 text-right text-sm transition hover:bg-indigo-50';
+                el.classList.toggle('hv-step-active', active);
+                el.classList.toggle('hv-step-done', done);
+                el.classList.toggle('hv-step-upcoming', !active && !done);
+                active ? el.setAttribute('aria-current', 'step') : el.removeAttribute('aria-current');
 
                 if (marker) {
                     marker.innerHTML = toPersianDigits(index);
                     marker.className = active
-                        ? 'step-marker mb-2 grid h-7 w-7 place-items-center rounded-xl bg-white/15 text-xs font-bold text-white'
+                        ? 'step-marker hv-step-marker text-white'
                         : done
-                            ? 'step-marker mb-2 grid h-7 w-7 place-items-center rounded-xl bg-white text-xs font-bold text-emerald-700 ring-1 ring-emerald-300'
-                            : 'step-marker mb-2 grid h-7 w-7 place-items-center rounded-xl bg-white text-xs font-bold text-zinc-500';
+                            ? 'step-marker hv-step-marker text-emerald-700'
+                            : 'step-marker hv-step-marker text-zinc-500';
                 }
 
-                const textSpans = el.querySelectorAll('span');
-                const caption = textSpans[2];
-
-                if (textSpans[1]) textSpans[1].className = 'block font-bold';
                 if (caption) {
                     caption.className = active
-                        ? 'text-xs text-white/70'
-                        : done ? 'text-xs text-emerald-700/75' : 'text-xs text-zinc-500';
+                        ? 'step-caption hv-step-caption text-white/70'
+                        : done
+                            ? 'step-caption hv-step-caption text-emerald-700/75'
+                            : 'step-caption hv-step-caption text-zinc-500';
                 }
             });
         },
@@ -478,6 +567,7 @@ export function bootLanding() {
 
         ensureSelectedOutput();
         renderCategoryOptions();
+        renderUploadGuide();
         renderOutputOptions();
         renderStagePanels(STATE.generations);
         primeGallery();
@@ -510,36 +600,267 @@ export function bootLanding() {
             const button = document.createElement('button');
             button.type = 'button';
             button.dataset.categoryOption = category.id;
-            button.className = `hv-treatment-card rounded-2xl p-3 text-right ${category.id === STATE.selectedCategoryId ? 'is-selected' : ''}`;
+            button.className = `hv-treatment-card h-full rounded-2xl p-3 text-right ${category.id === STATE.selectedCategoryId ? 'is-selected' : ''}`;
             const visual = serviceVisual(category);
             const media = visual
-                ? `<span class="grid h-12 w-12 place-items-center rounded-2xl bg-indigo-50 ring-1 ring-indigo-100"><img src="${escapeHtml(visual)}" alt="" class="hv-service-visual h-9 w-9" loading="lazy" /></span>`
+                ? `<span class="grid h-14 w-14 shrink-0 place-items-center overflow-hidden rounded-2xl bg-indigo-50 ring-1 ring-indigo-100"><img src="${escapeHtml(visual)}" alt="" class="hv-service-visual h-full w-full" loading="lazy" /></span>`
                 : '';
             button.innerHTML = `
-                <span class="flex items-start gap-3">
-                    ${media || `<span class="hv-treatment-icon grid h-12 w-12 shrink-0 place-items-center rounded-2xl text-2xl text-white shadow-lg shadow-indigo-100">
+                <span class="flex h-full flex-col">
+                    <span class="flex items-start gap-3">
+                    ${media || `<span class="hv-treatment-icon grid h-14 w-14 shrink-0 place-items-center rounded-2xl text-2xl text-white shadow-lg shadow-indigo-100">
                     <span class="${iconClass(category.icon)}" aria-hidden="true"></span>
                 </span>`}
                     <span class="min-w-0">
                         <span class="block text-base font-bold text-zinc-950">${escapeHtml(category.name)}</span>
                         <span class="mt-1 line-clamp-2 block text-xs leading-6 text-zinc-600">${escapeHtml(category.description || 'پیش‌نمایش فعال این کلینیک')}</span>
                     </span>
+                    </span>
+                    <span class="mt-auto pt-3">
+                        <span class="inline-flex rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-700">${escapeHtml(outputCountLabel(category.outputs.length))}</span>
+                    </span>
                 </span>
-                <span class="mt-3 inline-flex rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-700">${escapeHtml(outputCountLabel(category.outputs.length))}</span>
             `;
             button.addEventListener('click', () => {
+                trackLandingEvent('application_clicked', category);
                 STATE.selectedCategoryId = category.id;
                 STATE.awaitingOutputSelection = false;
                 ensureSelectedOutput();
                 resetGenerationProgress();
                 UI.clearError('treatmentError');
                 renderCategoryOptions();
+                renderUploadGuide();
                 renderOutputOptions();
                 renderStagePanels([]);
                 UI.showStep(2);
             });
             container.appendChild(button);
         });
+    }
+
+    function renderUploadGuide() {
+        const title = document.getElementById('uploadGuideTitle');
+        const content = document.getElementById('uploadGuideContent');
+        const categoryBadge = document.getElementById('selectedUploadCategory');
+        const disclosure = document.getElementById('uploadGuidePanel');
+        if (!title || !content) return;
+
+        const category = selectedCategory();
+        title.textContent = category?.name ? `راهنمای عکس برای ${category.name}` : 'پیش از انتخاب تصویر بخوانید';
+        if (categoryBadge) categoryBadge.textContent = category?.name ? `کاربرد: ${category.name}` : 'کاربرد انتخاب‌شده';
+
+        const fallback = `
+            <p><strong>برای ثبت یک تصویر مناسب:</strong></p>
+            <ul>
+                <li>صورت و ناحیه مورد درمان کاملاً داخل کادر باشند.</li>
+                <li>عکس واضح، جدید و با نور یکنواخت گرفته شود.</li>
+                <li>از فیلتر زیبایی، روتوش و پوشاندن ناحیه مورد درمان خودداری کنید.</li>
+            </ul>
+        `;
+
+        content.innerHTML = sanitizeRichTextHtml(category?.upload_guide_html) || sanitizeRichTextHtml(fallback);
+        if (disclosure) disclosure.open = window.matchMedia('(min-width: 1024px)').matches;
+    }
+
+    function hasSourceImageSelection() {
+        return Boolean(STATE.selectedSourceFile || STATE.sourceImageId);
+    }
+
+    function updateUploadControls() {
+        const continueButton = document.getElementById('continueToPhone');
+        const consent = document.getElementById('consent');
+        if (!continueButton || !consent) return;
+
+        continueButton.textContent = STATE.verified ? 'ادامه بدون تایید مجدد' : 'ادامه و تایید شماره';
+        continueButton.disabled = STATE.imagePreparationInFlight || !hasSourceImageSelection() || !consent.checked;
+    }
+
+    function renderImageSelectionPreview(url, fileName = 'تصویر انتخاب‌شده', status = 'آماده ادامه مسیر') {
+        const picker = document.getElementById('imagePicker');
+        const selection = document.getElementById('imageSelectionPreview');
+        const preview = document.getElementById('imagePreview');
+        const name = document.getElementById('imageFileName');
+        const fileStatus = document.getElementById('imageFileStatus');
+        if (!picker || !selection || !preview || !name || !url) return;
+
+        preview.src = url;
+        name.textContent = fileName;
+        if (fileStatus) fileStatus.textContent = status;
+        picker.classList.add('hidden');
+        selection.classList.remove('hidden');
+        selection.classList.add('flex');
+        updateUploadControls();
+    }
+
+    function showImagePreparationStatus(message = '') {
+        const status = document.getElementById('imagePreparationStatus');
+        if (!status) return;
+
+        status.textContent = message;
+        status.classList.toggle('hidden', !message);
+    }
+
+    function clearImageSelectionPreview() {
+        const picker = document.getElementById('imagePicker');
+        const selection = document.getElementById('imageSelectionPreview');
+        const preview = document.getElementById('imagePreview');
+        if (!picker || !selection || !preview) return;
+
+        if (STATE.originalPreviewUrl && STATE.originalPreviewIsObjectUrl) {
+            URL.revokeObjectURL(STATE.originalPreviewUrl);
+        }
+        STATE.originalPreviewUrl = null;
+        STATE.originalPreviewIsObjectUrl = false;
+        preview.removeAttribute('src');
+        selection.classList.add('hidden');
+        selection.classList.remove('flex');
+        picker.classList.remove('hidden');
+    }
+
+    function selectedFileExtension(file) {
+        const name = String(file?.name || '');
+        const extension = name.includes('.') ? name.split('.').pop() : '';
+
+        return String(extension || '').toLowerCase();
+    }
+
+    function isHeicCandidate(file) {
+        return HEIC_IMAGE_TYPES.has(String(file?.type || '').toLowerCase())
+            || HEIC_IMAGE_EXTENSIONS.has(selectedFileExtension(file));
+    }
+
+    function isStandardImageCandidate(file) {
+        return SUPPORTED_IMAGE_TYPES.has(String(file?.type || '').toLowerCase())
+            || SUPPORTED_IMAGE_EXTENSIONS.has(selectedFileExtension(file));
+    }
+
+    function fileSizeLabel(bytes) {
+        return `${(Number(bytes || 0) / (1024 * 1024)).toLocaleString('fa-IR', {
+            maximumFractionDigits: 1,
+            minimumFractionDigits: 1,
+        })} مگابایت`;
+    }
+
+    function validateSelectedImage(file) {
+        if (!file) return 'لطفاً یک تصویر انتخاب کنید.';
+        if (file.size > MAX_IMAGE_SIZE_BYTES) {
+            return `حجم فایل انتخاب‌شده ${fileSizeLabel(file.size)} است؛ حداکثر حجم مجاز ۵ مگابایت است.`;
+        }
+        if (!isStandardImageCandidate(file) && !isHeicCandidate(file)) {
+            return 'فرمت تصویر باید JPG، PNG، WEBP، HEIC یا HEIF باشد.';
+        }
+
+        return null;
+    }
+
+    function convertedJpegName(file) {
+        const originalName = String(file?.name || 'تصویر-آیفون');
+        const baseName = originalName.replace(/\.(?:heic|heif)$/iu, '') || 'تصویر-آیفون';
+
+        return `${baseName}.jpg`;
+    }
+
+    async function convertHeicImage(file) {
+        const { heicTo, isHeic } = await import('heic-to/csp');
+
+        if (!await isHeic(file)) {
+            throw new Error('Selected file is not a valid HEIC or HEIF image.');
+        }
+
+        let converted = null;
+
+        for (const quality of HEIC_JPEG_QUALITIES) {
+            converted = await heicTo({
+                blob: file,
+                type: 'image/jpeg',
+                quality,
+            });
+
+            if (converted instanceof Blob && converted.size > 0 && converted.size <= MAX_IMAGE_SIZE_BYTES) {
+                return new File([converted], convertedJpegName(file), {
+                    type: 'image/jpeg',
+                    lastModified: file.lastModified || Date.now(),
+                });
+            }
+        }
+
+        const error = new Error('Converted HEIC image is larger than the upload limit.');
+        error.code = 'converted_too_large';
+        error.convertedSize = converted?.size || 0;
+        throw error;
+    }
+
+    async function applySelectedImage(file) {
+        const fileInput = document.getElementById('image');
+        const validationError = validateSelectedImage(file);
+        const selectionVersion = ++STATE.imageSelectionVersion;
+
+        STATE.imagePreparationInFlight = false;
+        UI.clearError('uploadError');
+        showImagePreparationStatus();
+        if (validationError) {
+            if (fileInput) fileInput.value = '';
+            STATE.selectedSourceFile = null;
+            STATE.imagePreparationInFlight = false;
+            if (!STATE.sourceImageId) clearImageSelectionPreview();
+            updateUploadControls();
+            UI.showError('uploadError', validationError);
+            return false;
+        }
+
+        cancelPolling();
+        STATE.sourceImageId = null;
+        STATE.sourceImageFromProfile = false;
+        STATE.selectedSourceFile = null;
+        STATE.generations = [];
+        clearActiveGeneration();
+
+        clearImageSelectionPreview();
+
+        try {
+            let preparedFile = file;
+            let preparedStatus = 'آماده ادامه مسیر';
+
+            if (isHeicCandidate(file)) {
+                STATE.imagePreparationInFlight = true;
+                updateUploadControls();
+                showImagePreparationStatus('در حال تبدیل امن تصویر HEIC/HEIF به JPG؛ لطفاً کمی صبر کنید...');
+                preparedFile = await convertHeicImage(file);
+                preparedStatus = 'HEIC/HEIF به JPG تبدیل شد و آماده ارسال است';
+            }
+
+            if (selectionVersion !== STATE.imageSelectionVersion) return false;
+
+            STATE.selectedSourceFile = preparedFile;
+            STATE.originalPreviewUrl = URL.createObjectURL(preparedFile);
+            STATE.originalPreviewIsObjectUrl = true;
+            renderImageSelectionPreview(
+                STATE.originalPreviewUrl,
+                file.name || 'تصویر انتخاب‌شده',
+                preparedStatus,
+            );
+            primeGallery();
+            trackLandingEvent('photo_selected');
+        } catch (error) {
+            if (selectionVersion !== STATE.imageSelectionVersion) return false;
+
+            if (fileInput) fileInput.value = '';
+            STATE.selectedSourceFile = null;
+            clearImageSelectionPreview();
+            const message = error?.code === 'converted_too_large'
+                ? 'نسخه JPG این تصویر از ۵ مگابایت بزرگ‌تر شد؛ لطفاً تصویر دیگری انتخاب کنید.'
+                : 'این فایل HEIC/HEIF قابل تبدیل نیست؛ لطفاً تصویر سالم دیگری انتخاب کنید.';
+            UI.showError('uploadError', message);
+            return false;
+        } finally {
+            if (selectionVersion === STATE.imageSelectionVersion) {
+                STATE.imagePreparationInFlight = false;
+                showImagePreparationStatus();
+                updateUploadControls();
+            }
+        }
+
+        return true;
     }
 
     function renderOutputOptions() {
@@ -576,16 +897,16 @@ export function bootLanding() {
             const button = document.createElement('button');
             button.type = 'button';
             button.dataset.outputOption = output.id;
-            button.className = selected
-                ? 'cursor-pointer rounded-2xl bg-zinc-950 p-3 text-right text-white shadow-lg shadow-zinc-200 transition hover:-translate-y-0.5'
-                : 'cursor-pointer rounded-2xl bg-white p-3 text-right text-zinc-800 ring-1 ring-zinc-200 transition hover:-translate-y-0.5 hover:ring-indigo-200';
+            button.className = `hv-output-option cursor-pointer rounded-2xl p-3 text-right${selected ? ' is-selected' : ''}`;
             const badge = completed
                 ? statusLabel('completed')
                 : pending ? statusLabel('queued') : nonTerminal ? statusLabel(generation.status) : requested ? statusLabel(generation.status) : 'قابل درخواست';
+            button.setAttribute('aria-label', `${output.name}، ${badge}`);
+            button.setAttribute('aria-pressed', selected ? 'true' : 'false');
             button.innerHTML = `
-                <span class="block text-sm font-bold">${escapeHtml(output.name)}</span>
-                <span class="mt-1 line-clamp-2 block text-xs leading-6 ${selected ? 'text-white/75' : 'text-zinc-500'}">${escapeHtml(output.description || '')}</span>
-                <span class="mt-3 inline-flex rounded-full ${selected ? 'bg-white/15 text-white' : completed ? 'bg-emerald-50 text-emerald-700' : nonTerminal ? 'bg-indigo-50 text-indigo-700' : 'bg-zinc-100 text-zinc-600'} px-2 py-1 text-xs font-bold">${escapeHtml(badge)}</span>
+                <span class="hv-output-title block text-sm font-bold">${escapeHtml(output.name)}</span>
+                <span class="hv-output-description mt-1 line-clamp-2 block text-xs leading-6 ${selected ? 'text-white/75' : 'text-zinc-500'}">${escapeHtml(output.description || '')}</span>
+                <span class="hv-output-status mt-3 inline-flex rounded-full ${selected ? 'bg-white/15 text-white' : completed ? 'bg-emerald-50 text-emerald-700' : nonTerminal ? 'bg-indigo-50 text-indigo-700' : 'bg-zinc-100 text-zinc-600'} px-2 py-1 text-xs font-bold">${escapeHtml(badge)}</span>
             `;
             button.addEventListener('click', async () => {
                 STATE.selectedOutputId = output.id;
@@ -645,11 +966,11 @@ export function bootLanding() {
                 markOtpExpired();
                 document.getElementById('displayPhone').textContent = toPersianDigits(STATE.phone);
                 UI.showError('otpError', message);
-                document.getElementById('otp').focus();
+                document.getElementById('otp').focus({ preventScroll: true });
             } else {
                 setMobileMode('phone');
                 UI.showError('phoneError', message);
-                document.getElementById('requestOtp').focus();
+                document.getElementById('requestOtp').focus({ preventScroll: true });
             }
         }
     }
@@ -794,7 +1115,7 @@ export function bootLanding() {
         applyCategories(categoriesFromPayload(result));
     }
 
-    async function refreshActiveGenerations() {
+    async function refreshActiveGenerations(expectedPollSequence = null) {
         const refreshed = [];
         const targets = STATE.generations.filter((generation) => generation.id);
         const outcomes = await Promise.allSettled(targets.map(async (generation) => ({
@@ -819,6 +1140,10 @@ export function bootLanding() {
             }
 
             refreshed.push(result.data);
+        }
+
+        if (expectedPollSequence !== null && expectedPollSequence !== STATE.pollSequence) {
+            return { success: true, data: STATE.generations, cancelled: true };
         }
 
         STATE.generations = mergeGenerations(STATE.generations, refreshed);
@@ -929,7 +1254,13 @@ export function bootLanding() {
         if (typeof STATE.pollWake === 'function') STATE.pollWake();
     }
 
+    function cancelPolling() {
+        STATE.pollSequence += 1;
+        wakePolling();
+    }
+
     async function runPollingLoop() {
+        const pollSequence = STATE.pollSequence;
         const startedAt = Date.now();
         const initialIntervalMs = Number(GENERATION.pollInitialIntervalMs || GENERATION.pollIntervalMs || 1500);
         const maximumIntervalMs = Math.max(initialIntervalMs, Number(GENERATION.pollMaxIntervalMs || 15000));
@@ -941,12 +1272,15 @@ export function bootLanding() {
         while (true) {
             const hiddenDelay = document.hidden ? Math.max(intervalMs, 15000) : intervalMs;
             await waitForNextPoll(hiddenDelay);
+            if (pollSequence !== STATE.pollSequence) return 'background';
             let statusResult;
 
             try {
-                statusResult = await refreshActiveGenerations();
+                statusResult = await refreshActiveGenerations(pollSequence);
+                if (pollSequence !== STATE.pollSequence) return 'background';
                 transientFailures = statusResult.partialFailure ? transientFailures + 1 : 0;
             } catch (error) {
+                if (pollSequence !== STATE.pollSequence) return 'background';
                 transientFailures += 1;
                 UI.showStatus('ارتباط موقتاً قطع شده است؛ پردازش در سرور ادامه دارد و وضعیت دوباره بررسی می‌شود.');
                 intervalMs = Math.min(maximumIntervalMs, Math.max(initialIntervalMs, initialIntervalMs * (transientFailures + 1)));
@@ -1081,6 +1415,8 @@ export function bootLanding() {
                     status: status || 'queued',
                     url: generation.asset_url || null,
                     isOriginal: false,
+                    category: selectedCategory(),
+                    output,
                 };
             })
             .filter(Boolean);
@@ -1118,7 +1454,7 @@ export function bootLanding() {
 
         items.forEach((item, index) => {
             const card = document.createElement('article');
-            card.className = 'hv-result-card hv-enter overflow-hidden rounded-3xl bg-white shadow-lg shadow-indigo-100/70';
+            card.className = 'hv-result-card hv-enter flex h-full flex-col overflow-hidden rounded-3xl bg-white shadow-lg shadow-indigo-100/70';
             card.style.animationDelay = `${index * 70}ms`;
             const safeUrl = item.url ? escapeHtml(item.url) : '';
             const galleryIndex = item.url
@@ -1128,10 +1464,10 @@ export function bootLanding() {
                 ? `<img src="${safeUrl}" alt="${escapeHtml(item.label)}" class="hv-result-image aspect-square w-full object-cover" loading="lazy" />`
                 : `<span class="hv-skeleton block aspect-square w-full"></span><span class="absolute inset-0 grid place-items-center px-4 text-center"><span><span class="mx-auto grid h-12 w-12 place-items-center rounded-2xl bg-white/90 text-sm font-bold text-indigo-700 shadow-sm"><span class="fi fi-rr-magic-wand h-5 w-5" aria-hidden="true"></span></span><span class="mt-3 block text-sm font-bold text-zinc-700">در حال ساخت</span><span class="mt-1 block text-xs leading-6 text-zinc-500">${escapeHtml(statusLabel(item.status))}</span></span></span>`;
             const status = item.isOriginal
-                ? `<span class="mt-3 inline-flex rounded-full bg-emerald-50 px-3 py-1 text-xs font-bold text-emerald-700">${escapeHtml(statusLabel(item.status))}</span>`
-                : `<span class="mt-3 inline-flex rounded-full bg-zinc-100 px-3 py-1 text-xs font-bold text-zinc-600">${escapeHtml(statusLabel(item.status))}</span>`;
+                ? `<span class="inline-flex rounded-full bg-emerald-50 px-3 py-1 text-xs font-bold text-emerald-700">${escapeHtml(statusLabel(item.status))}</span>`
+                : `<span class="inline-flex rounded-full bg-zinc-100 px-3 py-1 text-xs font-bold text-zinc-600">${escapeHtml(statusLabel(item.status))}</span>`;
             const downloadAction = item.url
-                ? `<a class="inline-flex items-center gap-1.5 rounded-full bg-zinc-950 px-3 py-1.5 text-xs font-bold text-white transition hover:-translate-y-0.5 hover:bg-zinc-800" href="${safeUrl}" download="${escapeHtml(downloadFileName(item))}" aria-label="${escapeHtml(downloadLabel(item))}" data-gallery-download><span class="fi fi-rr-arrow-down h-3.5 w-3.5" aria-hidden="true"></span><span>دانلود</span></a>`
+                ? `<a class="hv-button hv-button-secondary hv-button-compact inline-flex" href="${safeUrl}" download="${escapeHtml(downloadFileName(item))}" aria-label="${escapeHtml(downloadLabel(item))}" data-gallery-download><span class="fi fi-rr-arrow-down h-3.5 w-3.5" aria-hidden="true"></span><span>دانلود</span></a>`
                 : '';
             const mediaButton = item.url
                 ? `<button type="button" class="block w-full cursor-zoom-in text-right" data-gallery-index="${galleryIndex}"><span class="relative block overflow-hidden bg-zinc-100">${media}</span></button>`
@@ -1148,13 +1484,13 @@ export function bootLanding() {
 
             card.innerHTML = `
                 ${mediaButton}
-                <div class="p-3">
+                <div class="flex flex-1 flex-col p-3" data-result-card-body>
                     ${textBlock}
-                    <div class="mt-3 flex flex-wrap items-center justify-between gap-2">
-                        ${status}
-                        ${downloadAction}
-                    </div>
                 </div>
+                <footer class="mt-auto flex flex-wrap items-center justify-between gap-2 border-t border-zinc-100 px-3 py-2.5" data-result-card-footer>
+                    ${status}
+                    ${downloadAction}
+                </footer>
             `;
             container.appendChild(card);
         });
@@ -1174,6 +1510,10 @@ export function bootLanding() {
         if (!STATE.galleryItems.length) return;
 
         STATE.activeGalleryIndex = Math.min(Math.max(Number.isFinite(index) ? index : 0, 0), STATE.galleryItems.length - 1);
+        const selectedItem = STATE.galleryItems[STATE.activeGalleryIndex];
+        if (selectedItem && selectedItem.period !== 'original' && !selectedItem.isOriginal) {
+            trackLandingEvent('result_viewed', selectedItem.category || selectedCategory(), selectedItem.output || null);
+        }
         const modal = document.getElementById('imageModal');
         modal.classList.remove('hidden');
         modal.classList.add('flex');
@@ -1251,8 +1591,8 @@ export function bootLanding() {
     }
 
     function resetGenerationProgress(clearStatus = true) {
+        cancelPolling();
         stopStageMessages();
-        STATE.sourceImageId = null;
         STATE.generations = [];
         STATE.galleryItems = [];
         STATE.pendingOutputIds.clear();
@@ -1272,6 +1612,27 @@ export function bootLanding() {
         }
 
         if (clearStatus) UI.clearStatus();
+    }
+
+    function startNewImageJourney() {
+        resetGenerationProgress();
+        STATE.sourceImageId = null;
+        STATE.sourceImageFromProfile = false;
+        STATE.selectedSourceFile = null;
+        STATE.imagePreparationInFlight = false;
+        STATE.imageSelectionVersion += 1;
+
+        const imageInput = document.getElementById('image');
+        const consent = document.getElementById('consent');
+        if (imageInput) imageInput.value = '';
+        if (consent) consent.checked = false;
+
+        clearImageSelectionPreview();
+        showImagePreparationStatus();
+        UI.clearError('uploadError');
+        UI.clearError('generationError');
+        updateUploadControls();
+        UI.showStep(1);
     }
 
     async function requestOtpForPhone(phone, mode = 'initial') {
@@ -1298,6 +1659,7 @@ export function bootLanding() {
         }
 
         if (result.success) {
+            trackLandingEvent('phone_submitted');
             STATE.phone = phone;
             STATE.verified = false;
             sessionStorage.setItem(STORAGE_KEYS.phone, phone);
@@ -1308,7 +1670,7 @@ export function bootLanding() {
             startOtpTimer(result.expires_in || 120);
             setMobileMode('otp');
             UI.showStep(3);
-            document.getElementById('otp').focus();
+            document.getElementById('otp').focus({ preventScroll: true });
             return;
         }
 
@@ -1321,7 +1683,6 @@ export function bootLanding() {
     }
 
     async function beginGenerationProcess(button = null) {
-        const fileInput = document.getElementById('image');
         const consent = document.getElementById('consent').checked;
         const btn = button || document.getElementById('verifyOtp');
 
@@ -1357,7 +1718,7 @@ export function bootLanding() {
             return;
         }
 
-        if (!fileInput.files.length) {
+        if (!hasSourceImageSelection()) {
             UI.showStep(2);
             return UI.showError('uploadError', 'لطفاً یک تصویر انتخاب کنید.');
         }
@@ -1382,7 +1743,7 @@ export function bootLanding() {
                 btn.disabled = true;
                 btn.textContent = 'در حال ذخیره تصویر...';
 
-                const result = await API.uploadSourceImage(fileInput.files[0], consent);
+                const result = await API.uploadSourceImage(STATE.selectedSourceFile, consent);
                 if (!result.data?.id) {
                     btn.disabled = false;
                     btn.textContent = 'تایید و شروع درخواست';
@@ -1391,6 +1752,7 @@ export function bootLanding() {
 
                 STATE.sourceImageId = result.data.id;
                 STATE.sourceImageFromProfile = false;
+                trackLandingEvent('photo_uploaded');
             }
 
             ensureSelectedOutput();
@@ -1468,6 +1830,7 @@ export function bootLanding() {
             STATE.pendingOutputIds.delete(output.id);
             STATE.generationComplete = false;
             STATE.generations = mergeGenerations(STATE.generations, [genResult.data]);
+            trackLandingEvent('generation_requested', category, output);
             rememberResumeTokens([genResult.data]);
             saveActiveGenerations();
             applyGenerationStatus(STATE.generations);
@@ -1493,8 +1856,10 @@ export function bootLanding() {
 
     function loadSessionState() {
         const storedPhone = sessionStorage.getItem(STORAGE_KEYS.phone);
-        sessionStorage.removeItem(STORAGE_KEYS.verified);
-        STATE.verified = false;
+        const browserSessionVerified = sessionStorage.getItem(STORAGE_KEYS.verified) === '1';
+        STATE.verified = STATE.serverSessionVerified && browserSessionVerified;
+
+        if (!STATE.serverSessionVerified) sessionStorage.removeItem(STORAGE_KEYS.verified);
 
         if (storedPhone) {
             STATE.phone = normalizeDigits(storedPhone).slice(0, 11);
@@ -1527,11 +1892,8 @@ export function bootLanding() {
 
         if (sourceImageUrl) {
             STATE.originalPreviewUrl = sourceImageUrl;
-            const preview = document.getElementById('imagePreview');
-            const placeholder = document.getElementById('imagePlaceholder');
-            preview.src = sourceImageUrl;
-            preview.classList.remove('hidden');
-            placeholder.classList.add('hidden');
+            STATE.originalPreviewIsObjectUrl = false;
+            renderImageSelectionPreview(sourceImageUrl, 'تصویر فعلی شما');
             primeGallery();
         }
 
@@ -1551,6 +1913,7 @@ export function bootLanding() {
         if (latestGeneration?.category?.id && STATE.categories.some((category) => category.id === latestGeneration.category.id)) {
             STATE.selectedCategoryId = latestGeneration.category.id;
             ensureSelectedOutput();
+            renderUploadGuide();
         }
 
         saveActiveGenerations();
@@ -1628,35 +1991,50 @@ export function bootLanding() {
     document.getElementById('continueToImage').addEventListener('click', () => {
         if (!selectedCategory()) return UI.showError('treatmentError', 'لطفاً یک کاربرد فعال را انتخاب کنید.');
         renderStagePanels([]);
+        renderUploadGuide();
         UI.showStep(2);
     });
 
     document.getElementById('confirmOutputRequest').addEventListener('click', requestSelectedOutput);
 
-    document.getElementById('image').addEventListener('change', (event) => {
+    const imageInput = document.getElementById('image');
+    const uploadDropZone = document.getElementById('uploadDropZone');
+    const uploadGuideBreakpoint = window.matchMedia('(min-width: 1024px)');
+
+    uploadGuideBreakpoint.addEventListener('change', (event) => {
+        const disclosure = document.getElementById('uploadGuidePanel');
+        if (disclosure) disclosure.open = event.matches;
+    });
+
+    imageInput.addEventListener('change', (event) => {
         const file = event.target.files?.[0];
         if (!file) return;
 
-        STATE.sourceImageId = null;
-        STATE.sourceImageFromProfile = false;
-        STATE.generations = [];
-        clearActiveGeneration();
-
-        const preview = document.getElementById('imagePreview');
-        const placeholder = document.getElementById('imagePlaceholder');
-        if (STATE.originalPreviewUrl) URL.revokeObjectURL(STATE.originalPreviewUrl);
-
-        STATE.originalPreviewUrl = URL.createObjectURL(file);
-        preview.src = STATE.originalPreviewUrl;
-        preview.classList.remove('hidden');
-        placeholder.classList.add('hidden');
-        primeGallery();
+        void applySelectedImage(file);
     });
 
-    document.getElementById('imagePreview').addEventListener('click', (event) => {
+    ['dragenter', 'dragover'].forEach((eventName) => {
+        uploadDropZone.addEventListener(eventName, (event) => {
+            event.preventDefault();
+            uploadDropZone.classList.add('is-dragging');
+        });
+    });
+    ['dragleave', 'dragend', 'drop'].forEach((eventName) => {
+        uploadDropZone.addEventListener(eventName, (event) => {
+            event.preventDefault();
+            uploadDropZone.classList.remove('is-dragging');
+        });
+    });
+    uploadDropZone.addEventListener('drop', (event) => {
+        const file = event.dataTransfer?.files?.[0];
+        if (!file) return;
+
+        void applySelectedImage(file);
+    });
+
+    document.getElementById('viewSelectedImage').addEventListener('click', (event) => {
         if (!STATE.originalPreviewUrl) return;
         event.preventDefault();
-        event.stopPropagation();
         STATE.galleryItems = [{
             period: 'original',
             label: 'تصویر اولیه',
@@ -1665,6 +2043,11 @@ export function bootLanding() {
             url: STATE.originalPreviewUrl,
         }];
         openImageModal(0);
+    });
+
+    document.getElementById('consent').addEventListener('change', () => {
+        UI.clearError('uploadError');
+        updateUploadControls();
     });
 
     document.getElementById('requestOtp').addEventListener('click', async () => {
@@ -1701,7 +2084,9 @@ export function bootLanding() {
         btn.textContent = 'تایید و شروع درخواست';
 
         if (result.success) {
+            trackLandingEvent('otp_verified');
             STATE.verified = true;
+            STATE.serverSessionVerified = true;
             stopOtpTimer();
             sessionStorage.setItem(STORAGE_KEYS.phone, STATE.phone);
             sessionStorage.setItem(STORAGE_KEYS.verified, '1');
@@ -1724,21 +2109,28 @@ export function bootLanding() {
         UI.clearError('mobileError');
         UI.clearDebugOtp();
         UI.showStep(3);
-        document.getElementById('phone').focus();
+        document.getElementById('phone').focus({ preventScroll: true });
     });
 
-    document.getElementById('continueToPhone').addEventListener('click', () => {
-        const fileInput = document.getElementById('image');
+    document.getElementById('continueToPhone').addEventListener('click', async () => {
+        const continueButton = document.getElementById('continueToPhone');
         const consent = document.getElementById('consent').checked;
         UI.clearError('uploadError');
 
-        if (!fileInput.files.length) return UI.showError('uploadError', 'لطفاً یک تصویر انتخاب کنید.');
+        if (!hasSourceImageSelection()) return UI.showError('uploadError', 'لطفاً یک تصویر انتخاب کنید.');
         if (!consent) return UI.showError('uploadError', 'برای ادامه باید رضایت پردازش تصویر را تایید کنید.');
+
+        if (STATE.verified) {
+            await beginGenerationProcess(continueButton);
+            return;
+        }
 
         setMobileMode('phone');
         UI.showStep(3);
-        document.getElementById('phone').focus();
+        document.getElementById('phone').focus({ preventScroll: true });
     });
+
+    document.getElementById('newImageUpload').addEventListener('click', startNewImageJourney);
 
     document.getElementById('backToTreatment').addEventListener('click', () => {
         UI.clearError('uploadError');
@@ -1788,7 +2180,7 @@ export function bootLanding() {
     renderStagePanels([]);
     loadBootstrap().finally(async () => {
         loadSessionState();
-        const hydrated = STATE.serverSessionVerified ? await hydrateVerifiedProfile() : false;
+        const hydrated = STATE.verified ? await hydrateVerifiedProfile() : false;
 
         if (!hydrated) resumeActiveGenerationIfPresent();
     });

@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\TenantDomain;
+use App\Support\Tenancy\HostClassifier;
 use Database\Seeders\TenantSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -11,6 +12,7 @@ use Tests\TestCase;
  * Verifies environment-aware tenant domain seeding.
  *
  * @since 2.0.0
+ * @since 2.1.0 Behavior updated for the 2.1.0 release.
  */
 class TenantSeederTest extends TestCase
 {
@@ -22,10 +24,14 @@ class TenantSeederTest extends TestCase
      * @return void No value is returned.
      *
      * @since 2.0.0
+     * @since 2.1.0 Behavior updated for the 2.1.0 release.
      */
     public function test_seeded_domains_are_derived_from_app_url_and_updated_on_reseed(): void
     {
         config(['app.url' => 'https://Initial.Example:8443/application']);
+
+        $this->assertTrue(HostClassifier::isPrimaryHost('initial.example'));
+        $this->assertFalse(HostClassifier::isPrimaryHost('hairvision-ai.test'));
 
         $this->seed(TenantSeeder::class);
 
@@ -38,6 +44,9 @@ class TenantSeederTest extends TestCase
         ], TenantDomain::query()->orderBy('domain')->pluck('domain')->all());
 
         config(['app.url' => 'https://production.example/']);
+
+        $this->assertTrue(HostClassifier::isPrimaryHost('production.example'));
+        $this->assertFalse(HostClassifier::isPrimaryHost('initial.example'));
 
         $this->seed(TenantSeeder::class);
 

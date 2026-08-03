@@ -1,5 +1,10 @@
 <?php
 
+/**
+ * Provides Persian validation copy revised for the 2.1.0 release.
+ *
+ * @since 2.1.0
+ */
 return [
     'required' => 'وارد کردن :attribute الزامی است.',
     'string' => ':attribute باید متن باشد.',
@@ -24,11 +29,15 @@ return [
         'code' => 'کد تایید',
         'note' => 'یادداشت',
         'status' => 'وضعیت',
+        'age' => 'سن',
+        'city' => 'شهر',
         'communication_channel' => 'کانال ارتباطی',
         'next_follow_up_at' => 'تاریخ پیگیری بعدی',
         'name' => 'نام',
         'price' => 'قیمت',
         'duration_days' => 'مدت پلن',
         'usage_limit' => 'اعتبار پلن',
+        'upload_guide_html' => 'راهنمای عکس مراجعه‌کننده',
+        'template_id' => 'قالب لندینگ',
     ],
 ];

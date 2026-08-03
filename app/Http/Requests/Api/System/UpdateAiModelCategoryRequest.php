@@ -9,6 +9,7 @@ use Illuminate\Validation\Rule;
  * Validates update ai model category input.
  *
  * @since 1.0.0
+ * @since 2.1.0 Behavior updated for the 2.1.0 release.
  */
 class UpdateAiModelCategoryRequest extends FormRequest
 {
@@ -30,12 +31,14 @@ class UpdateAiModelCategoryRequest extends FormRequest
      * @return array Resolved data array.
      *
      * @since 1.0.0
+     * @since 2.1.0 Behavior updated for the 2.1.0 release.
      */
     public function rules(): array
     {
         return [
             'name' => ['sometimes', 'required', 'string', 'max:255'],
             'description' => ['nullable', 'string'],
+            'upload_guide_html' => ['sometimes', 'nullable', 'string', 'max:20000'],
             'status' => ['sometimes', 'required', Rule::in(['active', 'inactive', 'archived'])],
             'sort_order' => ['nullable', 'integer', 'min:0'],
             'icon' => ['nullable', 'string', 'max:100'],

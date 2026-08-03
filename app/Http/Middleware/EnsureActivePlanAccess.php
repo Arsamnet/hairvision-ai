@@ -11,6 +11,7 @@ use Illuminate\Http\Request;
  * Blocks plan-restricted dashboard routes when a normal user has no active plan.
  *
  * @since 1.0.0
+ * @since 2.1.0 Behavior updated for the 2.1.0 release.
  */
 class EnsureActivePlanAccess
 {
@@ -68,6 +69,7 @@ class EnsureActivePlanAccess
      * @return bool Whether the requested condition is satisfied.
      *
      * @since 1.0.0
+     * @since 2.1.0 Behavior updated for the 2.1.0 release.
      */
     private function routeIsAllowedWithoutPlan(Request $request): bool
     {
@@ -80,6 +82,7 @@ class EnsureActivePlanAccess
             'admin.tenant.switch',
             'admin.filter-presets.store',
             'admin.logout',
+            'admin.clinic.settings.*',
             'admin.system.*',
         );
     }

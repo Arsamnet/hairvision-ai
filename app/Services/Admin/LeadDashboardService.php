@@ -6,17 +6,20 @@ use App\Models\Lead;
 use App\Models\LeadNote;
 use App\Models\Tenant;
 use App\Models\User;
+use App\Support\NumberNormalizer;
 use App\Support\Pagination\PaginationParameters;
 use App\Support\Query\DateRangeFilter;
 use App\Support\Query\SearchFilter;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
+use Illuminate\Validation\ValidationException;
 
 /**
  * Builds tenant-scoped lead queries and dashboard mutations.
  *
  * @since 1.0.0
+ * @since 2.1.0 Behavior updated for the 2.1.0 release.
  */
 class LeadDashboardService
 {
@@ -38,12 +41,13 @@ class LeadDashboardService
      * @return LengthAwarePaginator Paginated result set.
      *
      * @since 1.0.0
+     * @since 2.1.0 Behavior updated for the 2.1.0 release.
      */
     public function paginate(Request $request, User $user, ?Tenant $tenant): LengthAwarePaginator
     {
         $pagination = PaginationParameters::fromRequest(
             $request,
-            ['created_at', 'full_name', 'phone_normalized', 'crm_stage', 'status'],
+            ['created_at', 'full_name', 'phone_normalized', 'age', 'status'],
             'created_at'
         );
 
@@ -66,15 +70,22 @@ class LeadDashboardService
      * @return Builder Configured query builder.
      *
      * @since 1.0.0
+     * @since 2.1.0 Behavior updated for the 2.1.0 release.
      */
     public function filteredQuery(Request $request, User $user, ?Tenant $tenant, PaginationParameters $pagination): Builder
     {
         $query = $this->baseQuery($user, $tenant)->with(['assignedUser']);
-        SearchFilter::apply($query, $pagination->search, ['full_name', 'phone_normalized', 'source']);
+        SearchFilter::apply($query, $pagination->search, ['full_name', 'phone_normalized', 'city', 'source']);
+        $ageFrom = $this->ageBound($request, 'age_from');
+        $ageUntil = $this->ageBound($request, 'age_until');
 
         $query
-            ->when($request->filled('status'), fn (Builder $query) => $query->where('status', $request->string('status')->toString()))
-            ->when($request->filled('crm_stage'), fn (Builder $query) => $query->where('crm_stage', $request->string('crm_stage')->toString()));
+            ->when(
+                $request->filled('status'),
+                fn (Builder $query) => $query->where('status', $request->string('status')->toString())
+            )
+            ->when($ageFrom !== null, fn (Builder $query) => $query->where('age', '>=', $ageFrom))
+            ->when($ageUntil !== null, fn (Builder $query) => $query->where('age', '<=', $ageUntil));
 
         DateRangeFilter::apply($query, $request);
 
@@ -163,20 +174,32 @@ class LeadDashboardService
      * @return Lead Resolved operation result.
      *
      * @since 1.0.0
+     * @since 2.1.0 Behavior updated for the 2.1.0 release.
      */
     public function create(array $data, Tenant $tenant, User $user): Lead
     {
-        $lead = Lead::create([
-            'tenant_id' => $tenant->id,
-            'full_name' => $data['full_name'] ?? null,
-            'phone' => $data['phone_normalized'],
-            'phone_normalized' => $data['phone_normalized'],
-            'source' => $data['source'] ?? 'dashboard',
-            'phone_verified_at' => now(),
-            'status' => $data['status'] ?? 'verified',
-            'crm_stage' => $data['crm_stage'] ?? 'new_lead',
-            'assigned_user_id' => $this->assignableUserId($data['assigned_user_id'] ?? null, $tenant),
-        ]);
+        $lead = Lead::query()->firstOrCreate(
+            [
+                'tenant_id' => $tenant->id,
+                'phone_normalized' => $data['phone_normalized'],
+            ],
+            [
+                'full_name' => $data['full_name'] ?? null,
+                'age' => $data['age'] ?? null,
+                'city' => $data['city'] ?? null,
+                'phone' => $data['phone_normalized'],
+                'source' => $data['source'] ?? 'dashboard',
+                'phone_verified_at' => now(),
+                'status' => $data['status'] ?? 'new',
+                'assigned_user_id' => $this->assignableUserId($data['assigned_user_id'] ?? null, $tenant),
+            ],
+        );
+
+        if (! $lead->wasRecentlyCreated) {
+            throw ValidationException::withMessages([
+                'phone_normalized' => __('validation.custom.phone_normalized.unique'),
+            ]);
+        }
 
         if (! empty($data['note'])) {
             $this->createNote($lead, $user, (string) $data['note']);
@@ -195,13 +218,14 @@ class LeadDashboardService
      * @return Lead Resolved operation result.
      *
      * @since 1.0.0
+     * @since 2.1.0 Behavior updated for the 2.1.0 release.
      */
     public function update(Lead $lead, array $data, User $user, Tenant $tenant): Lead
     {
         $role = $user->roleForTenant($tenant->id);
         $allowed = $role === 'editor'
-            ? ['crm_stage', 'source']
-            : ['full_name', 'phone_normalized', 'source', 'status', 'crm_stage', 'assigned_user_id'];
+            ? ['status', 'source']
+            : ['full_name', 'age', 'city', 'phone_normalized', 'source', 'status', 'assigned_user_id'];
 
         $updates = array_intersect_key($data, array_flip($allowed));
 
@@ -230,6 +254,7 @@ class LeadDashboardService
      * @return Builder Configured query builder.
      *
      * @since 1.0.0
+     * @since 2.1.0 Behavior updated for the 2.1.0 release.
      */
     public function baseQuery(User $user, ?Tenant $tenant): Builder
     {
@@ -237,7 +262,7 @@ class LeadDashboardService
 
         if ($tenant) {
             $query->where('tenant_id', $tenant->id);
-        } elseif (! $user->isSuperAdmin()) {
+        } elseif (! $user->isSystemScoped()) {
             $tenantIds = $user->tenants()
                 ->wherePivot('status', 'active')
                 ->pluck('tenants.id');
@@ -257,6 +282,7 @@ class LeadDashboardService
      * @return LeadNote Resolved operation result.
      *
      * @since 1.0.0
+     * @since 2.1.0 Behavior updated for the 2.1.0 release.
      */
     private function createNote(Lead $lead, User $user, string $note): LeadNote
     {
@@ -267,7 +293,7 @@ class LeadDashboardService
             'lead_id' => $lead->id,
             'user_id' => $user->id,
             'type' => 'admin_note',
-            'status' => $lead->crm_stage,
+            'status' => $lead->status,
             'note' => $note,
         ]);
     }
@@ -291,5 +317,31 @@ class LeadDashboardService
             ->where('users.id', (int) $userId)
             ->wherePivot('status', 'active')
             ->value('users.id');
+    }
+
+    /**
+     * Normalize a supported-digit age filter within the stored lead age range.
+     *
+     * @param  Request  $request  Incoming HTTP request.
+     * @param  string  $key  Filter query key.
+     * @return int|null Normalized age boundary or null when absent/invalid.
+     *
+     * @since 2.1.0
+     */
+    private function ageBound(Request $request, string $key): ?int
+    {
+        if (! $request->filled($key)) {
+            return null;
+        }
+
+        $value = NumberNormalizer::normalizeNumericString((string) $request->input($key));
+
+        if (! ctype_digit($value)) {
+            return null;
+        }
+
+        $age = (int) $value;
+
+        return $age <= 150 ? $age : null;
     }
 }

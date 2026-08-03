@@ -1,20 +1,67 @@
+{{-- @since 2.1.0 Rebuilds the tenant landing shell, upload journey, SEO, and analytics contract. --}}
 <!DOCTYPE html>
 <html lang="fa" dir="rtl">
 <head>
-    <?php $landingTheme = $landingTheme ?? app(\App\Services\Landing\LandingTemplateResolver::class)->resolve($tenant); ?>
+    <?php
+        /** @var \App\Models\Tenant $tenant */
+        /** @var array<string, mixed> $landingTheme */
+        /** @var string $landingAnalyticsToken */
+    ?>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title><?php echo e($tenant->name ?? 'پیش‌نمایی هوشمند'); ?></title>
     <?php
         $defaultFaviconHref = app('Illuminate\Foundation\Vite')->asset('resources/img/favicon.png');
         $faviconHref = app(\App\Services\Landing\LandingTemplateResolver::class)->faviconHref($landingTheme, $defaultFaviconHref);
         $primaryColor = (string) ($landingTheme['primary_color'] ?? '#0f766e');
         $primaryColor = preg_match('/^#[0-9a-fA-F]{6}$/', $primaryColor) ? $primaryColor : '#0f766e';
-        $hairConsultationHref = '/theme/category-icons/hair-transplant.svg';
-        $faceConsultationHref = '/theme/category-icons/eyebrow-transplant.svg';
+        $hairConsultationHref = '/theme/category-images/hair-transplant.jpg';
+        $faceConsultationHref = '/theme/category-images/eyebrow-transplant.jpg';
+        $seoTitle = trim((string) ($landingTheme['seo_title'] ?? '')) ?: (($tenant->name ?? 'کلینیک').' | پیش‌نمایش هوشمند HairVision');
+        $seoDescription = trim((string) ($landingTheme['seo_description'] ?? '')) ?: ('پیش‌نمایش هوشمند خدمات زیبایی برای شروع مشاوره دقیق‌تر با '.($tenant->name ?? 'کلینیک').'.');
+        $canonicalUrl = rtrim(request()->getSchemeAndHttpHost(), '/').'/';
+        $seoImagePath = \App\Support\LandingAssetUrl::resolve($landingTheme['seo_image_path'] ?? null, '');
+        $seoImageUrl = $seoImagePath === ''
+            ? null
+            : (str_starts_with($seoImagePath, '/') ? rtrim(request()->getSchemeAndHttpHost(), '/').$seoImagePath : $seoImagePath);
+        $seoRobots = (string) ($landingTheme['seo_robots'] ?? 'index,follow');
+        $structuredData = [
+            '@context' => 'https://schema.org',
+            '@type' => 'MedicalClinic',
+            'name' => (string) ($tenant->name ?? 'کلینیک'),
+            'url' => $canonicalUrl,
+            'description' => $seoDescription,
+        ];
+
+        if ($seoImageUrl) {
+            $structuredData['image'] = $seoImageUrl;
+        }
     ?>
+    <title><?php echo e($seoTitle); ?></title>
+    <meta name="description" content="<?php echo e($seoDescription); ?>">
+    <meta name="robots" content="<?php echo e($seoRobots); ?>">
+    <link rel="canonical" href="<?php echo e($canonicalUrl); ?>">
+    <meta property="og:locale" content="fa_IR">
+    <meta property="og:type" content="website">
+    <meta property="og:site_name" content="<?php echo e($tenant->name ?? 'HairVision'); ?>">
+    <meta property="og:title" content="<?php echo e($seoTitle); ?>">
+    <meta property="og:description" content="<?php echo e($seoDescription); ?>">
+    <meta property="og:url" content="<?php echo e($canonicalUrl); ?>">
+    <meta name="twitter:card" content="<?php echo $seoImageUrl ? 'summary_large_image' : 'summary'; ?>">
+    <meta name="twitter:title" content="<?php echo e($seoTitle); ?>">
+    <meta name="twitter:description" content="<?php echo e($seoDescription); ?>">
+    <?php if ($seoImageUrl): ?>
+        <meta property="og:image" content="<?php echo e($seoImageUrl); ?>">
+        <meta name="twitter:image" content="<?php echo e($seoImageUrl); ?>">
+    <?php endif; ?>
+    <script type="application/ld+json"><?php echo json_encode($structuredData, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?></script>
     <link rel="icon" href="<?php echo e($faviconHref); ?>">
-    <?php echo app('Illuminate\Foundation\Vite')(['resources/css/app.css', 'resources/js/app.js']); ?>
+    <?php echo $landingTheme['tracking_head_code'] ?? ''; ?>
+
+    <?php echo app('Illuminate\Foundation\Vite')([
+        'resources/css/app.css',
+        'resources/css/landing-icons.css',
+        'resources/js/app.js',
+    ]); ?>
     <style>
         @keyframes hv-enter {
             from { opacity: 0; transform: translateY(8px); }
@@ -27,20 +74,15 @@
             100% { background-position: 0% 50%; }
         }
 
+        @keyframes hv-ai-border-flow {
+            0% { background-position: 0 0, 0% 50%; }
+            50% { background-position: 0 0, 100% 50%; }
+            100% { background-position: 0 0, 0% 50%; }
+        }
+
         @keyframes hv-soft-pulse {
             0%, 100% { opacity: .55; transform: scale(.98); }
             50% { opacity: 1; transform: scale(1); }
-        }
-
-        @keyframes hv-float {
-            0%, 100% { transform: translateY(0); }
-            50% { transform: translateY(-6px); }
-        }
-
-        @keyframes hv-aurora {
-            0% { background-position: 0% 50%; }
-            50% { background-position: 100% 50%; }
-            100% { background-position: 0% 50%; }
         }
 
         @keyframes hv-skeleton {
@@ -55,15 +97,28 @@
             animation: hv-shift 2.6s ease-in-out infinite;
         }
         .hv-live-dot { animation: hv-soft-pulse 1.1s ease-in-out infinite; }
-        .hv-app-shell {
-            background:
-                linear-gradient(180deg, rgba(255,255,255,.95), rgba(248,250,252,.9)),
-                linear-gradient(135deg, rgba(255,255,255,.82), rgba(199,210,254,.18));
+        .hv-journey-progress {
+            border: 1px solid rgba(255,255,255,.82);
+            background: rgba(255,255,255,.72);
+            box-shadow: 0 12px 34px rgba(79,70,229,.08);
+        }
+        .hv-stepper {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: .45rem;
         }
         .hv-step {
             position: relative;
             isolation: isolate;
             overflow: hidden;
+            display: flex;
+            min-width: 0;
+            min-height: 4rem;
+            align-items: center;
+            gap: .55rem;
+            border-radius: 1rem;
+            padding: .6rem;
+            text-align: start;
         }
         .hv-step::before {
             content: '';
@@ -74,11 +129,10 @@
             transition: opacity .25s ease;
             background: linear-gradient(135deg, rgba(20,184,166,.18), rgba(99,102,241,.18), rgba(168,85,247,.12));
         }
-        .hv-step:hover::before { opacity: 1; }
         .hv-step-active {
             color: #fff;
             background: linear-gradient(135deg, #0f172a, #312e81 52%, #0f766e);
-            box-shadow: 0 18px 48px rgba(49,46,129,.28);
+            box-shadow: 0 12px 30px rgba(49,46,129,.2);
         }
         .hv-step-done {
             color: #065f46;
@@ -88,35 +142,136 @@
             color: #52525b;
             background: rgba(244,244,245,.78);
         }
-        .hv-lift {
-            transition: transform .22s ease, box-shadow .22s ease, background-color .22s ease;
+        .hv-step-marker {
+            display: grid;
+            width: 1.85rem;
+            height: 1.85rem;
+            flex: 0 0 auto;
+            place-items: center;
+            border-radius: .75rem;
+            font-size: 1rem;
+            font-weight: 700;
         }
-        .hv-lift:hover {
-            transform: translateY(-3px);
-            box-shadow: 0 20px 46px rgba(79,70,229,.16);
+        .hv-step-copy {
+            min-width: 0;
         }
+        .hv-step-title {
+            display: block;
+            overflow: hidden;
+            font-size: .75rem;
+            font-weight: 700;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .hv-step-caption {
+            display: none;
+            margin-top: .12rem;
+            overflow: hidden;
+            font-size: .67rem;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .hv-button {
+            min-height: 3rem;
+            align-items: center;
+            justify-content: center;
+            gap: .5rem;
+            border: 1px solid transparent;
+            border-radius: 1rem;
+            padding: .7rem 1.25rem;
+            font-size: .875rem;
+            font-weight: 700;
+            line-height: 1.35;
+            text-align: center;
+            text-decoration: none;
+            appearance: none;
+            cursor: pointer;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+            transition:
+                color .18s ease,
+                border-color .18s ease,
+                background-color .18s ease,
+                box-shadow .18s ease,
+                filter .18s ease;
+        }
+        .hv-button-compact {
+            min-height: 2.75rem;
+            border-radius: 1rem;
+            padding: .55rem .9rem;
+            font-size: .75rem;
+        }
+        .hv-button-icon {
+            width: 2.75rem;
+            min-width: 2.75rem;
+            min-height: 2.75rem;
+            border-radius: 9999px;
+            padding: 0;
+        }
+        .hv-button-primary,
         .hv-primary-action {
             border: 2px solid transparent;
+            color: #fff;
             background:
-                linear-gradient(135deg, #0f172a, #111827) padding-box,
-                linear-gradient(120deg, var(--hv-primary-color, #14b8a6), #22d3ee, #6366f1, #a855f7, var(--hv-primary-color, #14b8a6)) border-box;
-            background-size: 100% 100%, 260% 260%;
-            animation: hv-shift 4.5s ease-in-out infinite;
-            box-shadow: 0 14px 34px rgba(49,46,129,.24);
+                linear-gradient(135deg, color-mix(in srgb, var(--hv-primary-color, #0f766e) 24%, #4f46e5), #4338ca 52%, #0f766e) padding-box,
+                linear-gradient(110deg, #5eead4, #22d3ee, #818cf8, #c084fc, #5eead4) border-box;
+            background-size: 100% 100%, 260% 100%;
+            animation: hv-ai-border-flow 6s linear infinite;
+            box-shadow: 0 5px 16px rgba(67,56,202,.16), inset 0 1px 0 rgba(255,255,255,.2);
         }
-        .hv-primary-action:hover {
-            box-shadow: 0 18px 42px rgba(20,184,166,.24);
+        .hv-button-secondary,
+        .hv-secondary-action,
+        .hv-lift {
+            border-color: color-mix(in srgb, var(--hv-primary-color, #0f766e) 24%, #d4d4d8);
+            color: color-mix(in srgb, var(--hv-primary-color, #0f766e) 72%, #18181b);
+            background: rgba(255,255,255,.94);
+            box-shadow: inset 0 1px 0 rgba(255,255,255,.86);
         }
-        .hv-upload-zone::after {
+        .hv-button-on-dark {
+            border-color: rgba(255,255,255,.7);
+            color: #18181b;
+            background: rgba(255,255,255,.94);
+            box-shadow: 0 4px 14px rgba(0,0,0,.14);
+            backdrop-filter: blur(10px);
+        }
+        .hv-button:active:not(:disabled),
+        .hv-primary-action:active:not(:disabled),
+        .hv-secondary-action:active:not(:disabled),
+        .hv-lift:active:not(:disabled) {
+            filter: brightness(.97) saturate(.96);
+        }
+        .hv-button:disabled,
+        .hv-primary-action:disabled,
+        .hv-secondary-action:disabled {
+            border-color: #d4d4d8;
+            color: #71717a;
+            background: #e4e4e7;
+            animation: none;
+            box-shadow: none;
+            filter: none;
+        }
+        .hv-upload-dropzone::after {
             content: '';
             position: absolute;
-            inset: 12px;
-            border-radius: 1.25rem;
+            inset: 10px;
+            z-index: 0;
+            border-radius: 1.4rem;
             opacity: 0;
             transition: opacity .25s ease;
             background: linear-gradient(135deg, rgba(20,184,166,.1), rgba(99,102,241,.12), rgba(168,85,247,.08));
+            pointer-events: none;
         }
-        .hv-upload-zone:hover::after { opacity: 1; }
+        .hv-upload-dropzone:hover::after,
+        .hv-upload-dropzone.is-dragging::after { opacity: 1; }
+        .hv-upload-dropzone.is-dragging {
+            border-color: color-mix(in srgb, var(--hv-primary-color, #0f766e) 65%, #6366f1);
+            background: #eef2ff;
+            box-shadow: 0 0 0 4px rgba(99,102,241,.12);
+        }
+        .hv-upload-dropzone:has(#image:focus-visible) {
+            outline: 3px solid color-mix(in srgb, var(--hv-primary-color, #0f766e) 58%, #6366f1);
+            outline-offset: 3px;
+        }
         .hv-ai-input {
             background:
                 linear-gradient(#fff, #fff) padding-box,
@@ -138,20 +293,14 @@
             max-width: 9rem;
         }
         .hv-service-visual {
-            object-fit: contain;
-            transition: transform .35s ease, filter .35s ease;
+            object-fit: cover;
+            transition: filter .18s ease;
         }
-        .hv-treatment-card:hover .hv-service-visual,
         .hv-treatment-card.is-selected .hv-service-visual {
-            transform: scale(1.045);
             filter: saturate(1.08) contrast(1.04);
         }
         .hv-result-card img {
-            transition: transform .35s ease, filter .35s ease;
-        }
-        .hv-result-card:hover .hv-result-image {
-            transform: scale(1.045);
-            filter: saturate(1.08) contrast(1.03);
+            transition: filter .18s ease;
         }
         .hv-modal-image {
             transition: opacity .22s ease, transform .22s ease;
@@ -209,27 +358,122 @@
             background-size: 220% 100%;
             animation: hv-skeleton 1.6s linear infinite;
         }
-        .hv-upload-zone {
-            min-height: 15rem;
-            aspect-ratio: 4 / 5;
+        .hv-upload-composer {
+            overflow: hidden;
+            border: 1px solid rgba(228,228,231,.92);
+            border-radius: 2rem;
+            background: rgba(255,255,255,.94);
+            box-shadow: 0 24px 64px rgba(79,70,229,.1);
         }
+        .hv-upload-workspace {
+            min-width: 0;
+            padding: 1rem;
+        }
+        .hv-upload-dropzone {
+            position: relative;
+            isolation: isolate;
+            min-height: 18rem;
+            overflow: hidden;
+            border: 1.5px dashed #c7d2fe;
+            border-radius: 1.6rem;
+            background: linear-gradient(145deg, #fff, #fafaff 58%, #f0fdfa);
+            transition: border-color .2s ease, background-color .2s ease, box-shadow .2s ease;
+        }
+        .hv-image-picker,
+        .hv-image-selection-preview {
+            position: relative;
+            z-index: 1;
+            min-height: 18rem;
+        }
+        .hv-image-preview-media {
+            display: grid;
+            min-height: 13rem;
+            flex: 1 1 auto;
+            place-items: center;
+            overflow: hidden;
+            background:
+                linear-gradient(45deg, rgba(226,232,240,.45) 25%, transparent 25%),
+                linear-gradient(-45deg, rgba(226,232,240,.45) 25%, transparent 25%),
+                linear-gradient(45deg, transparent 75%, rgba(226,232,240,.45) 75%),
+                linear-gradient(-45deg, transparent 75%, rgba(226,232,240,.45) 75%),
+                #f8fafc;
+            background-position: 0 0, 0 8px, 8px -8px, -8px 0;
+            background-size: 16px 16px;
+        }
+        .hv-image-preview-media img {
+            width: 100%;
+            height: 100%;
+            max-height: 22rem;
+            object-fit: contain;
+        }
+        .hv-upload-guide {
+            min-width: 0;
+            padding: 1rem;
+            background:
+                radial-gradient(circle at 15% 12%, rgba(99,102,241,.12), transparent 32%),
+                linear-gradient(155deg, rgba(238,242,255,.94), rgba(236,253,245,.88));
+        }
+        .hv-upload-guide summary {
+            display: flex;
+            min-height: 3rem;
+            cursor: pointer;
+            list-style: none;
+            align-items: center;
+            justify-content: space-between;
+            gap: .75rem;
+            border-radius: 1rem;
+            outline: none;
+        }
+        .hv-upload-guide summary::-webkit-details-marker { display: none; }
+        .hv-upload-guide summary:focus-visible {
+            box-shadow: 0 0 0 3px rgba(99,102,241,.2);
+        }
+        .hv-upload-guide-caret {
+            transition: transform .2s ease;
+        }
+        .hv-upload-guide[open] .hv-upload-guide-caret {
+            transform: rotate(180deg);
+        }
+        .hv-upload-guide-content :where(p, ul, ol, blockquote) {
+            margin-block: .65rem;
+        }
+        .hv-upload-guide-content :where(ul, ol) {
+            padding-inline-start: 1.25rem;
+        }
+        .hv-upload-guide-content ul {
+            list-style: disc;
+        }
+        .hv-upload-guide-content ol {
+            list-style: decimal;
+        }
+        .hv-upload-guide-content li + li {
+            margin-top: .4rem;
+        }
+        .hv-upload-guide-content a {
+            color: #4338ca;
+            font-weight: 700;
+            text-decoration: underline;
+            text-underline-offset: 3px;
+        }
+        .hv-upload-guide-content blockquote {
+            border-inline-start: 3px solid color-mix(in srgb, var(--hv-primary-color, #0f766e) 55%, #c7d2fe);
+            padding-inline-start: .75rem;
+            color: #52525b;
+        }
+        .hv-consent-row {
+            min-height: 3.5rem;
+            transition: border-color .2s ease, background-color .2s ease;
+        }
+        .hv-consent-row:has(input:checked) {
+            border-color: color-mix(in srgb, var(--hv-primary-color, #0f766e) 45%, #a7f3d0);
+            background: color-mix(in srgb, var(--hv-primary-color, #0f766e) 5%, white);
+        }
+        .hv-action-control { min-height: 3rem; }
         .hv-otp-brand {
             border-color: color-mix(in srgb, var(--hv-primary-color, #0f766e) 22%, white);
             background:
                 radial-gradient(circle at 12% 10%, color-mix(in srgb, var(--hv-primary-color, #0f766e) 18%, transparent), transparent 34%),
                 linear-gradient(135deg, #ffffff, #f8fafc);
-        }
-        .hv-secondary-action {
-            border: 1px solid color-mix(in srgb, var(--hv-primary-color, #0f766e) 26%, #e4e4e7);
-            color: color-mix(in srgb, var(--hv-primary-color, #0f766e) 86%, #18181b);
-            background: color-mix(in srgb, var(--hv-primary-color, #0f766e) 6%, white);
-        }
-        .hv-secondary-action:hover:not(:disabled) {
-            background: color-mix(in srgb, var(--hv-primary-color, #0f766e) 12%, white);
-        }
-        .hv-secondary-action:disabled {
-            color: #71717a;
-            background: #f4f4f5;
         }
         .hv-treatment-card {
             cursor: pointer;
@@ -237,13 +481,57 @@
             background:
                 linear-gradient(135deg, rgba(255,255,255,.96), rgba(248,250,252,.9)),
                 linear-gradient(135deg, color-mix(in srgb, var(--hv-primary-color, #0f766e) 10%, transparent), rgba(99,102,241,.08));
-            transition: transform .22s ease, box-shadow .22s ease, border-color .22s ease;
+            transition: border-color .18s ease, background-color .18s ease, box-shadow .18s ease, filter .18s ease;
         }
-        .hv-treatment-card:hover,
         .hv-treatment-card.is-selected {
-            transform: translateY(-3px);
             border-color: color-mix(in srgb, var(--hv-primary-color, #0f766e) 44%, #a5b4fc);
-            box-shadow: 0 22px 46px rgba(79,70,229,.16);
+            box-shadow: 0 0 0 3px rgba(99,102,241,.1);
+        }
+        .hv-output-option {
+            min-height: 7.5rem;
+            border: 1px solid #e4e4e7;
+            color: #27272a;
+            background: #fff;
+            transition: border-color .18s ease, background-color .18s ease, box-shadow .18s ease, filter .18s ease;
+        }
+        .hv-output-option.is-selected {
+            border: 2px solid transparent;
+            color: #fff;
+            background:
+                linear-gradient(135deg, #4f46e5, #4338ca 54%, #0f766e) padding-box,
+                linear-gradient(110deg, #5eead4, #818cf8, #c084fc, #5eead4) border-box;
+            background-size: 100% 100%, 220% 100%;
+            box-shadow: 0 0 0 3px rgba(99,102,241,.1);
+        }
+        @media (hover: hover) and (pointer: fine) {
+            .hv-button-primary:hover:not(:disabled),
+            .hv-primary-action:hover:not(:disabled) {
+                filter: brightness(1.045) saturate(1.06);
+                box-shadow: 0 0 0 3px rgba(99,102,241,.1), 0 7px 18px rgba(67,56,202,.18);
+            }
+            .hv-button-secondary:hover:not(:disabled),
+            .hv-secondary-action:hover:not(:disabled),
+            .hv-lift:hover:not(:disabled) {
+                border-color: color-mix(in srgb, var(--hv-primary-color, #0f766e) 48%, #a5b4fc);
+                color: color-mix(in srgb, var(--hv-primary-color, #0f766e) 82%, #18181b);
+                background: color-mix(in srgb, var(--hv-primary-color, #0f766e) 7%, white);
+                box-shadow: 0 0 0 3px rgba(99,102,241,.07);
+            }
+            .hv-button-on-dark:hover:not(:disabled) {
+                border-color: #fff;
+                background: #fff;
+                box-shadow: 0 0 0 3px rgba(255,255,255,.16), 0 5px 16px rgba(0,0,0,.16);
+            }
+            .hv-treatment-card:hover,
+            .hv-output-option:hover {
+                border-color: color-mix(in srgb, var(--hv-primary-color, #0f766e) 40%, #a5b4fc);
+                background-color: color-mix(in srgb, var(--hv-primary-color, #0f766e) 4%, white);
+                box-shadow: 0 0 0 3px rgba(99,102,241,.07);
+            }
+            .hv-treatment-card:hover .hv-service-visual,
+            .hv-result-card:hover .hv-result-image {
+                filter: saturate(1.08) contrast(1.03);
+            }
         }
         .hv-treatment-icon {
             background: linear-gradient(135deg, var(--hv-primary-color, #0f766e), #4f46e5 56%, #c026d3);
@@ -258,11 +546,127 @@
         #imageModal button:disabled {
             cursor: not-allowed;
         }
+        .hv-button:focus-visible,
+        #landingApp :where(button, a, label[for]):focus-visible,
+        #imageModal :where(button, a):focus-visible {
+            outline: 3px solid color-mix(in srgb, var(--hv-primary-color, #0f766e) 58%, #6366f1);
+            outline-offset: 3px;
+        }
+        @media (min-width: 640px) {
+            .hv-step-caption { display: block; }
+            .hv-step-title { font-size: .82rem; }
+        }
+        @media (min-width: 1024px) {
+            .hv-upload-composer {
+                display: grid;
+                grid-template-columns: minmax(17rem, 1fr) minmax(0, 2fr);
+                align-items: stretch;
+            }
+            .hv-upload-workspace {
+                border-inline-start: 1px solid rgba(224,231,255,.92);
+                padding: 1.25rem;
+            }
+            .hv-upload-guide {
+                padding: 1.25rem;
+            }
+            .hv-upload-guide summary {
+                cursor: default;
+            }
+            .hv-upload-guide-caret {
+                display: none;
+            }
+        }
+        @media (max-width: 639px) {
+            .hv-journey-progress {
+                border-radius: 1.25rem;
+                padding: .65rem;
+            }
+            .hv-stepper { gap: .3rem; }
+            .hv-step {
+                min-height: 3.35rem;
+                flex-direction: column;
+                justify-content: center;
+                gap: .25rem;
+                padding: .4rem .2rem;
+                text-align: center;
+            }
+            .hv-step-marker {
+                width: 1.6rem;
+                height: 1.6rem;
+                border-radius: .65rem;
+            }
+            .hv-step-title { font-size: .68rem; }
+            .hv-upload-workspace,
+            .hv-upload-guide { padding: .85rem; }
+            .hv-upload-guide {
+                border-bottom: 1px solid rgba(199,210,254,.72);
+            }
+            .hv-upload-dropzone,
+            .hv-image-picker,
+            .hv-image-selection-preview {
+                min-height: 15.5rem;
+            }
+            .hv-image-preview-media { min-height: 11.5rem; }
+            #outputChoicePanel {
+                border-radius: 1.25rem;
+                padding: .75rem;
+            }
+            #outputOptions {
+                grid-template-columns: repeat(3, minmax(0, 1fr));
+                gap: .4rem;
+            }
+            .hv-output-option {
+                display: grid;
+                min-height: 3rem;
+                place-items: center;
+                padding: .45rem .3rem;
+                text-align: center;
+            }
+            .hv-output-title {
+                overflow-wrap: anywhere;
+                font-size: .7rem;
+                line-height: 1.45;
+            }
+            .hv-output-description,
+            .hv-output-status {
+                display: none;
+            }
+            .hv-mobile-action {
+                width: 100%;
+            }
+        }
+        @media (prefers-reduced-motion: reduce) {
+            .hv-enter,
+            .hv-ai-cast,
+            .hv-live-dot,
+            .hv-button-primary,
+            .hv-primary-action,
+            .hv-ai-input,
+            .hv-skeleton,
+            .hv-thinking-dots span {
+                animation: none !important;
+            }
+            .hv-button,
+            .hv-primary-action,
+            .hv-secondary-action,
+            .hv-lift,
+            .hv-treatment-card,
+            .hv-output-option,
+            .hv-step::before,
+            .hv-service-visual,
+            .hv-result-card img,
+            .hv-modal-image,
+            .hv-upload-guide-caret {
+                transition: none !important;
+            }
+        }
     </style>
 </head>
 <body class="min-h-screen bg-[#eef2ff] font-sans text-zinc-900 antialiased" style="--hv-primary-color: <?php echo e($primaryColor); ?>;" data-landing-template="<?php echo e($landingTheme['template_code']); ?>">
+    <?php echo $landingTheme['tracking_body_code'] ?? ''; ?>
+
     <div class="flex min-h-screen flex-col">
-        <header class="w-full bg-white/85 shadow-sm shadow-zinc-200/60 backdrop-blur">
+        <header class="w-full bg-white/85 shadow-sm shadow-zinc-200/60 backdrop-blur z-10">
             <?php echo $landingTheme['header_html']; ?>
 
         </header>
@@ -276,48 +680,60 @@
             <section class="relative isolate overflow-hidden px-4 py-6 sm:px-6 lg:py-8">
                 <div class="absolute inset-0 -z-10 bg-[linear-gradient(135deg,#ecfeff_0%,#f8fafc_32%,#eef2ff_68%,#faf5ff_100%)]"></div>
 
-                <div id="landingApp" class="mx-auto w-full max-w-6xl">
-                    <section class="hv-app-shell rounded-3xl p-4 shadow-2xl shadow-indigo-100/90 backdrop-blur sm:p-5 lg:p-6">
-                        <?php if(! empty($landingTheme['back_link_url'])): ?>
+                <div id="landingApp" class="mx-auto w-full max-w-7xl px-4">
+                    <section>
+                        <?php if(! empty($landingTheme['back_link_url']) && ! $landingTheme['renders_back_link_in_template']): ?>
                             <div class="mb-4 flex justify-end">
-                                <a href="<?php echo e($landingTheme['back_link_url']); ?>" class="hv-lift rounded-full bg-white px-4 py-2 text-sm font-bold text-zinc-700 ring-1 ring-zinc-200">
+                                <a href="<?php echo e($landingTheme['back_link_url']); ?>" target="<?php echo e($landingTheme['back_link_target']); ?>"<?php if($landingTheme['back_link_target'] === '_blank'): ?> rel="noopener noreferrer"<?php endif; ?> class="hv-button hv-button-secondary hv-button-compact inline-flex">
                                     <?php echo e($landingTheme['back_link_title'] ?? 'بازگشت به سایت'); ?>
                                 </a>
                             </div>
                         <?php endif; ?>
-                        <div class="space-y-5">
-                            <div class="space-y-3">
-                                <div class="h-2 overflow-hidden rounded-full bg-zinc-200/80">
+                        <div class="space-y-4 sm:space-y-5">
+                            <div id="journeyProgress" class="hv-journey-progress space-y-2 rounded-2xl p-3 sm:space-y-3 sm:rounded-3xl sm:p-4">
+                                <div class="flex items-center justify-between gap-3 text-xs font-bold">
+                                    <span id="stepProgressLabel" class="text-zinc-700">مرحله ۱ از ۴</span>
+                                    <span class="text-zinc-500">کمتر از چند دقیقه</span>
+                                </div>
+                                <div id="stepProgressTrack" class="h-1.5 overflow-hidden rounded-full bg-zinc-200/80" role="progressbar" aria-label="پیشرفت مراحل" aria-valuemin="1" aria-valuemax="4" aria-valuenow="1">
                                     <div id="stepProgress" class="h-full w-1/4 rounded-full bg-linear-to-l from-emerald-500 via-indigo-500 to-fuchsia-500 transition-all duration-500"></div>
                                 </div>
-                                <div class="grid gap-2 lg:grid-cols-4" aria-label="مراحل">
-                                <button type="button" data-step-indicator="1" class="step-indicator hv-step hv-step-active rounded-2xl px-3 py-3 text-right text-sm transition">
-                                    <span class="step-marker mb-2 grid h-7 w-7 place-items-center rounded-xl bg-white/15 text-xs font-bold">۱</span>
-                                    <span class="block font-bold">انتخاب</span>
-                                    <span class="text-xs text-white/70">نوع درمان</span>
-                                </button>
-                                <button type="button" data-step-indicator="2" class="step-indicator hv-step hv-step-upcoming rounded-2xl px-3 py-3 text-right text-sm transition">
-                                    <span class="step-marker mb-2 grid h-7 w-7 place-items-center rounded-xl bg-white text-xs font-bold text-zinc-500">۲</span>
-                                    <span class="block font-bold">تصویر</span>
-                                    <span class="text-xs text-zinc-500">انتخاب فایل</span>
-                                </button>
-                                <button type="button" data-step-indicator="3" class="step-indicator hv-step hv-step-upcoming rounded-2xl px-3 py-3 text-right text-sm transition">
-                                    <span class="step-marker mb-2 grid h-7 w-7 place-items-center rounded-xl bg-white text-xs font-bold text-zinc-500">۳</span>
-                                    <span class="block font-bold">موبایل</span>
-                                    <span class="text-xs text-zinc-500">OTP</span>
-                                </button>
-                                <button type="button" data-step-indicator="4" class="step-indicator hv-step hv-step-upcoming rounded-2xl px-3 py-3 text-right text-sm transition">
-                                    <span class="step-marker mb-2 grid h-7 w-7 place-items-center rounded-xl bg-white text-xs font-bold text-zinc-500">۴</span>
-                                    <span class="block font-bold">نتیجه</span>
-                                    <span class="text-xs text-zinc-500">مشاهده</span>
-                                </button>
-                                </div>
+                                <ol class="hv-stepper" aria-label="مراحل پیش‌نمایش">
+                                    <li data-step-indicator="1" class="step-indicator hv-step hv-step-active" aria-current="step">
+                                        <span class="step-marker hv-step-marker text-white">۱</span>
+                                        <span class="hv-step-copy">
+                                            <span class="step-label hv-step-title">کاربرد</span>
+                                            <span class="step-caption hv-step-caption text-white/70">نوع درمان</span>
+                                        </span>
+                                    </li>
+                                    <li data-step-indicator="2" class="step-indicator hv-step hv-step-upcoming">
+                                        <span class="step-marker hv-step-marker text-zinc-500">۲</span>
+                                        <span class="hv-step-copy">
+                                            <span class="step-label hv-step-title">تصویر</span>
+                                            <span class="step-caption hv-step-caption text-zinc-500">انتخاب عکس</span>
+                                        </span>
+                                    </li>
+                                    <li data-step-indicator="3" class="step-indicator hv-step hv-step-upcoming">
+                                        <span class="step-marker hv-step-marker text-zinc-500">۳</span>
+                                        <span class="hv-step-copy">
+                                            <span class="step-label hv-step-title">تایید</span>
+                                            <span class="step-caption hv-step-caption text-zinc-500">شماره موبایل</span>
+                                        </span>
+                                    </li>
+                                    <li data-step-indicator="4" class="step-indicator hv-step hv-step-upcoming">
+                                        <span class="step-marker hv-step-marker text-zinc-500">۴</span>
+                                        <span class="hv-step-copy">
+                                            <span class="step-label hv-step-title">نتیجه</span>
+                                            <span class="step-caption hv-step-caption text-zinc-500">ساخت تصویر</span>
+                                        </span>
+                                    </li>
+                                </ol>
                             </div>
 
-                            <section class="flow-step hv-enter space-y-5 rounded-3xl bg-white p-5 shadow-xl shadow-indigo-100/60" id="step1">
+                            <section class="flow-step hv-enter mb-0! space-y-4 rounded-3xl bg-white p-4 shadow-xl shadow-indigo-100/60 sm:space-y-5 sm:p-5" id="step1" aria-labelledby="step1Title">
                                 <div class="hv-otp-brand rounded-3xl border p-4">
                                     <p class="text-sm font-bold" style="color: var(--hv-primary-color);"><?php echo e($tenant->name ?? 'HairVision'); ?></p>
-                                    <h2 class="mt-1 text-xl font-bold text-zinc-950">اول کاربرد موردنظر را انتخاب کنید</h2>
+                                    <h2 id="step1Title" class="mt-1 text-xl font-bold text-zinc-950">برای چه تغییری پیش‌نمایش می‌خواهید؟</h2>
                                     <p class="mt-2 text-sm leading-7 text-zinc-500">گزینه‌ها بر اساس سرویس‌های فعال همین کلینیک نمایش داده می‌شوند.</p>
                                 </div>
 
@@ -328,48 +744,98 @@
 
                                 <p id="treatmentError" class="hidden text-sm text-rose-600"></p>
                                 <div class="flex justify-end">
-                                    <button id="continueToImage" type="button" class="hv-primary-action inline-flex min-w-44 justify-center rounded-2xl px-5 py-3 text-sm font-bold text-white transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-60" disabled>ادامه و انتخاب تصویر</button>
+                                    <button id="continueToImage" type="button" class="hv-button hv-button-primary hv-action-control hv-mobile-action inline-flex min-w-44" disabled>تایید و ادامه</button>
                                 </div>
                             </section>
 
-                            <section class="flow-step hidden space-y-5 rounded-3xl bg-white p-5 shadow-xl shadow-indigo-100/60" id="step2">
-                                <div>
-                                    <p class="text-sm font-bold text-indigo-600">بارگذاری تصویر</p>
-                                    <h2 class="mt-2 text-xl font-bold text-zinc-950">تصویر خود را انتخاب کنید</h2>
-                                    <p class="mt-2 text-sm leading-7 text-zinc-500">تصویر بعد از تایید شماره به‌صورت خصوصی برای همین کلینیک ذخیره می‌شود؛ سپس خروجی موردنظر را انتخاب می‌کنید.</p>
+                            <section class="flow-step hidden space-y-4 rounded-3xl bg-white p-4 shadow-xl shadow-indigo-100/60 sm:space-y-5 sm:p-5" id="step2" aria-labelledby="step2Title">
+                                <div class="flex flex-wrap items-end justify-between gap-3">
+                                    <div class="max-w-2xl">
+                                        <p class="text-sm font-bold text-indigo-600">یک عکس واضح، یک پیش‌نمایش دقیق‌تر</p>
+                                        <h2 id="step2Title" class="mt-1 text-xl font-bold text-zinc-950">تصویر مناسب را انتخاب کنید</h2>
+                                        <p class="mt-2 text-sm leading-7 text-zinc-500">عکس شما بعد از تایید شماره، خصوصی و فقط برای همین کلینیک ذخیره می‌شود.</p>
+                                    </div>
+                                    <span id="selectedUploadCategory" class="inline-flex min-h-9 items-center rounded-full bg-indigo-50 px-3 py-1.5 text-xs font-bold text-indigo-700 ring-1 ring-indigo-100"></span>
                                 </div>
 
-                                <div class="grid gap-4 lg:grid-cols-[minmax(15rem,22rem)_minmax(0,1fr)]">
-                                    <label for="image" class="hv-upload-zone group relative flex cursor-pointer flex-col items-center justify-center overflow-hidden rounded-3xl bg-white p-4 text-center ring-1 ring-zinc-200 transition hover:bg-indigo-50/60 hover:ring-indigo-200">
-                                        <input id="image" type="file" accept="image/*" class="sr-only" />
-                                        <img id="imagePreview" alt="پیش نمایش تصویر" class="hidden h-full w-full cursor-zoom-in rounded-2xl object-cover" />
-                                        <span id="imagePlaceholder" class="space-y-2">
-                                            <span class="relative z-10 mx-auto grid h-12 w-12 place-items-center rounded-2xl bg-linear-to-br from-zinc-950 via-indigo-800 to-emerald-700 text-xl text-white shadow-lg shadow-indigo-200 transition group-hover:scale-110" aria-hidden="true">
-                                                <span class="fi fi-rr-upload h-6 w-6"></span>
+                                <div class="hv-upload-composer">
+                                    <details id="uploadGuidePanel" class="hv-upload-guide" aria-labelledby="uploadGuideTitle" open>
+                                        <summary>
+                                            <span class="flex min-w-0 items-center gap-3">
+                                                <span class="grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-white text-indigo-700 shadow-sm ring-1 ring-indigo-100" aria-hidden="true">
+                                                    <span class="fi fi-rr-check h-5 w-5"></span>
+                                                </span>
+                                                <span class="min-w-0">
+                                                    <span class="block text-xs font-bold text-indigo-600">راهنمای عکس مناسب</span>
+                                                    <span id="uploadGuideTitle" class="mt-0.5 block text-sm font-bold leading-6 text-zinc-950">نکات عکس را ببینید</span>
+                                                </span>
                                             </span>
-                                            <span class="block text-sm font-bold text-zinc-800">انتخاب تصویر</span>
-                                            <span class="block text-xs text-zinc-500">JPG یا PNG تا ۵ مگابایت</span>
-                                        </span>
-                                    </label>
+                                            <span class="hv-upload-guide-caret fi fi-rr-angle-small-down h-5 w-5 shrink-0 text-indigo-700" aria-hidden="true"></span>
+                                        </summary>
+                                        <div id="uploadGuideContent" class="hv-upload-guide-content mt-3 text-sm leading-7 text-zinc-700" aria-live="polite"></div>
+                                    </details>
 
-                                    <div class="max-w-2xl space-y-4 rounded-3xl bg-white p-4 ring-1 ring-zinc-200 shadow-lg shadow-zinc-100/80">
-                                        <div class="flex items-start gap-3">
-                                            <input id="consent" type="checkbox" class="mt-1 h-4 w-4 rounded border-zinc-300 text-indigo-600 focus:ring-indigo-500" />
-                                            <label for="consent" class="text-sm leading-7 text-zinc-600"><?php echo e($landingTheme['consent_text']); ?></label>
+                                    <div class="hv-upload-workspace space-y-4">
+                                        <div class="flex items-center justify-between gap-3">
+                                            <p id="imageInputLabel" class="text-sm font-bold text-zinc-900">تصویر برای پیش‌نمایش</p>
+                                            <span class="text-xs text-zinc-500">فقط یک فایل</span>
                                         </div>
-                                        <p id="uploadError" class="hidden text-sm text-rose-600"></p>
-                                        <div class="flex flex-wrap gap-3">
-                                            <button id="continueToPhone" class="hv-primary-action inline-flex min-w-44 justify-center rounded-2xl px-5 py-3 text-sm font-bold text-white transition hover:-translate-y-0.5">ادامه و تایید شماره</button>
-                                            <button id="backToTreatment" class="hv-lift inline-flex min-w-28 justify-center rounded-2xl bg-white px-5 py-3 text-sm font-bold text-zinc-700 ring-1 ring-zinc-200">بازگشت</button>
+                                        <div id="uploadDropZone" class="hv-upload-dropzone">
+                                            <input id="image" type="file" accept="image/jpeg,image/png,image/webp,image/heic,image/heif,.heic,.heif" class="sr-only" aria-labelledby="imageInputLabel" aria-describedby="imageRequirements imagePreparationStatus uploadError" />
+                                            <label id="imagePicker" for="image" class="hv-image-picker group flex cursor-pointer flex-col items-center justify-center p-5 text-center">
+                                                <span class="mx-auto grid h-14 w-14 place-items-center rounded-2xl bg-linear-to-br from-indigo-700 via-indigo-600 to-emerald-700 text-white shadow-sm shadow-indigo-200" aria-hidden="true">
+                                                    <span class="fi fi-rr-upload h-6 w-6"></span>
+                                                </span>
+                                                <span class="mt-4 block text-base font-bold text-zinc-950">برای انتخاب عکس لمس کنید</span>
+                                                <span class="mt-1 hidden text-sm text-zinc-500 sm:block">یا تصویر را اینجا بکشید و رها کنید</span>
+                                                <span id="imageRequirements" class="mt-3 inline-flex rounded-full bg-white px-3 py-1.5 text-xs font-bold text-zinc-500 ring-1 ring-zinc-200">JPG، PNG، WEBP، HEIC یا HEIF تا ۵ مگابایت</span>
+                                                <span class="mt-2 block text-xs leading-6 text-zinc-500">تصاویر آیفون پیش از ارسال، داخل مرورگر به JPG تبدیل می‌شوند.</span>
+                                            </label>
+
+                                            <div id="imageSelectionPreview" class="hv-image-selection-preview hidden flex-col" aria-live="polite">
+                                                <div class="hv-image-preview-media">
+                                                    <img id="imagePreview" alt="پیش‌نمایش کامل تصویر انتخاب‌شده" />
+                                                </div>
+                                                <div class="relative z-10 flex flex-wrap items-center justify-between gap-3 border-t border-zinc-200 bg-white/95 p-3">
+                                                    <div class="min-w-0">
+                                                        <p id="imageFileName" class="max-w-64 truncate text-sm font-bold text-zinc-900">تصویر انتخاب‌شده</p>
+                                                        <p id="imageFileStatus" class="mt-0.5 text-xs text-emerald-700">آماده ادامه مسیر</p>
+                                                    </div>
+                                                    <div class="flex flex-wrap gap-2">
+                                                        <button id="viewSelectedImage" type="button" class="hv-button hv-button-secondary hv-button-compact hv-action-control inline-flex">
+                                                            <span class="fi fi-rr-zoom-in h-4 w-4" aria-hidden="true"></span>
+                                                            مشاهده
+                                                        </button>
+                                                        <label for="image" class="hv-button hv-button-secondary hv-button-compact hv-action-control inline-flex cursor-pointer">تغییر عکس</label>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <p id="imagePreparationStatus" class="hidden rounded-2xl bg-indigo-50 px-3.5 py-3 text-sm font-bold leading-6 text-indigo-800 ring-1 ring-indigo-100" role="status" aria-live="polite"></p>
+
+                                        <div class="space-y-3">
+                                            <label for="consent" class="hv-consent-row flex cursor-pointer items-start gap-3 rounded-2xl border border-zinc-200 bg-zinc-50/75 p-3.5">
+                                                <input id="consent" type="checkbox" class="mt-0.5 h-5 w-5 shrink-0 rounded border-zinc-300 text-indigo-600 focus:ring-indigo-500" />
+                                                <span class="text-sm leading-7 text-zinc-700"><?php echo e($landingTheme['consent_text']); ?></span>
+                                            </label>
+                                            <div class="flex items-start gap-2 rounded-2xl bg-emerald-50/70 px-3.5 py-3 text-xs leading-6 text-emerald-900 ring-1 ring-emerald-100">
+                                                <span class="fi fi-rr-lock mt-0.5 h-4 w-4 shrink-0" aria-hidden="true"></span>
+                                                <span>تصویر عمومی نمی‌شود و مسیر ذخیره‌سازی آن در اختیار بازدیدکننده قرار نمی‌گیرد.</span>
+                                            </div>
+                                            <p id="uploadError" class="hidden rounded-2xl bg-rose-50 px-3.5 py-3 text-sm font-bold leading-6 text-rose-700 ring-1 ring-rose-100" role="alert" aria-live="assertive"></p>
+                                            <div class="flex flex-col gap-2 sm:flex-row">
+                                                <button id="continueToPhone" type="button" class="hv-button hv-button-primary hv-action-control inline-flex flex-1" disabled>ادامه و تایید شماره</button>
+                                                <button id="backToTreatment" type="button" class="hv-button hv-button-secondary hv-action-control inline-flex min-w-28">بازگشت</button>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
                             </section>
 
-                            <section class="flow-step hidden space-y-5 rounded-3xl bg-white p-5 shadow-xl shadow-indigo-100/60" id="step3">
+                            <section class="flow-step hidden space-y-4 rounded-3xl bg-white p-4 shadow-xl shadow-indigo-100/60 sm:space-y-5 sm:p-5" id="step3" aria-labelledby="step3Title">
                                 <div class="hv-otp-brand rounded-3xl border p-4">
                                     <p class="text-sm font-bold" style="color: var(--hv-primary-color);">تایید امن شماره</p>
-                                    <h2 class="mt-1 text-xl font-bold text-zinc-950">شماره موبایل را تایید کنید</h2>
+                                    <h2 id="step3Title" class="mt-1 text-xl font-bold text-zinc-950">شماره موبایل را تایید کنید</h2>
                                     <p class="mt-2 text-sm leading-7 text-zinc-500">بعد از تایید OTP، تصویر ذخیره می‌شود و اگر چند خروجی فعال باشد، خروجی موردنظر را همین‌جا انتخاب می‌کنید.</p>
                                 </div>
 
@@ -378,7 +844,7 @@
                                         <label for="phone" class="block text-sm font-bold text-zinc-800">شماره موبایل</label>
                                         <input id="phone" type="text" inputmode="numeric" autocomplete="tel" maxlength="11" pattern="[0-9۰-۹٠-٩]*" placeholder="۰۹۱۲۳۴۵۶۷۸۹" class="hv-ai-input mt-2 w-full rounded-2xl px-4 py-3 text-right text-base outline-none transition" />
                                         <p id="phoneError" class="mt-2 hidden text-sm text-rose-600"></p>
-                                        <button id="requestOtp" type="button" class="hv-primary-action mt-3 inline-flex min-w-40 justify-center rounded-2xl px-5 py-3 text-sm font-bold text-white transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-60">ارسال کد تایید</button>
+                                        <button id="requestOtp" type="button" class="hv-button hv-button-primary hv-action-control hv-mobile-action mt-3 inline-flex min-w-40">ارسال کد تایید</button>
                                     </div>
                                 </div>
 
@@ -399,25 +865,29 @@
                                 <div class="hidden rounded-2xl bg-zinc-50 p-3 ring-1 ring-zinc-200">
                                     <div class="flex flex-wrap items-center justify-between gap-2 text-sm">
                                         <span id="otpTimerText" class="font-bold text-zinc-700">زمان باقی‌مانده: <span id="otpCountdown" dir="ltr">۰۲:۰۰</span></span>
-                                        <button id="resendOtp" type="button" class="hv-secondary-action rounded-xl px-3 py-2 text-xs font-bold transition disabled:cursor-not-allowed" disabled>ارسال مجدد کد</button>
+                                        <button id="resendOtp" type="button" class="hv-button hv-button-secondary hv-button-compact inline-flex" disabled>ارسال مجدد کد</button>
                                     </div>
                                 </div>
 
                                 <p id="mobileError" class="hidden text-sm text-rose-600"></p>
 
                                 <div id="otpActionPanel" class="hidden max-w-xl flex-wrap gap-3">
-                                    <button id="verifyOtp" type="button" class="hv-primary-action inline-flex min-w-44 justify-center rounded-2xl px-5 py-3 text-sm font-bold text-white transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-60">تایید و شروع درخواست</button>
-                                    <button id="backToPhone" type="button" class="hv-lift inline-flex min-w-32 justify-center rounded-2xl bg-white px-5 py-3 text-sm font-bold text-zinc-700 ring-1 ring-zinc-200">تغییر شماره</button>
+                                    <button id="verifyOtp" type="button" class="hv-button hv-button-primary hv-action-control hv-mobile-action inline-flex min-w-44">تایید و شروع درخواست</button>
+                                    <button id="backToPhone" type="button" class="hv-button hv-button-secondary hv-action-control hv-mobile-action inline-flex min-w-32">تغییر شماره</button>
                                 </div>
                             </section>
 
-                            <section class="flow-step hidden space-y-5 rounded-3xl bg-white p-5 shadow-xl shadow-indigo-100/60" id="step4">
+                            <section class="flow-step hidden space-y-4 rounded-3xl bg-white p-4 shadow-xl shadow-indigo-100/60 sm:space-y-5 sm:p-5" id="step4" aria-labelledby="step4Title">
                                 <div class="flex flex-wrap items-end justify-between gap-4">
                                     <div>
                                         <p class="text-sm font-bold text-indigo-600">انتخاب خروجی و مشاهده نتیجه</p>
-                                        <h2 class="mt-2 text-xl font-bold text-zinc-950">خروجی موردنظر را انتخاب کنید</h2>
+                                        <h2 id="step4Title" class="mt-2 text-xl font-bold text-zinc-950">خروجی موردنظر را انتخاب کنید</h2>
                                         <p class="mt-2 text-sm leading-7 text-zinc-500">هر خروجی آماده شود همان لحظه نمایش داده می‌شود؛ می‌توانید خروجی دیگری از همین خدمت را هم به صف اضافه کنید.</p>
                                     </div>
+                                    <button id="newImageUpload" type="button" class="hv-button hv-button-secondary hv-button-compact hv-mobile-action inline-flex">
+                                        <span class="fi fi-rr-upload h-4 w-4" aria-hidden="true"></span>
+                                        <span>آپلود تصویر جدید</span>
+                                    </button>
                                 </div>
                                 <div id="outputChoicePanel" class="rounded-3xl bg-zinc-50 p-4 ring-1 ring-zinc-200">
                                     <div class="flex flex-wrap items-center justify-between gap-2">
@@ -427,8 +897,8 @@
                                         </div>
                                         <span id="outputChoiceCount" class="rounded-full bg-white px-3 py-1 text-xs font-bold text-zinc-500 ring-1 ring-zinc-200"></span>
                                     </div>
-                                    <div id="outputOptions" class="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"></div>
-                                    <button id="confirmOutputRequest" type="button" class="hidden hv-primary-action mt-4 w-full rounded-2xl px-5 py-3 text-sm font-bold text-white transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-60" disabled>تایید و ساخت خروجی انتخاب‌شده</button>
+                                    <div id="outputOptions" class="mt-3 grid grid-cols-3 gap-2 sm:grid-cols-2 sm:gap-3 lg:grid-cols-3 xl:grid-cols-4"></div>
+                                    <button id="confirmOutputRequest" type="button" class="hv-button hv-button-primary mt-4 hidden w-full" disabled>تایید و ساخت خروجی انتخاب‌شده</button>
                                 </div>
                                 <p id="generationError" class="hidden text-sm text-rose-600"></p>
                                 <div id="resultsContainer" class="hidden grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4"></div>
@@ -439,6 +909,8 @@
             </section>
         </main>
 
+        @include('public.partials.copyright')
+
         <footer class="w-full bg-white/85 shadow-[0_-1px_20px_rgba(24,24,27,0.04)] backdrop-blur">
             <?php echo $landingTheme['footer_html']; ?>
 
@@ -446,15 +918,15 @@
     </div>
 
     <div id="imageModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-zinc-950/85 p-4 backdrop-blur">
-        <button id="closeImageModal" class="absolute left-4 top-4 inline-flex items-center gap-2 rounded-full bg-white px-4 py-2 text-sm font-bold text-zinc-950 shadow-lg transition hover:-translate-y-0.5" aria-label="بستن تصویر">
+        <button id="closeImageModal" class="hv-button hv-button-on-dark hv-button-compact absolute left-4 top-4 inline-flex" aria-label="بستن تصویر">
             <span class="fi fi-rr-cross-small h-4 w-4" aria-hidden="true"></span>
             <span>بستن</span>
         </button>
-        <a id="downloadImageModal" class="absolute right-4 top-4 hidden items-center gap-2 rounded-full bg-white px-4 py-2 text-sm font-bold text-zinc-950 shadow-lg transition hover:-translate-y-0.5" href="#" download data-gallery-download>
+        <a id="downloadImageModal" class="hv-button hv-button-on-dark hv-button-compact absolute right-4 top-4 hidden items-center" href="#" download data-gallery-download>
             <span class="fi fi-rr-arrow-down h-4 w-4" aria-hidden="true"></span>
             <span>دانلود</span>
         </a>
-        <button id="prevImageModal" class="absolute right-4 top-1/2 grid h-11 w-11 -translate-y-1/2 place-items-center rounded-full bg-white/95 text-xl font-bold text-zinc-950 shadow-lg transition hover:scale-105 sm:right-8" aria-label="تصویر قبلی">
+        <button id="prevImageModal" class="hv-button hv-button-on-dark hv-button-icon absolute right-4 top-1/2 grid -translate-y-1/2 place-items-center text-xl sm:right-8" aria-label="تصویر قبلی">
             <span class="fi fi-rr-arrow-small-right h-5 w-5" aria-hidden="true"></span>
         </button>
         <figure class="w-full max-w-5xl">
@@ -463,7 +935,7 @@
             <figcaption id="modalCaption" class="mt-4 text-center text-sm font-bold text-white"></figcaption>
         </figure>
         <p id="modalToast" class="hv-modal-toast absolute bottom-4 left-4 right-4 hidden rounded-2xl px-4 py-3 text-center text-sm font-bold leading-7 text-white sm:left-1/2 sm:right-auto sm:w-full sm:max-w-xl sm:-translate-x-1/2"></p>
-        <button id="nextImageModal" class="absolute left-4 top-1/2 grid h-11 w-11 -translate-y-1/2 place-items-center rounded-full bg-white/95 text-xl font-bold text-zinc-950 shadow-lg transition hover:scale-105 sm:left-8" aria-label="تصویر بعدی">
+        <button id="nextImageModal" class="hv-button hv-button-on-dark hv-button-icon absolute left-4 top-1/2 grid -translate-y-1/2 place-items-center text-xl sm:left-8" aria-label="تصویر بعدی">
             <span class="fi fi-rr-arrow-small-left h-5 w-5" aria-hidden="true"></span>
         </button>
     </div>
@@ -482,6 +954,10 @@
         'pollInitialIntervalMs' => config('hairvision.image_queue.poll_initial_interval_ms'),
         'pollMaxIntervalMs' => config('hairvision.image_queue.poll_max_interval_ms'),
         'softTimeoutMs' => config('hairvision.generation.soft_timeout_ms'),
+        'analytics' => [
+            'visitToken' => $landingAnalyticsToken,
+            'endpoint' => '/api/v1/landing/events',
+        ],
     ];
 ?>
 <script>

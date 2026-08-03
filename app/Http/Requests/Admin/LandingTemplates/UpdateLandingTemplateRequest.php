@@ -4,12 +4,15 @@ namespace App\Http\Requests\Admin\LandingTemplates;
 
 use App\Rules\InlineLandingTemplateHtml;
 use App\Rules\PrimaryLandingAssetPath;
+use App\Rules\TrackingCodeFragment;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 /**
  * Validates updates to a centrally managed landing template.
  *
  * @since 2.0.0
+ * @since 2.1.0 Behavior updated for the 2.1.0 release.
  */
 class UpdateLandingTemplateRequest extends FormRequest
 {
@@ -31,6 +34,7 @@ class UpdateLandingTemplateRequest extends FormRequest
      * @return array<string, mixed> Validation rules.
      *
      * @since 2.0.0
+     * @since 2.1.0 Behavior updated for the 2.1.0 release.
      */
     public function rules(): array
     {
@@ -40,6 +44,12 @@ class UpdateLandingTemplateRequest extends FormRequest
             'primary_color' => ['required', 'string', 'regex:/^#[0-9a-fA-F]{6}$/'],
             'favicon_path' => ['nullable', 'string', 'max:2048', new PrimaryLandingAssetPath],
             'consent_text' => ['required', 'string', 'max:5000'],
+            'seo_title' => ['nullable', 'string', 'max:70'],
+            'seo_description' => ['nullable', 'string', 'max:320'],
+            'seo_image_path' => ['nullable', 'string', 'max:2048', new PrimaryLandingAssetPath],
+            'seo_robots' => ['required', 'string', Rule::in(['index,follow', 'noindex,follow', 'noindex,nofollow'])],
+            'tracking_head_code' => ['nullable', 'string', 'max:100000', new TrackingCodeFragment],
+            'tracking_body_code' => ['nullable', 'string', 'max:100000', new TrackingCodeFragment],
             'header_html' => ['required', 'string', 'max:250000', new InlineLandingTemplateHtml],
             'body_html' => ['nullable', 'string', 'max:250000', new InlineLandingTemplateHtml],
             'footer_html' => ['required', 'string', 'max:250000', new InlineLandingTemplateHtml],
@@ -55,10 +65,12 @@ class UpdateLandingTemplateRequest extends FormRequest
      * @return void No value is returned.
      *
      * @since 2.0.0
+     * @since 2.1.0 Behavior updated for the 2.1.0 release.
      */
     protected function prepareForValidation(): void
     {
         $this->merge([
+            'seo_robots' => (string) $this->input('seo_robots', 'index,follow'),
             'is_active' => filter_var($this->input('is_active', true), FILTER_VALIDATE_BOOLEAN),
         ]);
     }

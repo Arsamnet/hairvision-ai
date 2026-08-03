@@ -12,6 +12,7 @@ use Illuminate\Validation\Rule;
  * Validates CRM follow-up entries without requiring full lead edits.
  *
  * @since 1.0.0
+ * @since 2.1.0 Behavior updated for the 2.1.0 release.
  */
 class StoreFollowUpRequest extends FormRequest
 {
@@ -49,11 +50,12 @@ class StoreFollowUpRequest extends FormRequest
      * @return array<string, mixed>
      *
      * @since 1.0.0
+     * @since 2.1.0 Behavior updated for the 2.1.0 release.
      */
     public function rules(): array
     {
         return [
-            'status' => ['required', Rule::in(StateCatalog::values('leads.crm_stages'))],
+            'status' => ['required', Rule::in(StateCatalog::values('leads.statuses'))],
             'note' => ['required', 'string', 'max:2000'],
             'communication_channel' => ['nullable', Rule::in(StateCatalog::values('lead_notes.communication_channels'))],
             'next_follow_up_at' => ['nullable', new JalaliDateTime],

@@ -1,10 +1,16 @@
 <?php
 
+/**
+ * Provides Persian SMS-gateway copy revised for the 2.1.0 release.
+ *
+ * @since 2.1.0
+ */
 return [
     'clinic_gateway_name' => 'درگاه پیامک کلینیک',
     'system_gateways_title' => 'درگاه‌های پیامک',
     'created' => 'درگاه پیامک ساخته شد.',
     'updated' => 'درگاه پیامک به‌روزرسانی شد.',
+    'default_updated' => 'درگاه پیامک پیش‌فرض با موفقیت تغییر کرد.',
     'deleted' => 'درگاه پیامک حذف شد.',
     'private_updated' => 'درگاه پیامک کلینیک به‌روزرسانی شد.',
     'private_deleted' => 'درگاه پیامک اختصاصی کلینیک حذف شد.',
@@ -27,12 +33,15 @@ return [
     'activate_clinic_gateway' => 'فعال‌سازی درگاه پیامک کلینیک',
     'select_clinic' => 'کلینیک را انتخاب کنید',
     'details' => 'مشاهده',
+    'make_default' => 'انتخاب به‌عنوان پیش‌فرض',
     'edit_gateway' => 'ویرایش درگاه پیامک',
     'delete' => 'حذف',
     'protected' => 'محافظت‌شده',
-    'protected_hint' => 'این سرویس سیستمی برای دیباگ و تست ضروری است و قابل ویرایش یا حذف نیست.',
+    'protected_hint' => 'این سرویس فقط در محیط غیرعملیاتی، با دیباگ روشن و فعال‌سازی صریح در فایل env قابل استفاده است و از داشبورد قابل ویرایش یا حذف نیست.',
     'protected_mutation_denied' => 'سرویس پیامک دیباگ و تست محافظت‌شده است و قابل ویرایش یا حذف نیست.',
     'protected_duplicate_denied' => 'سرویس پیامک دیباگ و تست سیستمی از قبل وجود دارد و قابل تکرار نیست.',
+    'debug_gateway_env_only' => 'سرویس پیامک دیباگ و تست فقط از طریق فایل env مدیریت می‌شود.',
+    'debug_gateway_unavailable' => 'سرویس پیامک دیباگ و تست در این محیط غیرفعال است.',
     'empty_gateways' => 'درگاه پیامکی برای نمایش وجود ندارد.',
     'missing_api_key' => 'توکن Authorization درگاه پیامک وارد نشده است.',
     'missing_from_number' => 'شماره فرستنده درگاه پیامک وارد نشده است.',

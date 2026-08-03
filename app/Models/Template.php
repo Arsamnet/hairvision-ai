@@ -12,6 +12,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * Public landing-page template option for tenant theme settings.
  *
  * @since 1.0.0
+ * @since 2.1.0 Behavior updated for the 2.1.0 release.
  */
 class Template extends Model
 {
@@ -24,6 +25,12 @@ class Template extends Model
         'primary_color',
         'favicon_path',
         'consent_text',
+        'seo_title',
+        'seo_description',
+        'seo_image_path',
+        'seo_robots',
+        'tracking_head_code',
+        'tracking_body_code',
         'header_html',
         'body_html',
         'footer_html',

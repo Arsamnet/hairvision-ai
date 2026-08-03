@@ -1,5 +1,10 @@
 <?php
 
+/**
+ * Provides Persian AI-model copy revised for the 2.1.0 release.
+ *
+ * @since 2.1.0
+ */
 return [
     'title' => 'مدل‌های هوش مصنوعی',
     'subtitle' => 'مدیریت دسترسی امن به مدل‌های تعریف‌شده در پیکربندی سیستم.',
@@ -84,7 +89,10 @@ return [
         'sort_order' => 'ترتیب نمایش',
         'icon_code' => 'کد آیکون',
         'card_image' => 'تصویر کارت لندینگ',
-        'card_image_hint' => 'PNG، JPG یا WebP تا ۱ مگابایت. SVGهای پیش‌فرض سیستم از seed خوانده می‌شوند.',
+        'card_image_hint' => 'PNG، JPG یا WebP تا ۱ مگابایت. برای نمایش بهتر، تصویر مربع و سوژه کلوزآپ باشد.',
+        'clear_card_image_selection' => 'پاک‌کردن انتخاب',
+        'remove_card_image' => 'حذف تصویر فعلی',
+        'remove_card_image_hint' => 'پس از ذخیره، آیکون کاربرد به‌جای تصویر نمایش داده می‌شود.',
         'archive' => 'آرشیو',
         'activate' => 'فعال‌سازی',
         'deactivate' => 'غیرفعال‌سازی',
@@ -94,6 +102,10 @@ return [
         'example_code' => 'filler_under_the_eyes',
         'name_placeholder' => 'مثلا فیلر زیر چشم',
         'description_placeholder' => 'توضیح کوتاه برای مدیران سیستم و فرم‌های داخلی',
+        'upload_guide_label' => 'راهنمای عکس مراجعه‌کننده',
+        'upload_guide_hint' => 'این محتوا پس از انتخاب کاربرد، در ستون راهنمای مرحله بارگذاری تصویر لندینگ کلینیک نمایش داده می‌شود. فقط قالب‌بندی و لینک امن ذخیره خواهد شد.',
+        'upload_guide_placeholder' => 'شرایط نور، زاویه، کادربندی و نکات اختصاصی عکس مناسب این کاربرد را بنویسید…',
+        'upload_guide_preview' => 'راهنمای عکس در لندینگ',
         'sort_placeholder' => 'مثلا ۳۰',
         'icon_placeholder' => 'مثلا eye یا fi-rr-eye',
         'messages' => [

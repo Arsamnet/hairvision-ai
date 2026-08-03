@@ -1,5 +1,10 @@
 <?php
 
+/**
+ * Provides Persian lead-management copy revised for the 2.1.0 release.
+ *
+ * @since 2.1.0
+ */
 return [
     'title' => 'لیدها',
     'details_title' => 'مشاهده لید',
@@ -8,6 +13,7 @@ return [
     'manage' => 'مدیریت لیدها',
     'new_lead' => 'لید جدید',
     'edit' => 'ویرایش',
+    'delete' => 'حذف لید',
     'details' => 'مشاهده',
     'submit_create' => 'ثبت لید',
     'save_changes' => 'ذخیره تغییرات',
@@ -15,23 +21,26 @@ return [
     'no_owner' => 'بدون مسئول',
     'new_note' => 'یادداشت جدید',
     'filter' => 'فیلتر',
-    'search_placeholder' => 'جستجو نام، موبایل یا منبع',
+    'search_placeholder' => 'جستجو نام، موبایل، شهر یا منبع',
     'all_statuses' => 'همه وضعیت‌ها',
-    'all_stages' => 'همه مراحل',
     'empty_filtered' => 'هیچ لیدی با این فیلترها پیدا نشد.',
     'empty_name' => 'لید بدون نام',
     'no_name' => 'بدون نام',
     'system_user' => 'سیستم',
     'created' => 'لید جدید ثبت شد.',
     'updated' => 'لید به‌روزرسانی شد.',
+    'deleted' => 'لید و اطلاعات وابسته آن حذف شد.',
+    'confirm_delete' => 'با حذف این لید، اطلاعات CRM، تصاویر و تاریخچه پردازش آن برای همیشه حذف می‌شود. ادامه می‌دهید؟',
+    'delete_blocked_active_generation' => 'تا پایان یا لغو پردازش‌های فعال، حذف این لید امکان‌پذیر نیست.',
 
     'fields' => [
         'name' => 'نام',
         'full_name' => 'نام کامل',
+        'age' => 'سن',
+        'city' => 'شهر',
         'phone' => 'موبایل',
         'mobile' => 'شماره موبایل',
         'status' => 'وضعیت',
-        'crm_stage' => 'مرحله CRM',
         'source' => 'منبع',
         'owner' => 'مسئول',
         'created_at' => 'ثبت',
@@ -41,27 +50,21 @@ return [
 
     'statuses' => [
         'new' => 'جدید',
-        'verified' => 'تایید شده',
-        'contacted' => 'تماس گرفته شد',
-        'qualified' => 'واجد شرایط',
-        'archived' => 'آرشیو شده',
+        'needs_follow_up' => 'نیاز به پیگیری',
+        'no_answer' => 'عدم پاسخ',
+        'successful' => 'موفق شده',
+        'canceled' => 'لغو شده',
+    ],
+
+    'filters' => [
+        'age_from' => 'سن از',
+        'age_until' => 'سن تا',
     ],
 
     'upload_statuses' => [
         'uploaded' => 'بارگذاری شده',
         'validated' => 'اعتبارسنجی شده',
         'rejected' => 'رد شده',
-    ],
-
-    'crm_stages' => [
-        'new_lead' => 'جدید',
-        'contacted' => 'تماس گرفته شد',
-        'no_answer' => 'پاسخ نداده',
-        'needs_follow_up' => 'نیاز به پیگیری',
-        'consultation_booked' => 'وقت مشاوره ثبت شد',
-        'converted' => 'تبدیل شده',
-        'lost' => 'از دست رفته',
-        'canceled' => 'لغو شده',
     ],
 
     'uploads' => [

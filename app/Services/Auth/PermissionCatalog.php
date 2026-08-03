@@ -9,6 +9,7 @@ use Illuminate\Support\Collection;
  * Canonical permission and access-level definitions for HairVision.
  *
  * @since 1.0.0
+ * @since 2.1.0 Behavior updated for the 2.1.0 release.
  */
 class PermissionCatalog
 {
@@ -18,6 +19,7 @@ class PermissionCatalog
      * @return array<string, array<int, array{code: string, name: string, description?: string}>>
      *
      * @since 1.0.0
+     * @since 2.1.0 Behavior updated for the 2.1.0 release.
      */
     public function permissions(): array
     {
@@ -107,6 +109,7 @@ class PermissionCatalog
             ],
             'settings' => [
                 ['code' => 'settings.manage', 'name' => 'مدیریت تنظیمات سیستم'],
+                ['code' => 'clinic_settings.manage', 'name' => 'مدیریت تنظیمات کلینیک'],
             ],
             'guide' => [
                 ['code' => 'guide.manage', 'name' => 'مدیریت محتوای راهنما'],
@@ -224,6 +227,7 @@ class PermissionCatalog
      * @return array<string, array{name: string, description: string, scope: string, permissions: array<int, string>}>
      *
      * @since 1.0.0
+     * @since 2.1.0 Behavior updated for the 2.1.0 release.
      */
     public function roles(): array
     {
@@ -246,6 +250,7 @@ class PermissionCatalog
                     'leads.view',
                     'leads.create',
                     'leads.edit',
+                    'leads.delete',
                     'notifications.view',
                     'users.list',
                     'users.search',
@@ -260,6 +265,7 @@ class PermissionCatalog
                     'reports.user.view',
                     'sms_gateways.view',
                     'sms_gateways.edit',
+                    'clinic_settings.manage',
                 ],
             ],
             'editor' => [

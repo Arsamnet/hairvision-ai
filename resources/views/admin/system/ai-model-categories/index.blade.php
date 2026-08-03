@@ -1,3 +1,4 @@
+{{-- @since 2.1.0 Adds safe application card-image replacement and removal controls. --}}
 @extends('admin.layout')
 
 @section('title', __('ai_models.categories.title'))
@@ -41,11 +42,16 @@
                             <span>{{ __('ai_models.categories.icon_code') }}</span>
                             <input name="icon" value="{{ old('icon') }}" dir="ltr" class="h-11 rounded-lg border border-zinc-200 px-3 text-sm outline-none focus:border-teal-500" placeholder="{{ __('ai_models.categories.icon_placeholder') }}">
                         </label>
-                        <label class="grid gap-1 text-sm font-bold md:col-span-2">
-                            <span>{{ __('ai_models.categories.card_image') }}</span>
-                            <input name="card_image" type="file" accept="image/png,image/jpeg,image/webp" class="rounded-lg border border-zinc-200 px-3 py-2 text-sm outline-none file:ml-3 file:rounded-md file:border-0 file:bg-teal-50 file:px-3 file:py-1.5 file:text-xs file:font-bold file:text-teal-700 focus:border-teal-500">
+                        <div data-card-image-field class="grid gap-1 text-sm font-bold md:col-span-2">
+                            <label for="create-category-card-image">{{ __('ai_models.categories.card_image') }}</label>
+                            <div class="flex flex-col gap-2 sm:flex-row sm:items-center">
+                                <input id="create-category-card-image" name="card_image" type="file" accept="image/png,image/jpeg,image/webp" data-card-image-input class="min-w-0 flex-1 rounded-lg border border-zinc-200 px-3 py-2 text-sm outline-none file:ml-3 file:rounded-md file:border-0 file:bg-teal-50 file:px-3 file:py-1.5 file:text-xs file:font-bold file:text-teal-700 focus:border-teal-500">
+                                <x-admin.button type="button" variant="danger-outline" size="sm" data-card-image-clear disabled class="shrink-0 disabled:cursor-not-allowed disabled:opacity-40">
+                                    {{ __('ai_models.categories.clear_card_image_selection') }}
+                                </x-admin.button>
+                            </div>
                             <span class="text-xs font-normal leading-6 text-zinc-500">{{ __('ai_models.categories.card_image_hint') }}</span>
-                        </label>
+                        </div>
                         <label class="grid gap-1 text-sm font-bold">
                             <span>{{ __('ai_models.status') }}</span>
                             <select name="status" class="h-11 rounded-lg border border-zinc-200 px-3 text-sm outline-none focus:border-teal-500">
@@ -58,6 +64,16 @@
                             <span>{{ __('system.description') }}</span>
                             <textarea name="description" rows="3" class="rounded-lg border border-zinc-200 px-3 py-2 text-sm leading-7 outline-none focus:border-teal-500" placeholder="{{ __('ai_models.categories.description_placeholder') }}">{{ old('description') }}</textarea>
                         </label>
+                        <div class="md:col-span-2">
+                            <x-admin.rich-text-editor
+                                name="upload_guide_html"
+                                :value="old('upload_guide_html')"
+                                :label="__('ai_models.categories.upload_guide_label')"
+                                :placeholder="__('ai_models.categories.upload_guide_placeholder')"
+                                :maxlength="20000"
+                            />
+                            <p class="mt-1 text-xs font-normal leading-6 text-zinc-500">{{ __('ai_models.categories.upload_guide_hint') }}</p>
+                        </div>
                         <x-admin.button type="submit" icon="check" class="md:col-span-2">
                             <span>{{ __('messages.save') }}</span>
                         </x-admin.button>
@@ -127,7 +143,7 @@
                             <td class="px-4 py-3">
                                 <div class="flex min-w-0 items-start gap-3">
                                     @if($category->cardImageUrl())
-                                        <img src="{{ $category->cardImageUrl() }}" alt="" class="mt-0.5 h-9 w-9 shrink-0 rounded-lg bg-teal-50 object-contain p-1.5 ring-1 ring-teal-100">
+                                        <img src="{{ $category->cardImageUrl() }}" alt="" class="mt-0.5 h-9 w-9 shrink-0 rounded-lg bg-teal-50 object-cover ring-1 ring-teal-100">
                                     @else
                                         <span class="mt-0.5 grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-teal-50 text-teal-700 ring-1 ring-teal-100">
                                             <x-admin.category-icon :category="$category" class="h-4 w-4" />
@@ -166,7 +182,7 @@
                     <div class="admin-mobile-list-card-header">
                         <div class="flex min-w-0 items-start gap-3">
                             @if($category->cardImageUrl())
-                                <img src="{{ $category->cardImageUrl() }}" alt="" class="h-9 w-9 shrink-0 rounded-lg bg-teal-50 object-contain p-1.5 ring-1 ring-teal-100">
+                                <img src="{{ $category->cardImageUrl() }}" alt="" class="h-9 w-9 shrink-0 rounded-lg bg-teal-50 object-cover ring-1 ring-teal-100">
                             @else
                                 <span class="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-teal-50 text-teal-700 ring-1 ring-teal-100">
                                     <x-admin.category-icon :category="$category" class="h-4 w-4" />
@@ -247,18 +263,42 @@
                         <span>{{ __('ai_models.categories.icon_code') }}</span>
                         <input name="icon" value="{{ old('icon', $category->icon) }}" dir="ltr" class="h-11 rounded-lg border border-zinc-200 px-3 text-sm outline-none focus:border-teal-500" placeholder="{{ __('ai_models.categories.icon_placeholder') }}">
                     </label>
-                    <label class="grid gap-1 text-sm font-bold md:col-span-2">
-                        <span>{{ __('ai_models.categories.card_image') }}</span>
+                    <div data-card-image-field class="grid gap-2 text-sm font-bold md:col-span-2">
+                        <label for="edit-category-{{ $category->id }}-card-image">{{ __('ai_models.categories.card_image') }}</label>
                         @if($category->cardImageUrl())
-                            <img src="{{ $category->cardImageUrl() }}" alt="" class="h-14 w-14 rounded-xl bg-teal-50 object-contain p-2 ring-1 ring-teal-100">
+                            <div class="flex items-center gap-3 rounded-xl border border-zinc-100 bg-zinc-50 p-3">
+                                <img src="{{ $category->cardImageUrl() }}" alt="" class="h-16 w-16 shrink-0 rounded-xl bg-teal-50 object-cover ring-1 ring-teal-100">
+                                <label class="flex cursor-pointer items-start gap-2 text-sm font-bold text-rose-700">
+                                    <input name="remove_card_image" type="checkbox" value="1" data-card-image-remove @checked(old('remove_card_image')) class="mt-1 rounded border-zinc-300 text-rose-600 focus:ring-rose-500">
+                                    <span>
+                                        <span class="block">{{ __('ai_models.categories.remove_card_image') }}</span>
+                                        <span class="mt-0.5 block text-xs font-normal leading-6 text-zinc-500">{{ __('ai_models.categories.remove_card_image_hint') }}</span>
+                                    </span>
+                                </label>
+                            </div>
                         @endif
-                        <input name="card_image" type="file" accept="image/png,image/jpeg,image/webp" class="rounded-lg border border-zinc-200 px-3 py-2 text-sm outline-none file:ml-3 file:rounded-md file:border-0 file:bg-teal-50 file:px-3 file:py-1.5 file:text-xs file:font-bold file:text-teal-700 focus:border-teal-500">
+                        <div class="flex flex-col gap-2 sm:flex-row sm:items-center">
+                            <input id="edit-category-{{ $category->id }}-card-image" name="card_image" type="file" accept="image/png,image/jpeg,image/webp" data-card-image-input class="min-w-0 flex-1 rounded-lg border border-zinc-200 px-3 py-2 text-sm outline-none file:ml-3 file:rounded-md file:border-0 file:bg-teal-50 file:px-3 file:py-1.5 file:text-xs file:font-bold file:text-teal-700 focus:border-teal-500">
+                            <x-admin.button type="button" variant="danger-outline" size="sm" data-card-image-clear disabled class="shrink-0 disabled:cursor-not-allowed disabled:opacity-40">
+                                {{ __('ai_models.categories.clear_card_image_selection') }}
+                            </x-admin.button>
+                        </div>
                         <span class="text-xs font-normal leading-6 text-zinc-500">{{ __('ai_models.categories.card_image_hint') }}</span>
-                    </label>
+                    </div>
                     <label class="grid gap-1 text-sm font-bold md:col-span-2">
                         <span>{{ __('system.description') }}</span>
                         <textarea name="description" rows="4" class="rounded-lg border border-zinc-200 px-3 py-2 text-sm leading-7 outline-none focus:border-teal-500" placeholder="{{ __('ai_models.categories.description_placeholder') }}">{{ old('description', $category->description) }}</textarea>
                     </label>
+                    <div class="md:col-span-2">
+                        <x-admin.rich-text-editor
+                            name="upload_guide_html"
+                            :value="old('upload_guide_html', $category->upload_guide_html)"
+                            :label="__('ai_models.categories.upload_guide_label')"
+                            :placeholder="__('ai_models.categories.upload_guide_placeholder')"
+                            :maxlength="20000"
+                        />
+                        <p class="mt-1 text-xs font-normal leading-6 text-zinc-500">{{ __('ai_models.categories.upload_guide_hint') }}</p>
+                    </div>
                     <x-admin.button type="submit" icon="check" class="md:col-span-2">
                         <span>{{ __('messages.save') }}</span>
                     </x-admin.button>

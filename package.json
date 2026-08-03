@@ -1,5 +1,6 @@
 {
     "$schema": "https://www.schemastore.org/package.json",
+    "version": "2.1.0",
     "private": true,
     "type": "module",
     "scripts": {
@@ -16,6 +17,7 @@
     "dependencies": {
         "@flaticon/flaticon-uicons": "^3.3.1",
         "@majidh1/jalalidatepicker": "^0.9.12",
-        "alpinejs": "^3.15.12"
+        "alpinejs": "^3.15.12",
+        "heic-to": "1.5.2"
     }
 }
