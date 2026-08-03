@@ -14,6 +14,7 @@ use App\Models\SystemSetting;
 use App\Models\Tenant;
 use App\Models\User;
 use App\Support\Analytics\LandingEventCatalog;
+use App\Support\Analytics\LandingVisitorIdentity;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
@@ -74,31 +75,50 @@ class SystemOverviewService
      * @return Collection<int, array<string, int|float|string>> Clinic performance rows.
      *
      * @since 2.1.0
+     * @since 2.1.1 Defines final conversion as unique landing visitors linked to unique leads.
      */
     public function clinicPerformanceSummary(): Collection
     {
-        $convertedVisits = DB::table('tenant_landing_events')
+        $generationVisitors = DB::table('tenant_landing_events')
             ->where('event_type', LandingEventCatalog::GENERATION_REQUESTED)
             ->select('tenant_id')
             ->selectRaw('COUNT(DISTINCT tenant_landing_page_visit_id) as aggregate')
             ->groupBy('tenant_id')
             ->pluck('aggregate', 'tenant_id');
+        $visitorKeys = [];
+        $leadIds = [];
+
+        DB::table('tenant_landing_page_visits')
+            ->select(['id', 'tenant_id', 'lead_id', 'ip_hash', 'user_agent_hash'])
+            ->orderBy('id')
+            ->each(function (object $visit) use (&$visitorKeys, &$leadIds): void {
+                $tenantId = (int) $visit->tenant_id;
+                $visitorKeys[$tenantId][LandingVisitorIdentity::key($visit)] = true;
+
+                if ($visit->lead_id !== null) {
+                    $leadIds[$tenantId][(int) $visit->lead_id] = true;
+                }
+            });
 
         return Tenant::query()
-            ->withCount(['landingPageVisits', 'leads'])
+            ->withCount('landingPageVisits')
             ->orderBy('name')
             ->get()
-            ->map(static function ($tenant) use ($convertedVisits): array {
+            ->map(static function ($tenant) use ($generationVisitors, $visitorKeys, $leadIds): array {
                 $visits = (int) $tenant->landing_page_visits_count;
-                $conversions = (int) ($convertedVisits[$tenant->id] ?? 0);
+                $uniqueVisitors = count($visitorKeys[$tenant->id] ?? []);
+                $leads = count($leadIds[$tenant->id] ?? []);
 
                 return [
                     'id' => (int) $tenant->id,
                     'name' => (string) $tenant->name,
                     'visits' => $visits,
-                    'leads' => (int) $tenant->leads_count,
-                    'conversions' => $conversions,
-                    'conversion_rate' => $visits > 0 ? round(min(100, ($conversions / $visits) * 100), 1) : 0.0,
+                    'unique_visitors' => $uniqueVisitors,
+                    'leads' => $leads,
+                    'generation_requests' => (int) ($generationVisitors[$tenant->id] ?? 0),
+                    'conversion_rate' => $uniqueVisitors > 0
+                        ? round(min(100, ($leads / $uniqueVisitors) * 100), 1)
+                        : 0.0,
                 ];
             });
     }

@@ -4,9 +4,11 @@ namespace App\Services\Analytics;
 
 use App\Models\Tenant;
 use App\Support\Analytics\LandingEventCatalog;
+use App\Support\Analytics\LandingVisitorIdentity;
 use App\Support\JalaliDate;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Query\Builder;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Morilog\Jalali\Jalalian;
 
@@ -14,6 +16,7 @@ use Morilog\Jalali\Jalalian;
  * Builds cohort-based tenant landing funnels, monthly trends, and application click reports.
  *
  * @since 2.1.0
+ * @since 2.1.1 Defines final conversion as unique landing visitors converted to unique leads.
  */
 class ClinicPerformanceReportService
 {
@@ -22,9 +25,10 @@ class ClinicPerformanceReportService
      *
      * @param  Tenant  $tenant  Authorized dashboard tenant.
      * @param  int  $days  Number of trailing calendar days to include.
-     * @return array{totals: array{landing_views: int, otp_verified: int, generation_requested: int, conversion_rate: float}, daily: array<int, array{date: string, label: string, landing_views: int, otp_verified: int, generation_requested: int}>, chart_max: int} Recent performance summary.
+     * @return array{totals: array{landing_views: int, unique_visitors: int, leads: int, otp_verified: int, generation_requested: int, conversion_rate: float}, daily: array<int, array{date: string, label: string, landing_views: int, unique_visitors: int, leads: int, otp_verified: int, generation_requested: int}>, chart_max: int} Recent performance summary.
      *
      * @since 2.1.0
+     * @since 2.1.1 Uses unique visitors and linked leads for the final conversion KPI.
      */
     public function recentDailySummary(Tenant $tenant, int $days = 7): array
     {
@@ -32,6 +36,8 @@ class ClinicPerformanceReportService
         $until = CarbonImmutable::now()->endOfDay();
         $from = $until->subDays($days - 1)->startOfDay();
         $daily = [];
+        $dailyVisitorKeys = [];
+        $dailyLeadIds = [];
 
         for ($cursor = $from; $cursor->lte($until); $cursor = $cursor->addDay()) {
             $date = $cursor->toDateString();
@@ -40,23 +46,27 @@ class ClinicPerformanceReportService
                 'date' => $date,
                 'label' => substr($jalaliDate, 5),
                 'landing_views' => 0,
+                'unique_visitors' => 0,
+                'leads' => 0,
                 'otp_verified' => 0,
                 'generation_requested' => 0,
             ];
+            $dailyVisitorKeys[$date] = [];
+            $dailyLeadIds[$date] = [];
         }
 
-        $visitRows = DB::table('tenant_landing_page_visits')
-            ->selectRaw('DATE(visited_at) as visit_day, COUNT(*) as aggregate')
-            ->where('tenant_id', $tenant->id)
-            ->whereBetween('visited_at', [$from, $until])
-            ->groupByRaw('DATE(visited_at)')
-            ->get();
+        $visitRows = $this->visitCohortRows($tenant, $from, $until);
 
         foreach ($visitRows as $row) {
-            $date = (string) $row->visit_day;
+            $date = CarbonImmutable::parse((string) $row->visited_at)->toDateString();
 
             if (isset($daily[$date])) {
-                $daily[$date]['landing_views'] = (int) $row->aggregate;
+                $daily[$date]['landing_views']++;
+                $dailyVisitorKeys[$date][LandingVisitorIdentity::key($row)] = true;
+
+                if ($row->lead_id !== null) {
+                    $dailyLeadIds[$date][(int) $row->lead_id] = true;
+                }
             }
         }
 
@@ -79,7 +89,14 @@ class ClinicPerformanceReportService
             }
         }
 
+        foreach ($daily as $date => &$row) {
+            $row['unique_visitors'] = count($dailyVisitorKeys[$date]);
+            $row['leads'] = count($dailyLeadIds[$date]);
+        }
+        unset($row);
+
         $rows = array_values($daily);
+        $visitorLeadMetrics = $this->visitorLeadMetrics($visitRows);
         $landingViews = array_sum(array_column($rows, 'landing_views'));
         $otpVerified = array_sum(array_column($rows, LandingEventCatalog::OTP_VERIFIED));
         $generationRequested = array_sum(array_column($rows, LandingEventCatalog::GENERATION_REQUESTED));
@@ -87,9 +104,14 @@ class ClinicPerformanceReportService
         return [
             'totals' => [
                 'landing_views' => $landingViews,
+                'unique_visitors' => $visitorLeadMetrics['unique_visitors'],
+                'leads' => $visitorLeadMetrics['leads'],
                 'otp_verified' => $otpVerified,
                 'generation_requested' => $generationRequested,
-                'conversion_rate' => $this->percentage($generationRequested, $landingViews),
+                'conversion_rate' => $this->percentage(
+                    $visitorLeadMetrics['leads'],
+                    $visitorLeadMetrics['unique_visitors'],
+                ),
             ],
             'daily' => $rows,
             'chart_max' => max(1, ...array_column($rows, 'landing_views')),
@@ -195,21 +217,17 @@ class ClinicPerformanceReportService
      * @return array<string, mixed> Report metrics and presentation rows.
      *
      * @since 2.1.0
+     * @since 2.1.1 Adds unique-visitor and unique-lead totals and redefines final conversion.
      */
     private function buildReport(?Tenant $tenant, CarbonImmutable $from, CarbonImmutable $until): array
     {
-        $visitQuery = DB::table('tenant_landing_page_visits')
-            ->whereBetween('visited_at', [$from, $until]);
-
-        if ($tenant) {
-            $visitQuery->where('tenant_id', $tenant->id);
-        }
-
-        $visits = $visitQuery->count();
+        $visitRows = $this->visitCohortRows($tenant, $from, $until);
+        $visits = $visitRows->count();
+        $visitorLeadMetrics = $this->visitorLeadMetrics($visitRows);
         $eventCounts = $this->uniqueEventCounts($tenant, $from, $until);
         $applicationClicks = $this->applicationClickCount($tenant, $from, $until);
         $funnel = $this->funnel($visits, $eventCounts);
-        $monthly = $this->monthly($tenant, $from, $until);
+        $monthly = $this->monthly($tenant, $from, $until, $visitRows);
         $leadQuery = DB::table('leads')->whereBetween('created_at', [$from, $until]);
 
         if ($tenant) {
@@ -219,6 +237,8 @@ class ClinicPerformanceReportService
         return [
             'totals' => [
                 'landing_views' => $visits,
+                'unique_visitors' => $visitorLeadMetrics['unique_visitors'],
+                'total_leads' => $visitorLeadMetrics['leads'],
                 'application_clicks' => $applicationClicks,
                 'application_visitors' => (int) ($eventCounts[LandingEventCatalog::APPLICATION_CLICKED] ?? 0),
                 'photo_selected' => (int) ($eventCounts[LandingEventCatalog::PHOTO_SELECTED] ?? 0),
@@ -227,8 +247,14 @@ class ClinicPerformanceReportService
                 'photo_uploaded' => (int) ($eventCounts[LandingEventCatalog::PHOTO_UPLOADED] ?? 0),
                 'generation_requested' => (int) ($eventCounts[LandingEventCatalog::GENERATION_REQUESTED] ?? 0),
                 'result_viewed' => (int) ($eventCounts[LandingEventCatalog::RESULT_VIEWED] ?? 0),
-                'lead_conversion_rate' => $this->percentage((int) ($eventCounts[LandingEventCatalog::OTP_VERIFIED] ?? 0), $visits),
-                'overall_conversion_rate' => $this->percentage((int) ($eventCounts[LandingEventCatalog::GENERATION_REQUESTED] ?? 0), $visits),
+                'lead_conversion_rate' => $this->percentage(
+                    $visitorLeadMetrics['leads'],
+                    $visitorLeadMetrics['unique_visitors'],
+                ),
+                'overall_conversion_rate' => $this->percentage(
+                    $visitorLeadMetrics['leads'],
+                    $visitorLeadMetrics['unique_visitors'],
+                ),
             ],
             'funnel' => $funnel,
             'monthly' => $monthly,
@@ -329,39 +355,48 @@ class ClinicPerformanceReportService
      * @param  Tenant|null  $tenant  Tenant report scope, or null for a system aggregate.
      * @param  CarbonImmutable  $from  Inclusive range start.
      * @param  CarbonImmutable  $until  Inclusive range end.
+     * @param  Collection<int, object>  $visitRows  Landing visits already scoped to this report cohort.
      * @return array<int, array<string, int|float|string>> Monthly report rows.
      *
      * @since 2.1.0
+     * @since 2.1.1 Calculates each month's final conversion from unique visitors to unique leads.
      */
-    private function monthly(?Tenant $tenant, CarbonImmutable $from, CarbonImmutable $until): array
-    {
+    private function monthly(
+        ?Tenant $tenant,
+        CarbonImmutable $from,
+        CarbonImmutable $until,
+        Collection $visitRows,
+    ): array {
         $months = [];
+        $monthVisitorKeys = [];
+        $monthLeadIds = [];
         $cursor = $from->startOfDay();
 
         // A 20-day stride cannot skip a Jalali month (the shortest has 29 days).
         while ($cursor->lte($until)) {
             $month = $this->monthKey($cursor->toDateString());
             $months[$month] ??= $this->emptyMonth($month);
+            $monthVisitorKeys[$month] ??= [];
+            $monthLeadIds[$month] ??= [];
             $cursor = $cursor->addDays(20);
         }
 
         $untilMonth = $this->monthKey($until->toDateString());
         $months[$untilMonth] ??= $this->emptyMonth($untilMonth);
-
-        $visitQuery = DB::table('tenant_landing_page_visits')
-            ->selectRaw('DATE(visited_at) as visit_day, COUNT(*) as aggregate')
-            ->whereBetween('visited_at', [$from, $until]);
-
-        if ($tenant) {
-            $visitQuery->where('tenant_id', $tenant->id);
-        }
-
-        $visitRows = $visitQuery->groupByRaw('DATE(visited_at)')->get();
+        $monthVisitorKeys[$untilMonth] ??= [];
+        $monthLeadIds[$untilMonth] ??= [];
 
         foreach ($visitRows as $row) {
-            $month = $this->monthKey((string) $row->visit_day);
+            $month = $this->monthKey(CarbonImmutable::parse((string) $row->visited_at)->toDateString());
             $months[$month] ??= $this->emptyMonth($month);
-            $months[$month]['landing_views'] += (int) $row->aggregate;
+            $monthVisitorKeys[$month] ??= [];
+            $monthLeadIds[$month] ??= [];
+            $months[$month]['landing_views']++;
+            $monthVisitorKeys[$month][LandingVisitorIdentity::key($row)] = true;
+
+            if ($row->lead_id !== null) {
+                $monthLeadIds[$month][(int) $row->lead_id] = true;
+            }
         }
 
         $eventRows = $this->eventCohortQuery($tenant, $from, $until)
@@ -387,10 +422,13 @@ class ClinicPerformanceReportService
 
         ksort($months);
 
-        return array_values(array_map(function (array $row): array {
+        return array_values(array_map(function (array $row) use ($monthVisitorKeys, $monthLeadIds): array {
+            $month = (string) $row['month'];
+            $row['unique_visitors'] = count($monthVisitorKeys[$month] ?? []);
+            $row['total_leads'] = count($monthLeadIds[$month] ?? []);
             $row['conversion_rate'] = $this->percentage(
-                (int) $row[LandingEventCatalog::GENERATION_REQUESTED],
-                (int) $row['landing_views'],
+                (int) $row['total_leads'],
+                (int) $row['unique_visitors'],
             );
 
             return $row;
@@ -490,6 +528,8 @@ class ClinicPerformanceReportService
         return [
             'month' => $month,
             'landing_views' => 0,
+            'unique_visitors' => 0,
+            'total_leads' => 0,
             'application_clicks' => 0,
             LandingEventCatalog::APPLICATION_CLICKED => 0,
             LandingEventCatalog::PHOTO_SELECTED => 0,
@@ -499,6 +539,57 @@ class ClinicPerformanceReportService
             LandingEventCatalog::GENERATION_REQUESTED => 0,
             LandingEventCatalog::RESULT_VIEWED => 0,
             'conversion_rate' => 0.0,
+        ];
+    }
+
+    /**
+     * Load the minimal visit cohort used for unique visitor and lead metrics.
+     *
+     * @param  Tenant|null  $tenant  Tenant report scope, or null for a system aggregate.
+     * @param  CarbonImmutable  $from  Inclusive range start.
+     * @param  CarbonImmutable  $until  Inclusive range end.
+     * @return Collection<int, object> Scoped visit identities and acquisition dates.
+     *
+     * @since 2.1.1
+     */
+    private function visitCohortRows(?Tenant $tenant, CarbonImmutable $from, CarbonImmutable $until): Collection
+    {
+        return DB::table('tenant_landing_page_visits')
+            ->select(['id', 'tenant_id', 'lead_id', 'ip_hash', 'user_agent_hash', 'visited_at'])
+            ->whereBetween('visited_at', [$from, $until])
+            ->when($tenant, fn (Builder $query) => $query->where('tenant_id', $tenant->id))
+            ->orderBy('id')
+            ->get();
+    }
+
+    /**
+     * Count unique visitors and the unique leads linked to their cohort visits.
+     *
+     * A verified lead is the strongest visitor identity. Anonymous visits use
+     * their already-hashed IP and user-agent pair, with the visit id as a safe
+     * fallback when no stable anonymous fingerprint was recorded.
+     *
+     * @param  Collection<int, object>  $visitRows  Scoped landing visits.
+     * @return array{unique_visitors: int, leads: int} Unique acquisition metrics.
+     *
+     * @since 2.1.1
+     */
+    private function visitorLeadMetrics(Collection $visitRows): array
+    {
+        $visitorKeys = [];
+        $leadIds = [];
+
+        foreach ($visitRows as $visit) {
+            $visitorKeys[LandingVisitorIdentity::key($visit)] = true;
+
+            if ($visit->lead_id !== null) {
+                $leadIds[(int) $visit->lead_id] = true;
+            }
+        }
+
+        return [
+            'unique_visitors' => count($visitorKeys),
+            'leads' => count($leadIds),
         ];
     }
 

@@ -1,4 +1,5 @@
 {{-- @since 2.1.0 Introduces tenant and system-scoped landing performance reporting. --}}
+{{-- @since 2.1.1 Presents unique-visitor-to-lead conversion as the final KPI. --}}
 @extends('admin.layout')
 
 @section('title', __('reports.title'))
@@ -86,15 +87,16 @@
             $totals = $report['totals'];
             $summaryCards = [
                 ['label' => __('reports.funnel.landing_view'), 'value' => $totals['landing_views'], 'suffix' => null],
+                ['label' => __('reports.unique_visitors'), 'value' => $totals['unique_visitors'], 'suffix' => null],
                 ['label' => __('reports.total_application_clicks'), 'value' => $totals['application_clicks'], 'suffix' => null],
                 ['label' => __('reports.funnel.phone_submitted'), 'value' => $totals['phone_submitted'], 'suffix' => null],
                 ['label' => __('reports.funnel.photo_uploaded'), 'value' => $totals['photo_uploaded'], 'suffix' => null],
-                ['label' => __('reports.lead_conversion_rate'), 'value' => $totals['lead_conversion_rate'], 'suffix' => '٪'],
+                ['label' => __('reports.total_leads'), 'value' => $totals['total_leads'], 'suffix' => null],
                 ['label' => __('reports.overall_conversion_rate'), 'value' => $totals['overall_conversion_rate'], 'suffix' => '٪'],
             ];
     @endphp
 
-        <div class="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-6">
+        <div class="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4 2xl:grid-cols-7">
             @foreach($summaryCards as $card)
                 <section class="rounded-lg bg-white p-4 shadow-sm ring-1 ring-zinc-200">
                     <p class="text-xs font-bold leading-6 text-zinc-500">{{ $card['label'] }}</p>
@@ -215,6 +217,8 @@
                         <tr>
                             <th class="px-3 py-3">{{ __('reports.month') }}</th>
                             <th class="px-3 py-3">{{ __('reports.funnel.landing_view') }}</th>
+                            <th class="px-3 py-3">{{ __('reports.unique_visitors') }}</th>
+                            <th class="px-3 py-3">{{ __('reports.total_leads') }}</th>
                             <th class="px-3 py-3">{{ __('reports.total_application_clicks') }}</th>
                             <th class="px-3 py-3">{{ __('reports.funnel.photo_selected') }}</th>
                             <th class="px-3 py-3">{{ __('reports.funnel.phone_submitted') }}</th>
@@ -222,7 +226,7 @@
                             <th class="px-3 py-3">{{ __('reports.funnel.photo_uploaded') }}</th>
                             <th class="px-3 py-3">{{ __('reports.funnel.generation_requested') }}</th>
                             <th class="px-3 py-3">{{ __('reports.funnel.result_viewed') }}</th>
-                            <th class="px-3 py-3">{{ __('reports.conversion') }}</th>
+                            <th class="px-3 py-3">{{ __('reports.overall_conversion_rate') }}</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-zinc-100">
@@ -230,6 +234,8 @@
                             <tr>
                                 <td class="whitespace-nowrap px-3 py-3 font-bold" dir="ltr">{{ $row['month'] }}</td>
                                 <td class="px-3 py-3">{{ number_format($row['landing_views']) }}</td>
+                                <td class="px-3 py-3">{{ number_format($row['unique_visitors']) }}</td>
+                                <td class="px-3 py-3">{{ number_format($row['total_leads']) }}</td>
                                 <td class="px-3 py-3">{{ number_format($row['application_clicks']) }}</td>
                                 <td class="px-3 py-3">{{ number_format($row['photo_selected']) }}</td>
                                 <td class="px-3 py-3">{{ number_format($row['phone_submitted']) }}</td>

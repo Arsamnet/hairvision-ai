@@ -130,6 +130,18 @@ class Lead extends Model
     }
 
     /**
+     * Most recently recorded CRM note shown in lead-list previews.
+     *
+     * @return HasOne<LeadNote, $this>
+     *
+     * @since 2.1.1
+     */
+    public function latestNote(): HasOne
+    {
+        return $this->hasOne(LeadNote::class)->latestOfMany();
+    }
+
+    /**
      * Dashboard user assigned to follow up with this lead.
      *
      * @return BelongsTo<User, $this>

@@ -1,4 +1,5 @@
 {{-- @since 2.1.0 Adds the seven-day clinic performance summary. --}}
+{{-- @since 2.1.1 Aligns the dashboard's final conversion with unique visitors converted to leads. --}}
 @extends('admin.layout')
 
 @section('title', __('dashboard.admin_title'))
@@ -12,6 +13,8 @@
         $remainingCredit = app(\App\Services\Billing\ServiceEntitlementService::class)->remainingCreditForSubscription($displaySubscription);
         $performanceTotals = $recentPerformance['totals'] ?? [
             'landing_views' => 0,
+            'unique_visitors' => 0,
+            'leads' => 0,
             'otp_verified' => 0,
             'generation_requested' => 0,
             'conversion_rate' => 0,
@@ -44,8 +47,8 @@
 
                 <div class="mt-5 grid grid-cols-2 gap-2 sm:grid-cols-4">
                     @foreach([
-                        ['label' => __('dashboard.performance.landing_views'), 'value' => number_format($performanceTotals['landing_views'])],
-                        ['label' => __('dashboard.performance.verified_leads'), 'value' => number_format($performanceTotals['otp_verified'])],
+                        ['label' => __('dashboard.performance.unique_visitors'), 'value' => number_format($performanceTotals['unique_visitors'])],
+                        ['label' => __('dashboard.performance.verified_leads'), 'value' => number_format($performanceTotals['leads'])],
                         ['label' => __('dashboard.performance.generations'), 'value' => number_format($performanceTotals['generation_requested'])],
                         ['label' => __('dashboard.performance.conversion_rate'), 'value' => number_format($performanceTotals['conversion_rate'], 1).'%'],
                     ] as $metric)

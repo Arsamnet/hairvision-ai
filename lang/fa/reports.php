@@ -4,13 +4,14 @@
  * Provides Persian analytics-report copy introduced in the 2.1.0 release.
  *
  * @since 2.1.0
+ * @since 2.1.1 Defines the final KPI as unique landing visitors converted to leads.
  */
 return [
     'title' => 'گزارش عملکرد',
-    'subtitle' => 'مسیر مراجعه‌کنندگان را از ورود به لندینگ تا درخواست تصویر، به تفکیک ماه و در بازه دلخواه بررسی کنید.',
+    'subtitle' => 'مسیر مراجعه‌کنندگان را از ورود به لندینگ تا ایجاد لید و درخواست تصویر، به تفکیک ماه و در بازه دلخواه بررسی کنید.',
     'management_title' => 'گزارش‌های مدیریتی',
     'management_subtitle' => 'نمای کلی شاخص‌های مدیریتی همه کلینیک‌ها و فعالیت‌های سامانه.',
-    'clinic_management_hint' => 'مقایسه کلی بازدید، لید و تبدیل نهایی تمام کلینیک‌ها؛ جزئیات فانل هر کلینیک در گزارش عملکرد همان کلینیک قرار دارد.',
+    'clinic_management_hint' => 'مقایسه کلی بازدید، کاربر یکتا، لید و نرخ تبدیل نهایی کاربر یکتا به لید در تمام کلینیک‌ها؛ جزئیات فانل هر کلینیک در گزارش عملکرد همان کلینیک قرار دارد.',
     'clinic' => 'کلینیک',
     'credit_usage_title' => 'گزارش مصرف',
     'leads_by_status' => 'لیدها بر اساس وضعیت',
@@ -50,10 +51,11 @@ return [
     'no_application_clicks' => 'در این بازه هنوز کلیکی روی کاربردها ثبت نشده است.',
     'total_application_clicks' => 'کل کلیک کاربردها',
     'unique_visitors' => 'کاربر یکتا',
+    'total_leads' => 'کل لیدها',
     'generation_visitors' => 'درخواست‌دهنده',
     'conversion' => 'نرخ تبدیل',
-    'lead_conversion_rate' => 'تبدیل بازدید به لید',
-    'overall_conversion_rate' => 'تبدیل نهایی',
+    'lead_conversion_rate' => 'نرخ تبدیل کاربر یکتا به لید',
+    'overall_conversion_rate' => 'نرخ تبدیل نهایی',
     'month' => 'ماه شمسی',
     'funnel' => [
         'landing_view' => 'بازدید لندینگ',

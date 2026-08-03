@@ -40,6 +40,7 @@ use Tests\TestCase;
  *
  * @since 1.0.0
  * @since 2.1.0 Coverage expanded for landing usability and analytics behavior.
+ * @since 2.1.1 Updates release-version asset URL expectations.
  */
 class HairVisionMvpTest extends TestCase
 {
@@ -106,7 +107,7 @@ class HairVisionMvpTest extends TestCase
             ->assertOk()
             ->assertSee('rel="icon"', false)
             ->assertSee('/build/assets/favicon-', false)
-            ->assertSee('.png?v=2.1.0', false)
+            ->assertSee('.png?v=2.1.1', false)
             ->assertDontSee('/build/img/favicon.png', false);
 
         $template = Template::create([
@@ -156,7 +157,7 @@ class HairVisionMvpTest extends TestCase
                 '/\/[^\/]+-[a-zA-Z0-9_-]+\.[a-z0-9]+$/',
                 (string) $chunk['file'],
             );
-            $this->assertStringNotContainsString('-v2.1.0-', (string) $chunk['file']);
+            $this->assertStringNotContainsString('-v2.1.1-', (string) $chunk['file']);
         }
 
         $content = $this->forHost('aria.hairvision-ai.test')
@@ -171,7 +172,7 @@ class HairVisionMvpTest extends TestCase
         ];
 
         foreach ($cssFiles as $cssFile) {
-            $versionedPath = '/build/'.$cssFile.'?v=2.1.0';
+            $versionedPath = '/build/'.$cssFile.'?v=2.1.1';
             $quotedPath = preg_quote($versionedPath, '/');
 
             $this->assertSame(
@@ -188,7 +189,7 @@ class HairVisionMvpTest extends TestCase
             );
         }
 
-        $javascriptPath = '/build/'.$manifest['resources/js/app.js']['file'].'?v=2.1.0';
+        $javascriptPath = '/build/'.$manifest['resources/js/app.js']['file'].'?v=2.1.1';
 
         $this->assertSame(
             1,
@@ -198,7 +199,7 @@ class HairVisionMvpTest extends TestCase
             ),
         );
         $this->assertMatchesRegularExpression(
-            '/href="[^"]*\/build\/assets\/favicon-[a-zA-Z0-9_-]+\.png\?v=2\.1\.0"/',
+            '/href="[^"]*\/build\/assets\/favicon-[a-zA-Z0-9_-]+\.png\?v=2\.1\.1"/',
             $content,
         );
 

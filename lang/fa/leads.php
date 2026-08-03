@@ -4,6 +4,7 @@
  * Provides Persian lead-management copy revised for the 2.1.0 release.
  *
  * @since 2.1.0
+ * @since 2.1.1 Adds lead-list note tooltip fallback copy.
  */
 return [
     'title' => 'لیدها',
@@ -26,6 +27,7 @@ return [
     'empty_filtered' => 'هیچ لیدی با این فیلترها پیدا نشد.',
     'empty_name' => 'لید بدون نام',
     'no_name' => 'بدون نام',
+    'no_note' => 'یادداشتی برای این لید ثبت نشده است.',
     'system_user' => 'سیستم',
     'created' => 'لید جدید ثبت شد.',
     'updated' => 'لید به‌روزرسانی شد.',

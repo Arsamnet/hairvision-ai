@@ -32,6 +32,12 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
+/**
+ * Verifies AI model access, execution-credit, and clinic assignment behavior.
+ *
+ * @since 1.0.0
+ * @since 2.1.1 Covers visible execution-credit amounts for unlimited model access.
+ */
 class AiModelAccessManagementTest extends TestCase
 {
     use RefreshDatabase;
@@ -988,6 +994,82 @@ class AiModelAccessManagementTest extends TestCase
             'status' => 'failed',
             'credit_consumed' => 0,
         ]);
+    }
+
+    /**
+     * Verify successful unlimited models still report the execution credit consumed.
+     *
+     * @return void No value is returned.
+     *
+     * @since 2.1.1
+     */
+    public function test_unlimited_model_usage_log_records_the_execution_credit_amount(): void
+    {
+        $tenant = $this->createTenant('Clinic One', 'arya', 'arya.hairvision-ai.test');
+        $this->seedSampleImages();
+        $access = $this->createAccess([
+            'is_demo' => true,
+            'is_protected' => false,
+            'credit_limit' => null,
+        ]);
+        $tenant->aiModelAccesses()->attach($access->id, ['is_active' => true]);
+
+        $response = app(RunAiModelAction::class)->execute(
+            $tenant,
+            'hair_transplant',
+            ['period' => 'two_weeks'],
+            selectedAccess: $access,
+        );
+
+        $this->assertTrue($response->successful);
+        $this->assertSame(0, $access->refresh()->credit_used);
+        $this->assertDatabaseHas('ai_model_usage_logs', [
+            'ai_model_access_id' => $access->id,
+            'status' => 'completed',
+            'credit_consumed' => 1,
+        ]);
+    }
+
+    /**
+     * Verify the release migration repairs existing successful zero-credit logs only.
+     *
+     * @return void No value is returned.
+     *
+     * @since 2.1.1
+     */
+    public function test_completed_usage_credit_migration_repairs_historical_zero_values(): void
+    {
+        $tenant = $this->createTenant('Clinic One', 'arya', 'arya.hairvision-ai.test');
+        $access = $this->createAccess([
+            'is_demo' => true,
+            'is_protected' => false,
+            'credit_limit' => null,
+        ]);
+        $completedLog = AiModelUsageLog::create([
+            'clinic_id' => $tenant->id,
+            'ai_model_access_id' => $access->id,
+            'usage_category_key' => 'hair_transplant',
+            'status' => 'completed',
+            'credit_consumed' => 0,
+            'completed_at' => now(),
+        ]);
+        $failedLog = AiModelUsageLog::create([
+            'clinic_id' => $tenant->id,
+            'ai_model_access_id' => $access->id,
+            'usage_category_key' => 'hair_transplant',
+            'status' => 'failed',
+            'credit_consumed' => 0,
+            'failed_at' => now(),
+        ]);
+
+        DB::table('migrations')
+            ->where('migration', '2026_08_03_000002_backfill_completed_ai_model_usage_credits')
+            ->delete();
+
+        $this->artisan('migrate', ['--force' => true])->assertSuccessful();
+
+        $this->assertSame(1, $completedLog->refresh()->credit_consumed);
+        $this->assertSame(0, $failedLog->refresh()->credit_consumed);
     }
 
     public function test_active_demo_model_returns_predefined_image_for_each_stage(): void

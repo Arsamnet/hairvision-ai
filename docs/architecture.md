@@ -1,6 +1,6 @@
 # Engineering Architecture
 
-Version: [`2.1.0`](../CHANGELOG.md#210)
+Version: [`2.1.1`](../CHANGELOG.md#211)
 
 This document is the canonical engineering reference for HairVision. It
 consolidates architecture, data model, setup, coding standards, frontend rules,
@@ -283,15 +283,20 @@ strings and fragments cannot introduce personal data into analytics records.
 filters by visit time, producing acquisition-cohort metrics. It counts distinct
 visits per funnel stage, total and unique application clicks, downstream
 application conversion, Jalali monthly groups, CRM stages, and bounded
-conversion rates. Clinic users can filter a Jalali date range and export the
-monthly result as UTF-8 CSV. The service also supplies deterministic Jalali
+conversion rates. `LandingVisitorIdentity` treats a linked lead as the strongest
+unique identity, otherwise uses the stored hashed IP/user-agent pair, and falls
+back to the visit id when neither hash exists. The final conversion KPI is the
+number of unique linked leads divided by those unique visitors; generation
+requests remain a funnel stage rather than the final-conversion numerator.
+Clinic users can filter a Jalali date range and export the monthly result as
+UTF-8 CSV. The service also supplies deterministic Jalali
 quick ranges for the current month (first day through today) and the complete
 previous month; their links preserve any authorized system clinic scope beside
 the existing trailing-twelve-month shortcut. Gregorian `DATE(...)` results are parsed as date
 objects before Jalali conversion so chart, table, and CSV labels consistently
 use sortable Jalali `YYYY/MM` keys. The same service builds a tenant-scoped
 seven-day daily summary for the clinic dashboard, including visit, verified
-lead, generation, and bounded conversion metrics; the compact chart links to
+lead, generation, and the same unique-visitor-to-lead conversion metrics; the compact chart links to
 the full report only when the user has report permission. The cross-clinic
 table is absent from that view and lives only in the system-scoped management
 report.
@@ -590,6 +595,9 @@ the system clinic detail, and the system model detail. Clinic queries are always
 scoped by `clinic_id`; system model queries may span clinics. Tables show the
 localized usage category and link the lead phone to the policy-protected lead
 record without storing request images or private provider payloads in the log.
+Successful logs store the actual model execution-credit units even when the
+access has an unlimited provider-credit ceiling; unlimited access keeps its own
+`credit_used` counter unchanged but must not zero the report amount.
 
 ## Billing and Service Access
 
@@ -798,7 +806,9 @@ reports. Age accepts supported digit scripts through the shared numeric
 normalization boundary; city remains ordinary escaped text. The list's
 `age_from` and `age_until` query filters apply inclusive `>=` and `<=`
 conditions after normalizing supported digits and intentionally exclude null
-ages from a bounded result.
+ages from a bounded result. The desktop name cell eager-loads the lead's latest
+CRM note and exposes it through a dotted-underline hover/focus tooltip with an
+empty fallback, without per-row queries or cross-tenant note access.
 
 Lead deletion is coordinated by `LeadDeletionService`. The controller first
 authorizes `LeadPolicy::delete`; clinic-scoped users must have `leads.delete`
@@ -1200,7 +1210,7 @@ the current seeded plan.
 Baseline configuration:
 
 ```env
-APP_VERSION=2.1.0
+APP_VERSION=2.1.1
 APP_LOCALE=fa
 APP_FAKER_LOCALE=fa_IR
 CACHE_STORE=redis
