@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Admin\Leads;
 
 use App\Models\Lead;
+use App\Models\Tenant;
 use App\Support\NumberNormalizer;
 use App\Support\StateCatalog;
 use Illuminate\Foundation\Http\FormRequest;
@@ -12,6 +13,7 @@ use Illuminate\Validation\Rule;
  * Validates dashboard lead creation while policies enforce tenant permissions.
  *
  * @since 1.0.0
+ * @since 2.1.0 Behavior updated for the 2.1.0 release.
  */
 class StoreLeadRequest extends FormRequest
 {
@@ -33,15 +35,24 @@ class StoreLeadRequest extends FormRequest
      * @return array<string, mixed>
      *
      * @since 1.0.0
+     * @since 2.1.0 Behavior updated for the 2.1.0 release.
      */
     public function rules(): array
     {
+        $tenant = $this->attributes->get('adminTenant');
+        $tenantId = $tenant instanceof Tenant ? $tenant->getKey() : null;
+
         return [
             'full_name' => ['nullable', 'string', 'max:120'],
-            'phone_normalized' => ['required', 'digits:11'],
+            'age' => ['nullable', 'integer', 'min:0', 'max:150'],
+            'city' => ['nullable', 'string', 'max:120'],
+            'phone_normalized' => [
+                'required',
+                'digits:11',
+                Rule::unique('leads', 'phone_normalized')->where('tenant_id', $tenantId),
+            ],
             'source' => ['nullable', 'string', 'max:80'],
             'status' => ['required', Rule::in(StateCatalog::values('leads.statuses'))],
-            'crm_stage' => ['required', Rule::in(StateCatalog::values('leads.crm_stages'))],
             'assigned_user_id' => ['nullable', 'integer'],
             'note' => ['nullable', 'string', 'max:2000'],
         ];

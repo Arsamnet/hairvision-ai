@@ -4,6 +4,7 @@ namespace App\Services\Admin;
 
 use App\Models\SmsGateway;
 use App\Models\Tenant;
+use App\Services\Sms\DebugSmsGatewayAvailability;
 use App\Services\Sms\SmsGatewayService;
 use App\Support\Pagination\PaginationParameters;
 use App\Support\Query\DateRangeFilter;
@@ -18,9 +19,21 @@ use Illuminate\Validation\ValidationException;
  * Builds SMS gateway queries and safe credential mutations.
  *
  * @since 1.0.0
+ * @since 2.1.0 Behavior updated for the 2.1.0 release.
  */
 class SmsGatewayManagementService
 {
+    /**
+     * Create the SMS gateway management service.
+     *
+     * @param  DebugSmsGatewayAvailability  $debugGateway  Runtime debug gateway boundary.
+     *
+     * @since 2.1.0
+     */
+    public function __construct(
+        private readonly DebugSmsGatewayAvailability $debugGateway,
+    ) {}
+
     /**
      * Execute the paginate system operation.
      *
@@ -50,6 +63,7 @@ class SmsGatewayManagementService
      * @return Builder Configured query builder.
      *
      * @since 1.0.0
+     * @since 2.1.0 Behavior updated for the 2.1.0 release.
      */
     public function systemQuery(Request $request, PaginationParameters $pagination): Builder
     {
@@ -61,15 +75,25 @@ class SmsGatewayManagementService
             'tenant' => ['name'],
         ]);
 
+        $this->applyEffectiveStatusFilter($query, $request);
+
         $query
-            ->when($request->filled('status'), fn (Builder $query) => $query->where('status', $request->string('status')->toString()))
             ->when($request->filled('owner_scope'), fn (Builder $query) => $query->where('owner_scope', $request->string('owner_scope')->toString()))
             ->when($request->filled('provider_code'), fn (Builder $query) => $query->where('provider_code', $request->string('provider_code')->toString()));
 
         DateRangeFilter::apply($query, $request);
 
-        return $query
-            ->orderBy($pagination->sort, $pagination->direction);
+        if ($pagination->sort === 'status') {
+            return $query->orderByRaw(
+                "CASE WHEN provider_code = ? THEN ? ELSE status END {$pagination->direction}",
+                [
+                    DebugSmsGatewayAvailability::PROVIDER_CODE,
+                    $this->debugGateway->isEnabled() ? 'enabled' : 'disabled',
+                ]
+            );
+        }
+
+        return $query->orderBy($pagination->sort, $pagination->direction);
     }
 
     /**
@@ -102,6 +126,7 @@ class SmsGatewayManagementService
      * @return array<string, string>
      *
      * @since 1.0.0
+     * @since 2.1.0 Behavior updated for the 2.1.0 release.
      */
     public function providerOptionsForSystem(?SmsGateway $gateway = null): array
     {
@@ -110,6 +135,7 @@ class SmsGatewayManagementService
         SmsGateway::query()
             ->system()
             ->enabled()
+            ->where('provider_code', '!=', DebugSmsGatewayAvailability::PROVIDER_CODE)
             ->orderBy('provider_code')
             ->get(['provider_code', 'name'])
             ->each(function (SmsGateway $systemGateway) use (&$options): void {
@@ -119,7 +145,9 @@ class SmsGatewayManagementService
                 );
             });
 
-        if ($gateway && ! array_key_exists($gateway->provider_code, $options)) {
+        if ($gateway
+            && $gateway->provider_code !== DebugSmsGatewayAvailability::PROVIDER_CODE
+            && ! array_key_exists($gateway->provider_code, $options)) {
             $options[$gateway->provider_code] = $this->providerLabel($gateway->provider_code, $gateway->name);
         }
 
@@ -133,6 +161,7 @@ class SmsGatewayManagementService
      * @return array<string, string>
      *
      * @since 1.0.0
+     * @since 2.1.0 Behavior updated for the 2.1.0 release.
      */
     public function providerOptionsForPrivate(?SmsGateway $gateway = null): array
     {
@@ -141,6 +170,7 @@ class SmsGatewayManagementService
         SmsGateway::query()
             ->system()
             ->enabled()
+            ->where('provider_code', '!=', DebugSmsGatewayAvailability::PROVIDER_CODE)
             ->orderBy('provider_code')
             ->get(['provider_code', 'name'])
             ->each(function (SmsGateway $systemGateway) use (&$options): void {
@@ -154,7 +184,9 @@ class SmsGatewayManagementService
             $options = $this->knownProviderOptions();
         }
 
-        if ($gateway && ! array_key_exists($gateway->provider_code, $options)) {
+        if ($gateway
+            && $gateway->provider_code !== DebugSmsGatewayAvailability::PROVIDER_CODE
+            && ! array_key_exists($gateway->provider_code, $options)) {
             $options[$gateway->provider_code] = $this->providerLabel($gateway->provider_code, $gateway->name);
         }
 
@@ -169,10 +201,11 @@ class SmsGatewayManagementService
      * @return SmsGateway Resolved operation result.
      *
      * @since 1.0.0
+     * @since 2.1.0 Behavior updated for the 2.1.0 release.
      */
     public function createSystem(array $data, SmsGatewayService $gateways): SmsGateway
     {
-        $this->ensureProtectedSystemGatewayIsUnique($data);
+        $this->ensureDebugGatewayIsEnvironmentManaged($data);
 
         if (($data['owner_scope'] ?? null) === 'tenant') {
             $tenant = Tenant::query()->findOrFail((int) $data['tenant_id']);
@@ -198,11 +231,12 @@ class SmsGatewayManagementService
      * @return SmsGateway Resolved operation result.
      *
      * @since 1.0.0
+     * @since 2.1.0 Behavior updated for the 2.1.0 release.
      */
     public function updateSystem(SmsGateway $gateway, array $data, SmsGatewayService $gateways): SmsGateway
     {
         $this->ensureMutable($gateway);
-        $this->ensureProtectedSystemGatewayIsUnique($data, $gateway);
+        $this->ensureDebugGatewayIsEnvironmentManaged($data);
 
         if (($data['owner_scope'] ?? null) === 'tenant') {
             $tenant = Tenant::query()->findOrFail((int) $data['tenant_id']);
@@ -248,9 +282,12 @@ class SmsGatewayManagementService
      * @return SmsGateway Resolved operation result.
      *
      * @since 1.0.0
+     * @since 2.1.0 Behavior updated for the 2.1.0 release.
      */
     public function saveClinicSettings(Tenant $tenant, array $data, SmsGatewayService $gateways): SmsGateway
     {
+        $this->ensureDebugGatewayIsEnvironmentManaged($data);
+
         $gateway = $this->clinicSettings($tenant);
 
         $attributes = $this->attributes($data + [
@@ -352,35 +389,23 @@ class SmsGatewayManagementService
     }
 
     /**
-     * Keep the one seeded system-local gateway as the sole debug/test definition.
+     * Prevent dashboard mutations from creating or activating the debug provider.
      *
      * @param  array<string, mixed>  $data  Validated gateway values.
-     * @param  SmsGateway|null  $gateway  Existing gateway being updated.
      * @return void No value is returned.
      *
      * @throws ValidationException
      *
-     * @since 2.0.0
+     * @since 2.1.0
      */
-    private function ensureProtectedSystemGatewayIsUnique(array $data, ?SmsGateway $gateway = null): void
+    private function ensureDebugGatewayIsEnvironmentManaged(array $data): void
     {
-        if (($data['owner_scope'] ?? null) !== 'system' || ($data['provider_code'] ?? null) !== 'local') {
-            return;
-        }
-
-        $exists = SmsGateway::query()
-            ->system()
-            ->where('provider_code', 'local')
-            ->where('is_protected', true)
-            ->when($gateway, fn (Builder $query) => $query->whereKeyNot($gateway->id))
-            ->exists();
-
-        if (! $exists) {
+        if (($data['provider_code'] ?? null) !== DebugSmsGatewayAvailability::PROVIDER_CODE) {
             return;
         }
 
         throw ValidationException::withMessages([
-            'provider_code' => __('sms.protected_duplicate_denied'),
+            'provider_code' => __('sms.debug_gateway_env_only'),
         ]);
     }
 
@@ -394,9 +419,70 @@ class SmsGatewayManagementService
     private function knownProviderOptions(): array
     {
         return [
-            'local' => __('sms.providers.local'),
             'ippanel' => __('sms.providers.ippanel'),
         ];
+    }
+
+    /**
+     * Apply dashboard status filtering against each gateway's effective runtime status.
+     *
+     * @param  Builder<SmsGateway>  $query  Gateway list query.
+     * @param  Request  $request  Incoming HTTP request.
+     * @return void No value is returned.
+     *
+     * @since 2.1.0
+     */
+    private function applyEffectiveStatusFilter(Builder $query, Request $request): void
+    {
+        if (! $request->filled('status')) {
+            return;
+        }
+
+        $status = $request->string('status')->toString();
+
+        if ($this->debugGateway->isEnabled()) {
+            if ($status === 'enabled') {
+                $query->where(function (Builder $query): void {
+                    $query
+                        ->where('status', 'enabled')
+                        ->orWhere('provider_code', DebugSmsGatewayAvailability::PROVIDER_CODE);
+                });
+
+                return;
+            }
+
+            if ($status === 'disabled') {
+                $query
+                    ->where('status', 'disabled')
+                    ->where('provider_code', '!=', DebugSmsGatewayAvailability::PROVIDER_CODE);
+
+                return;
+            }
+
+            $query->where('status', $status);
+
+            return;
+        }
+
+        if ($status === 'enabled') {
+            $query
+                ->where('status', 'enabled')
+                ->where('provider_code', '!=', DebugSmsGatewayAvailability::PROVIDER_CODE);
+
+            return;
+        }
+
+        if ($status === 'disabled') {
+            $query->where(function (Builder $query): void {
+                $query
+                    ->where('status', 'disabled')
+                    ->orWhere('provider_code', DebugSmsGatewayAvailability::PROVIDER_CODE);
+            });
+
+            return;
+        }
+
+        $query->where('status', $status);
     }
 
     /**

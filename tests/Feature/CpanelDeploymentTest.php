@@ -8,6 +8,7 @@ use Tests\TestCase;
  * Verifies the checked-in cPanel deployment assets and environment baseline.
  *
  * @since 2.0.0
+ * @since 2.1.0 Behavior updated for the 2.1.0 release.
  */
 class CpanelDeploymentTest extends TestCase
 {
@@ -81,6 +82,7 @@ class CpanelDeploymentTest extends TestCase
      * @return void No value is returned.
      *
      * @since 2.0.0
+     * @since 2.1.0 Behavior updated for the 2.1.0 release.
      */
     public function test_cpanel_environment_template_matches_the_complete_environment_contract(): void
     {
@@ -100,6 +102,10 @@ class CpanelDeploymentTest extends TestCase
         sort($cpanelKeys);
 
         $this->assertSame($localKeys, $cpanelKeys);
+        $this->assertStringContainsString('APP_URL=', $localTemplate);
+        $this->assertStringContainsString('APP_URL=', $cpanelTemplate);
+        $this->assertStringNotContainsString('HAIRVISION_PRIMARY_DOMAIN=', $localTemplate);
+        $this->assertStringNotContainsString('HAIRVISION_PRIMARY_DOMAIN=', $cpanelTemplate);
         $this->assertStringContainsString('APP_ENV=production', $cpanelTemplate);
         $this->assertStringContainsString('APP_DEBUG=false', $cpanelTemplate);
         $this->assertStringContainsString('SESSION_EXPIRE_ON_CLOSE=true', $cpanelTemplate);

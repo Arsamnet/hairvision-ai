@@ -1,3 +1,4 @@
+{{-- @since 2.1.0 Adds release-specific landing and analytics navigation support. --}}
 <!DOCTYPE html>
 <html lang="fa" dir="rtl" class="admin-root">
 <head>
@@ -60,6 +61,10 @@
 
         $canSeeItem = function (array $item) use ($user, $tenant): bool {
             if (($item['clinicOnly'] ?? false) && ($user?->isSuperAdmin() ?? false)) {
+                return false;
+            }
+
+            if (($item['systemOnly'] ?? false) && ! ($user?->isSystemScoped() ?? false)) {
                 return false;
             }
 

@@ -8,6 +8,7 @@ use Illuminate\Database\Seeder;
  * Provides database seeder behavior.
  *
  * @since 1.0.0
+ * @since 2.1.0 Behavior updated for the 2.1.0 release.
  */
 class DatabaseSeeder extends Seeder
 {
@@ -17,6 +18,7 @@ class DatabaseSeeder extends Seeder
      * @return void No value is returned.
      *
      * @since 1.0.0
+     * @since 2.1.0 Behavior updated for the 2.1.0 release.
      */
     public function run(): void
     {
@@ -24,6 +26,7 @@ class DatabaseSeeder extends Seeder
             AccessControlSeeder::class,
             SystemSettingSeeder::class,
             GuideContentSeeder::class,
+            AiModelCategorySeeder::class,
             SmsGatewaySeeder::class,
             PaymentGatewaySeeder::class,
             PlanSeeder::class,
@@ -36,6 +39,7 @@ class DatabaseSeeder extends Seeder
             TenantUserSeeder::class,
             SubscriptionSeeder::class,
             LeadSeeder::class,
+            DemoClinicDataSeeder::class,
         ]);
     }
 }

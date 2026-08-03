@@ -1,5 +1,10 @@
 <?php
 
+/**
+ * Provides Persian dashboard copy revised for the 2.1.0 release.
+ *
+ * @since 2.1.0
+ */
 return [
     'admin_title' => 'پنل مدیریت HairVision',
     'product_name' => 'HairVision',
@@ -33,7 +38,7 @@ return [
         'total_leads' => 'کل لیدها',
         'new_leads' => 'لیدهای جدید',
         'follow_up' => 'نیازمند پیگیری',
-        'converted' => 'تبدیل‌شده',
+        'successful' => 'موفق‌شده',
     ],
 
     'recent_leads' => 'آخرین لیدها',
@@ -41,8 +46,21 @@ return [
     'empty_recent_leads' => 'هنوز لیدی برای این محدوده ثبت نشده است.',
     'no_name' => 'بدون نام',
 
+    'performance' => [
+        'title' => 'عملکرد ۷ روز اخیر',
+        'description' => 'خلاصه مسیر کاربران از ورود به لندینگ تا درخواست تولید تصویر',
+        'landing_views' => 'بازدید لندینگ',
+        'verified_leads' => 'لید تأییدشده',
+        'generations' => 'درخواست تولید',
+        'conversion_rate' => 'نرخ تبدیل نهایی',
+        'view_report' => 'مشاهده گزارش کامل',
+        'chart_label' => 'نمودار بازدید و درخواست تولید تصویر در هفت روز اخیر',
+        'day_tooltip' => ':date — :views بازدید، :generations درخواست تولید',
+    ],
+
     'plan' => [
         'status_title' => 'وضعیت پلن',
+        'details_title' => 'جزئیات پلن',
         'active' => 'پلن فعال است.',
         'exempt' => 'حساب مدیریتی بدون نیاز به پلن فعال است.',
         'inactive' => 'برای دسترسی به امکانات سیستم باید یک پلن تهیه یا تمدید کنید.',

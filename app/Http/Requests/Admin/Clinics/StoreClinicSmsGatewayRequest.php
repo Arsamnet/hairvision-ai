@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Admin\Clinics;
 
 use App\Models\SmsGateway;
+use App\Services\Sms\DebugSmsGatewayAvailability;
 use App\Support\StateCatalog;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -11,6 +12,7 @@ use Illuminate\Validation\Rule;
  * Validates clinic-scoped SMS gateway settings.
  *
  * @since 1.0.0
+ * @since 2.1.0 Behavior updated for the 2.1.0 release.
  */
 class StoreClinicSmsGatewayRequest extends FormRequest
 {
@@ -78,13 +80,19 @@ class StoreClinicSmsGatewayRequest extends FormRequest
      * @return array<int, string>
      *
      * @since 1.0.0
+     * @since 2.1.0 Behavior updated for the 2.1.0 release.
      */
     private function providerCodes(): array
     {
-        $codes = SmsGateway::query()->system()->enabled()->pluck('provider_code')->all();
+        $codes = SmsGateway::query()
+            ->system()
+            ->enabled()
+            ->where('provider_code', '!=', DebugSmsGatewayAvailability::PROVIDER_CODE)
+            ->pluck('provider_code')
+            ->all();
 
         return $codes !== []
             ? array_values(array_unique($codes))
-            : ['local', 'ippanel'];
+            : ['ippanel'];
     }
 }

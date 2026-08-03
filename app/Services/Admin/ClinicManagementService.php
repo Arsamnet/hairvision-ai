@@ -2,6 +2,7 @@
 
 namespace App\Services\Admin;
 
+use App\Models\Template;
 use App\Models\Tenant;
 use App\Services\Billing\ServiceEntitlementService;
 use App\Services\Landing\LandingTemplateManagementService;
@@ -11,11 +12,13 @@ use App\Support\StateCatalog;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 
 /**
  * Handles platform clinic management workflows.
  *
  * @since 1.0.0
+ * @since 2.1.0 Behavior updated for the 2.1.0 release.
  */
 class ClinicManagementService
 {
@@ -26,7 +29,7 @@ class ClinicManagementService
      * @param  LandingTemplateManagementService  $landingTemplates  Landing template management service.
      *
      * @since 1.0.0
-     * @since 2.0.0 Assigns the active default landing template during clinic creation.
+     * @since 2.0.0 Assigns an explicitly selected active template during clinic updates.
      */
     public function __construct(
         private readonly ServiceEntitlementService $entitlements,
@@ -107,8 +110,6 @@ class ClinicManagementService
                 'verified_at' => $data['domain_status'] === 'active' ? now() : null,
             ]);
 
-            $this->landingTemplates->assignDefaultToNewTenant($tenant);
-
             return $tenant;
         });
     }
@@ -121,10 +122,12 @@ class ClinicManagementService
      * @return Tenant Resolved operation result.
      *
      * @since 1.0.0
+     * @since 2.1.0 Behavior updated for the 2.1.0 release.
      */
     public function update(Tenant $tenant, array $data): Tenant
     {
         return DB::transaction(function () use ($tenant, $data): Tenant {
+            $template = $this->activeLandingTemplate((int) $data['template_id']);
             $tenant->update([
                 'name' => $data['name'],
                 'slug' => $data['slug'],
@@ -147,6 +150,8 @@ class ClinicManagementService
                 ? $domain->update($attributes)
                 : $tenant->domains()->create($attributes);
 
+            $this->landingTemplates->assignToTenant($tenant, $template);
+
             return $tenant->refresh();
         });
     }
@@ -162,5 +167,30 @@ class ClinicManagementService
     public function delete(Tenant $tenant): void
     {
         $tenant->delete();
+    }
+
+    /**
+     * Resolve an active landing template at the clinic-management boundary.
+     *
+     * @param  int  $templateId  Selected landing template identifier.
+     * @return Template Active managed template.
+     *
+     * @since 2.1.0
+     */
+    private function activeLandingTemplate(int $templateId): Template
+    {
+        $template = Template::query()
+            ->lockForUpdate()
+            ->whereKey($templateId)
+            ->where('is_active', true)
+            ->first();
+
+        if (! $template) {
+            throw ValidationException::withMessages([
+                'template_id' => __('clinics.validation.template_not_active'),
+            ]);
+        }
+
+        return $template;
     }
 }

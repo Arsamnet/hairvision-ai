@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Admin\SmsGateways;
 
 use App\Models\SmsGateway;
+use App\Services\Sms\DebugSmsGatewayAvailability;
 use App\Support\StateCatalog;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -11,6 +12,7 @@ use Illuminate\Validation\Rule;
  * Validates system SMS gateway updates.
  *
  * @since 1.0.0
+ * @since 2.1.0 Behavior updated for the 2.1.0 release.
  */
 class UpdateSmsGatewayRequest extends FormRequest
 {
@@ -64,15 +66,24 @@ class UpdateSmsGatewayRequest extends FormRequest
      * @return array<int, string>
      *
      * @since 1.0.0
+     * @since 2.1.0 Behavior updated for the 2.1.0 release.
      */
     private function providerCodes(): array
     {
         $gateway = $this->route('smsGateway');
-        $current = $gateway instanceof SmsGateway ? [$gateway->provider_code] : [];
+        $current = $gateway instanceof SmsGateway
+            && $gateway->provider_code !== DebugSmsGatewayAvailability::PROVIDER_CODE
+                ? [$gateway->provider_code]
+                : [];
 
         return array_values(array_unique(array_merge(
-            ['local', 'ippanel'],
-            SmsGateway::query()->system()->enabled()->pluck('provider_code')->all(),
+            ['ippanel'],
+            SmsGateway::query()
+                ->system()
+                ->enabled()
+                ->where('provider_code', '!=', DebugSmsGatewayAvailability::PROVIDER_CODE)
+                ->pluck('provider_code')
+                ->all(),
             $current
         )));
     }

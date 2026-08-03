@@ -1,3 +1,4 @@
+{{-- @since 2.1.0 Uses unified lead status and optional age/city fields. --}}
 @php
     $formKey = $formKey ?? 'create_lead';
 @endphp
@@ -15,7 +16,15 @@
 </div>
 <div>
     <label class="block text-sm font-bold text-zinc-800">{{ __('leads.fields.mobile') }}</label>
-    <input name="phone_normalized" value="{{ old('phone_normalized') }}" inputmode="numeric" data-digit-input class="mt-2 h-11 w-full rounded-lg border border-zinc-200 px-3 outline-none focus:border-teal-500" dir="ltr">
+    <input name="phone_normalized" value="{{ old('phone_normalized') }}" inputmode="numeric" pattern="[0-9۰-۹٠-٩]*" data-digit-input class="mt-2 h-11 w-full rounded-lg border border-zinc-200 px-3 outline-none focus:border-teal-500" dir="ltr">
+</div>
+<div>
+    <label class="block text-sm font-bold text-zinc-800">{{ __('leads.fields.age') }}</label>
+    <input name="age" value="{{ old('age') }}" inputmode="numeric" pattern="[0-9۰-۹٠-٩]*" maxlength="3" data-digit-input class="mt-2 h-11 w-full rounded-lg border border-zinc-200 px-3 outline-none focus:border-teal-500" dir="ltr">
+</div>
+<div>
+    <label class="block text-sm font-bold text-zinc-800">{{ __('leads.fields.city') }}</label>
+    <input name="city" value="{{ old('city') }}" maxlength="120" class="mt-2 h-11 w-full rounded-lg border border-zinc-200 px-3 outline-none focus:border-teal-500">
 </div>
 <div>
     <label class="block text-sm font-bold text-zinc-800">{{ __('leads.fields.source') }}</label>
@@ -34,15 +43,7 @@
     <label class="block text-sm font-bold text-zinc-800">{{ __('leads.fields.status') }}</label>
     <select name="status" class="mt-2 h-11 w-full rounded-lg border border-zinc-200 px-3 outline-none focus:border-teal-500">
         @foreach(\App\Support\StateCatalog::options('leads.statuses') as $status => $label)
-            <option value="{{ $status }}" @selected(old('status', 'verified') === $status)>{{ $label }}</option>
-        @endforeach
-    </select>
-</div>
-<div>
-    <label class="block text-sm font-bold text-zinc-800">{{ __('leads.fields.crm_stage') }}</label>
-    <select name="crm_stage" class="mt-2 h-11 w-full rounded-lg border border-zinc-200 px-3 outline-none focus:border-teal-500">
-        @foreach(\App\Support\StateCatalog::options('leads.crm_stages') as $stage => $label)
-            <option value="{{ $stage }}" @selected(old('crm_stage', 'new_lead') === $stage)>{{ $label }}</option>
+            <option value="{{ $status }}" @selected(old('status', 'new') === $status)>{{ $label }}</option>
         @endforeach
     </select>
 </div>

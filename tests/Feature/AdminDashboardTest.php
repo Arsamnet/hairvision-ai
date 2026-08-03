@@ -10,6 +10,7 @@ use App\Models\Subscription;
 use App\Models\Tenant;
 use App\Models\TenantDomain;
 use App\Models\User;
+use App\Services\Admin\LeadDashboardService;
 use App\Support\StateCatalog;
 use Database\Seeders\DatabaseSeeder;
 use Illuminate\Auth\SessionGuard;
@@ -18,8 +19,15 @@ use Illuminate\Support\Facades\Blade;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Validation\ValidationException;
 use Tests\TestCase;
 
+/**
+ * Verifies public-root, dashboard, lead-management, and administrator behavior.
+ *
+ * @since 1.0.0
+ * @since 2.1.0 Coverage expanded for unified lead status and demographics.
+ */
 class AdminDashboardTest extends TestCase
 {
     use RefreshDatabase;
@@ -59,6 +67,9 @@ class AdminDashboardTest extends TestCase
             ->assertOk()
             ->assertSee('HairVision')
             ->assertSee('/admin')
+            ->assertSee('data-hairvision-copyright', false)
+            ->assertSee(__('landing_templates.system_copyright'))
+            ->assertSee('href="https://hairvision-ai.test"', false)
             ->assertDontSee('تصویر خود را ثبت کنید');
 
         $this->assertDatabaseCount('tenant_landing_page_visits', 0);
@@ -241,7 +252,7 @@ class AdminDashboardTest extends TestCase
             'resources/views/admin/system/ai-model-categories/show.blade.php' => ['ai_models.empty.category_outputs'],
             'resources/views/admin/dashboard.blade.php' => ['dashboard.plan.no_service_credit', 'dashboard.empty_recent_leads'],
             'resources/views/admin/billing/index.blade.php' => ['dashboard.plan.no_service_credit', 'payments.empty_invoices'],
-            'resources/views/admin/reports.blade.php' => ['reports.empty', 'reports.clinics_empty', 'reports.management_only'],
+            'resources/views/admin/reports.blade.php' => ['reports.empty', 'reports.no_application_clicks'],
             'resources/views/admin/reports/credit-usage.blade.php' => ['dashboard.plan.no_service_credit', 'reports.credit_usage_empty'],
             'resources/views/admin/leads/show.blade.php' => ['leads.uploads.empty', 'leads.generations.empty', 'crm.empty'],
             'resources/views/admin/users/show.blade.php' => ['system.users.no_clinics'],
@@ -360,13 +371,13 @@ class AdminDashboardTest extends TestCase
             'status' => 'active',
         ]);
 
-        $this->assertSame(count(__('leads.crm_stages')), $tenant->leads()->count());
-        $this->assertSame(1, $tenant->leads()->where('crm_stage', 'converted')->count());
-        $this->assertSame(2, $tenant->leads()->where('status', 'archived')->count());
-        $expectedCrmStages = collect(array_keys(__('leads.crm_stages')))->sort()->values()->all();
-        $seededCrmStages = $tenant->leads()->pluck('crm_stage')->sort()->values()->all();
+        $this->assertSame(8, $tenant->leads()->count());
+        $this->assertSame(1, $tenant->leads()->where('status', 'successful')->count());
+        $this->assertSame(2, $tenant->leads()->where('status', 'canceled')->count());
+        $expectedStatuses = collect(array_keys(__('leads.statuses')))->sort()->values()->all();
+        $seededStatuses = $tenant->leads()->distinct()->pluck('status')->sort()->values()->all();
 
-        $this->assertSame($expectedCrmStages, $seededCrmStages);
+        $this->assertSame($expectedStatuses, $seededStatuses);
 
         $this->assertSame(__('leads.statuses'), StateCatalog::options('leads.statuses'));
 
@@ -443,6 +454,206 @@ class AdminDashboardTest extends TestCase
             ->assertForbidden();
     }
 
+    public function test_dashboard_rejects_duplicate_lead_phone_and_preserves_form_input(): void
+    {
+        $tenant = $this->createTenant('Clinic One', 'arya', 'arya.hairvision-ai.test');
+        $user = $this->createUserForTenant($tenant, 'clinic_admin', '09121111111');
+        $this->activateSubscription($user);
+        $existingLead = $this->createLead($tenant, '09124444444', 'Original Lead');
+
+        $this->actingAs($user)
+            ->withSession(['admin_active_tenant_id' => $tenant->id])
+            ->forHost('hairvision-ai.test')
+            ->from('/admin/crm/leads/create')
+            ->post('/admin/crm/leads', [
+                'full_name' => 'Duplicate Lead',
+                'phone_normalized' => '۰۹۱۲۴۴۴۴۴۴۴',
+                'age' => '۳۴',
+                'city' => 'تهران',
+                'source' => 'dashboard',
+                'status' => 'new',
+                'assigned_user_id' => $user->id,
+                'note' => 'This note must not be stored.',
+            ])
+            ->assertRedirect('/admin/crm/leads/create')
+            ->assertSessionHasErrors([
+                'phone_normalized' => 'این شماره موبایل قبلاً ثبت شده است.',
+            ])
+            ->assertSessionHasInput('full_name', 'Duplicate Lead')
+            ->assertSessionHasInput('phone_normalized', '09124444444');
+
+        $this->assertDatabaseCount('leads', 1);
+        $this->assertDatabaseCount('lead_notes', 0);
+        $this->assertSame('Original Lead', $existingLead->fresh()->full_name);
+        $this->assertSame('landing_page', $existingLead->fresh()->source);
+    }
+
+    public function test_dashboard_allows_the_same_lead_phone_in_another_tenant(): void
+    {
+        $tenantA = $this->createTenant('Clinic One', 'arya', 'arya.hairvision-ai.test');
+        $tenantB = $this->createTenant('Clinic Two', 'clinic2', 'clinic2.hairvision-ai.test');
+        $user = $this->createUserForTenant($tenantB, 'clinic_admin', '09121111111');
+        $this->activateSubscription($user);
+        $this->createLead($tenantA, '09124444444', 'Tenant A Lead');
+
+        $this->actingAs($user)
+            ->withSession(['admin_active_tenant_id' => $tenantB->id])
+            ->forHost('hairvision-ai.test')
+            ->post('/admin/crm/leads', [
+                'full_name' => 'Tenant B Lead',
+                'phone_normalized' => '09124444444',
+                'age' => 34,
+                'city' => 'تهران',
+                'source' => 'dashboard',
+                'status' => 'new',
+                'assigned_user_id' => $user->id,
+            ])
+            ->assertRedirect();
+
+        $this->assertDatabaseHas('leads', [
+            'tenant_id' => $tenantB->id,
+            'full_name' => 'Tenant B Lead',
+            'phone_normalized' => '09124444444',
+        ]);
+        $this->assertDatabaseCount('leads', 2);
+    }
+
+    public function test_dashboard_lead_service_rejects_a_duplicate_when_request_validation_is_bypassed(): void
+    {
+        $tenant = $this->createTenant('Clinic One', 'arya', 'arya.hairvision-ai.test');
+        $user = $this->createUserForTenant($tenant, 'clinic_admin', '09121111111');
+        $existingLead = $this->createLead($tenant, '09124444444', 'Original Lead');
+
+        try {
+            $this->app->make(LeadDashboardService::class)->create([
+                'full_name' => 'Concurrent Duplicate',
+                'phone_normalized' => '09124444444',
+                'age' => 34,
+                'city' => 'تهران',
+                'source' => 'dashboard',
+                'status' => 'new',
+                'assigned_user_id' => $user->id,
+                'note' => 'This note must not be stored.',
+            ], $tenant, $user);
+
+            $this->fail('A duplicate tenant lead must raise a validation exception.');
+        } catch (ValidationException $exception) {
+            $this->assertSame(
+                ['phone_normalized' => ['این شماره موبایل قبلاً ثبت شده است.']],
+                $exception->errors(),
+            );
+        }
+
+        $this->assertDatabaseCount('leads', 1);
+        $this->assertDatabaseCount('lead_notes', 0);
+        $this->assertSame('Original Lead', $existingLead->fresh()->full_name);
+    }
+
+    public function test_dashboard_lead_forms_use_one_status_and_persist_numeric_age_and_city(): void
+    {
+        $tenant = $this->createTenant('Clinic One', 'arya', 'arya.hairvision-ai.test');
+        $user = $this->createUserForTenant($tenant, 'clinic_admin', '09121111111');
+        $this->activateSubscription($user);
+
+        $this->actingAs($user)
+            ->withSession(['admin_active_tenant_id' => $tenant->id])
+            ->forHost('hairvision-ai.test')
+            ->get('/admin/crm/leads/create')
+            ->assertOk()
+            ->assertSee('name="age"', false)
+            ->assertSee('name="city"', false)
+            ->assertSee('name="status"', false)
+            ->assertDontSee('name="crm_stage"', false)
+            ->assertSeeInOrder(['جدید', 'نیاز به پیگیری', 'عدم پاسخ', 'موفق شده', 'لغو شده']);
+
+        $this->actingAs($user)
+            ->withSession(['admin_active_tenant_id' => $tenant->id])
+            ->forHost('hairvision-ai.test')
+            ->post('/admin/crm/leads', [
+                'full_name' => 'لید دارای مشخصات',
+                'phone_normalized' => '۰۹۱۲۴۴۴۴۴۴۴',
+                'age' => '۳۴',
+                'city' => 'تهران',
+                'source' => 'dashboard',
+                'status' => 'canceled',
+                'assigned_user_id' => $user->id,
+            ])
+            ->assertRedirect();
+
+        $lead = Lead::query()->where('tenant_id', $tenant->id)->where('phone_normalized', '09124444444')->firstOrFail();
+        $this->assertSame(34, $lead->age);
+        $this->assertSame('تهران', $lead->city);
+        $this->assertSame('canceled', $lead->status);
+
+        $youngLead = $this->createLead($tenant, '09123333334', 'لید کم‌سن');
+        $youngLead->forceFill(['age' => 25])->save();
+        $olderLead = $this->createLead($tenant, '09123333335', 'لید پرسن');
+        $olderLead->forceFill(['age' => 46])->save();
+
+        $this->actingAs($user)
+            ->withSession(['admin_active_tenant_id' => $tenant->id])
+            ->forHost('hairvision-ai.test')
+            ->get('/admin/crm/leads?age_from=۳۰&age_until=۴۰')
+            ->assertOk()
+            ->assertSee(__('leads.fields.age'))
+            ->assertSee('34')
+            ->assertSee('name="age_from"', false)
+            ->assertSee('name="age_until"', false)
+            ->assertSee('value="30"', false)
+            ->assertSee('value="40"', false)
+            ->assertDontSee($youngLead->full_name)
+            ->assertDontSee($olderLead->full_name)
+            ->assertSee('data-lead-status="canceled"', false)
+            ->assertSee('bg-rose-50 text-rose-700', false);
+
+        $this->actingAs($user)
+            ->withSession(['admin_active_tenant_id' => $tenant->id])
+            ->forHost('hairvision-ai.test')
+            ->get('/admin/crm/leads/'.$lead->id.'/edit')
+            ->assertOk()
+            ->assertSee('name="age"', false)
+            ->assertSee('name="city"', false)
+            ->assertDontSee('name="crm_stage"', false);
+
+        $this->actingAs($user)
+            ->withSession(['admin_active_tenant_id' => $tenant->id])
+            ->forHost('hairvision-ai.test')
+            ->put('/admin/crm/leads/'.$lead->id, [
+                'full_name' => $lead->full_name,
+                'phone_normalized' => $lead->phone_normalized,
+                'age' => '۳۵',
+                'city' => 'کرج',
+                'source' => $lead->source,
+                'status' => 'successful',
+                'assigned_user_id' => $user->id,
+            ])
+            ->assertRedirect(route('admin.leads.show', $lead));
+
+        $lead->refresh();
+        $this->assertSame(35, $lead->age);
+        $this->assertSame('کرج', $lead->city);
+        $this->assertSame('successful', $lead->status);
+
+        $this->actingAs($user)
+            ->withSession(['admin_active_tenant_id' => $tenant->id])
+            ->forHost('hairvision-ai.test')
+            ->post('/admin/crm/leads', [
+                'phone_normalized' => '09125555555',
+                'age' => 'سی و پنج',
+                'status' => 'new',
+            ])
+            ->assertSessionHasErrors('age');
+
+        $this->actingAs($user)
+            ->withSession(['admin_active_tenant_id' => $tenant->id])
+            ->forHost('hairvision-ai.test')
+            ->post('/admin/crm/leads', [
+                'phone_normalized' => '09126666666',
+                'status' => 'verified',
+            ])
+            ->assertSessionHasErrors('status');
+    }
+
     public function test_viewer_cannot_edit_leads_and_editor_can_only_update_limited_fields(): void
     {
         $tenant = $this->createTenant('Clinic One', 'arya', 'arya.hairvision-ai.test');
@@ -464,18 +675,20 @@ class AdminDashboardTest extends TestCase
             ->put('/admin/crm/leads/'.$lead->id, [
                 'full_name' => 'Changed Name',
                 'phone_normalized' => '09125555555',
+                'age' => 99,
+                'city' => 'Changed City',
                 'source' => 'phone',
-                'crm_stage' => 'needs_follow_up',
-                'status' => 'archived',
+                'status' => 'needs_follow_up',
             ])
             ->assertRedirect(route('admin.leads.show', $lead));
 
         $lead->refresh();
         $this->assertSame('Original Name', $lead->full_name);
         $this->assertSame('09124444444', $lead->phone_normalized);
+        $this->assertNull($lead->age);
+        $this->assertNull($lead->city);
         $this->assertSame('phone', $lead->source);
-        $this->assertSame('needs_follow_up', $lead->crm_stage);
-        $this->assertSame('verified', $lead->status);
+        $this->assertSame('needs_follow_up', $lead->status);
     }
 
     private function createTenant(string $name, string $slug, string $domain): Tenant
@@ -522,8 +735,7 @@ class AdminDashboardTest extends TestCase
             'phone_normalized' => $phone,
             'source' => 'landing_page',
             'phone_verified_at' => now(),
-            'status' => 'verified',
-            'crm_stage' => 'new_lead',
+            'status' => 'new',
         ]);
     }
 

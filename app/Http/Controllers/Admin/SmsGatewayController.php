@@ -9,6 +9,7 @@ use App\Models\SmsGateway;
 use App\Models\Tenant;
 use App\Models\User;
 use App\Services\Admin\SmsGatewayManagementService;
+use App\Services\Sms\DebugSmsGatewayAvailability;
 use App\Services\Sms\SmsGatewayService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -19,6 +20,7 @@ use Illuminate\View\View;
  * Manages platform and clinic SMS gateway records.
  *
  * @since 1.0.0
+ * @since 2.1.0 Behavior updated for the 2.1.0 release.
  */
 class SmsGatewayController extends Controller
 {
@@ -27,18 +29,31 @@ class SmsGatewayController extends Controller
      *
      * @param  Request  $request  Incoming HTTP request.
      * @param  SmsGatewayManagementService  $manager  The manager value.
+     * @param  DebugSmsGatewayAvailability  $debugGateway  Runtime debug gateway boundary.
      * @return View Rendered response view.
      *
      * @since 1.0.0
+     * @since 2.1.0 Behavior updated for the 2.1.0 release.
      */
-    public function index(Request $request, SmsGatewayManagementService $manager): View
-    {
+    public function index(
+        Request $request,
+        SmsGatewayManagementService $manager,
+        DebugSmsGatewayAvailability $debugGateway
+    ): View {
         Gate::authorize('viewAny', SmsGateway::class);
+
+        $gateways = $manager->paginateSystem($request);
+        $effectiveStatuses = collect($gateways->items())
+            ->mapWithKeys(fn (SmsGateway $gateway): array => [
+                (string) $gateway->getKey() => $debugGateway->effectiveStatus($gateway),
+            ])
+            ->all();
 
         return view('admin.system.sms-gateways.index', $this->formData($request, $manager) + [
             'tenant' => $request->attributes->get('adminTenant'),
             'availableTenants' => $request->attributes->get('adminTenants'),
-            'gateways' => $manager->paginateSystem($request),
+            'gateways' => $gateways,
+            'effectiveStatuses' => $effectiveStatuses,
         ]);
     }
 
@@ -84,18 +99,24 @@ class SmsGatewayController extends Controller
      *
      * @param  Request  $request  Incoming HTTP request.
      * @param  SmsGateway  $smsGateway  The sms gateway value.
+     * @param  DebugSmsGatewayAvailability  $debugGateway  Runtime debug gateway boundary.
      * @return View Rendered response view.
      *
      * @since 1.0.0
+     * @since 2.1.0 Behavior updated for the 2.1.0 release.
      */
-    public function show(Request $request, SmsGateway $smsGateway): View
-    {
+    public function show(
+        Request $request,
+        SmsGateway $smsGateway,
+        DebugSmsGatewayAvailability $debugGateway
+    ): View {
         Gate::authorize('view', $smsGateway);
 
         return view('admin.system.sms-gateways.show', [
             'tenant' => $request->attributes->get('adminTenant'),
             'availableTenants' => $request->attributes->get('adminTenants'),
             'gateway' => $smsGateway->load(['user', 'tenant']),
+            'effectiveStatus' => $debugGateway->effectiveStatus($smsGateway),
         ]);
     }
 
@@ -134,6 +155,24 @@ class SmsGatewayController extends Controller
         $manager->updateSystem($smsGateway, $request->validated(), $gateways);
 
         return redirect()->route('admin.system.sms-gateways.show', $smsGateway)->with('status', __('sms.updated'));
+    }
+
+    /**
+     * Select the requested SMS gateway as the default for its owner scope.
+     *
+     * @param  SmsGateway  $smsGateway  SMS gateway being selected.
+     * @param  SmsGatewayService  $gateways  SMS gateway domain service.
+     * @return RedirectResponse HTTP redirect response.
+     *
+     * @since 2.1.0
+     */
+    public function markDefault(SmsGateway $smsGateway, SmsGatewayService $gateways): RedirectResponse
+    {
+        Gate::authorize('markDefault', $smsGateway);
+
+        $gateways->markDefault($smsGateway);
+
+        return back()->with('status', __('sms.default_updated'));
     }
 
     /**

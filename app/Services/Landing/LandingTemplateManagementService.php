@@ -9,9 +9,10 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
 /**
- * Manages landing template lifecycle, default selection, and tenant assignment.
+ * Manages trusted landing template content and clinic-selected assignments.
  *
  * @since 2.0.0
+ * @since 2.1.0 Behavior updated for the 2.1.0 release.
  */
 class LandingTemplateManagementService
 {
@@ -67,61 +68,6 @@ class LandingTemplateManagementService
     }
 
     /**
-     * Make an active template the single platform default.
-     *
-     * @param  Template  $template  Template selected as the new default.
-     * @param  User  $actor  Authenticated system administrator.
-     * @return Template Updated default template.
-     *
-     * @since 2.0.0
-     */
-    public function makeDefault(Template $template, User $actor): Template
-    {
-        if (! $template->is_active) {
-            throw ValidationException::withMessages([
-                'template' => __('landing_templates.validation.inactive_default'),
-            ]);
-        }
-
-        return DB::transaction(function () use ($template, $actor): Template {
-            Template::query()->lockForUpdate()->get(['id']);
-            Template::query()->where('is_default', true)->update(['is_default' => false]);
-            $template->forceFill([
-                'is_default' => true,
-                'revision' => $template->revision + 1,
-                'updated_by' => $actor->id,
-            ])->save();
-
-            return $template->refresh();
-        });
-    }
-
-    /**
-     * Delete an unused non-default template.
-     *
-     * @param  Template  $template  Template being deleted.
-     * @return void No value is returned.
-     *
-     * @since 2.0.0
-     */
-    public function delete(Template $template): void
-    {
-        if ($template->is_default) {
-            throw ValidationException::withMessages([
-                'template' => __('landing_templates.validation.default_cannot_delete'),
-            ]);
-        }
-
-        if ($template->themeSettings()->exists()) {
-            throw ValidationException::withMessages([
-                'template' => __('landing_templates.validation.assigned_cannot_delete'),
-            ]);
-        }
-
-        Template::destroy($template->getKey());
-    }
-
-    /**
      * Assign an active central template to a tenant without deleting legacy custom content.
      *
      * @param  Tenant  $tenant  Clinic receiving the template.
@@ -129,6 +75,7 @@ class LandingTemplateManagementService
      * @return void No value is returned.
      *
      * @since 2.0.0
+     * @since 2.1.0 Behavior updated for the 2.1.0 release.
      */
     public function assignToTenant(Tenant $tenant, Template $template): void
     {
@@ -138,39 +85,26 @@ class LandingTemplateManagementService
             ]);
         }
 
-        DB::transaction(function () use ($tenant, $template): void {
-            $tenant->theme()->updateOrCreate(
-                ['tenant_id' => $tenant->id],
-                [
-                    'template_id' => $template->id,
-                    'use_template_content' => true,
-                ]
-            );
-        });
+        DB::transaction(fn () => $this->persistTenantAssignment($tenant, $template));
     }
 
     /**
-     * Attach the active default template to a newly created clinic.
+     * Persist the clinic assignment without opening another transaction.
      *
-     * @param  Tenant  $tenant  Newly persisted clinic.
+     * @param  Tenant  $tenant  Clinic receiving the managed template.
+     * @param  Template  $template  Template becoming authoritative for public content.
      * @return void No value is returned.
      *
-     * @since 2.0.0
+     * @since 2.1.0
      */
-    public function assignDefaultToNewTenant(Tenant $tenant): void
+    private function persistTenantAssignment(Tenant $tenant, Template $template): void
     {
-        $template = Template::query()
-            ->where('is_active', true)
-            ->orderByDesc('is_default')
-            ->orderBy('id')
-            ->first();
-
-        if (! $template) {
-            throw ValidationException::withMessages([
-                'template' => __('landing_templates.validation.default_missing'),
-            ]);
-        }
-
-        $this->assignToTenant($tenant, $template);
+        $tenant->theme()->updateOrCreate(
+            ['tenant_id' => $tenant->id],
+            [
+                'template_id' => $template->id,
+                'use_template_content' => true,
+            ]
+        );
     }
 }

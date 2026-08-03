@@ -10,6 +10,31 @@ use Tests\TestCase;
 
 class IconLibraryContractTest extends TestCase
 {
+    /**
+     * Ensure clinic landings bundle the solid-rounded icon catalog locally.
+     *
+     * @return void No value is returned.
+     *
+     * @since 2.1.0
+     */
+    public function test_clinic_landing_loads_the_local_solid_rounded_uicons_library(): void
+    {
+        $landing = File::get(resource_path('views/landing.blade.php'));
+        $landingIcons = File::get(resource_path('css/landing-icons.css'));
+        $viteConfig = File::get(base_path('vite.config.js'));
+        $package = json_decode(File::get(base_path('package.json')), true, flags: JSON_THROW_ON_ERROR);
+
+        $this->assertSame('^3.3.1', $package['dependencies']['@flaticon/flaticon-uicons'] ?? null);
+        $this->assertStringContainsString(
+            "@import '@flaticon/flaticon-uicons/css/solid/rounded.css';",
+            $landingIcons
+        );
+        $this->assertStringContainsString('.fi-sr-phone::before', $landingIcons);
+        $this->assertStringContainsString('content: "\\fa45";', $landingIcons);
+        $this->assertStringContainsString("'resources/css/landing-icons.css'", $viteConfig);
+        $this->assertStringContainsString("'resources/css/landing-icons.css'", $landing);
+    }
+
     public function test_all_ui_icons_use_the_local_uicons_library(): void
     {
         $css = File::get(resource_path('css/app.css'));
@@ -70,7 +95,7 @@ class IconLibraryContractTest extends TestCase
 
             foreach ($iconElements[0] as $iconElement) {
                 $this->assertMatchesRegularExpression(
-                    '/\bfi\b.*\bfi-rr-/s',
+                    '/\bfi\b.*\bfi-(?:rr|sr)-/s',
                     $iconElement,
                     $relativePath.' contains an <i> icon outside the local UIcons library.'
                 );

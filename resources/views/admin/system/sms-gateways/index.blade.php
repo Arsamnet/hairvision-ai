@@ -1,3 +1,4 @@
+{{-- @since 2.1.0 Shows effective debug-gateway status and a gated default action. --}}
 @extends('admin.layout')
 
 @section('title', __('system.sms_gateways_title'))
@@ -51,6 +52,7 @@
                 </thead>
                 <tbody class="divide-y divide-zinc-100">
                     @forelse($gateways as $gateway)
+                        @php($effectiveStatus = $effectiveStatuses[(string) $gateway->getKey()] ?? $gateway->status)
                         <tr class="transition hover:bg-zinc-50/80">
                             <td class="px-4 py-3 align-top">
                                 <x-admin.table.action-menu>
@@ -59,6 +61,13 @@
                                     @endcan
                                     @can('update', $gateway)
                                         <x-admin.table.action-item :href="route('admin.system.sms-gateways.edit', $gateway)" icon="edit">{{ __('system.edit') }}</x-admin.table.action-item>
+                                    @endcan
+                                    @can('manageDefault', $gateway)
+                                        @can('markDefault', $gateway)
+                                            <x-admin.table.action-item :action="route('admin.system.sms-gateways.default', $gateway)" method="PATCH" icon="check">{{ __('sms.make_default') }}</x-admin.table.action-item>
+                                        @else
+                                            <x-admin.table.action-item icon="check" disabled>{{ __('sms.make_default') }}</x-admin.table.action-item>
+                                        @endcan
                                     @endcan
                                     @can('delete', $gateway)
                                         <x-admin.table.action-item :action="route('admin.system.sms-gateways.destroy', $gateway)" method="DELETE" icon="trash" danger :confirm="__('messages.confirm_delete')">{{ __('sms.delete') }}</x-admin.table.action-item>
@@ -75,7 +84,7 @@
                             </td>
                             <td class="px-4 py-3" dir="ltr">{{ $gateway->provider_code }}</td>
                             <td class="px-4 py-3">{{ $gateway->owner_scope === 'tenant' ? $gateway->tenant?->name : __('system.owners.system') }}</td>
-                            <td class="px-4 py-3"><x-admin.badge :tone="$gateway->status === 'enabled' ? 'emerald' : 'zinc'">{{ __('system.statuses.'.$gateway->status) }}</x-admin.badge></td>
+                            <td class="px-4 py-3"><x-admin.badge :tone="$effectiveStatus === 'enabled' ? 'emerald' : 'zinc'" data-sms-gateway-id="{{ $gateway->id }}" data-effective-status="{{ $effectiveStatus }}">{{ __('system.statuses.'.$effectiveStatus) }}</x-admin.badge></td>
                             <td class="px-4 py-3">{{ $gateway->is_default ? __('messages.yes') : __('messages.no') }}</td>
                         </tr>
                     @empty
@@ -91,6 +100,7 @@
 
         <x-admin.mobile-list>
             @forelse($gateways as $gateway)
+                @php($effectiveStatus = $effectiveStatuses[(string) $gateway->getKey()] ?? $gateway->status)
                 <x-admin.mobile-list.card>
                     <div class="admin-mobile-list-card-header">
                         <div class="min-w-0">
@@ -109,6 +119,13 @@
                             @can('update', $gateway)
                                 <x-admin.table.action-item :href="route('admin.system.sms-gateways.edit', $gateway)" icon="edit">{{ __('system.edit') }}</x-admin.table.action-item>
                             @endcan
+                            @can('manageDefault', $gateway)
+                                @can('markDefault', $gateway)
+                                    <x-admin.table.action-item :action="route('admin.system.sms-gateways.default', $gateway)" method="PATCH" icon="check">{{ __('sms.make_default') }}</x-admin.table.action-item>
+                                @else
+                                    <x-admin.table.action-item icon="check" disabled>{{ __('sms.make_default') }}</x-admin.table.action-item>
+                                @endcan
+                            @endcan
                             @can('delete', $gateway)
                                 <x-admin.table.action-item :action="route('admin.system.sms-gateways.destroy', $gateway)" method="DELETE" icon="trash" danger :confirm="__('messages.confirm_delete')">{{ __('sms.delete') }}</x-admin.table.action-item>
                             @endcan
@@ -120,7 +137,7 @@
                             <span class="truncate">{{ $gateway->owner_scope === 'tenant' ? $gateway->tenant?->name : __('system.owners.system') }}</span>
                         </x-admin.mobile-list.field>
                         <x-admin.mobile-list.field :label="__('system.status')">
-                            <x-admin.badge :tone="$gateway->status === 'enabled' ? 'emerald' : 'zinc'">{{ __('system.statuses.'.$gateway->status) }}</x-admin.badge>
+                            <x-admin.badge :tone="$effectiveStatus === 'enabled' ? 'emerald' : 'zinc'" data-sms-gateway-id="{{ $gateway->id }}" data-effective-status="{{ $effectiveStatus }}">{{ __('system.statuses.'.$effectiveStatus) }}</x-admin.badge>
                         </x-admin.mobile-list.field>
                         <x-admin.mobile-list.field :label="__('system.default')">
                             {{ $gateway->is_default ? __('messages.yes') : __('messages.no') }}

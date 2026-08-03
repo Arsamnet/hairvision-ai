@@ -1,9 +1,12 @@
 <?php
 
+/**
+ * Defines HairVision runtime defaults updated for the 2.1.0 release.
+ *
+ * @since 2.1.0
+ */
 return [
     'version' => env('APP_VERSION', '2.1.0'),
-
-    'primary_domain' => env('HAIRVISION_PRIMARY_DOMAIN', 'hairvision-ai.test'),
 
     'sessions' => [
         'lead_cookie' => env('HAIRVISION_LEAD_SESSION_COOKIE', 'hairvision_lead_session'),
@@ -192,6 +195,12 @@ return [
 
     'sms' => [
         'default_provider' => env('HAIRVISION_DEFAULT_SMS_PROVIDER', 'local'),
+        'debug_gateway' => [
+            'enabled' => filter_var(
+                env('HAIRVISION_DEBUG_SMS_ENABLED', false),
+                FILTER_VALIDATE_BOOLEAN
+            ),
+        ],
         'ippanel' => [
             'authorization_token' => env('HAIRVISION_IPPANEL_AUTHORIZATION_TOKEN'),
             'from_number' => env('HAIRVISION_IPPANEL_FROM_NUMBER', '+983000505'),

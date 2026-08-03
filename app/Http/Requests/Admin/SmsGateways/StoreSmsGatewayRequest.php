@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Admin\SmsGateways;
 
 use App\Models\SmsGateway;
+use App\Services\Sms\DebugSmsGatewayAvailability;
 use App\Support\StateCatalog;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -11,6 +12,7 @@ use Illuminate\Validation\Rule;
  * Validates system SMS gateway creation.
  *
  * @since 1.0.0
+ * @since 2.1.0 Behavior updated for the 2.1.0 release.
  */
 class StoreSmsGatewayRequest extends FormRequest
 {
@@ -62,12 +64,18 @@ class StoreSmsGatewayRequest extends FormRequest
      * @return array<int, string>
      *
      * @since 1.0.0
+     * @since 2.1.0 Behavior updated for the 2.1.0 release.
      */
     private function providerCodes(): array
     {
         return array_values(array_unique(array_merge(
-            ['local', 'ippanel'],
-            SmsGateway::query()->system()->enabled()->pluck('provider_code')->all()
+            ['ippanel'],
+            SmsGateway::query()
+                ->system()
+                ->enabled()
+                ->where('provider_code', '!=', DebugSmsGatewayAvailability::PROVIDER_CODE)
+                ->pluck('provider_code')
+                ->all()
         )));
     }
 }

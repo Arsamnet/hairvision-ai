@@ -10,6 +10,7 @@ use Illuminate\Validation\Rule;
  * Validates clinic updates from the admin dashboard.
  *
  * @since 1.0.0
+ * @since 2.1.0 Behavior updated for the 2.1.0 release.
  */
 class UpdateClinicRequest extends FormRequest
 {
@@ -31,6 +32,7 @@ class UpdateClinicRequest extends FormRequest
      * @return array<string, mixed>
      *
      * @since 1.0.0
+     * @since 2.1.0 Behavior updated for the 2.1.0 release.
      */
     public function rules(): array
     {
@@ -44,6 +46,11 @@ class UpdateClinicRequest extends FormRequest
             'domain' => ['required', 'string', 'max:255', 'regex:/^[a-z0-9.-]+$/', Rule::unique('tenant_domains', 'domain')->ignore($domain?->id)],
             'domain_type' => ['required', 'string', Rule::in(StateCatalog::values('tenant_domains.types'))],
             'domain_status' => ['required', 'string', Rule::in(StateCatalog::values('tenant_domains.statuses'))],
+            'template_id' => [
+                'required',
+                'integer',
+                Rule::exists('templates', 'id')->where('is_active', true),
+            ],
         ];
     }
 

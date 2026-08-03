@@ -1,3 +1,4 @@
+{{-- @since 2.1.0 Links system clinic comparisons to detailed performance reports. --}}
 @extends('admin.layout')
 
 @section('title', __('reports.management_title'))
@@ -17,4 +18,42 @@
             </section>
         @endforeach
     </div>
+
+    <section class="mt-5 rounded-lg bg-white p-5 shadow-sm ring-1 ring-zinc-200">
+        <div>
+            <h2 class="text-lg font-bold">{{ __('reports.clinics') }}</h2>
+            <p class="mt-1 text-sm leading-6 text-zinc-500">{{ __('reports.clinic_management_hint') }}</p>
+        </div>
+
+        <div class="mt-4 overflow-x-auto rounded-lg border border-zinc-200">
+            <table class="min-w-full text-right text-sm">
+                <thead class="bg-zinc-50 text-xs text-zinc-600">
+                    <tr>
+                        <th class="px-4 py-3">{{ __('reports.clinic') }}</th>
+                        <th class="px-4 py-3">{{ __('reports.funnel.landing_view') }}</th>
+                        <th class="px-4 py-3">{{ __('reports.metrics.leads') }}</th>
+                        <th class="px-4 py-3">{{ __('reports.funnel.generation_requested') }}</th>
+                        <th class="px-4 py-3">{{ __('reports.conversion') }}</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-zinc-100">
+                    @forelse($clinicRows as $clinicRow)
+                        <tr>
+                            <td class="px-4 py-3 font-bold">
+                                <a class="text-zinc-900 hover:text-teal-700" href="{{ route('admin.reports', ['clinic_id' => $clinicRow['id']]) }}">
+                                    {{ $clinicRow['name'] }}
+                                </a>
+                            </td>
+                            <td class="px-4 py-3">{{ number_format($clinicRow['visits']) }}</td>
+                            <td class="px-4 py-3">{{ number_format($clinicRow['leads']) }}</td>
+                            <td class="px-4 py-3">{{ number_format($clinicRow['conversions']) }}</td>
+                            <td class="px-4 py-3 font-bold text-teal-700">{{ number_format($clinicRow['conversion_rate'], 1) }}٪</td>
+                        </tr>
+                    @empty
+                        <tr><td colspan="5" class="px-4 py-8 text-center text-sm text-zinc-500">{{ __('reports.clinics_empty') }}</td></tr>
+                    @endforelse
+                </tbody>
+            </table>
+        </div>
+    </section>
 @endsection

@@ -1,3 +1,4 @@
+{{-- @since 2.1.0 Uses the code-owned HairVision copyright identity strip. --}}
 <!DOCTYPE html>
 <html lang="fa" dir="rtl">
 <head>
@@ -55,7 +56,7 @@
                         ['title' => 'ورود امن OTP', 'body' => 'احراز هویت موبایلی با کد هش‌شده، زمان انقضا، محدودیت تلاش و نرخ درخواست.'],
                         ['title' => 'نقش‌های دسترسی', 'body' => 'مدیر سیستم، مدیر کلینیک، ویرایشگر و مشاهده‌گر با کنترل دسترسی سمت سرور.'],
                         ['title' => 'داشبورد RTL', 'body' => 'رابط فارسی، واکنش‌گرا و مناسب استفاده روزانه تیم پذیرش و مشاوره.'],
-                        ['title' => 'گزارش و تحلیل', 'body' => 'نمای مرحله‌های CRM، حجم لیدها و عملکرد کلینیک‌ها برای تصمیم‌گیری سریع‌تر.'],
+                        ['title' => 'گزارش و تحلیل', 'body' => 'نمای وضعیت لیدها، حجم لیدها و عملکرد کلینیک‌ها برای تصمیم‌گیری سریع‌تر.'],
                     ] as $feature)
                         <article class="rounded-lg border border-zinc-200 bg-zinc-50 p-5">
                             <h3 class="font-bold">{{ $feature['title'] }}</h3>
@@ -84,5 +85,6 @@
             </div>
         </section>
     </main>
+    @include('public.partials.copyright')
 </body>
 </html>

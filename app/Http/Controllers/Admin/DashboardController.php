@@ -4,24 +4,29 @@ namespace App\Http\Controllers\Admin;
 
 use App\Enums\PlanAccessStatus;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Admin\Reports\PerformanceReportRequest;
 use App\Models\Tenant;
 use App\Services\Admin\LeadDashboardService;
 use App\Services\Admin\SystemOverviewService;
 use App\Services\AI\AiModelResolver;
 use App\Services\AI\AiModelUsageReportService;
+use App\Services\Analytics\ClinicPerformanceReportService;
 use App\Services\Billing\BillingService;
 use App\Services\Billing\CreditLedgerService;
 use App\Services\Billing\ServiceEntitlementService;
 use App\Services\Visitor\PublicApplicationAvailabilityService;
+use App\Support\StateCatalog;
 use App\Support\Tenancy\HostClassifier;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\View\View;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 /**
  * Renders admin dashboard pages.
  *
  * @since 1.0.0
+ * @since 2.1.0 Behavior updated for the 2.1.0 release.
  */
 class DashboardController extends Controller
 {
@@ -33,16 +38,19 @@ class DashboardController extends Controller
      * @param  SystemOverviewService  $overview  The overview value.
      * @param  ServiceEntitlementService  $entitlements  The entitlements value.
      * @param  PublicApplicationAvailabilityService  $availability  The availability value.
+     * @param  ClinicPerformanceReportService  $performanceReports  First-party clinic performance builder.
      * @return View Rendered response view.
      *
      * @since 1.0.0
+     * @since 2.1.0 Behavior updated for the 2.1.0 release.
      */
     public function index(
         Request $request,
         LeadDashboardService $leads,
         SystemOverviewService $overview,
         ServiceEntitlementService $entitlements,
-        PublicApplicationAvailabilityService $availability
+        PublicApplicationAvailabilityService $availability,
+        ClinicPerformanceReportService $performanceReports,
     ): View {
         $scope = 'admin.dashboard.index';
 
@@ -71,9 +79,9 @@ class DashboardController extends Controller
         $query = $canSeeOperationalData ? $leads->baseQuery($user, $tenant) : null;
 
         $leadCount = $query ? (clone $query)->count() : 0;
-        $newLeadCount = $query ? (clone $query)->where('crm_stage', 'new_lead')->count() : 0;
-        $followUpCount = $query ? (clone $query)->where('crm_stage', 'needs_follow_up')->count() : 0;
-        $convertedCount = $query ? (clone $query)->where('crm_stage', 'converted')->count() : 0;
+        $newLeadCount = $query ? (clone $query)->where('status', 'new')->count() : 0;
+        $followUpCount = $query ? (clone $query)->where('status', 'needs_follow_up')->count() : 0;
+        $successfulLeadCount = $query ? (clone $query)->where('status', 'successful')->count() : 0;
         $recentLeads = $query ? (clone $query)->with('tenant')->latest()->limit(6)->get() : new Collection;
         $serviceSummaries = $entitlements->summaryForSubscription($activeSubscription);
         $planSubscription = is_array($planAccess) ? ($planAccess['subscription'] ?? null) : null;
@@ -81,6 +89,9 @@ class DashboardController extends Controller
         $applicationSummaries = $tenant instanceof Tenant
             ? $availability->summariesForSubscription($tenant, $dashboardSubscription)
             : collect();
+        $recentPerformance = $canSeeOperationalData && $tenant instanceof Tenant
+            ? $performanceReports->recentDailySummary($tenant)
+            : null;
 
         return view('admin.dashboard', [
             'tenant' => $tenant,
@@ -90,10 +101,11 @@ class DashboardController extends Controller
             'planSubscription' => $planSubscription,
             'serviceSummaries' => $serviceSummaries,
             'applicationSummaries' => $applicationSummaries,
+            'recentPerformance' => $recentPerformance,
             'leadCount' => $leadCount,
             'newLeadCount' => $newLeadCount,
             'followUpCount' => $followUpCount,
-            'convertedCount' => $convertedCount,
+            'successfulLeadCount' => $successfulLeadCount,
             'recentLeads' => $recentLeads,
         ]);
     }
@@ -101,36 +113,167 @@ class DashboardController extends Controller
     /**
      * Show lead and tenant reports.
      *
-     * @param  Request  $request  Incoming HTTP request.
-     * @param  LeadDashboardService  $leads  The leads value.
+     * @param  PerformanceReportRequest  $request  Validated report request.
+     * @param  ClinicPerformanceReportService  $reports  First-party clinic funnel report builder.
      * @return View Rendered response view.
      *
      * @since 1.0.0
+     * @since 2.1.0 Behavior updated for the 2.1.0 release.
      */
-    public function reports(Request $request, LeadDashboardService $leads): View
-    {
-        $scope = 'admin.dashboard.reports';
-
+    public function reports(
+        PerformanceReportRequest $request,
+        ClinicPerformanceReportService $reports,
+    ): View {
         $tenant = $request->attributes->get('adminTenant');
         $availableTenants = $request->attributes->get('adminTenants');
-        $user = $request->user();
-
-        $query = $leads->baseQuery($user, $tenant);
-
-        $stageCounts = (clone $query)
-            ->selectRaw('crm_stage, count(*) as aggregate')
-            ->groupBy('crm_stage')
-            ->pluck('aggregate', 'crm_stage');
-
-        $tenantCounts = $user->isSuperAdmin()
-            ? Tenant::query()->withCount('leads')->orderBy('name')->get()
-            : collect();
+        $filters = $request->validated();
+        $isSystemReport = (bool) $request->user()?->isSystemScoped();
+        $reportTenant = $this->performanceReportTenant($request, $filters);
+        $range = $reports->range($filters);
 
         return view('admin.reports', [
             'tenant' => $tenant,
             'availableTenants' => $availableTenants,
-            'stageCounts' => $stageCounts,
-            'tenantCounts' => $tenantCounts,
+            'reportTenants' => $isSystemReport ? Tenant::query()->orderBy('name')->get() : collect(),
+            'range' => $range,
+            'quickRanges' => $reports->quickRanges(),
+            'reportTenant' => $reportTenant,
+            'isSystemReport' => $isSystemReport,
+            'report' => $reportTenant instanceof Tenant
+                ? $reports->report($reportTenant, $range['from'], $range['until'])
+                : $reports->systemReport($range['from'], $range['until']),
+        ]);
+    }
+
+    /**
+     * Download the selected clinic performance range as a UTF-8 CSV report.
+     *
+     * @param  PerformanceReportRequest  $request  Validated report request.
+     * @param  ClinicPerformanceReportService  $reports  First-party clinic funnel report builder.
+     * @return StreamedResponse Streamed CSV download.
+     *
+     * @since 2.1.0
+     */
+    public function exportPerformance(
+        PerformanceReportRequest $request,
+        ClinicPerformanceReportService $reports,
+    ): StreamedResponse {
+        $filters = $request->validated();
+        $isSystemReport = (bool) $request->user()?->isSystemScoped();
+        $reportTenant = $this->performanceReportTenant($request, $filters);
+
+        $range = $reports->range($filters);
+        $report = $reportTenant instanceof Tenant
+            ? $reports->report($reportTenant, $range['from'], $range['until'])
+            : $reports->systemReport($range['from'], $range['until']);
+        $scopeLabel = $reportTenant?->name ?? __('reports.all_clinics');
+        $filename = $reportTenant instanceof Tenant
+            ? 'hairvision-clinic-performance.csv'
+            : 'hairvision-system-performance.csv';
+
+        return response()->streamDownload(function () use ($report, $range, $scopeLabel): void {
+            $stream = fopen('php://output', 'wb');
+
+            if ($stream === false) {
+                return;
+            }
+
+            fwrite($stream, "\xEF\xBB\xBF");
+            fputcsv($stream, [__('reports.summary')]);
+            fputcsv($stream, [__('reports.report_scope'), $scopeLabel]);
+            fputcsv($stream, [
+                __('reports.range'),
+                __('reports.funnel.landing_view'),
+                __('reports.total_application_clicks'),
+                __('reports.application_visitors'),
+                __('reports.funnel.photo_selected'),
+                __('reports.funnel.phone_submitted'),
+                __('reports.funnel.otp_verified'),
+                __('reports.funnel.photo_uploaded'),
+                __('reports.funnel.generation_requested'),
+                __('reports.funnel.result_viewed'),
+                __('reports.overall_conversion_rate'),
+            ]);
+            fputcsv($stream, [
+                $range['date_from'].' - '.$range['date_until'],
+                $report['totals']['landing_views'],
+                $report['totals']['application_clicks'],
+                $report['totals']['application_visitors'],
+                $report['totals']['photo_selected'],
+                $report['totals']['phone_submitted'],
+                $report['totals']['otp_verified'],
+                $report['totals']['photo_uploaded'],
+                $report['totals']['generation_requested'],
+                $report['totals']['result_viewed'],
+                $report['totals']['overall_conversion_rate'].'%',
+            ]);
+
+            fputcsv($stream, []);
+            fputcsv($stream, [__('reports.monthly_table_title')]);
+            fputcsv($stream, [
+                __('reports.month'),
+                __('reports.funnel.landing_view'),
+                __('reports.total_application_clicks'),
+                __('reports.application_visitors'),
+                __('reports.funnel.photo_selected'),
+                __('reports.funnel.phone_submitted'),
+                __('reports.funnel.otp_verified'),
+                __('reports.funnel.photo_uploaded'),
+                __('reports.funnel.generation_requested'),
+                __('reports.funnel.result_viewed'),
+                __('reports.overall_conversion_rate'),
+            ]);
+
+            foreach ($report['monthly'] as $row) {
+                fputcsv($stream, [
+                    $row['month'],
+                    $row['landing_views'],
+                    $row['application_clicks'],
+                    $row['application_clicked'],
+                    $row['photo_selected'],
+                    $row['phone_submitted'],
+                    $row['otp_verified'],
+                    $row['photo_uploaded'],
+                    $row['generation_requested'],
+                    $row['result_viewed'],
+                    $row['conversion_rate'].'%',
+                ]);
+            }
+
+            fputcsv($stream, []);
+            fputcsv($stream, [__('reports.application_clicks_title')]);
+            fputcsv($stream, [
+                __('reports.application'),
+                __('reports.application_code'),
+                __('reports.total_application_clicks'),
+                __('reports.unique_visitors'),
+                __('reports.generation_visitors'),
+                __('reports.conversion'),
+            ]);
+
+            foreach ($report['applications'] as $application) {
+                fputcsv($stream, [
+                    $application['name'],
+                    $application['code'],
+                    $application['clicks'],
+                    $application['unique_visitors'],
+                    $application['generation_visitors'],
+                    $application['conversion_rate'].'%',
+                ]);
+            }
+
+            fputcsv($stream, []);
+            fputcsv($stream, [__('reports.leads_by_status')]);
+            fputcsv($stream, [__('reports.lead_status'), __('reports.lead_count')]);
+
+            foreach ($report['statuses'] as $status => $count) {
+                fputcsv($stream, [StateCatalog::label('leads.statuses', (string) $status), $count]);
+            }
+
+            fclose($stream);
+        }, $filename, [
+            'Content-Type' => 'text/csv; charset=UTF-8',
+            'Cache-Control' => 'private, no-store',
         ]);
     }
 
@@ -175,6 +318,29 @@ class DashboardController extends Controller
                 ? $usageReports->forClinic($tenant, 'model_usage_page')
                 : null,
         ]);
+    }
+
+    /**
+     * Resolve the validated tenant filter or the clinic user's enforced tenant.
+     *
+     * @param  PerformanceReportRequest  $request  Authorized report request.
+     * @param  array<string, mixed>  $filters  Validated report filters.
+     * @return Tenant|null Selected tenant, or null for an authorized system aggregate.
+     *
+     * @since 2.1.0
+     */
+    private function performanceReportTenant(PerformanceReportRequest $request, array $filters): ?Tenant
+    {
+        if ($request->user()?->isSystemScoped()) {
+            return filled($filters['clinic_id'] ?? null)
+                ? Tenant::query()->findOrFail((int) $filters['clinic_id'])
+                : null;
+        }
+
+        $tenant = $request->attributes->get('adminTenant');
+        abort_unless($tenant instanceof Tenant, 404);
+
+        return $tenant;
     }
 
     /**

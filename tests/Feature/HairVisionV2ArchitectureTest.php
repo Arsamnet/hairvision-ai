@@ -25,8 +25,10 @@ use App\Services\AI\JpegImageNormalizer;
 use App\Services\Billing\CreditLedgerService;
 use App\Services\Generation\ModelQueueCoordinator;
 use App\Support\JalaliDate;
+use Database\Seeders\AiModelCategorySeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Storage;
@@ -34,6 +36,12 @@ use Illuminate\Validation\ValidationException;
 use Mockery;
 use Tests\TestCase;
 
+/**
+ * Verifies category-based generation and version 2 architecture boundaries.
+ *
+ * @since 2.0.0
+ * @since 2.1.0 Coverage expanded for application guidance and card images.
+ */
 class HairVisionV2ArchitectureTest extends TestCase
 {
     use RefreshDatabase;
@@ -82,10 +90,26 @@ class HairVisionV2ArchitectureTest extends TestCase
             ->postJson('/api/v1/system/ai-model-categories', [
                 'code' => 'skin_preview',
                 'name' => 'پیش‌نمایش پوست',
+                'upload_guide_html' => '<p><strong>نور روبه‌رو باشد.</strong><img src=x onerror=alert(1)></p><script>alert(1)</script>',
                 'status' => 'active',
             ])
             ->assertCreated()
             ->json('data');
+
+        $this->assertSame('<p><strong>نور روبه‌رو باشد.</strong></p>', $category['upload_guide_html']);
+        $this->assertSame(
+            '<p><strong>نور روبه‌رو باشد.</strong></p>',
+            DB::table('ai_model_categories')->where('uuid', $category['id'])->value('upload_guide_html'),
+        );
+
+        DB::table('ai_model_categories')->where('uuid', $category['id'])->update([
+            'upload_guide_html' => '<p>نسخه قدیمی امن بماند.</p><script>unsafe()</script>',
+        ]);
+
+        $this->actingAs($admin, 'sanctum')
+            ->getJson('/api/v1/system/ai-model-categories/'.$category['id'])
+            ->assertOk()
+            ->assertJsonPath('data.upload_guide_html', '<p>نسخه قدیمی امن بماند.</p>');
 
         $output = $this->actingAs($admin, 'sanctum')
             ->postJson('/api/v1/system/ai-model-categories/'.$category['id'].'/outputs', [
@@ -123,6 +147,34 @@ class HairVisionV2ArchitectureTest extends TestCase
         $this->assertSame('Sample Skin', $model['name']);
         $this->assertSame([], $model['credentials']);
         $this->assertSame('final_result', $model['output_configs'][0]['output_code']);
+    }
+
+    public function test_category_seeder_provides_distinct_photo_guidance_without_overwriting_edits(): void
+    {
+        $hair = AiModelCategory::query()->where('code', 'hair_transplant')->firstOrFail();
+        $eyebrow = AiModelCategory::query()->where('code', 'eyebrow_transplant')->firstOrFail();
+
+        $this->assertStringContainsString('خط رویش و بالای سر', $hair->upload_guide_html);
+        $this->assertStringContainsString('هر دو ابرو', $eyebrow->upload_guide_html);
+        $this->assertNotSame($hair->upload_guide_html, $eyebrow->upload_guide_html);
+        $this->assertSame('/theme/category-images/hair-transplant.jpg', $hair->card_image_path);
+        $this->assertSame('/theme/category-images/eyebrow-transplant.jpg', $eyebrow->card_image_path);
+
+        $hair->update([
+            'upload_guide_html' => '<p>راهنمای ویرایش‌شده مدیر</p>',
+            'card_image_path' => '/storage/category-cards/custom-admin-image.jpg',
+        ]);
+        DB::table('ai_model_categories')->where('id', $eyebrow->id)->update([
+            'upload_guide_html' => null,
+            'card_image_path' => null,
+        ]);
+
+        $this->seed(AiModelCategorySeeder::class);
+
+        $this->assertSame('<p>راهنمای ویرایش‌شده مدیر</p>', $hair->refresh()->upload_guide_html);
+        $this->assertSame('/storage/category-cards/custom-admin-image.jpg', $hair->card_image_path);
+        $this->assertStringContainsString('هر دو ابرو', $eyebrow->refresh()->upload_guide_html);
+        $this->assertNull($eyebrow->card_image_path);
     }
 
     public function test_public_profile_replaces_current_source_image_and_archives_previous_one(): void
@@ -173,6 +225,7 @@ class HairVisionV2ArchitectureTest extends TestCase
             'code' => 'skin_preview',
             'name' => 'پیش‌نمایش پوست',
             'description' => 'کاربرد فعال پوست',
+            'upload_guide_html' => '<p><strong>نور یکنواخت باشد.</strong></p><script>unsafe()</script>',
             'status' => 'active',
             'sort_order' => 5,
         ]);
@@ -231,6 +284,7 @@ class HairVisionV2ArchitectureTest extends TestCase
             ->getJson('/api/v1/bootstrap')
             ->assertOk()
             ->assertJsonPath('categories.0.code', 'skin_preview')
+            ->assertJsonPath('categories.0.upload_guide_html', '<p><strong>نور یکنواخت باشد.</strong></p>')
             ->assertJsonPath('categories.0.outputs.0.code', 'final_result')
             ->assertJsonPath('categories.1.code', 'eyebrow_transplant')
             ->assertJsonPath('categories.1.outputs.0.code', 'eyebrow_final_result')
@@ -242,7 +296,7 @@ class HairVisionV2ArchitectureTest extends TestCase
         $this->assertSame('skin_preview', $response[0]['code']);
         $this->assertSame('eyebrow_transplant', $response[1]['code']);
         $this->assertNull($response[0]['card_image_url']);
-        $this->assertSame('/theme/category-icons/eyebrow-transplant.svg', $response[1]['card_image_url']);
+        $this->assertSame('/theme/category-images/eyebrow-transplant.jpg', $response[1]['card_image_url']);
     }
 
     public function test_visitor_can_request_final_output_independently_and_idempotently(): void
@@ -763,6 +817,7 @@ class HairVisionV2ArchitectureTest extends TestCase
                 'code' => 'filler_under_the_eyes',
                 'name' => 'فیلر زیر چشم',
                 'description' => 'پیش‌نمایش تصویر فیلر زیر چشم',
+                'upload_guide_html' => '<p><strong>صورت روبه‌روی دوربین باشد.</strong></p>',
                 'status' => 'active',
                 'sort_order' => 30,
                 'icon' => 'fi-rr-eye',
@@ -772,6 +827,7 @@ class HairVisionV2ArchitectureTest extends TestCase
 
         $category = AiModelCategory::query()->where('code', 'filler_under_the_eyes')->firstOrFail();
         $this->assertSame('eye', $category->icon);
+        $this->assertSame('<p><strong>صورت روبه‌روی دوربین باشد.</strong></p>', $category->upload_guide_html);
         $this->assertStringStartsWith('/storage/category-cards/', (string) $category->card_image_path);
         Storage::disk('public')->assertExists(str_replace('/storage/', '', (string) $category->card_image_path));
 
@@ -781,6 +837,8 @@ class HairVisionV2ArchitectureTest extends TestCase
             ->assertOk()
             ->assertSee('filler_under_the_eyes')
             ->assertSee('فیلر زیر چشم')
+            ->assertSee('data-admin-rich-text', false)
+            ->assertSee(__('ai_models.categories.upload_guide_label'))
             ->assertSee($category->cardImageUrl(), false);
 
         $this->actingAs($admin)
@@ -796,6 +854,7 @@ class HairVisionV2ArchitectureTest extends TestCase
                 '_form' => 'edit_category_'.$category->id,
                 'name' => 'فیلر زیر چشم',
                 'description' => 'پیش‌نمایش تصویر فیلر زیر چشم',
+                'upload_guide_html' => '<p>چهره کامل داخل کادر باشد.</p><img src=x onerror=alert(1)><script>alert(1)</script>',
                 'status' => 'active',
                 'sort_order' => 30,
                 'icon' => 'missing-icon-code',
@@ -803,12 +862,15 @@ class HairVisionV2ArchitectureTest extends TestCase
             ->assertRedirect();
 
         $this->assertNull($category->refresh()->icon);
+        $this->assertSame('<p>چهره کامل داخل کادر باشد.</p>', $category->upload_guide_html);
 
         $this->actingAs($admin)
             ->forHost('hairvision-ai.test')
             ->get(route('admin.system.ai-model-categories.show', $category))
             ->assertOk()
             ->assertSee($category->cardImageUrl(), false)
+            ->assertSee('چهره کامل داخل کادر باشد.')
+            ->assertDontSee('onerror=alert', false)
             ->assertSee('data-admin-modal-trigger="show-create-output-', false);
 
         $this->assertFalse(Route::has('admin.system.ai-model-categories.outputs.index'));
@@ -939,6 +1001,104 @@ class HairVisionV2ArchitectureTest extends TestCase
         $this->assertSoftDeleted('ai_model_categories', [
             'id' => $unusedCategory->id,
         ]);
+    }
+
+    public function test_system_admin_can_replace_and_remove_category_card_images(): void
+    {
+        Storage::fake('public');
+
+        $admin = User::factory()->create([
+            'role' => 'super_admin',
+            'access_scope' => 'system',
+            'status' => 'active',
+        ]);
+        $category = AiModelCategory::query()->where('code', 'hair_transplant')->firstOrFail();
+        $payload = [
+            '_form' => 'edit_category_'.$category->id,
+            'name' => $category->name,
+            'description' => $category->description,
+            'upload_guide_html' => $category->upload_guide_html,
+            'status' => $category->status,
+            'sort_order' => $category->sort_order,
+            'icon' => $category->icon,
+        ];
+
+        $this->actingAs($admin)
+            ->forHost('hairvision-ai.test')
+            ->get(route('admin.system.ai-model-categories.index'))
+            ->assertOk()
+            ->assertSee('data-card-image-clear', false)
+            ->assertSee('name="remove_card_image"', false)
+            ->assertSee(__('ai_models.categories.remove_card_image'));
+
+        $this->actingAs($admin)
+            ->forHost('hairvision-ai.test')
+            ->put(route('admin.system.ai-model-categories.update', $category), $payload + [
+                'card_image' => UploadedFile::fake()->image('first-card.jpg', 64, 64),
+            ])
+            ->assertRedirect();
+
+        $firstPath = (string) $category->refresh()->card_image_path;
+        $this->assertStringStartsWith('/storage/category-cards/', $firstPath);
+        Storage::disk('public')->assertExists(str_replace('/storage/', '', $firstPath));
+        $this->assertFileExists(public_path('theme/category-images/hair-transplant.jpg'));
+
+        $this->actingAs($admin)
+            ->forHost('hairvision-ai.test')
+            ->put(route('admin.system.ai-model-categories.update', $category), $payload + [
+                'card_image' => UploadedFile::fake()->image('second-card.jpg', 64, 64),
+            ])
+            ->assertRedirect();
+
+        $secondPath = (string) $category->refresh()->card_image_path;
+        $this->assertNotSame($firstPath, $secondPath);
+        Storage::disk('public')->assertMissing(str_replace('/storage/', '', $firstPath));
+        Storage::disk('public')->assertExists(str_replace('/storage/', '', $secondPath));
+
+        $this->actingAs($admin)
+            ->forHost('hairvision-ai.test')
+            ->put(route('admin.system.ai-model-categories.update', $category), $payload + [
+                'remove_card_image' => '1',
+                'card_image' => UploadedFile::fake()->image('conflicting-card.jpg', 64, 64),
+            ])
+            ->assertSessionHasErrors('card_image');
+
+        $this->assertSame($secondPath, $category->refresh()->card_image_path);
+        Storage::disk('public')->assertExists(str_replace('/storage/', '', $secondPath));
+
+        $this->actingAs($admin)
+            ->forHost('hairvision-ai.test')
+            ->put(route('admin.system.ai-model-categories.update', $category), $payload + [
+                'remove_card_image' => '1',
+            ])
+            ->assertRedirect();
+
+        $this->assertNull($category->refresh()->card_image_path);
+        Storage::disk('public')->assertMissing(str_replace('/storage/', '', $secondPath));
+
+        $this->actingAs($admin)
+            ->forHost('hairvision-ai.test')
+            ->post(route('admin.system.ai-model-categories.store'), [
+                '_form' => 'create_category',
+                'code' => 'removable_card_image',
+                'name' => 'کاربرد حذف‌شدنی',
+                'status' => 'active',
+                'sort_order' => 90,
+                'card_image' => UploadedFile::fake()->image('removable-card.jpg', 64, 64),
+            ])
+            ->assertRedirect();
+
+        $removableCategory = AiModelCategory::query()->where('code', 'removable_card_image')->firstOrFail();
+        $removablePath = (string) $removableCategory->card_image_path;
+        Storage::disk('public')->assertExists(str_replace('/storage/', '', $removablePath));
+
+        $this->actingAs($admin)
+            ->forHost('hairvision-ai.test')
+            ->delete(route('admin.system.ai-model-categories.destroy', $removableCategory))
+            ->assertRedirect();
+
+        $this->assertSoftDeleted('ai_model_categories', ['id' => $removableCategory->id]);
+        Storage::disk('public')->assertMissing(str_replace('/storage/', '', $removablePath));
     }
 
     /**

@@ -12,6 +12,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * Tenant-controlled public landing-page theme settings.
  *
  * @since 1.0.0
+ * @since 2.1.0 Behavior updated for the 2.1.0 release.
  */
 class TenantThemeSetting extends Model
 {
@@ -35,6 +36,7 @@ class TenantThemeSetting extends Model
         'footer_html',
         'back_link_title',
         'back_link_url',
+        'back_link_target',
         'settings_json',
     ];
 

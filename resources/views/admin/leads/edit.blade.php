@@ -1,3 +1,4 @@
+{{-- @since 2.1.0 Uses unified lead status, demographics, and deletion controls. --}}
 @extends('admin.layout')
 
 @section('title', __('leads.edit_title'))
@@ -18,15 +19,15 @@
                 </div>
                 <div>
                     <label class="block text-sm font-bold text-zinc-800">{{ __('leads.fields.mobile') }}</label>
-                    <input name="phone_normalized" value="{{ old('phone_normalized', $lead->phone_normalized) }}" inputmode="numeric" data-digit-input class="mt-2 h-11 w-full rounded-lg border border-zinc-200 px-3 outline-none focus:border-teal-500" dir="ltr">
+                    <input name="phone_normalized" value="{{ old('phone_normalized', $lead->phone_normalized) }}" inputmode="numeric" pattern="[0-9۰-۹٠-٩]*" data-digit-input class="mt-2 h-11 w-full rounded-lg border border-zinc-200 px-3 outline-none focus:border-teal-500" dir="ltr">
                 </div>
                 <div>
-                    <label class="block text-sm font-bold text-zinc-800">{{ __('leads.fields.status') }}</label>
-                    <select name="status" class="mt-2 h-11 w-full rounded-lg border border-zinc-200 px-3 outline-none focus:border-teal-500">
-                        @foreach(\App\Support\StateCatalog::options('leads.statuses') as $status => $label)
-                            <option value="{{ $status }}" @selected(old('status', $lead->status) === $status)>{{ $label }}</option>
-                        @endforeach
-                    </select>
+                    <label class="block text-sm font-bold text-zinc-800">{{ __('leads.fields.age') }}</label>
+                    <input name="age" value="{{ old('age', $lead->age) }}" inputmode="numeric" pattern="[0-9۰-۹٠-٩]*" maxlength="3" data-digit-input class="mt-2 h-11 w-full rounded-lg border border-zinc-200 px-3 outline-none focus:border-teal-500" dir="ltr">
+                </div>
+                <div>
+                    <label class="block text-sm font-bold text-zinc-800">{{ __('leads.fields.city') }}</label>
+                    <input name="city" value="{{ old('city', $lead->city) }}" maxlength="120" class="mt-2 h-11 w-full rounded-lg border border-zinc-200 px-3 outline-none focus:border-teal-500">
                 </div>
                 <div>
                     <label class="block text-sm font-bold text-zinc-800">{{ __('leads.fields.owner') }}</label>
@@ -44,10 +45,10 @@
                 <input name="source" value="{{ old('source', $lead->source) }}" class="mt-2 h-11 w-full rounded-lg border border-zinc-200 px-3 outline-none focus:border-teal-500">
             </div>
             <div>
-                <label class="block text-sm font-bold text-zinc-800">{{ __('leads.fields.crm_stage') }}</label>
-                <select name="crm_stage" class="mt-2 h-11 w-full rounded-lg border border-zinc-200 px-3 outline-none focus:border-teal-500">
-                    @foreach(\App\Support\StateCatalog::options('leads.crm_stages') as $stage => $label)
-                        <option value="{{ $stage }}" @selected(old('crm_stage', $lead->crm_stage) === $stage)>{{ $label }}</option>
+                <label class="block text-sm font-bold text-zinc-800">{{ __('leads.fields.status') }}</label>
+                <select name="status" class="mt-2 h-11 w-full rounded-lg border border-zinc-200 px-3 outline-none focus:border-teal-500">
+                    @foreach(\App\Support\StateCatalog::options('leads.statuses') as $status => $label)
+                        <option value="{{ $status }}" @selected(old('status', $lead->status) === $status)>{{ $label }}</option>
                     @endforeach
                 </select>
             </div>

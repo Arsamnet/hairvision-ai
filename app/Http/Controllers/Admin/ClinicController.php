@@ -12,6 +12,7 @@ use App\Http\Requests\Admin\Clinics\UpdateClinicRequest;
 use App\Models\AiModelAccess;
 use App\Models\Invoice;
 use App\Models\Plan;
+use App\Models\Template;
 use App\Models\Tenant;
 use App\Services\Admin\ClinicManagementService;
 use App\Services\Admin\SmsGatewayManagementService;
@@ -33,6 +34,7 @@ use Throwable;
  * Manages clinic tenants from the platform dashboard.
  *
  * @since 1.0.0
+ * @since 2.1.0 Behavior updated for the 2.1.0 release.
  */
 class ClinicController extends Controller
 {
@@ -159,6 +161,7 @@ class ClinicController extends Controller
      * @return View Rendered response view.
      *
      * @since 1.0.0
+     * @since 2.1.0 Behavior updated for the 2.1.0 release.
      */
     public function edit(Request $request, Tenant $clinic): View
     {
@@ -167,8 +170,13 @@ class ClinicController extends Controller
         return view('admin.clinics.edit', [
             'tenant' => $request->attributes->get('adminTenant'),
             'availableTenants' => $request->attributes->get('adminTenants'),
-            'clinic' => $clinic->load('domains'),
+            'clinic' => $clinic->load(['domains', 'theme.template']),
             'primaryDomain' => $clinic->domains()->orderByDesc('status')->orderBy('id')->first(),
+            'landingTemplates' => Template::query()
+                ->where('is_active', true)
+                ->orderByDesc('is_default')
+                ->orderBy('name')
+                ->get(),
         ]);
     }
 

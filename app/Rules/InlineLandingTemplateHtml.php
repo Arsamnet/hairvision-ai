@@ -2,6 +2,7 @@
 
 namespace App\Rules;
 
+use App\Support\LandingTemplateVariables;
 use Closure;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Translation\PotentiallyTranslatedString;
@@ -10,6 +11,7 @@ use Illuminate\Translation\PotentiallyTranslatedString;
  * Allows trusted inline landing markup while rejecting external assets and full documents.
  *
  * @since 2.0.0
+ * @since 2.1.0 Behavior updated for the 2.1.0 release.
  */
 class InlineLandingTemplateHtml implements ValidationRule
 {
@@ -22,6 +24,7 @@ class InlineLandingTemplateHtml implements ValidationRule
      * @return void No value is returned.
      *
      * @since 2.0.0
+     * @since 2.1.0 Behavior updated for the 2.1.0 release.
      */
     public function validate(string $attribute, mixed $value, Closure $fail): void
     {
@@ -51,6 +54,14 @@ class InlineLandingTemplateHtml implements ValidationRule
             return;
         }
 
+        $variableError = $this->variableValidationError($value);
+
+        if ($variableError !== null) {
+            $fail(__($variableError));
+
+            return;
+        }
+
         foreach ($this->assetUrls($value) as $url) {
             if (! $this->isAllowedAssetUrl($url)) {
                 $fail(__('landing_templates.validation.local_assets_only'));
@@ -58,6 +69,101 @@ class InlineLandingTemplateHtml implements ValidationRule
                 return;
             }
         }
+    }
+
+    /**
+     * Validate allowlisted template variables and their safe HTML placement.
+     *
+     * Back-link variables must appear together inside one anchor, with URL and
+     * target in quoted attributes and a defensive rel attribute.
+     *
+     * @param  string  $html  Landing HTML fragment.
+     * @return string|null Translation key for the first variable error.
+     *
+     * @since 2.1.0
+     */
+    private function variableValidationError(string $html): ?string
+    {
+        preg_match_all('/\{\{\s*clinic\.[^{}]+\}\}/i', $html, $variableMatches);
+
+        foreach ($variableMatches[0] ?? [] as $candidate) {
+            if (! in_array($candidate, LandingTemplateVariables::tokens(), true)) {
+                return 'landing_templates.validation.variable_unknown';
+            }
+        }
+
+        if (preg_match('/<(?:script|style)\b[^>]*>.*?\{\{\s*clinic\./is', $html)) {
+            return 'landing_templates.validation.variable_context';
+        }
+
+        $remaining = preg_replace_callback(
+            '/<a\b[^>]*>.*?<\/a\s*>/is',
+            function (array $match): string {
+                $anchor = (string) $match[0];
+
+                if (LandingTemplateVariables::usedTokens([$anchor]) === []) {
+                    return $anchor;
+                }
+
+                return $this->isValidVariableAnchor($anchor) ? '' : $anchor;
+            },
+            $html
+        );
+
+        foreach (LandingTemplateVariables::tokens() as $token) {
+            if (str_contains((string) $remaining, $token)) {
+                return 'landing_templates.validation.variable_context';
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Determine whether an anchor follows the complete back-link token pattern.
+     *
+     * @param  string  $anchor  Complete anchor element markup.
+     * @return bool Whether the anchor is safe for runtime variable injection.
+     *
+     * @since 2.1.0
+     */
+    private function isValidVariableAnchor(string $anchor): bool
+    {
+        if (
+            substr_count($anchor, LandingTemplateVariables::BACK_LINK_TITLE) !== 1
+            || substr_count($anchor, LandingTemplateVariables::BACK_LINK_URL) !== 1
+            || substr_count($anchor, LandingTemplateVariables::BACK_LINK_TARGET) !== 1
+        ) {
+            return false;
+        }
+
+        $tagEnd = strpos($anchor, '>');
+
+        if ($tagEnd === false) {
+            return false;
+        }
+
+        $openingTag = substr($anchor, 0, $tagEnd + 1);
+        $body = substr($anchor, $tagEnd + 1);
+        $url = preg_quote(LandingTemplateVariables::BACK_LINK_URL, '/');
+        $target = preg_quote(LandingTemplateVariables::BACK_LINK_TARGET, '/');
+
+        if (
+            preg_match('/\bhref\s*=\s*(["\'])'.$url.'\1/i', $openingTag) !== 1
+            || preg_match('/\btarget\s*=\s*(["\'])'.$target.'\1/i', $openingTag) !== 1
+            || str_contains($openingTag, LandingTemplateVariables::BACK_LINK_TITLE)
+            || ! str_contains($body, LandingTemplateVariables::BACK_LINK_TITLE)
+        ) {
+            return false;
+        }
+
+        if (preg_match('/\brel\s*=\s*(["\'])(.*?)\1/is', $openingTag, $relMatch) !== 1) {
+            return false;
+        }
+
+        $relValues = preg_split('/\s+/', strtolower(trim((string) ($relMatch[2] ?? '')))) ?: [];
+
+        return in_array('noopener', $relValues, true) && in_array('noreferrer', $relValues, true);
     }
 
     /**

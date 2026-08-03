@@ -10,12 +10,21 @@ use App\Support\StateCatalog;
 use Illuminate\Support\Facades\Lang;
 use Tests\TestCase;
 
+/**
+ * Verifies code-owned status catalogs and their localized labels.
+ *
+ * @since 2.0.0
+ * @since 2.1.0 Coverage expanded for the unified lead status catalog.
+ */
 class StateCatalogTest extends TestCase
 {
     public function test_state_catalog_resolves_global_config_to_localized_options(): void
     {
         $this->assertSame(__('leads.statuses'), StateCatalog::options('leads.statuses'));
-        $this->assertSame(__('leads.crm_stages'), StateCatalog::options('leads.crm_stages'));
+        $this->assertSame(
+            ['new', 'needs_follow_up', 'no_answer', 'successful', 'canceled'],
+            StateCatalog::values('leads.statuses')
+        );
         $this->assertSame(__('plans.types'), StateCatalog::options('plans.types'));
         $this->assertSame(__('payments.invoice_statuses'), StateCatalog::options('invoices.statuses'));
 
@@ -48,7 +57,6 @@ class StateCatalogTest extends TestCase
             'roles.scopes',
             'roles.statuses',
             'leads.statuses',
-            'leads.crm_stages',
             'lead_notes.types',
             'lead_notes.communication_channels',
             'uploads.statuses',

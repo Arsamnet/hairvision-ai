@@ -17,6 +17,7 @@ use Tests\TestCase;
  * Verifies clinic help visibility, relational management, and safe rich text.
  *
  * @since 2.0.1
+ * @since 2.1.0 Behavior updated for the 2.1.0 release.
  */
 class AdminGuideTest extends TestCase
 {
@@ -138,6 +139,52 @@ class AdminGuideTest extends TestCase
         $this->assertGreaterThan(0, GuideFaq::count());
         $this->assertSame(0, SystemSetting::query()->where('key', 'guide.content')->count());
         $this->assertDatabaseHas('permissions', ['code' => 'guide.manage', 'group' => 'guide']);
+    }
+
+    /**
+     * Ensure the default help content covers the current clinic-facing workflows.
+     *
+     * @return void No value is returned.
+     *
+     * @since 2.1.0
+     */
+    public function test_default_guide_covers_current_clinic_workflows(): void
+    {
+        $this->seed(DatabaseSeeder::class);
+
+        foreach ([
+            'عملکرد هفت روز اخیر را بخوانید',
+            'اطلاعات و وضعیت لید را کامل کنید',
+            'لید را فقط در صورت ضرورت حذف کنید',
+            'فرمت و حجم عکس را کنترل کنید',
+            'لینک بازگشت به سایت کلینیک را تنظیم کنید',
+            'بازه شمسی گزارش کامل را تعیین کنید',
+        ] as $title) {
+            $this->assertDatabaseHas('guide_steps', ['title' => $title]);
+        }
+
+        foreach ([
+            'وضعیت‌های لید چه معنایی دارند و آیا مرحله CRM جداگانه‌ای وجود دارد؟',
+            'آیا می‌توانم یک لید را حذف کنم؟',
+            'چه فرمت‌ها و حجمی برای عکس مراجعه‌کننده مجاز است؟',
+            'آمار گزارش عملکرد چگونه محاسبه می‌شود؟',
+            'چگونه متن یا مقصد دکمه «بازگشت به سایت کلینیک» را تغییر دهم؟',
+        ] as $question) {
+            $this->assertDatabaseHas('guide_faqs', ['question' => $question]);
+        }
+
+        $user = User::query()->where('role', 'clinic_admin')->firstOrFail();
+
+        $this->actingAs($user)->forHost('hairvision-ai.test')->get('/admin/help/guide')
+            ->assertOk()
+            ->assertSee('تنظیمات کلینیک و صفحه مراجعه‌کننده')
+            ->assertSee('HEIC/HEIF')
+            ->assertSee('دریافت CSV');
+
+        $this->actingAs($user)->forHost('hairvision-ai.test')->get('/admin/help/faq')
+            ->assertOk()
+            ->assertSee('آیا می‌توانم یک لید را حذف کنم؟')
+            ->assertSee('آمار گزارش عملکرد چگونه محاسبه می‌شود؟');
     }
 
     /**

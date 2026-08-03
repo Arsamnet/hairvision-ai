@@ -1,3 +1,4 @@
+{{-- @since 2.1.0 Limits template management to list, create, and edit operations. --}}
 @extends('admin.layout')
 
 @section('title', __('landing_templates.title'))
@@ -18,11 +19,6 @@
                 <p class="mt-1 text-sm leading-6 text-zinc-500">{{ __('landing_templates.subtitle') }}</p>
             </div>
             <div class="flex flex-wrap gap-2">
-                @if(auth()->user()?->hasPermission('landing_templates.assign'))
-                    <x-admin.button :href="route('admin.system.landing-templates.clinics')" variant="secondary" icon="building">
-                        {{ __('landing_templates.clinics_tab') }}
-                    </x-admin.button>
-                @endif
                 @if(auth()->user()?->hasPermission('landing_templates.create'))
                     <x-admin.button :href="route('admin.system.landing-templates.create')" icon="plus">
                         {{ __('landing_templates.create') }}
@@ -30,10 +26,6 @@
                 @endif
             </div>
         </div>
-
-        <p class="mt-4 rounded-lg border border-teal-100 bg-teal-50 px-4 py-3 text-sm leading-7 text-teal-900">
-            {{ __('landing_templates.default_new_clinics_hint') }}
-        </p>
 
         <x-admin.list-filters
             class="mb-5"
@@ -69,14 +61,6 @@
                                 <x-admin.table.action-menu>
                                     @if(auth()->user()?->hasPermission('landing_templates.update'))
                                         <x-admin.table.action-item :href="route('admin.system.landing-templates.edit', $landingTemplate)" icon="edit">{{ __('messages.edit') }}</x-admin.table.action-item>
-                                        @if(! $landingTemplate->is_default && $landingTemplate->is_active)
-                                            <x-admin.table.action-item :action="route('admin.system.landing-templates.default', $landingTemplate)" method="PATCH" icon="check">
-                                                {{ __('landing_templates.actions.make_default') }}
-                                            </x-admin.table.action-item>
-                                        @endif
-                                    @endif
-                                    @if(auth()->user()?->hasPermission('landing_templates.delete') && ! $landingTemplate->is_default && $landingTemplate->theme_settings_count === 0)
-                                        <x-admin.table.action-item :action="route('admin.system.landing-templates.destroy', $landingTemplate)" method="DELETE" icon="trash" danger :confirm="__('messages.confirm_delete')">{{ __('messages.delete') }}</x-admin.table.action-item>
                                     @endif
                                 </x-admin.table.action-menu>
                             </td>
@@ -121,12 +105,6 @@
                         <x-admin.table.action-menu>
                             @if(auth()->user()?->hasPermission('landing_templates.update'))
                                 <x-admin.table.action-item :href="route('admin.system.landing-templates.edit', $landingTemplate)" icon="edit">{{ __('messages.edit') }}</x-admin.table.action-item>
-                                @if(! $landingTemplate->is_default && $landingTemplate->is_active)
-                                    <x-admin.table.action-item :action="route('admin.system.landing-templates.default', $landingTemplate)" method="PATCH" icon="check">{{ __('landing_templates.actions.make_default') }}</x-admin.table.action-item>
-                                @endif
-                            @endif
-                            @if(auth()->user()?->hasPermission('landing_templates.delete') && ! $landingTemplate->is_default && $landingTemplate->theme_settings_count === 0)
-                                <x-admin.table.action-item :action="route('admin.system.landing-templates.destroy', $landingTemplate)" method="DELETE" icon="trash" danger :confirm="__('messages.confirm_delete')">{{ __('messages.delete') }}</x-admin.table.action-item>
                             @endif
                         </x-admin.table.action-menu>
                     </div>

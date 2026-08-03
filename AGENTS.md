@@ -34,7 +34,9 @@ one of the files above unless a separate audience or lifecycle is unavoidable.
 5. No testing, setup, deployment, or debugging copy may appear in visitor-facing
    templates.
 6. Public frontend assets must be local; tenant logos/theme images may only come
-   from the primary HairVision domain.
+   from the primary HairVision domain derived from `APP_URL`. The only external
+   script/frame exception is validated tracker code stored in the dedicated
+   system-managed template tracking fields.
 7. Resolve tenant from request host only. Never trust `tenant_id`, slug, or
    domain from visitor input.
 8. Every tenant-owned record must include `tenant_id`; visitor-owned resources
@@ -54,8 +56,17 @@ one of the files above unless a separate audience or lifecycle is unavoidable.
     external dashboard icon packs unless explicitly requested.
 16. After every behavior change, add/update tests and run the full suite.
 17. Landing templates are system-owned trusted HTML fragments. Only authorized
-    platform users may edit or assign them; CSS and JavaScript must be inline,
-    and external frontend assets remain forbidden.
+    platform users may edit or assign them; CSS and JavaScript in the template
+    HTML fragments must be inline, and external frontend assets remain forbidden.
+    External analytics tags belong only in the separately validated head/body
+    tracking fields and must never contain credentials or visitor PII.
+18. Every release-scoped source change must identify its release at the closest
+    stable owner. A new PHP declaration uses `@since X.Y.Z`; an existing changed
+    declaration preserves its introduction tag and adds a descriptive
+    `@since X.Y.Z`. PHP data/routes, Blade, JavaScript, and CSS place a
+    language-appropriate block comment immediately before the changed logical
+    section. Generated, binary, and strict commentless formats are covered by
+    their marked source owner plus release metadata and `CHANGELOG.md`.
 
 ## Development Priorities
 
@@ -76,9 +87,10 @@ one of the files above unless a separate audience or lifecycle is unavoidable.
 - Reuse shared utilities for digit normalization, Jalali dates, pagination,
   search/filtering, tenant filters, billing, credits, and provider execution.
 - Add useful PHPDoc to all project-owned named classes, interfaces, traits,
-  enums, functions, and methods. Document input/output types and use the actual
-  introduction version: `@since 1.0.0` for original declarations and
-  `@since 2.0.0` for declarations introduced in version 2.
+  enums, functions, and methods. Document input/output types and use the exact
+  SemVer introduction version. When behavior changes in a later release, retain
+  the introduction tag and add another descriptive `@since X.Y.Z` at the start
+  of the affected declaration's PHPDoc section.
 - Keep comments concise and explain non-obvious intent, side effects, security
   decisions, or integration constraints.
 - Never expose private storage paths, OTP codes, credentials, bearer tokens,
@@ -108,6 +120,9 @@ Report changed files, commands run, and test results at the end of the task.
   under `Unreleased` in the root `CHANGELOG.md` while it has no assigned release.
 - When a release is explicitly prepared, move its entries from `Unreleased` to
   one immutable SemVer heading with the release date.
+- During release preparation, add the same SemVer marker at the beginning of
+  every changed logical source section according to rule 18; never relabel an
+  older introduction tag or corrupt generated/commentless artifacts to do so.
 - Update `APP_VERSION`, the runtime default, documentation version headers, and
   version metadata tests in the same change.
 - Never leave completed unversioned work outside `Unreleased`; the next release

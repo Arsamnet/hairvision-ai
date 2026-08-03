@@ -13,6 +13,7 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
  * Tenant-owned verified visitor lead.
  *
  * @since 1.0.0
+ * @since 2.1.0 Behavior updated for the 2.1.0 release.
  */
 class Lead extends Model
 {
@@ -21,12 +22,13 @@ class Lead extends Model
     protected $fillable = [
         'tenant_id',
         'full_name',
+        'age',
+        'city',
         'phone',
         'phone_normalized',
         'source',
         'phone_verified_at',
         'status',
-        'crm_stage',
         'crm_last_note_at',
         'assigned_user_id',
         'last_seen_at',
@@ -35,6 +37,7 @@ class Lead extends Model
     ];
 
     protected $casts = [
+        'age' => 'integer',
         'phone_verified_at' => 'datetime',
         'crm_last_note_at' => 'datetime',
         'last_seen_at' => 'datetime',

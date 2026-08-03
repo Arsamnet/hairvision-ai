@@ -10,22 +10,25 @@ use App\Models\CreditTransaction;
 use App\Models\GenerationRequest;
 use App\Models\PlanServiceEntitlement;
 use App\Models\SubscriptionServiceEntitlement;
+use App\Services\Admin\AiModelCategoryCardImageService;
 use App\Services\AI\ExecutableAiModelSyncService;
 use App\Support\Pagination\PaginationParameters;
 use App\Support\Query\SearchFilter;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 use Symfony\Component\HttpFoundation\Response;
+use Throwable;
 
 /**
  * Manages system-owned AI model categories and requestable outputs.
  *
  * @since 2.0.0
+ * @since 2.1.0 Behavior updated for the 2.1.0 release.
  */
 class AiModelCategoryController extends Controller
 {
@@ -74,20 +77,36 @@ class AiModelCategoryController extends Controller
      * Persist a new ai model category record.
      *
      * @param  Request  $request  Incoming HTTP request.
+     * @param  AiModelCategoryCardImageService  $cardImages  Category card image storage boundary.
      * @return RedirectResponse HTTP redirect response.
      *
      * @since 2.0.0
+     * @since 2.1.0 Behavior updated for the 2.1.0 release.
      */
-    public function store(Request $request): RedirectResponse
+    public function store(Request $request, AiModelCategoryCardImageService $cardImages): RedirectResponse
     {
         abort_unless($request->user()?->hasPermission('ai_model_categories.create'), Response::HTTP_FORBIDDEN);
 
         $data = $this->validatedCategoryData($request, $this->categoryRules());
+        $storedCardImagePath = null;
 
-        AiModelCategory::query()->create($data + [
-            'created_by' => $request->user()?->id,
-            'updated_by' => $request->user()?->id,
-        ]);
+        try {
+            $image = $request->file('card_image');
+
+            if ($image instanceof UploadedFile) {
+                $storedCardImagePath = $cardImages->store($image);
+                $data['card_image_path'] = $storedCardImagePath;
+            }
+
+            AiModelCategory::query()->create($data + [
+                'created_by' => $request->user()?->id,
+                'updated_by' => $request->user()?->id,
+            ]);
+        } catch (Throwable $exception) {
+            $cardImages->deleteManaged($storedCardImagePath);
+
+            throw $exception;
+        }
 
         return back()->with('status', __('ai_models.categories.messages.created'));
     }
@@ -130,24 +149,54 @@ class AiModelCategoryController extends Controller
      *
      * @param  Request  $request  Incoming HTTP request.
      * @param  AiModelCategory  $category  The category value.
+     * @param  AiModelCategoryCardImageService  $cardImages  Category card image storage boundary.
      * @return RedirectResponse HTTP redirect response.
      *
      * @since 2.0.0
+     * @since 2.1.0 Behavior updated for the 2.1.0 release.
      */
-    public function update(Request $request, AiModelCategory $category): RedirectResponse
-    {
+    public function update(
+        Request $request,
+        AiModelCategory $category,
+        AiModelCategoryCardImageService $cardImages
+    ): RedirectResponse {
         abort_unless($request->user()?->hasPermission('ai_model_categories.update'), Response::HTTP_FORBIDDEN);
 
         $data = $this->validatedCategoryData($request, [
             'name' => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'string', 'max:2000'],
+            'upload_guide_html' => ['nullable', 'string', 'max:20000'],
             'status' => ['required', Rule::in(['active', 'inactive', 'archived'])],
             'sort_order' => ['nullable', 'integer', 'min:0', 'max:1000000'],
             'icon' => ['nullable', 'string', 'max:100'],
-            'card_image' => ['nullable', 'file', 'mimes:jpg,jpeg,png,webp', 'max:1024'],
+            'remove_card_image' => ['nullable', 'boolean'],
+            'card_image' => ['nullable', 'prohibited_if:remove_card_image,1', 'file', 'mimes:jpg,jpeg,png,webp', 'max:1024'],
         ]);
 
-        $category->update($data + ['updated_by' => $request->user()?->id]);
+        $previousCardImagePath = $category->card_image_path;
+        $storedCardImagePath = null;
+        $removeCardImage = $request->boolean('remove_card_image');
+
+        try {
+            $image = $request->file('card_image');
+
+            if ($image instanceof UploadedFile) {
+                $storedCardImagePath = $cardImages->store($image);
+                $data['card_image_path'] = $storedCardImagePath;
+            } elseif ($removeCardImage) {
+                $data['card_image_path'] = null;
+            }
+
+            $category->update($data + ['updated_by' => $request->user()?->id]);
+        } catch (Throwable $exception) {
+            $cardImages->deleteManaged($storedCardImagePath);
+
+            throw $exception;
+        }
+
+        if ($storedCardImagePath !== null || $removeCardImage) {
+            $cardImages->deleteManaged($previousCardImagePath);
+        }
 
         return back()->with('status', __('ai_models.categories.messages.updated'));
     }
@@ -184,12 +233,17 @@ class AiModelCategoryController extends Controller
      *
      * @param  Request  $request  Incoming HTTP request.
      * @param  AiModelCategory  $category  The category value.
+     * @param  AiModelCategoryCardImageService  $cardImages  Category card image storage boundary.
      * @return RedirectResponse HTTP redirect response.
      *
      * @since 2.0.0
+     * @since 2.1.0 Behavior updated for the 2.1.0 release.
      */
-    public function destroy(Request $request, AiModelCategory $category): RedirectResponse
-    {
+    public function destroy(
+        Request $request,
+        AiModelCategory $category,
+        AiModelCategoryCardImageService $cardImages
+    ): RedirectResponse {
         abort_unless($request->user()?->hasPermission('ai_model_categories.delete'), Response::HTTP_FORBIDDEN);
 
         if ($this->categoryIsUsed($category)) {
@@ -198,10 +252,14 @@ class AiModelCategoryController extends Controller
             ]);
         }
 
+        $cardImagePath = $category->card_image_path;
+
         DB::transaction(function () use ($category): void {
             $category->outputs()->delete();
             AiModelCategory::destroy($category->getKey());
         });
+
+        $cardImages->deleteManaged($cardImagePath);
 
         return back()->with('status', __('ai_models.categories.messages.deleted'));
     }
@@ -329,6 +387,7 @@ class AiModelCategoryController extends Controller
      * @return array<string, mixed>
      *
      * @since 2.0.0
+     * @since 2.1.0 Behavior updated for the 2.1.0 release.
      */
     private function categoryRules(?AiModelCategory $category = null): array
     {
@@ -342,6 +401,7 @@ class AiModelCategoryController extends Controller
             ],
             'name' => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'string', 'max:2000'],
+            'upload_guide_html' => ['nullable', 'string', 'max:20000'],
             'status' => ['required', Rule::in(['active', 'inactive', 'archived'])],
             'sort_order' => ['nullable', 'integer', 'min:0', 'max:1000000'],
             'icon' => ['nullable', 'string', 'max:100'],
@@ -357,23 +417,12 @@ class AiModelCategoryController extends Controller
      * @return array<string, mixed>
      *
      * @since 2.0.0
+     * @since 2.1.0 Behavior updated for the 2.1.0 release.
      */
     private function validatedCategoryData(Request $request, array $rules): array
     {
         $data = $request->validate($rules);
-        unset($data['card_image']);
-
-        if ($request->hasFile('card_image')) {
-            $file = $request->file('card_image');
-            $extension = strtolower((string) $file->getClientOriginalExtension());
-            $path = $file->storeAs(
-                'category-cards',
-                Str::uuid().'.'.$extension,
-                'public'
-            );
-
-            $data['card_image_path'] = '/storage/'.$path;
-        }
+        unset($data['card_image'], $data['remove_card_image']);
 
         return $data;
     }

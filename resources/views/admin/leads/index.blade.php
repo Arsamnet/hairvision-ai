@@ -1,3 +1,4 @@
+{{-- @since 2.1.0 Adds age ranges, unified statuses, and lead deletion actions. --}}
 @extends('admin.layout')
 
 @section('title', __('leads.title'))
@@ -25,7 +26,8 @@
         @php
             $leadFilters = [
                 ['name' => 'status', 'label' => __('leads.fields.status'), 'type' => 'select', 'placeholder' => __('leads.all_statuses'), 'options' => \App\Support\StateCatalog::options('leads.statuses')],
-                ['name' => 'crm_stage', 'label' => __('leads.fields.crm_stage'), 'type' => 'select', 'placeholder' => __('leads.all_stages'), 'options' => \App\Support\StateCatalog::options('leads.crm_stages')],
+                ['name' => 'age_from', 'label' => __('leads.filters.age_from'), 'type' => 'number', 'placeholder' => __('leads.filters.age_from'), 'dir' => 'ltr', 'maxlength' => 3],
+                ['name' => 'age_until', 'label' => __('leads.filters.age_until'), 'type' => 'number', 'placeholder' => __('leads.filters.age_until'), 'dir' => 'ltr', 'maxlength' => 3],
             ];
 
             if (($availableTenants?->count() ?? 0) > 1) {
@@ -37,11 +39,12 @@
             preset-key="admin.leads.index"
             :search-placeholder="__('leads.search_placeholder')"
             :filters="$leadFilters"
+            :primary-filter-count="3"
             :sorts="[
                 'created_at' => __('leads.fields.created_at'),
                 'full_name' => __('leads.fields.name'),
                 'phone_normalized' => __('leads.fields.phone'),
-                'crm_stage' => __('leads.fields.crm_stage'),
+                'age' => __('leads.fields.age'),
                 'status' => __('leads.fields.status'),
             ]"
         />
@@ -53,8 +56,8 @@
                         <th class="w-14 px-4 py-3 font-bold">{{ __('messages.actions') }}</th>
                         <th class="px-4 py-3"><x-admin.table.sortable-heading sort="full_name" :label="__('leads.fields.name')" /></th>
                         <th class="px-4 py-3"><x-admin.table.sortable-heading sort="phone_normalized" :label="__('leads.fields.phone')" /></th>
+                        <th class="px-4 py-3"><x-admin.table.sortable-heading sort="age" :label="__('leads.fields.age')" /></th>
                         <th class="px-4 py-3"><x-admin.table.sortable-heading sort="status" :label="__('leads.fields.status')" /></th>
-                        <th class="px-4 py-3"><x-admin.table.sortable-heading sort="crm_stage" :label="__('leads.fields.crm_stage')" /></th>
                         <th class="px-4 py-3"><x-admin.table.sortable-heading sort="created_at" :label="__('leads.fields.created_at')" /></th>
                     </tr>
                 </thead>
@@ -69,15 +72,16 @@
                                     @can('update', $lead)
                                         <x-admin.table.action-item :href="route('admin.leads.edit', $lead)" icon="edit">{{ __('leads.edit') }}</x-admin.table.action-item>
                                     @endcan
+                                    @can('delete', $lead)
+                                        <x-admin.table.action-item :action="route('admin.leads.destroy', $lead)" method="DELETE" icon="trash" danger :confirm="__('leads.confirm_delete')">{{ __('leads.delete') }}</x-admin.table.action-item>
+                                    @endcan
                                 </x-admin.table.action-menu>
                             </td>
                             <td class="px-4 py-3 font-bold">{{ $lead->full_name ?: __('leads.no_name') }}</td>
                             <td class="px-4 py-3 text-zinc-600">{{ $lead->phone_normalized }}</td>
+                            <td class="px-4 py-3 text-zinc-600">{{ $lead->age ?? __('messages.none') }}</td>
                             <td class="px-4 py-3">
-                                <x-admin.badge>{{ __('leads.statuses.'.$lead->status) }}</x-admin.badge>
-                            </td>
-                            <td class="px-4 py-3">
-                                <x-admin.badge tone="teal">{{ __('leads.crm_stages.'.$lead->crm_stage) }}</x-admin.badge>
+                                <x-admin.lead-status-badge :status="$lead->status" />
                             </td>
                             <td class="px-4 py-3 text-zinc-500"><x-jalali-date-time :value="$lead->created_at" /></td>
                         </tr>
@@ -107,15 +111,18 @@
                             @can('update', $lead)
                                 <x-admin.table.action-item :href="route('admin.leads.edit', $lead)" icon="edit">{{ __('leads.edit') }}</x-admin.table.action-item>
                             @endcan
+                            @can('delete', $lead)
+                                <x-admin.table.action-item :action="route('admin.leads.destroy', $lead)" method="DELETE" icon="trash" danger :confirm="__('leads.confirm_delete')">{{ __('leads.delete') }}</x-admin.table.action-item>
+                            @endcan
                         </x-admin.table.action-menu>
                     </div>
 
                     <dl class="admin-mobile-list-fields">
                         <x-admin.mobile-list.field :label="__('leads.fields.status')">
-                            <x-admin.badge>{{ __('leads.statuses.'.$lead->status) }}</x-admin.badge>
+                            <x-admin.lead-status-badge :status="$lead->status" />
                         </x-admin.mobile-list.field>
-                        <x-admin.mobile-list.field :label="__('leads.fields.crm_stage')">
-                            <x-admin.badge tone="teal">{{ __('leads.crm_stages.'.$lead->crm_stage) }}</x-admin.badge>
+                        <x-admin.mobile-list.field :label="__('leads.fields.age')">
+                            {{ $lead->age ?? __('messages.none') }}
                         </x-admin.mobile-list.field>
                         <x-admin.mobile-list.field :label="__('leads.fields.created_at')">
                             <x-jalali-date-time :value="$lead->created_at" />

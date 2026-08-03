@@ -1,3 +1,4 @@
+{{-- @since 2.1.0 Adds demographics and permanent policy-backed lead deletion. --}}
 @extends('admin.layout')
 
 @section('title', __('leads.details_title'))
@@ -33,21 +34,36 @@
                         <h2 class="mt-2 text-2xl font-bold">{{ $lead->full_name ?: __('leads.empty_name') }}</h2>
                         <p class="mt-2 text-sm text-zinc-500">{{ $lead->phone_normalized }}</p>
                     </div>
-                    @can('update', $lead)
-                        <x-admin.button :href="route('admin.leads.edit', $lead)" size="compact" icon="settings">
-                            <span>{{ __('leads.edit') }}</span>
-                        </x-admin.button>
-                    @endcan
+                    <div class="flex flex-wrap items-center gap-2">
+                        @can('update', $lead)
+                            <x-admin.button :href="route('admin.leads.edit', $lead)" size="compact" icon="settings">
+                                <span>{{ __('leads.edit') }}</span>
+                            </x-admin.button>
+                        @endcan
+                        @can('delete', $lead)
+                            <form method="POST" action="{{ route('admin.leads.destroy', $lead) }}" data-confirm-form data-confirm-message="{{ __('leads.confirm_delete') }}">
+                                @csrf
+                                @method('DELETE')
+                                <x-admin.button type="submit" variant="danger-outline" size="compact" icon="trash">
+                                    <span>{{ __('leads.delete') }}</span>
+                                </x-admin.button>
+                            </form>
+                        @endcan
+                    </div>
                 </div>
 
-                <div class="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                    <div class="rounded-lg bg-zinc-50 p-4">
+                <div class="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                    <div class="rounded-lg {{ $lead->status === 'canceled' ? 'bg-rose-50' : 'bg-zinc-50' }} p-4">
                         <p class="text-xs font-bold text-zinc-500">{{ __('leads.fields.status') }}</p>
-                        <p class="mt-2 font-bold">{{ __('leads.statuses.'.$lead->status) }}</p>
+                        <div class="mt-2"><x-admin.lead-status-badge :status="$lead->status" /></div>
                     </div>
-                    <div class="rounded-lg bg-teal-50 p-4">
-                        <p class="text-xs font-bold text-teal-700">{{ __('leads.fields.crm_stage') }}</p>
-                        <p class="mt-2 font-bold text-teal-900">{{ __('leads.crm_stages.'.$lead->crm_stage) }}</p>
+                    <div class="rounded-lg bg-zinc-50 p-4">
+                        <p class="text-xs font-bold text-zinc-500">{{ __('leads.fields.age') }}</p>
+                        <p class="mt-2 font-bold">{{ $lead->age ?? __('messages.none') }}</p>
+                    </div>
+                    <div class="rounded-lg bg-zinc-50 p-4">
+                        <p class="text-xs font-bold text-zinc-500">{{ __('leads.fields.city') }}</p>
+                        <p class="mt-2 font-bold">{{ $lead->city ?: __('messages.none') }}</p>
                     </div>
                     <div class="rounded-lg bg-zinc-50 p-4">
                         <p class="text-xs font-bold text-zinc-500">{{ __('leads.fields.source') }}</p>
@@ -118,12 +134,9 @@
                 @endif
             </section>
 
-            <section class="rounded-lg bg-white p-5 shadow-sm ring-1 ring-zinc-200">
+            <section class="rounded-lg bg-white p-4 shadow-sm ring-1 ring-zinc-200">
                 <header class="lead-processing-header">
-                    <div>
-                        <h3 class="text-lg font-bold">{{ __('leads.generations.title') }}</h3>
-                        <p class="mt-1 max-w-2xl text-xs leading-6 text-zinc-500">{{ __('leads.generations.description') }}</p>
-                    </div>
+                    <h3 class="text-lg font-bold">{{ __('leads.generations.title') }}</h3>
                     @if($processingRoundCount > 0)
                         <div class="flex flex-wrap items-center gap-2">
                             <x-admin.badge tone="zinc">{{ __('leads.generations.rounds_count', ['count' => number_format($processingRoundCount)]) }}</x-admin.badge>
@@ -148,8 +161,8 @@
                         <div>
                             <label class="text-xs font-bold text-zinc-500">{{ __('crm.status') }}</label>
                             <select name="status" class="mt-1 h-11 w-full rounded-lg border border-zinc-200 px-3 text-sm outline-none transition focus:border-teal-500">
-                                @foreach(\App\Support\StateCatalog::options('leads.crm_stages') as $stage => $label)
-                                    <option value="{{ $stage }}" @selected($lead->crm_stage === $stage)>{{ $label }}</option>
+                                @foreach(\App\Support\StateCatalog::options('leads.statuses') as $status => $label)
+                                    <option value="{{ $status }}" @selected($lead->status === $status)>{{ $label }}</option>
                                 @endforeach
                             </select>
                         </div>
@@ -190,7 +203,7 @@
                     @forelse($notes as $note)
                         <article class="relative rounded-lg border border-zinc-100 bg-zinc-50 p-4">
                             <div class="flex flex-wrap items-center justify-between gap-2">
-                                <span class="rounded-full bg-teal-50 px-3 py-1 text-xs font-bold text-teal-700">{{ __('leads.crm_stages.'.$note->status) }}</span>
+                                <x-admin.lead-status-badge :status="$note->status" />
                                 @if($note->communication_channel)
                                     <span class="text-xs font-bold text-zinc-500">{{ __('crm.channels.'.$note->communication_channel) }}</span>
                                 @endif

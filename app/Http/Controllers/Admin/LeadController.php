@@ -7,6 +7,7 @@ use App\Http\Requests\Admin\Leads\StoreLeadRequest;
 use App\Http\Requests\Admin\Leads\UpdateLeadRequest;
 use App\Models\Lead;
 use App\Services\Admin\LeadDashboardService;
+use App\Services\Admin\LeadDeletionService;
 use App\Support\Pagination\PaginatedResponse;
 use App\Support\Pagination\PaginationParameters;
 use App\View\Admin\LeadImageGalleryPresenter;
@@ -20,6 +21,7 @@ use Illuminate\View\View;
  * Handles tenant-scoped lead management for the admin dashboard.
  *
  * @since 1.0.0
+ * @since 2.1.0 Behavior updated for the 2.1.0 release.
  */
 class LeadController extends Controller
 {
@@ -31,6 +33,7 @@ class LeadController extends Controller
      * @return View|JsonResponse Rendered response view.
      *
      * @since 1.0.0
+     * @since 2.1.0 Behavior updated for the 2.1.0 release.
      */
     public function index(Request $request, LeadDashboardService $leadService): View|JsonResponse
     {
@@ -40,7 +43,7 @@ class LeadController extends Controller
         if ($request->expectsJson()) {
             $pagination = PaginationParameters::fromRequest(
                 $request,
-                ['created_at', 'full_name', 'phone_normalized', 'crm_stage', 'status'],
+                ['created_at', 'full_name', 'phone_normalized', 'age', 'status'],
                 'created_at'
             );
             if ($pagination->search && ! $request->user()->hasPermission('leads.search', $clinicFilter?->id)) {
@@ -75,14 +78,14 @@ class LeadController extends Controller
      * @return View Rendered response view.
      *
      * @since 1.0.0
+     * @since 2.1.0 Behavior updated for the 2.1.0 release.
      */
     public function show(
         Request $request,
         Lead $lead,
         LeadDashboardService $leadService,
         LeadImageGalleryPresenter $gallery,
-    ): View
-    {
+    ): View {
         Gate::authorize('view', $lead);
 
         abort_unless($this->isLeadVisible($request, $lead), 404);
@@ -187,6 +190,26 @@ class LeadController extends Controller
     }
 
     /**
+     * Delete the requested lead and its private tenant-owned records.
+     *
+     * @param  Request  $request  Incoming HTTP request.
+     * @param  Lead  $lead  Lead in the current tenant scope.
+     * @param  LeadDeletionService  $leadDeletion  Lead deletion workflow.
+     * @return RedirectResponse HTTP redirect response.
+     *
+     * @since 2.1.0
+     */
+    public function destroy(Request $request, Lead $lead, LeadDeletionService $leadDeletion): RedirectResponse
+    {
+        Gate::authorize('delete', $lead);
+        abort_unless($this->isLeadVisible($request, $lead), 404);
+
+        $leadDeletion->delete($lead);
+
+        return redirect()->route('admin.leads.index')->with('status', __('leads.deleted'));
+    }
+
+    /**
      * Ensure a route-bound lead is inside the active tenant context.
      *
      * @param  Request  $request  Incoming HTTP request.
@@ -194,9 +217,11 @@ class LeadController extends Controller
      * @return bool Whether the requested condition is satisfied.
      *
      * @since 1.0.0
+     * @since 2.1.0 Behavior updated for the 2.1.0 release.
      */
     private function isLeadVisible(Request $request, Lead $lead): bool
     {
-        return $request->user()->canAccessTenant($lead->tenant_id);
+        return $request->user()->isSystemScoped()
+            || $request->user()->canAccessTenant($lead->tenant_id);
     }
 }

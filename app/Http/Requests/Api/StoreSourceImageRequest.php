@@ -8,6 +8,7 @@ use Illuminate\Foundation\Http\FormRequest;
  * Validates a v2 profile source image upload.
  *
  * @since 2.0.0
+ * @since 2.1.0 Behavior updated for the 2.1.0 release.
  */
 class StoreSourceImageRequest extends FormRequest
 {
@@ -35,6 +36,20 @@ class StoreSourceImageRequest extends FormRequest
         return [
             'image' => ['required', 'image', 'max:5120'],
             'consent' => ['accepted'],
+        ];
+    }
+
+    /**
+     * Return localized validation messages for public source-image uploads.
+     *
+     * @return array<string, string> Validation messages keyed by rule.
+     *
+     * @since 2.1.0
+     */
+    public function messages(): array
+    {
+        return [
+            'image.max' => 'حجم تصویر نباید بیشتر از ۵ مگابایت باشد.',
         ];
     }
 }

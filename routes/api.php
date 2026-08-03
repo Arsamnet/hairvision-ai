@@ -1,9 +1,16 @@
 <?php
 
+/**
+ * Registers public API routes revised for the 2.1.0 release.
+ *
+ * @since 2.1.0
+ */
+
 use App\Http\Controllers\Api\AssetController;
 use App\Http\Controllers\Api\BootstrapController;
 use App\Http\Controllers\Api\GenerationController;
 use App\Http\Controllers\Api\IndependentGenerationController;
+use App\Http\Controllers\Api\LandingAnalyticsController;
 use App\Http\Controllers\Api\OtpController;
 use App\Http\Controllers\Api\ProfileController;
 use App\Http\Controllers\Api\System\AiModelCategoryController;
@@ -16,6 +23,7 @@ use Illuminate\Support\Facades\Route;
 
 Route::middleware(['api', ResolveTenantByHost::class])->prefix('v1')->group(function () {
     Route::get('/bootstrap', BootstrapController::class);
+    Route::post('/landing/events', LandingAnalyticsController::class)->middleware('throttle:120,1');
 
     Route::post('/auth/otp/request', [OtpController::class, 'request']);
     Route::post('/auth/otp/verify', [OtpController::class, 'verify']);

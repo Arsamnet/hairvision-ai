@@ -11,6 +11,7 @@ use Illuminate\Support\Str;
  * and icons cannot drift between navigation surfaces.
  *
  * @since 2.0.1
+ * @since 2.1.0 Behavior updated for the 2.1.0 release.
  */
 final class AdminNavigation
 {
@@ -30,11 +31,13 @@ final class AdminNavigation
      *         icon: string,
      *         permissions?: array<int, string>,
      *         planRestricted?: bool,
-     *         clinicOnly?: bool
+     *         clinicOnly?: bool,
+     *         systemOnly?: bool
      *     }>
      * }>
      *
      * @since 2.0.1
+     * @since 2.1.0 Behavior updated for the 2.1.0 release.
      */
     public static function groups(): array
     {
@@ -163,6 +166,7 @@ final class AdminNavigation
                         'active' => ['admin.system.reports.*'],
                         'icon' => 'report-management',
                         'permissions' => ['reports.management.view'],
+                        'systemOnly' => true,
                     ],
                 ],
             ],
@@ -241,6 +245,15 @@ final class AdminNavigation
                         'active' => ['admin.system.sms-gateways.*'],
                         'icon' => 'message',
                         'permissions' => ['sms_gateways.list'],
+                    ],
+                    [
+                        'key' => 'clinic-settings',
+                        'label' => __('menu.items.clinic_settings'),
+                        'route' => 'admin.clinic.settings.edit',
+                        'active' => ['admin.clinic.settings.*'],
+                        'icon' => 'settings',
+                        'permissions' => ['clinic_settings.manage'],
+                        'clinicOnly' => true,
                     ],
                     [
                         'key' => 'general',

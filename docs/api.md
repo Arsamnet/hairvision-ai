@@ -85,7 +85,17 @@ Response:
   },
   "features": {
     "upload_enabled": true
-  }
+  },
+  "categories": [
+    {
+      "id": "category-uuid",
+      "code": "hair_transplant",
+      "name": "کاشت مو",
+      "description": "خروجی‌های شبیه‌سازی کاشت مو",
+      "upload_guide_html": "<p><strong>برای شبیه‌سازی دقیق‌تر کاشت مو:</strong></p><ul><li>صورت و خط رویش کاملاً داخل کادر باشند.</li></ul>",
+      "outputs": []
+    }
+  ]
 }
 ```
 
@@ -95,11 +105,46 @@ after verification for requestable categories and outputs instead of hard-coding
 the historic three hair-transplant stages. Provider and model identifiers are
 not public feature metadata; the server selects from active model access records
 assigned to the current clinic by a system administrator.
+`upload_guide_html` is optional category-specific visitor content. It contains
+only the server-sanitized small rich-text allowlist and is intended for the
+guidance column beside the upload control; public clients must not execute it as
+template code. An empty value uses the client's generic safe photo guidance.
 
 In version `2.0.0`, `tenant.theme` contains the effective managed landing
 presentation. The `template` field is the resolved template code and
 `primary_color` follows the same fallback rules as the Blade landing shell.
 Clients cannot submit tenant or template identity to override this response.
+
+## Landing Analytics Event
+
+```http
+POST /api/v1/landing/events
+```
+
+The Blade shell provides a random 64-character visit token. Only its SHA-256
+digest is stored. The request host resolves the tenant; the endpoint never
+accepts tenant id, slug, or domain.
+
+```json
+{
+  "visit_token": "64-character-random-token",
+  "event_id": "4f7e9ff0-9e56-4d30-9b6c-7ed5a8518295",
+  "event_type": "application_clicked",
+  "category_id": "category-uuid",
+  "output_id": null
+}
+```
+
+Allowed `event_type` values are `application_clicked`, `photo_selected`,
+`phone_submitted`, `otp_verified`, `photo_uploaded`, `generation_requested`,
+and `result_viewed`. Category and output UUIDs are optional public identifiers
+and are resolved server-side. Phone, image content/path, prompt, credential,
+tenant identity, and arbitrary metadata are not accepted.
+
+The pair `(tenant_id, event_id)` is idempotent. A valid event and an unknown or
+cross-tenant visit token both return generic `202 Accepted`, so token validity is
+not disclosed. Once the public session contains a verified lead for the current
+tenant, the visit and its earlier events are linked to that lead.
 
 ## OTP Request
 
@@ -133,6 +178,11 @@ OTP responses never include the plain OTP code. Rate limit failures return
 timeout, and rejected-response failures. If every attempt fails, the response
 contains only a localized generic message; provider identity, failure details,
 credentials, OTP values, and raw responses are never exposed.
+
+The local debug/test SMS transport is eligible only outside `production` when
+both `APP_DEBUG` and the explicit `HAIRVISION_DEBUG_SMS_ENABLED` environment
+switch are true. Otherwise it is excluded from database and config fallback and
+cannot be used when real SMS gateways are disabled.
 
 ## OTP Verify
 
@@ -181,6 +231,13 @@ image: file
 consent: true
 ```
 
+The public client accepts JPEG, PNG, WebP, HEIC, and HEIF selections up to
+5 MiB. HEIC/HEIF is converted locally in the visitor's browser to a JPEG before
+this request, and the converted JPEG must also remain within 5 MiB. The converter
+is bundled with the application and loaded only for HEIC/HEIF; no selected image
+is sent to a third-party conversion service. API clients that do not use the
+public client must send a server-validated image no larger than 5 MiB.
+
 Response:
 
 ```json
@@ -222,6 +279,8 @@ consent: true
 
 Uploading a new source image archives the previous current source image for the
 same `(tenant_id, lead_id)` and makes the new image current.
+The public HEIC/HEIF selection and local JPEG-conversion contract described in
+the upload section applies to this endpoint, which is the current profile flow.
 
 ```http
 GET /api/v1/profile/categories
@@ -238,6 +297,8 @@ assignment removes the affected application from public category responses.
 Generation history is scoped to the current tenant and verified lead. Category
 outputs include public metadata such as code, title, description, order and
 credit cost; server-side prompts are never returned by public profile APIs.
+Category metadata also includes the sanitized `upload_guide_html` used by the
+visitor upload step.
 The source-image stream resolves tenant from the request host and requires the
 same verified lead session; it never exposes private storage paths.
 
@@ -551,6 +612,39 @@ Standard JSON shape:
 Page-specific filters such as `clinic_id`, `status`, `role`, `owner_scope`, or
 `provider_code` are accepted only by endpoints that own those concepts.
 
+## Dashboard Lead Management Routes
+
+Lead management is session-authenticated dashboard behavior under the canonical
+CRM path:
+
+```text
+GET    /admin/crm/leads
+GET    /admin/crm/leads/create
+POST   /admin/crm/leads
+GET    /admin/crm/leads/{lead}
+GET    /admin/crm/leads/{lead}/edit
+PUT    /admin/crm/leads/{lead}
+DELETE /admin/crm/leads/{lead}
+```
+
+Create and update accept one `status` field limited to `new`,
+`needs_follow_up`, `no_answer`, `successful`, and `canceled`. There is no
+separate CRM-stage input. Optional `age` accepts a normalized integer from zero
+through 150, and optional `city` accepts up to 120 characters. Public OTP APIs
+do not require these demographic values. Lead lists expose age in both desktop
+and responsive layouts; canceled statuses use the dashboard danger color. The
+list accepts optional `age_from` and `age_until` query parameters as inclusive
+numeric bounds.
+
+Deletion requires the policy-backed `leads.delete` permission. Clinic users are
+restricted to the active tenant; authorized system-scoped users may delete from
+the all-clinics management context. The delete action permanently removes the
+tenant-owned lead profile, CRM records, uploads, generation metadata, and
+private image files. System reporting records with nullable lead references are
+retained without that identity. A lead with any non-terminal legacy generation
+job or independent request/attempt is not deleted and receives a localized
+validation error.
+
 ## Versioning Rules
 
 - Do not make breaking changes inside `/api/v1`.
@@ -570,16 +664,75 @@ matching system permissions:
 GET    /admin/settings/templates
 GET    /admin/settings/templates/create
 POST   /admin/settings/templates
-GET    /admin/settings/templates/clinics
-PUT    /admin/settings/templates/clinics/{clinic}
 GET    /admin/settings/templates/{landingTemplate}/edit
 PUT    /admin/settings/templates/{landingTemplate}
-PATCH  /admin/settings/templates/{landingTemplate}/default
-DELETE /admin/settings/templates/{landingTemplate}
 ```
 
-These routes edit trusted administrator-authored HTML and assignments. They are
-not public API contracts and must never be exposed to visitor sessions.
+These routes edit trusted administrator-authored HTML only. Template management
+does not expose clinic assignment, default-selection, or delete operations and
+must never be exposed to visitor sessions.
+
+In addition to header/body/footer fragments, the form manages SEO title,
+description, primary share image, an allowlisted robots value, and separate
+head/body tracker snippets. Tracker snippets accept only secure analytics tags;
+ordinary template fragments still reject external assets and scripts. Tracker
+code is trusted system-administrator code, must contain no private visitor data
+or credentials, and must follow the deployment's consent/cookie policy.
+
+Clinic creation payloads under `/admin/settings/clinics` do not accept
+`template_id`; a new or unassigned clinic resolves the active default template.
+Clinic update payloads require `template_id`, and the id must reference an
+active template; both the edit-form options and server validation exclude
+inactive templates. Clinic/domain persistence and the explicit
+`tenant_theme_settings` assignment are atomic, set centralized template content
+active, and preserve legacy theme fields. The clinic's public host and
+`/api/v1/bootstrap` resolve the effective template on the next request.
+
+The template HTML fields accept the exact variables
+`{{ clinic.back_link.title }}`, `{{ clinic.back_link.url }}`, and
+`{{ clinic.back_link.target }}` only as one complete secure anchor pattern.
+Unknown/partial variables, variables inside `script` or `style`, an URL/target
+outside its quoted attribute, or omission of `rel="noopener noreferrer"` are
+validation errors.
+
+The tenant-owned values injected into that pattern are managed separately by a
+clinic administrator with `clinic_settings.manage`:
+
+```text
+GET /admin/settings/clinic
+PUT /admin/settings/clinic/landing-link
+```
+
+The update payload contains required `back_link_title`, an HTTP(S)
+`back_link_url`, and `back_link_target` limited to `_self` or `_blank`. Tenant
+identity is taken only from the authenticated `adminTenant` context and is not
+accepted in the payload. These are dashboard routes, not public `/api/v1`
+endpoints. The settings page is composed of independent section forms; future
+sections use their own update routes and save actions instead of one shared
+payload.
+
+## Dashboard Performance Report Routes
+
+```text
+GET /admin/reports/performance
+GET /admin/reports/performance/export
+GET /admin/reports/management
+```
+
+The first two routes require `reports.user.view` and accept optional normalized
+Jalali `date_from` and `date_until` query values. Clinic callers also require an
+active clinic context; their HTML report and UTF-8 CSV are tenant-scoped and use
+landing-visit acquisition cohorts for monthly funnel and application conversion
+metrics. All monthly labels use Jalali `YYYY/MM`, including CSV rows. The clinic
+dashboard reuses the same cohort service for a trailing seven-calendar-day
+summary and compact daily chart; its full-report link is permission-aware. The
+management route requires `reports.management.view` plus system scope and is
+the only view that returns a cross-clinic comparison table.
+
+For system-scoped callers, the performance HTML and export also accept an
+optional `clinic_id`. Omitting it produces an authorized aggregate across
+all clinics; providing it uses that clinic's tenant-scoped queries. Clinic users
+cannot submit this filter and always remain bound to `adminTenant`.
 
 ## Dashboard Guide Routes
 
@@ -650,6 +803,16 @@ rows with view/edit actions and one lifecycle action. Unused categories may be
 deleted. Categories referenced by models, plans, subscriptions, credit ledger
 rows, or generation requests must be archived instead of deleted so historical
 records keep their stable category code.
+
+System category create/update payloads may include nullable
+`upload_guide_html` up to 20,000 characters. The dashboard supplies a visual
+WYSIWYG/source editor, and the server strips scripts, event handlers, embeds,
+unsafe link schemes, and unsupported markup before persistence and response.
+The multipart dashboard form also accepts a validated `card_image` upload. Its
+edit form exposes `remove_card_image=1` as an explicit alternative to uploading
+a replacement; the two inputs are mutually exclusive. Only dashboard uploads
+under `/storage/category-cards/` are removed from storage, while seeded local
+theme JPGs remain read-only assets.
 
 Dashboard-only category pages:
 

@@ -35,6 +35,12 @@ use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
+/**
+ * Verifies the tenant-scoped public HairVision visitor workflow.
+ *
+ * @since 1.0.0
+ * @since 2.1.0 Coverage expanded for landing usability and analytics behavior.
+ */
 class HairVisionMvpTest extends TestCase
 {
     use RefreshDatabase;
@@ -160,6 +166,7 @@ class HairVisionMvpTest extends TestCase
 
         $cssFiles = [
             $manifest['resources/css/app.css']['file'],
+            $manifest['resources/css/landing-icons.css']['file'],
             ...$manifest['resources/js/app.js']['css'],
         ];
 
@@ -260,9 +267,33 @@ class HairVisionMvpTest extends TestCase
             ->assertSee('id="otpEntryPanel" class="hidden', false)
             ->assertSee('id="mobileError"', false)
             ->assertSee('id="outputChoicePanel"', false)
+            ->assertSee('id="outputOptions" class="mt-3 grid grid-cols-3 gap-2 sm:grid-cols-2 sm:gap-3 lg:grid-cols-3 xl:grid-cols-4"', false)
+            ->assertSee('id="newImageUpload"', false)
+            ->assertSee('آپلود تصویر جدید')
+            ->assertSee('id="uploadGuidePanel"', false)
+            ->assertSee('id="uploadGuideContent"', false)
+            ->assertSee('id="stepProgressTrack"', false)
+            ->assertSee('role="progressbar"', false)
+            ->assertSee('class="hv-stepper"', false)
+            ->assertSee('class="flow-step hv-enter mb-0!', false)
+            ->assertSee('class="hv-upload-composer"', false)
+            ->assertSee('id="uploadDropZone"', false)
+            ->assertSee('id="imageSelectionPreview"', false)
+            ->assertSee('accept="image/jpeg,image/png,image/webp,image/heic,image/heif,.heic,.heif"', false)
+            ->assertSee('aria-labelledby="imageInputLabel" aria-describedby="imageRequirements imagePreparationStatus uploadError"', false)
+            ->assertSee('JPG، PNG، WEBP، HEIC یا HEIF تا ۵ مگابایت')
+            ->assertSee('تصاویر آیفون پیش از ارسال، داخل مرورگر به JPG تبدیل می‌شوند.')
+            ->assertSee('id="imagePreparationStatus"', false)
+            ->assertSee('id="uploadError" class="hidden', false)
+            ->assertSee('role="alert" aria-live="assertive"', false)
+            ->assertSee('class="hv-button hv-button-primary hv-action-control hv-mobile-action', false)
+            ->assertSee('class="hv-button hv-button-secondary hv-button-compact inline-flex"', false)
+            ->assertSee('@keyframes hv-ai-border-flow', false)
+            ->assertSee('id="continueToPhone" type="button"', false)
+            ->assertSee('disabled>ادامه و تایید شماره', false)
             ->assertSee('روی هر خروجی بزنید')
-            ->assertSee('/theme/category-icons/hair-transplant.svg', false)
-            ->assertSee('/theme/category-icons/eyebrow-transplant.svg', false)
+            ->assertSee('/theme/category-images/hair-transplant.jpg', false)
+            ->assertSee('/theme/category-images/eyebrow-transplant.jpg', false)
             ->assertDontSee('/theme/landing/hair-ai-consultation.jpg', false)
             ->assertSee('ارسال مجدد کد')
             ->assertDontSee('ارسال مجدد تا')
@@ -277,11 +308,74 @@ class HairVisionMvpTest extends TestCase
         $this->assertSame(1, substr_count($response->getContent(), 'id="generationError"'));
         $this->assertStringContainsString('#landingApp button:not(:disabled)', $response->getContent());
         $this->assertStringContainsString('cursor: pointer', $response->getContent());
-        $this->assertStringContainsString("label: 'تصویر اصلی'", file_get_contents(resource_path('js/landing.js')));
-        $this->assertStringContainsString('generationDisplayItemsFromJobs', file_get_contents(resource_path('js/landing.js')));
-        $this->assertStringContainsString('items.length > 0 ? originalGalleryItem()', file_get_contents(resource_path('js/landing.js')));
-        $this->assertStringContainsString('category?.card_image_url', file_get_contents(resource_path('js/landing.js')));
-        $this->assertStringContainsString('در حال ساخت', file_get_contents(resource_path('js/landing.js')));
+        $this->assertStringContainsString('grid-template-columns: repeat(3, minmax(0, 1fr));', $response->getContent());
+        $this->assertMatchesRegularExpression('/\.hv-output-description,\s*\.hv-output-status\s*\{\s*display: none;/s', $response->getContent());
+        $this->assertStringContainsString('@media (prefers-reduced-motion: reduce)', $response->getContent());
+        $this->assertMatchesRegularExpression('/<div id="landingApp"[^>]*>\s*<section>/', $response->getContent());
+        $this->assertStringNotContainsString('.hv-app-shell', $response->getContent());
+        $this->assertStringNotContainsString('hover:-translate-y-', $response->getContent());
+        $this->assertStringNotContainsString('hover:scale-', $response->getContent());
+        $this->assertStringNotContainsString('linear-gradient(135deg, #0f172a, #111827) padding-box', $response->getContent());
+        $landingJavascript = file_get_contents(resource_path('js/landing.js'));
+
+        $this->assertStringContainsString("label: 'تصویر اصلی'", $landingJavascript);
+        $this->assertStringContainsString('generationDisplayItemsFromJobs', $landingJavascript);
+        $this->assertStringContainsString('items.length > 0 ? originalGalleryItem()', $landingJavascript);
+        $this->assertStringContainsString('category?.card_image_url', $landingJavascript);
+        $this->assertStringContainsString('category?.upload_guide_html', $landingJavascript);
+        $this->assertStringContainsString('sanitizeRichTextHtml', $landingJavascript);
+        $this->assertStringContainsString('MAX_IMAGE_SIZE_BYTES', $landingJavascript);
+        $this->assertStringContainsString("import('heic-to/csp')", $landingJavascript);
+        $this->assertStringContainsString("'image/heic'", $landingJavascript);
+        $this->assertStringContainsString("'image/heif'", $landingJavascript);
+        $this->assertStringContainsString('STATE.selectedSourceFile', $landingJavascript);
+        $this->assertStringContainsString('حجم فایل انتخاب‌شده', $landingJavascript);
+        $this->assertStringContainsString('hasSourceImageSelection', $landingJavascript);
+        $this->assertStringContainsString("['dragenter', 'dragover']", $landingJavascript);
+        $this->assertStringContainsString('hv-output-option', $landingJavascript);
+        $this->assertStringContainsString('hv-output-title', $landingJavascript);
+        $this->assertStringContainsString('hv-output-description', $landingJavascript);
+        $this->assertStringContainsString('hv-output-status', $landingJavascript);
+        $this->assertStringContainsString("button.setAttribute('aria-pressed', selected ? 'true' : 'false')", $landingJavascript);
+        $this->assertStringContainsString("if (nextStep.classList.contains('hidden'))", $landingJavascript);
+        $this->assertStringContainsString('focus({ preventScroll: true })', $landingJavascript);
+        $this->assertStringNotContainsString('window.scrollTo', $landingJavascript);
+        $this->assertStringContainsString("continueButton.textContent = STATE.verified ? 'ادامه بدون تایید مجدد'", $landingJavascript);
+        $this->assertStringContainsString('await beginGenerationProcess(continueButton)', $landingJavascript);
+        $this->assertStringContainsString("sessionStorage.getItem(STORAGE_KEYS.verified) === '1'", $landingJavascript);
+        $this->assertStringContainsString('STATE.verified = STATE.serverSessionVerified && browserSessionVerified', $landingJavascript);
+        $this->assertStringContainsString('const hydrated = STATE.verified ? await hydrateVerifiedProfile() : false', $landingJavascript);
+        $this->assertStringContainsString("document.getElementById('newImageUpload').addEventListener('click', startNewImageJourney)", $landingJavascript);
+        $this->assertStringContainsString('function cancelPolling()', $landingJavascript);
+        $this->assertStringContainsString("if (pollSequence !== STATE.pollSequence) return 'background'", $landingJavascript);
+        $this->assertStringContainsString('refreshActiveGenerations(expectedPollSequence = null)', $landingJavascript);
+        $this->assertStringContainsString('expectedPollSequence !== STATE.pollSequence', $landingJavascript);
+        $this->assertStringContainsString('hv-button hv-button-secondary hv-button-compact', $landingJavascript);
+        $this->assertStringContainsString('hv-result-card hv-enter flex h-full flex-col', $landingJavascript);
+        $this->assertStringContainsString('data-result-card-body', $landingJavascript);
+        $this->assertStringContainsString('class="mt-auto flex flex-wrap items-center justify-between gap-2 border-t border-zinc-100 px-3 py-2.5" data-result-card-footer', $landingJavascript);
+        $this->assertMatchesRegularExpression('/<footer[^>]+data-result-card-footer>\s*\$\{status\}\s*\$\{downloadAction\}\s*<\/footer>/', $landingJavascript);
+        $this->assertStringNotContainsString('hover:-translate-y-', $landingJavascript);
+        $this->assertStringContainsString('در حال ساخت', $landingJavascript);
+        $this->assertLessThan(
+            strpos($landingJavascript, "import('heic-to/csp')"),
+            strpos($landingJavascript, 'file.size > MAX_IMAGE_SIZE_BYTES'),
+            'The browser must reject oversized files before loading the HEIC converter or starting an upload.',
+        );
+
+        preg_match('/function resetGenerationProgress\(.*?(?=\n    function startNewImageJourney)/s', $landingJavascript, $resetGenerationMatch);
+        $this->assertNotEmpty($resetGenerationMatch);
+        $this->assertStringNotContainsString('STATE.sourceImageId = null', $resetGenerationMatch[0]);
+        $this->assertMatchesRegularExpression('/function startNewImageJourney\(\).*?STATE\.sourceImageId = null/s', $landingJavascript);
+
+        preg_match("/document\.getElementById\('continueToPhone'\)\.addEventListener\('click'.*?document\.getElementById\('newImageUpload'\)/s", $landingJavascript, $verifiedReuseMatch);
+        $this->assertNotEmpty($verifiedReuseMatch);
+        $this->assertStringContainsString('if (STATE.verified)', $verifiedReuseMatch[0]);
+        $this->assertLessThan(
+            strpos($verifiedReuseMatch[0], 'UI.showStep(3)'),
+            strpos($verifiedReuseMatch[0], 'await beginGenerationProcess(continueButton)'),
+            'A verified visitor must upload the next image before the OTP-step fallback is considered.',
+        );
     }
 
     public function test_otp_request_sends_system_ippanel_pattern_when_configured(): void
@@ -409,7 +503,7 @@ class HairVisionMvpTest extends TestCase
 
         $lead = Lead::query()->where('tenant_id', $tenant->id)->firstOrFail();
         $this->assertNotNull($lead->phone_verified_at);
-        $this->assertSame('verified', $lead->status);
+        $this->assertSame('new', $lead->status);
     }
 
     public function test_otp_accepts_supported_digit_scripts_and_rejects_other_characters(): void
@@ -481,6 +575,18 @@ class HairVisionMvpTest extends TestCase
                 'consent' => '1',
             ])
             ->assertJsonValidationErrors('image');
+
+        $this->withSession(['lead_id' => $lead->id])
+            ->forHost('aria.hairvision-ai.test')
+            ->post('/api/v1/profile/source-image', [
+                'image' => UploadedFile::fake()->image('too-large.jpg', 100, 100)->size(5121),
+                'consent' => '1',
+            ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('image')
+            ->assertJsonPath('errors.image.0', 'حجم تصویر نباید بیشتر از ۵ مگابایت باشد.');
+
+        $this->assertDatabaseCount('lead_source_images', 0);
     }
 
     public function test_generation_requires_verified_lead_session_with_json_message(): void
@@ -1503,8 +1609,7 @@ class HairVisionMvpTest extends TestCase
             'phone' => '09124444444',
             'phone_normalized' => '09124444444',
             'phone_verified_at' => now(),
-            'status' => 'verified',
-            'crm_stage' => 'needs_follow_up',
+            'status' => 'needs_follow_up',
             'crm_last_note_at' => now(),
         ]);
 
@@ -1516,7 +1621,7 @@ class HairVisionMvpTest extends TestCase
         ]);
 
         $this->assertSame('Back to clinic', $theme->back_link_title);
-        $this->assertSame('needs_follow_up', $lead->crm_stage);
+        $this->assertSame('needs_follow_up', $lead->status);
         $this->assertSame($tenant->id, $note->tenant_id);
         $this->assertSame($lead->id, $note->lead_id);
     }

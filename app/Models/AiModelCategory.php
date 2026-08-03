@@ -4,7 +4,9 @@ namespace App\Models;
 
 use App\Models\Concerns\HasUuid;
 use App\Support\AdminIcon;
+use App\Support\Html\SimpleRichTextSanitizer;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -14,6 +16,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * System-owned product category for AI image generation services.
  *
  * @since 2.0.0
+ * @since 2.1.0 Behavior updated for the 2.1.0 release.
  */
 class AiModelCategory extends Model
 {
@@ -23,6 +26,7 @@ class AiModelCategory extends Model
         'code',
         'name',
         'description',
+        'upload_guide_html',
         'status',
         'sort_order',
         'icon',
@@ -86,6 +90,21 @@ class AiModelCategory extends Model
     public function setIconAttribute(mixed $value): void
     {
         $this->attributes['icon'] = AdminIcon::normalizeForStorage($value);
+    }
+
+    /**
+     * Sanitize public upload guidance before persistence and every read.
+     *
+     * @return Attribute<string, string> Sanitized rich-text attribute.
+     *
+     * @since 2.1.0
+     */
+    protected function uploadGuideHtml(): Attribute
+    {
+        return Attribute::make(
+            get: fn (?string $value): string => app(SimpleRichTextSanitizer::class)->sanitize($value),
+            set: fn (?string $value): string => app(SimpleRichTextSanitizer::class)->sanitize($value),
+        );
     }
 
     /**
