@@ -69,7 +69,7 @@ echo LaravelVsCode::outputMarker('START_OUTPUT');
             'php_version' => phpversion(),
             'laravel_version' => app()->version(),
         ]);
-
+    
 echo LaravelVsCode::outputMarker('END_OUTPUT');
 
 exit(0);

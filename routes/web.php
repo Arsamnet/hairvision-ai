@@ -193,9 +193,13 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
             Route::put('/ai-applications/{category}/outputs/{output}', [AiModelCategoryController::class, 'updateOutput'])->middleware('permission:ai_model_category_outputs.manage')->name('system.ai-model-categories.outputs.update');
             Route::delete('/ai-applications/{category}/outputs/{output}', [AiModelCategoryController::class, 'destroyOutput'])->middleware('permission:ai_model_category_outputs.manage')->name('system.ai-model-categories.outputs.destroy');
 
+            /*
+             * @since 2.1.2 Adds system-only usage diagnostics for AI model runs.
+             */
             Route::get('/ai-models', [AiModelAccessController::class, 'index'])->middleware('permission:ai_models.list')->name('ai-models.index');
             Route::post('/ai-models', [AiModelAccessController::class, 'store'])->middleware('permission:ai_models.create')->name('ai-models.store');
             Route::get('/ai-models/{aiModelAccess}/edit', [AiModelAccessController::class, 'edit'])->middleware('permission:ai_models.edit')->name('ai-models.edit');
+            Route::get('/ai-models/{aiModelAccess}/usage-logs/{usageLog}', [AiModelAccessController::class, 'showUsageLog'])->middleware('permission:ai_models.view')->name('ai-models.usage-logs.show');
             Route::get('/ai-models/{aiModelAccess}', [AiModelAccessController::class, 'show'])->middleware('permission:ai_models.view')->name('ai-models.show');
             Route::put('/ai-models/{aiModelAccess}', [AiModelAccessController::class, 'update'])->middleware('permission:ai_models.edit')->name('ai-models.update');
             Route::delete('/ai-models/{aiModelAccess}', [AiModelAccessController::class, 'destroy'])->middleware('permission:ai_models.delete')->name('ai-models.destroy');

@@ -99,7 +99,7 @@ echo LaravelVsCode::outputMarker('START_OUTPUT');
                     'path' => storage_path(),
                 ],
         ]);
-
+        
 echo LaravelVsCode::outputMarker('END_OUTPUT');
 
 exit(0);

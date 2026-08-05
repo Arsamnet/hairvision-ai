@@ -1,6 +1,8 @@
 @php
+    // @since 2.1.2 Optionally exposes safe system-only diagnostics from model usage rows.
     $showClinic = $showClinic ?? false;
     $showModel = $showModel ?? false;
+    $showDiagnostics = $showDiagnostics ?? false;
     $columnCount = 6 + ($showClinic ? 1 : 0) + ($showModel ? 1 : 0);
 @endphp
 
@@ -32,14 +34,25 @@
                             ? $log->lead
                             : null;
                         $canViewLead = $usageLead && auth()->user()?->can('view', $usageLead);
+                        $canViewDiagnostics = $showDiagnostics
+                            && auth()->user()?->isSystemScoped()
+                            && $log->aiModelAccess
+                            && auth()->user()?->can('view', $log->aiModelAccess);
                     @endphp
                     <tr class="transition hover:bg-zinc-50/80">
                         <td class="px-4 py-3 align-top">
-                            @if($canViewLead)
+                            @if($canViewLead || $canViewDiagnostics)
                                 <x-admin.table.action-menu>
-                                    <x-admin.table.action-item :href="route('admin.leads.show', $usageLead)" icon="eye">
-                                        {{ __('leads.details') }}
-                                    </x-admin.table.action-item>
+                                    @if($canViewDiagnostics)
+                                        <x-admin.table.action-item :href="route('admin.ai-models.usage-logs.show', [$log->aiModelAccess, $log])" icon="chart">
+                                            {{ __('ai_models.usage_diagnostics_action') }}
+                                        </x-admin.table.action-item>
+                                    @endif
+                                    @if($canViewLead)
+                                        <x-admin.table.action-item :href="route('admin.leads.show', $usageLead)" icon="eye">
+                                            {{ __('leads.details') }}
+                                        </x-admin.table.action-item>
+                                    @endif
                                 </x-admin.table.action-menu>
                             @endif
                         </td>
@@ -85,6 +98,10 @@
                     ? $log->lead
                     : null;
                 $canViewLead = $usageLead && auth()->user()?->can('view', $usageLead);
+                $canViewDiagnostics = $showDiagnostics
+                    && auth()->user()?->isSystemScoped()
+                    && $log->aiModelAccess
+                    && auth()->user()?->can('view', $log->aiModelAccess);
             @endphp
             <x-admin.mobile-list.card>
                 <div class="admin-mobile-list-card-header">
@@ -115,6 +132,14 @@
                         <span dir="ltr">{{ number_format($log->credit_consumed) }}</span>
                     </x-admin.mobile-list.field>
                 </dl>
+
+                @if($canViewDiagnostics)
+                    <div class="mt-4">
+                        <x-admin.button :href="route('admin.ai-models.usage-logs.show', [$log->aiModelAccess, $log])" variant="secondary" size="compact-sm" icon="chart">
+                            {{ __('ai_models.usage_diagnostics_action') }}
+                        </x-admin.button>
+                    </div>
+                @endif
             </x-admin.mobile-list.card>
         @empty
             <x-admin.mobile-list.card>

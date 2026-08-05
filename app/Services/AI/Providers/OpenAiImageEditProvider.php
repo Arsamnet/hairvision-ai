@@ -28,6 +28,7 @@ class OpenAiImageEditProvider implements AiModelProviderInterface
      * @return AiModelResponseData Normalized provider response.
      *
      * @since 2.0.2
+     * @since 2.1.2 Returns safe provider-error summaries for usage diagnostics.
      */
     public function run(AiModelRequestData $request): AiModelResponseData
     {
@@ -98,12 +99,14 @@ class OpenAiImageEditProvider implements AiModelProviderInterface
         }
 
         if (! $response->successful()) {
+            $providerError = $this->safeProviderError($response, [$apiKey, $prompt, $path]);
+
             Log::warning('OpenAI image edit request failed with HTTP error.', $this->logContext($request, $stageKey, $prompt) + [
                 'http_status' => $response->status(),
                 'request_id' => $this->requestId($response),
                 'response_body_length' => strlen($response->body()),
                 'retry_after_seconds' => $response->status() === 429 ? $this->retryAfterSeconds($response) : null,
-                'provider_error' => $this->safeProviderError($response, [$apiKey, $prompt, $path]),
+                'provider_error' => $providerError,
             ]);
 
             if ($response->status() === 429) {
@@ -114,6 +117,9 @@ class OpenAiImageEditProvider implements AiModelProviderInterface
                     [
                         'http_status' => $response->status(),
                         'request_id' => $this->requestId($response),
+                        'response_body_length' => strlen($response->body()),
+                        'retry_after_seconds' => $this->retryAfterSeconds($response),
+                        'provider_error' => $providerError,
                     ],
                     retryable: true,
                     retryAfterSeconds: $this->retryAfterSeconds($response),
@@ -127,6 +133,8 @@ class OpenAiImageEditProvider implements AiModelProviderInterface
                 [
                     'http_status' => $response->status(),
                     'request_id' => $this->requestId($response),
+                    'response_body_length' => strlen($response->body()),
+                    'provider_error' => $providerError,
                 ],
             );
         }

@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\AiModels\StoreAiModelAccessRequest;
 use App\Http\Requests\Admin\AiModels\UpdateAiModelAccessRequest;
 use App\Models\AiModelAccess;
+use App\Models\AiModelUsageLog;
 use App\Models\Tenant;
 use App\Services\AI\AiModelManager;
 use App\Services\AI\AiModelResolver;
@@ -72,6 +73,7 @@ class AiModelAccessController extends Controller
      *
      * @since 1.0.0
      * @since 2.0.0 Behavior updated for the version 2.0.0 release.
+     * @since 2.1.2 Enables system-only diagnostic actions for usage logs.
      */
     public function show(
         Request $request,
@@ -86,6 +88,36 @@ class AiModelAccessController extends Controller
                 ->load(['clinics', 'creator', 'updater'])
                 ->loadCount(['usageLogs', 'usageLogs as completed_usage_logs_count' => fn ($query) => $query->where('status', 'completed')]),
             'usageLogs' => $usageReports->forModel($aiModelAccess),
+        ]);
+    }
+
+    /**
+     * Display safe diagnostics for one model usage log.
+     *
+     * @param  Request  $request  Incoming HTTP request.
+     * @param  AiModelAccess  $aiModelAccess  The ai model access value.
+     * @param  AiModelUsageLog  $usageLog  The usage log value.
+     * @param  AiModelResolver  $resolver  The resolver value.
+     * @return View Rendered response view.
+     *
+     * @since 2.1.2
+     */
+    public function showUsageLog(
+        Request $request,
+        AiModelAccess $aiModelAccess,
+        AiModelUsageLog $usageLog,
+        AiModelResolver $resolver,
+    ): View {
+        Gate::authorize('view', $aiModelAccess);
+        abort_unless($request->user()?->isSystemScoped(), 403);
+        abort_unless((int) $usageLog->ai_model_access_id === (int) $aiModelAccess->id, 404);
+
+        $usageLog->load(['clinic', 'lead', 'user', 'aiModelAccess']);
+
+        return view('admin.ai-models.usage-log', $this->formData($request, $resolver) + [
+            'aiModelAccess' => $aiModelAccess,
+            'usageLog' => $usageLog,
+            'metadataJson' => json_encode($usageLog->metadata_json ?? [], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT),
         ]);
     }
 

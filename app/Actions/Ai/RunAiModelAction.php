@@ -14,6 +14,7 @@ use App\Services\AI\AiModelResolver;
 use App\Services\AI\ApiImagePreprocessor;
 use App\Services\AI\InputImageProcessingSettings;
 use App\Support\SafeThrowableContext;
+use Carbon\CarbonInterface;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
@@ -60,6 +61,7 @@ class RunAiModelAction
      * @since 1.0.0
      * @since 2.0.0 Behavior updated for the version 2.0.0 release.
      * @since 2.1.1 Records successful model-credit usage even for unlimited provider access.
+     * @since 2.1.2 Stores safe provider diagnostics for system model usage review.
      */
     public function execute(
         Tenant $clinic,
@@ -86,15 +88,15 @@ class RunAiModelAction
             'usage_category_key' => $usageCategoryKey,
             'status' => 'started',
             'request_reference' => (string) Str::uuid(),
-            'metadata_json' => [
-                'model_key' => $access->model_key,
-            ],
+            'metadata_json' => $this->usageMetadata($access, $usageCategoryKey, $payload),
             'started_at' => now(),
         ]);
 
         $temporaryInput = null;
         $providerCreditReserved = false;
         $providerCallStarted = false;
+        $providerStartedAt = null;
+        $providerFinishedAt = null;
         $credentials = [];
 
         try {
@@ -112,6 +114,10 @@ class RunAiModelAction
                 (string) $log->request_reference,
             );
 
+            $log->update([
+                'metadata_json' => $this->usageMetadata($access, $usageCategoryKey, $payload),
+            ]);
+
             $requestData = new AiModelRequestData(
                 clinic: $clinic,
                 access: $access,
@@ -124,9 +130,12 @@ class RunAiModelAction
                 user: $user,
             );
 
+            $providerStartedAt = now();
             $providerCallStarted = true;
             $response = $provider->run($requestData);
+            $providerFinishedAt = now();
         } catch (Throwable $exception) {
+            $providerFinishedAt = $providerCallStarted ? now() : null;
             $this->releaseProviderCredit($access, $providerCreditReserved);
             $errorCode = $providerCallStarted ? 'provider_exception' : 'provider_preflight_exception';
             $redactValues = array_values(array_filter([
@@ -137,6 +146,7 @@ class RunAiModelAction
                     static fn (mixed $value): bool => is_string($value),
                 )),
             ], static fn (mixed $value): bool => is_string($value) && $value !== ''));
+            $exceptionContext = SafeThrowableContext::make($exception, $redactValues);
 
             Log::warning('AI model execution failed before a provider response was returned.', [
                 'request_reference' => $log->request_reference,
@@ -150,12 +160,20 @@ class RunAiModelAction
                 'generation_job_uuid' => $payload['generation_job_id'] ?? null,
                 'provider_call_started' => $providerCallStarted,
                 'reason_code' => $errorCode,
-                'exception' => SafeThrowableContext::make($exception, $redactValues),
+                'exception' => $exceptionContext,
             ]);
             $log->update([
                 'status' => 'failed',
                 'error_code' => $errorCode,
                 'error_message' => __('ai_models.errors.provider_failed'),
+                'metadata_json' => $this->usageMetadata(
+                    $access,
+                    $usageCategoryKey,
+                    $payload,
+                    $providerStartedAt,
+                    $providerFinishedAt,
+                    exceptionContext: $exceptionContext,
+                ),
                 'failed_at' => now(),
             ]);
 
@@ -179,7 +197,14 @@ class RunAiModelAction
                 'response_reference' => $response->providerReference,
                 'error_code' => $response->errorCode,
                 'error_message' => $response->safeErrorMessage,
-                'metadata_json' => $response->metadata,
+                'metadata_json' => $this->usageMetadata(
+                    $access,
+                    $usageCategoryKey,
+                    $payload,
+                    $providerStartedAt,
+                    $providerFinishedAt,
+                    $response,
+                ),
                 'failed_at' => now(),
             ]);
 
@@ -189,7 +214,7 @@ class RunAiModelAction
         $creditConsumed = max(1, $response->creditConsumed);
 
         try {
-            DB::transaction(function () use ($access, $log, $response, $creditConsumed, $providerCreditReserved): void {
+            DB::transaction(function () use ($access, $log, $payload, $providerStartedAt, $providerFinishedAt, $response, $usageCategoryKey, $creditConsumed, $providerCreditReserved): void {
                 $lockedAccess = AiModelAccess::query()
                     ->lockForUpdate()
                     ->findOrFail($access->id);
@@ -216,7 +241,14 @@ class RunAiModelAction
                     'status' => $response->status,
                     'credit_consumed' => $creditConsumed,
                     'response_reference' => $response->providerReference,
-                    'metadata_json' => $response->metadata,
+                    'metadata_json' => $this->usageMetadata(
+                        $access,
+                        $usageCategoryKey,
+                        $payload,
+                        $providerStartedAt,
+                        $providerFinishedAt,
+                        $response,
+                    ),
                     'completed_at' => now(),
                 ]);
 
@@ -230,6 +262,112 @@ class RunAiModelAction
         }
 
         return $response;
+    }
+
+    /**
+     * Build safe operational metadata for model usage diagnostics.
+     *
+     * The payload summary intentionally omits prompts, credentials, raw provider
+     * payloads, private paths, image bytes, cookies, and bearer tokens.
+     *
+     * @param  AiModelAccess  $access  Executed model access.
+     * @param  string  $usageCategoryKey  Usage category key.
+     * @param  array<string, mixed>  $payload  Provider payload before redaction.
+     * @param  CarbonInterface|null  $providerStartedAt  Provider call start time.
+     * @param  CarbonInterface|null  $providerFinishedAt  Provider call finish time.
+     * @param  AiModelResponseData|null  $response  Normalized provider response.
+     * @param  array<string, mixed>|null  $exceptionContext  Safe exception diagnostics.
+     * @return array<string, mixed> Safe structured metadata.
+     *
+     * @since 2.1.2
+     */
+    private function usageMetadata(
+        AiModelAccess $access,
+        string $usageCategoryKey,
+        array $payload,
+        ?CarbonInterface $providerStartedAt = null,
+        ?CarbonInterface $providerFinishedAt = null,
+        ?AiModelResponseData $response = null,
+        ?array $exceptionContext = null,
+    ): array {
+        $providerElapsedMs = $providerStartedAt && $providerFinishedAt
+            ? max(0, $providerStartedAt->diffInMilliseconds($providerFinishedAt))
+            : null;
+
+        $metadata = [
+            'model_key' => $access->model_key,
+            'usage_category' => $usageCategoryKey,
+            'request' => $this->safeRequestMetadata($payload),
+            'timing' => array_filter([
+                'provider_call_started_at' => $providerStartedAt?->toJSON(),
+                'provider_call_finished_at' => $providerFinishedAt?->toJSON(),
+                'provider_elapsed_ms' => $providerElapsedMs,
+            ], static fn (mixed $value): bool => $value !== null && $value !== []),
+        ];
+
+        if ($response instanceof AiModelResponseData) {
+            $metadata['provider_response'] = array_filter([
+                'successful' => $response->successful,
+                'status' => $response->status,
+                'provider_reference' => $response->providerReference,
+                'error_code' => $response->errorCode,
+                'safe_error_message' => $response->safeErrorMessage,
+                'credit_consumed' => $response->creditConsumed,
+                'retryable' => $response->retryable,
+                'retry_after_seconds' => $response->retryAfterSeconds,
+                'metadata' => $response->metadata,
+            ], static fn (mixed $value): bool => $value !== null && $value !== []);
+        }
+
+        if (is_array($exceptionContext)) {
+            $metadata['exception'] = $exceptionContext;
+        }
+
+        return array_filter($metadata, static fn (mixed $value): bool => $value !== null && $value !== []);
+    }
+
+    /**
+     * Summarize only safe request metadata for dashboard diagnostics.
+     *
+     * @param  array<string, mixed>  $payload  Provider payload before redaction.
+     * @return array<string, mixed> Safe request metadata.
+     *
+     * @since 2.1.2
+     */
+    private function safeRequestMetadata(array $payload): array
+    {
+        return array_filter([
+            'generation_request_uuid' => $this->stringPayload($payload, 'generation_request_id'),
+            'generation_attempt_uuid' => $this->stringPayload($payload, 'generation_attempt_id'),
+            'generation_job_uuid' => $this->stringPayload($payload, 'generation_job_id'),
+            'source_image_uuid' => $this->stringPayload($payload, 'source_image_id'),
+            'output_key' => $this->stringPayload($payload, 'period'),
+            'prompt_length' => is_string($payload['prompt'] ?? null) ? mb_strlen($payload['prompt']) : null,
+            'input_image' => array_filter([
+                'mime' => $this->stringPayload($payload, 'upload_mime'),
+                'size' => is_numeric($payload['upload_size'] ?? null) ? (int) $payload['upload_size'] : null,
+                'width' => is_numeric($payload['upload_width'] ?? null) ? (int) $payload['upload_width'] : null,
+                'height' => is_numeric($payload['upload_height'] ?? null) ? (int) $payload['upload_height'] : null,
+            ], static fn (mixed $value): bool => $value !== null && $value !== []),
+        ], static fn (mixed $value): bool => $value !== null && $value !== []);
+    }
+
+    /**
+     * Return a safe scalar payload value.
+     *
+     * @param  array<string, mixed>  $payload  Provider payload before redaction.
+     * @param  string  $key  Payload key.
+     * @return string|null Safe string value.
+     *
+     * @since 2.1.2
+     */
+    private function stringPayload(array $payload, string $key): ?string
+    {
+        $value = $payload[$key] ?? null;
+
+        return is_scalar($value) && $value !== ''
+            ? (string) $value
+            : null;
     }
 
     /**

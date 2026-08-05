@@ -193,9 +193,11 @@
             </x-admin.mobile-list>
         </x-admin.card>
 
+        {{-- @since 2.1.2 Enables system-only diagnostic actions for usage rows. --}}
         @include('admin.ai-models.partials.usage-logs', [
             'showClinic' => true,
             'showModel' => false,
+            'showDiagnostics' => true,
         ])
     </div>
 @endsection
